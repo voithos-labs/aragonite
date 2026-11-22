@@ -93,6 +93,25 @@ export function ensureUnsharedChild(
 	return parent.children![index];
 }
 
+/** Unshare one direct child and write it with `write`: a shared child's copy is written before
+ *  the tree holds it, so a write over many siblings reads none back through the `$state` proxy. */
+export function writeUnsharedChild(
+	parent: CstNode | NodeParent,
+	index: number,
+	sharing: SharingState,
+	write: (child: CstNode) => void
+): void {
+	const child = parent.children![index];
+	if (!child || !sharing.isShared(child)) {
+		write(ensureUnsharedChild(parent, index, sharing));
+		return;
+	}
+	const copy = copyNode(child, sharing);
+	write(copy);
+	// Not re-read: nothing uses the copy once the tree holds it (file header).
+	spliceList(parent, index, 1, [copy]);
+}
+
 /** Unshare every direct child of an owned parent (e.g. table rows before a whole-table rebuild). */
 export function ensureUnsharedChildren(parent: CstNode, sharing: SharingState): void {
 	const count = parent.children?.length ?? 0;

@@ -6,7 +6,7 @@ import { metadataIfKind, metadataOf } from '../../core/nodes';
 import type { SharingState } from '../sharing';
 import { writeContainerRaw } from '../../schema/container-writer';
 import type { GrammarView } from '../../schema/block-openers';
-import { ensureUnsharedChild } from '../unshare';
+import { writeUnsharedChild } from '../unshare';
 
 // ── Marker reads ─────────────────────────────────────────────────────────────
 
@@ -48,15 +48,15 @@ export function renumberOrderedList(
 ): void {
 	if (!list.children) return;
 	if (!metadataIfKind(list, 'list')?.ordered) return;
-	// Each item's metadata and raw is written, so `ensureUnsharedChild` copies it out of the undo
-	// snapshot first.
+	// Each item is copied out of the undo snapshot and written before the tree holds it, since a
+	// write through the tree's `$state` proxy is paid once per item below the edit.
 	for (let j = Math.max(fromIndex, 1); j < list.children.length; j++) {
-		const item = ensureUnsharedChild(list, j, sharing);
 		const prevNum = parseInt(metadataOf(list.children[j - 1], 'listItem').marker, 10) || 0;
-		const meta = metadataOf(item, 'listItem');
-		const suffix = meta.marker.replace(/^\d+/, '');
-		meta.marker = String(prevNum + 1) + suffix;
-		writeContainerRaw(item, grammar);
+		writeUnsharedChild(list, j, sharing, (item) => {
+			const meta = metadataOf(item, 'listItem');
+			meta.marker = String(prevNum + 1) + meta.marker.replace(/^\d+/, '');
+			writeContainerRaw(item, grammar);
+		});
 	}
 }
 
@@ -70,10 +70,11 @@ export function renumberOrderedListFrom(
 ): void {
 	if (!metadataIfKind(list, 'list')?.ordered) return;
 	if (!list.children || list.children.length === 0) return;
-	const first = ensureUnsharedChild(list, 0, sharing);
-	const meta = metadataOf(first, 'listItem');
-	meta.marker = String(start) + (meta.marker.replace(/^\d+/, '') || '. ');
-	writeContainerRaw(first, grammar);
+	writeUnsharedChild(list, 0, sharing, (first) => {
+		const meta = metadataOf(first, 'listItem');
+		meta.marker = String(start) + (meta.marker.replace(/^\d+/, '') || '. ');
+		writeContainerRaw(first, grammar);
+	});
 	renumberOrderedList(list, 1, sharing, grammar);
 }
 
