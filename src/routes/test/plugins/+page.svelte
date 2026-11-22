@@ -257,8 +257,9 @@
 			].join('\n\n') + '\n',
 		// References to number: `b` first, then `a`, then `b` again; the last paragraph says none.
 		'note-numbers': 'A first[^b] reference.\n\nA second[^a] and[^b] again.\n\nPlain paragraph.\n',
-		// The same references, drawn as widgets.
-		'note-refs': 'A first[^b] reference.\n\nA second[^a] and[^b] again.\n\nPlain paragraph.\n',
+		// The same references, drawn as widgets, then a tag that follows a click.
+		'note-refs':
+			'A first[^b] reference.\n\nA second[^a] and[^b] again.\n\nPlain paragraph.\n\nFiled under #work today.\n',
 		// A footnote definition whose body is one editable paragraph: the container's editing,
 		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',

@@ -1,7 +1,8 @@
 /**
  * Footnote references as `inline()` widgets on `depends`, for the e2e suite that drives an inline
  * widget's key service in a real browser: each `[^label]` draws as the order its label first
- * appears in the document. Dev and e2e harness only.
+ * appears in the document. A `#tag` beside them is styled text that follows a click, recording the
+ * tag on `window.__followedTags`. Dev and e2e harness only.
  */
 import { definePlugin, inline, type Block, type WidgetProps } from '#lib/plugin.js';
 
@@ -59,9 +60,21 @@ export const noteRef = inline({
 	}
 });
 
+export const followedTag = inline({
+	name: 'tag',
+	label: 'Tag',
+	prefix: '#',
+	match: /#[a-z]+/,
+	read: (m) => ({ tag: m[0].slice(1) }),
+	sample: 'filed under #work',
+	class: 'note-refs-tag',
+	follow: ({ tag }) =>
+		void ((window as { __followedTags?: string[] }).__followedTags ??= []).push(tag)
+});
+
 export const noteRefsPlugin = definePlugin({
 	name: 'note-refs',
 	version: '1.0.0',
 	editor: '*',
-	contributes: () => ({ inlines: [noteRef] })
+	contributes: () => ({ inlines: [noteRef, followedTag] })
 });
