@@ -81,6 +81,9 @@ function countingTree() {
 
 const ITEM = 6;
 
+// An item's cost through the tree when its writer reads metadata by name; a spread costs more.
+const ITEM_TRAPS = 113;
+
 function orderedList(items: number): string {
 	return Array.from({ length: items }, (_, i) => `${i + 1}. alpha beta gamma ${i}\n`).join('');
 }
@@ -105,8 +108,7 @@ describe('renumber: what each renumbered item costs through the tree', () => {
 		const [short, long] = [await enterTraps(400), await enterTraps(800)];
 		const grew = (key: string) => (long.counts.get(key) ?? 0) - (short.counts.get(key) ?? 0);
 		expect({ marker: grew('set marker'), raw: grew('set raw') }).toEqual({ marker: 0, raw: 0 });
-		// 113 is a renumbered item's cost through the tree when its writer reads metadata by name.
-		expect((long.total() - short.total()) / 400).toBeLessThanOrEqual(113);
+		expect((long.total() - short.total()) / 400).toBeLessThanOrEqual(ITEM_TRAPS);
 	});
 });
 
@@ -144,12 +146,13 @@ async function liftTraps({ head, marker }: (typeof ADOPTIONS)[number], later: nu
 // through the tree, then numbered it through the tree again.
 describe('outdent: what each sibling the lifted item takes costs through the tree', () => {
 	it.each(ADOPTIONS)(
-		"writes no taken sibling's marker or bytes through the tree, into $shape",
+		'takes each sibling at an item’s cost, writing none through the tree, into $shape',
 		async (adoption) => {
 			configureEditorEnv({ isDev: false });
 			const [short, long] = [await liftTraps(adoption, 400), await liftTraps(adoption, 800)];
 			const grew = (key: string) => (long.counts.get(key) ?? 0) - (short.counts.get(key) ?? 0);
 			expect({ marker: grew('set marker'), raw: grew('set raw') }).toEqual({ marker: 0, raw: 0 });
+			expect((long.total() - short.total()) / 400).toBeLessThanOrEqual(ITEM_TRAPS);
 		}
 	);
 });
