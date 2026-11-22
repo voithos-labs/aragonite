@@ -1630,10 +1630,10 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '\n', caret: text(0) }
 	},
 	{
-		name: 'L4 a range from a block that takes no text to the document end adds no line',
+		name: 'L4 a range from a block that takes no text to an open end leaves its twin’s blank line',
 		source: '    a\n\n⟦    b\n\nafter⟧',
 		gesture: 'backspace',
-		expect: { source: '    a\n\n' }
+		expect: { source: '    a\n\n\n' }
 	},
 
 	// ── What a removal leaves at the document's start and in a container's opening (e2e, 2026-11-09) ──

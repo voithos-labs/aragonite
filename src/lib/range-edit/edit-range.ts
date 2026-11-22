@@ -139,7 +139,8 @@ function edited(
 		return { source, caret: { at: to, holds: 'text' }, clipboard, own };
 	}
 	if (gesture === 'place') return placeAnswer(doc, range);
-	if (typeof gesture === 'string') return answer(removalEdit(doc, from, to, gesture));
+	if (typeof gesture === 'string')
+		return answer(emptiedAtOpenEnd(doc, removalEdit(doc, from, to, gesture)));
 	// A line ending landing on a last line that has none lands as on one that has, then the break
 	// comes back off unless the line left last is blank (`syntax-tree.md` § The last line).
 	const reclosed = (at: number, text: string): RangeEditResult | null => {
@@ -159,7 +160,8 @@ function edited(
 				: { ...result, source: result.source + ending };
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
-		if (back) return answer(back);
+		// A cut that left a blank last line its ending keeps it when the cut bytes go back.
+		if (back) return keepLastEnding(answer(back));
 		const onClosed = reclosed(to, gesture.paste);
 		if (onClosed) return onClosed;
 		// A clipboard that carries the editor's own entry is the editor's own bytes, and a key's text
@@ -495,7 +497,15 @@ export function removalOf(
 	host: RangeHost
 ): RemovalAnswer {
 	const doc = readDoc(source, host, mode);
-	return answerOf(removalEdit(doc, range.from, range.to, gesture), gesture, doc, range);
+	const removed = emptiedAtOpenEnd(doc, removalEdit(doc, range.from, range.to, gesture));
+	return answerOf(removed, gesture, doc, range);
+}
+
+/** `edit` with the last line it emptied at an open end given its break, which a blank last line
+ *  keeps (`docs/design/syntax-tree.md` § The last line); the ending it left stands above that line. */
+function emptiedAtOpenEnd<Removed extends Edit>(doc: Doc, edit: Removed): Removed {
+	if (ownTrailingLineEnding(doc.source) || !ownTrailingLineEnding(edit.source)) return edit;
+	return { ...edit, source: edit.source + doc.ending };
 }
 
 /** A removal's answer, and where the block the range started in stood when it went whole, read on
@@ -653,7 +663,8 @@ export function copyRange(
 /** What a removal of `[from, to)` takes, as a copy and a cut both write it; a range holding no text
  *  that it takes nothing from (a hidden fence, markers alone) copies blank lines at most. */
 function taken(doc: Doc, from: number, to: number) {
-	const removed = removeLeavingBlank(doc, from, to);
+	// The removal a cut makes, so its own entry fits the bytes the cut leaves.
+	const removed = emptiedAtOpenEnd(doc, removeLeavingBlank(doc, from, to));
 	const copy = copyOf(doc, from, to);
 	const copies = removed.source !== doc.source || isBlankText(copy) || holdsText(doc, from, to);
 	return { removed, clipboard: copies ? copy : '', own: ownEntry(doc.source, from, to, removed) };
