@@ -95,15 +95,15 @@ function linesOf(kind: string, descriptor: BlockKindDescriptor | undefined): Blo
 	return shape === 'marked' ? 'every-line' : shape === 'indented' ? 'first-line' : 'none';
 }
 
-function lazyLines(lines: LineShape<unknown> | undefined): boolean {
+function lazyLines(lines: LineShape<object> | undefined): boolean {
 	return (lines?.shape === 'marked' || lines?.shape === 'indented') && lines.lazy;
 }
 
 /** The columns every later line takes when an indented shape's `rest` reads none of the first
  *  line (a footnote's four, not a list item's marker width). */
-function fixedIndent(lines: LineShape<unknown> | undefined): number | undefined {
+function fixedIndent(lines: LineShape<object> | undefined): number | undefined {
 	if (lines?.shape !== 'indented' || lines.rest.length > 0) return undefined;
-	return lines.rest(undefined).length;
+	return lines.rest({}).length;
 }
 
 function mergesOf(

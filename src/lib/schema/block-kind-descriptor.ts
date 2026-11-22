@@ -177,7 +177,7 @@ export interface BlockKindDescriptor {
 	reservedChrome?: ReservedChrome;
 	/** How the container's lines are written: the editor writes its bytes from this and its
 	 *  children, and reads its markers, lazy lines and contract from it. */
-	lines?: LineShape<unknown>;
+	lines?: LineShape<object>;
 	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key):
 	 *  a pasted one joins the one it lands in. Not for a kind closed by a line of its own. */
 	merges?: { key?: string };
@@ -316,7 +316,7 @@ interface ContainerFields {
 
 /** The editor writes the bytes from `lines`, which also gives the contract and the body wrap. */
 interface ShapedContainer extends ContainerFields {
-	lines: LineShape<unknown>;
+	lines: LineShape<object>;
 	contract?: never;
 	rebuildRaw?: never;
 	bodyWrap?: never;
@@ -685,12 +685,12 @@ function checkMarkedReads(kind: AnyBlockKind, lines: MarkedLines): void {
 
 /** A marked or indented shape writes its markers on the body's own lines; the others write lines of
  *  their own around the body. */
-function contractOf(lines: LineShape<unknown>): 'strip' | 'opaque' {
+function contractOf(lines: LineShape<object>): 'strip' | 'opaque' {
 	return lines.shape === 'marked' || lines.shape === 'indented' ? 'strip' : 'opaque';
 }
 
 /** The blank lines next to a shape's own lines that are the container's, not the body's. */
-function bodyWrapOf(lines: LineShape<unknown>): ContainerBodyWrap | undefined {
+function bodyWrapOf(lines: LineShape<object>): ContainerBodyWrap | undefined {
 	if (closesOwnLine(lines)) return { afterOpenerLine: true, beforeCloserLine: true };
 	return lines.shape === 'marked' && 'head' in lines ? { afterOpenerLine: true } : undefined;
 }

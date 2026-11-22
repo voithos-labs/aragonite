@@ -151,7 +151,7 @@ const INDENTED: ContainerLines<{ label: string }> = {
 };
 
 /** `source`'s first block as the strip reader opens it under `lines`. */
-function opened<D>(lines: ContainerLines<D>, source: string): CstNode {
+function opened<D extends object>(lines: ContainerLines<D>, source: string): CstNode {
 	const parsed = splitLines(source);
 	const reader = stripOpener('blockquote', lines, 0, true);
 	return reader.tryOpen({
@@ -167,7 +167,7 @@ function opened<D>(lines: ContainerLines<D>, source: string): CstNode {
 }
 
 /** The line syntax `node` was opened under, and its bytes written whole by that shape's writer. */
-function rewritten<D>(
+function rewritten<D extends object>(
 	lines: ContainerLines<D>,
 	node: CstNode
 ): { codec: LineCodec; node: CstNode } {
@@ -183,7 +183,7 @@ function rewritten<D>(
 }
 
 /** The spans of `source`'s container hold each child's lines and are the ones its writer writes. */
-function expectStripSpansHold<D>(lines: ContainerLines<D>, source: string): void {
+function expectStripSpansHold<D extends object>(lines: ContainerLines<D>, source: string): void {
 	const node = opened(lines, source);
 	const { codec, node: rebuilt } = rewritten(lines, node);
 	const spans = node.childSpans;
@@ -220,8 +220,8 @@ describe('every container the strip reader opens keeps its child spans', () => {
 		['under a head line, CRLF', HEADED, '> [!NOTE]\r\n>\r\n> a\r\n> \r\n> b\r\n', [14, 19, 19, 28]],
 		['indented by a tab', INDENTED, '[^n]: a\n\n\tb\n', [0, 8, 8, 12]]
 	] as const)('%s', (_name, lines, source, spans) => {
-		expect(Array.from(opened(lines as ContainerLines<unknown>, source).childSpans!)).toEqual(spans);
-		expectStripSpansHold(lines as ContainerLines<unknown>, source);
+		expect(Array.from(opened(lines as ContainerLines<object>, source).childSpans!)).toEqual(spans);
+		expectStripSpansHold(lines as ContainerLines<object>, source);
 	});
 
 	it.each([
@@ -229,7 +229,7 @@ describe('every container the strip reader opens keeps its child spans', () => {
 		['indented', INDENTED, arbIndentedDoc]
 	] as const)('over generated containers %s', (_name, lines, docs) => {
 		fc.assert(
-			fc.property(docs, (source) => expectStripSpansHold(lines as ContainerLines<unknown>, source)),
+			fc.property(docs, (source) => expectStripSpansHold(lines as ContainerLines<object>, source)),
 			{ numRuns: 300, seed: freshOrFixedSeed(20261109) }
 		);
 	});

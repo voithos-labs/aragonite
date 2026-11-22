@@ -29,7 +29,7 @@ export function writeContainerRaw(
 	return descriptor?.rebuildRaw?.(node, changed) ?? undefined;
 }
 
-function writeShapedRaw<D>(
+function writeShapedRaw<D extends object>(
 	node: CstNode,
 	shape: LineShape<D>,
 	grammar: GrammarView,
@@ -47,7 +47,7 @@ export function dataOver<D>(node: CstNode, read: D | undefined): D {
 }
 
 /** The previous bytes are read under the marker their own first line was written with. */
-function writeIndented<D>(
+function writeIndented<D extends object>(
 	node: CstNode,
 	shape: IndentedLines<D>,
 	grammar: GrammarView,

@@ -12,7 +12,7 @@ import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
 // ── Line shapes ──────────────────────────────────────────────────────────────
 
 /** How a container's lines are written; the editor writes its bytes from this and its children. */
-export type LineShape<D = never> =
+export type LineShape<D extends object = never> =
 	MarkedLines | HeadedLines<D> | IndentedLines<D> | FencedLines<D> | ColonLines;
 
 /** A marker on every line (a quote, an alert); a line with no text drops the marker's last space. */
@@ -28,13 +28,13 @@ export interface MarkedLines {
 
 /** Marked lines under a first line that holds no child (`> [!NOTE]`), read after the marker;
  *  `headedLines` makes one. */
-export interface HeadedLines<D> extends MarkedLines {
+export interface HeadedLines<D extends object> extends MarkedLines {
 	head: { match: RegExp; data(match: RegExpExecArray): D; write(data: D): string };
 	readonly [WRITES_LINES]: ShapeWriter;
 }
 
 /** A marker on the first line and an indent on the rest (a list item, a footnote definition). */
-export interface IndentedLines<D> {
+export interface IndentedLines<D extends object> {
 	shape: 'indented';
 	/** The first line's marker, read at the line's start. */
 	open: RegExp;
@@ -59,7 +59,7 @@ export type ShapeWriter = (
 ) => StripRebuild | void;
 
 /** Opening lines and a closing line around the body, the title row as child 0 (`<details>`). */
-export interface FencedLines<D> {
+export interface FencedLines<D extends object> {
 	shape: 'fenced';
 	write: { open(data: D, title: string): readonly string[]; close(data: D): string };
 	readonly [WRITES_LINES]: ShapeWriter;
@@ -72,7 +72,7 @@ export interface ColonLines {
 }
 
 /** The shapes whose every line reads through a line syntax. */
-export type StripShape<D> = MarkedLines | IndentedLines<D>;
+export type StripShape<D extends object> = MarkedLines | IndentedLines<D>;
 
 // ── Line syntax ──────────────────────────────────────────────────────────────
 
@@ -116,13 +116,13 @@ export const INNER_LINE: LinePlace = { first: false, trailingBlank: false };
 export const FIRST_LINE: LinePlace = { first: true, trailingBlank: false };
 
 /** The line syntax `shape` states, its markers written from `data`. */
-export function codecFromShape<D>(shape: StripShape<D>, data?: D): LineCodec {
+export function codecFromShape<D extends object>(shape: StripShape<D>, data?: D): LineCodec {
 	return shape.shape === 'marked' ? markedCodec(shape) : indentedCodec(shape, data as D);
 }
 
 /** Whether a body line holding `text` leaves a paragraph open for a lazy line, read per line: not
  *  blank, not the shape's own marker, and nothing `grammar` lets interrupt a paragraph. */
-export function keepsParagraphOpen<D>(
+export function keepsParagraphOpen<D extends object>(
 	shape: StripShape<D>,
 	text: string,
 	grammar: GrammarView
@@ -169,7 +169,7 @@ function markedCodec(shape: MarkedLines): LineCodec {
 
 /** A blank separator stays bare, and a blank line ending the body is indented, or a reload would
  *  read it outside the container. */
-function indentedCodec<D>(shape: IndentedLines<D>, data: D): LineCodec {
+function indentedCodec<D extends object>(shape: IndentedLines<D>, data: D): LineCodec {
 	const opener = shape.first(data);
 	const pad = shape.rest(data);
 	const column = pad.length;

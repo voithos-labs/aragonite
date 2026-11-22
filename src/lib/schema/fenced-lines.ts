@@ -8,11 +8,11 @@ import { WRITES_LINES, type FencedLines } from '../core/strip-lines';
 
 /** A container with opening lines written from its data and title row (child 0), and a closing
  *  line; every line takes the opening line's ending, the closing one only where it had one. */
-export function fencedLines<D>(write: FencedLines<D>['write']): FencedLines<D> {
+export function fencedLines<D extends object>(write: FencedLines<D>['write']): FencedLines<D> {
 	return { shape: 'fenced', write, [WRITES_LINES]: (node) => writeFenced(node, write) };
 }
 
-function writeFenced<D>(node: CstNode, write: FencedLines<D>['write']): void {
+function writeFenced<D extends object>(node: CstNode, write: FencedLines<D>['write']): void {
 	const [row, ...body] = node.children!;
 	const data = (node.metadata ?? {}) as D;
 	const ending = firstLineEnding(node.raw) ?? '\n';

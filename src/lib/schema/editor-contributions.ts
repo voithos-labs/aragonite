@@ -24,6 +24,8 @@ import { togglesOf } from './inline-type';
 import type { ContributedMenu } from './caret-menu';
 import { iconProblem, type Icon } from '../menu-icons';
 import type { BlockAction } from './block-shapes';
+import { openingData } from '../core/parsers/strip-container';
+import { firstDisplayLine } from '../core/lines';
 import type { ContributedAction } from './selection-action';
 import type { CodeHighlighter, CodeLanguage, CodeToken } from './code-highlighter';
 
@@ -147,6 +149,7 @@ export function createEditorContributions(deps: {
 				insertProblem(unit) ??
 				menuProblem(unit) ??
 				actionProblem(unit) ??
+				containerDataProblem(unit) ??
 				rewriteProblem(unit);
 			if (problem) deps.report(installError(unit.name, problem));
 			return !problem;
@@ -418,6 +421,21 @@ function actionProblem(unit: InstalledPlugin): string | null {
 			const problem = iconProblem(action.icon);
 			if (problem) return `has a block action that ${problem}`;
 		}
+	}
+	return null;
+}
+
+/** Why a plugin's container would write data that isn't an object, read off its own sample's
+ *  opening line, since its writer lays that data under the node's metadata; null when none would. */
+function containerDataProblem(unit: InstalledPlugin): string | null {
+	for (const { kind, making } of blockTypesOf(unit)) {
+		const lines = making.registration.container?.lines;
+		const sample = making.registration.conformanceFixture;
+		if (!sample || (lines?.shape !== 'marked' && lines?.shape !== 'indented')) continue;
+		const data: unknown = openingData(lines, firstDisplayLine(sample).text);
+		if (data === undefined || (typeof data === 'object' && data !== null)) continue;
+		const what = data === null ? 'null' : `a ${typeof data}`;
+		return `has the block type '${kind}', whose data is ${what}: a container's data must be an object`;
 	}
 	return null;
 }

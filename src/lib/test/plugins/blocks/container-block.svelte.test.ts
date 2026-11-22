@@ -10,6 +10,7 @@ import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { textBlockView } from '#lib/components/blocks/text/text-block-view.js';
 import type { ContainerSpec } from '#lib/schema/container-block.js';
 import type { ContainerDrawContext } from '#lib/schema/drawing.js';
+import type { PluginError } from '#lib/schema/plugin-unit.js';
 import {
 	blockHostAt,
 	destroyMountedEditors,
@@ -24,7 +25,9 @@ beforeAll(() => installLayoutStubs());
 afterEach(destroyMountedEditors);
 
 /** A plugin with one container type. */
-function boxes<D>(spec: Partial<ContainerSpec<D>> & Pick<ContainerSpec<D>, 'lines'>) {
+function boxes<D extends object>(
+	spec: Partial<ContainerSpec<D>> & Pick<ContainerSpec<D>, 'lines'>
+) {
 	return definePlugin({
 		name: 'boxes',
 		version: '1.0.0',
@@ -209,5 +212,41 @@ describe("a marked line shape's `reads`", () => {
 				container: { lines: { ...MARKED, reads: /^%>/ } }
 			})
 		).toThrow(/must read the marker "%> " whole/);
+	});
+});
+
+// Miss-analysis: every container in the suites read its data as an object, so none wrote a
+// string spread into its characters, which is where `[object Object]` came from.
+describe('a container whose data is not an object', () => {
+	const INDENTED = {
+		...NOTE_LINES,
+		data: (match: RegExpExecArray) => match[1],
+		first: (label: string) => `[^${label}]: `
+	};
+	const HEADED = {
+		...MARKED,
+		head: {
+			match: /^\[!(\w+)\]$/,
+			data: (match: RegExpExecArray) => match[1],
+			write: (type: string) => `[!${type}]`
+		}
+	};
+
+	it.each([
+		['an indented one', INDENTED, '[^a]: first\n'],
+		['one under a head line', HEADED, '%> [!NOTE]\n%> first\n']
+	])('leaves its plugin out at install, %s', async (_, lines, source) => {
+		const errors: PluginError[] = [];
+		const plugin = boxes({ lines: lines as never, sample: source });
+		const m = mountEditor({ source, plugins: [plugin], onError: (e) => errors.push(e) });
+		await m.settle();
+		expect(errors.map((e) => [e.doing, (e.cause as Error).message])).toEqual([
+			[
+				'install',
+				"plugin 'boxes' has the block type 'boxes/box', whose data is a string: a container's data must be an object"
+			]
+		]);
+		expect(m.instance.plugins).not.toContain('boxes');
+		expect(m.instance.getSource()).toBe(source);
 	});
 });
