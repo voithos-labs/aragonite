@@ -49,15 +49,15 @@ The parrot already ships as `@voithos-labs/aragonite-parrot`, so rename before t
 
 ## Scripts
 
-| Script                 | What it does                                                                           |
-| ---------------------- | -------------------------------------------------------------------------------------- |
-| `npm run dev`          | The playground, with hot reload                                                        |
-| `npm test`             | The conformance kits over every kind your plugin declares (`test/conformance.test.ts`) |
-| `npm run test:e2e`     | The playground in a real browser: clicks, typing, undo (`e2e/`)                        |
-| `npm run build`        | `dist/`: the plugin, its declarations, and `style.css`                                 |
-| `npm run check:plugin` | `aragonite-plugin-check` over your built package, the check a plugin listing runs      |
+| Script                 | What it does                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `npm run dev`          | The playground, with hot reload                                                   |
+| `npm test`             | Every check over each block type your plugin lists (`test/conformance.test.ts`)   |
+| `npm run test:e2e`     | The playground in a real browser: clicks, typing, undo (`e2e/`)                   |
+| `npm run build`        | `dist/`: the plugin, its declarations, and `style.css`                            |
+| `npm run check:plugin` | `aragonite-plugin-check` over your built package, the check a plugin listing runs |
 
-`src/conformance.ts` is what the conformance check reads. It's published as your package's `./conformance` export, and it lists your plugin plus a profile for each container or inline kind you add ([Testing your plugin](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-testing.md#the-whole-plugin-at-once-runpluginconformance) has the profiles).
+`src/conformance.ts` is what the conformance check reads. It's published as your package's `./conformance` export, and it holds your plugin value, with any options and excuses its checks take ([Testing your plugin](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-testing.md#checking-a-plugin-value-check) has the rest).
 
 Hosts import `style.css` next to the editor's own stylesheet. Your `src/` imports the stylesheet directly, so the playground and the tests get it for free; the build pulls it out into that one file.
 

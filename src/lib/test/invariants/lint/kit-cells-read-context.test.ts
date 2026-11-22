@@ -1,19 +1,23 @@
 /**
  * G4.374: a conformance cell reads through its `CheckContext`. A cell that parses or looks a kind
  * up on its own reads every installed plugin's syntax instead of the editor's under test, and a
- * round trip stays green under the wrong grammar, so the cell files may not name those reads.
+ * round trip stays green under the wrong grammar, so no file of the published kits may name those
+ * reads but the few that build them.
  */
 
 import { describe, expect, it } from 'vitest';
 import { collectEditorSources, stripComments } from './scan-source';
 import { SOURCE_DIR } from './source-paths';
 
-const CELL_FILES = [
-	'conformance-core.ts',
-	'kind-conformance.ts',
-	'container-conformance.ts',
-	'inline-conformance.ts'
-].map((name) => SOURCE_DIR.testing + name);
+/** The files that may name a default read, each with why. */
+const ALLOWED: Record<string, string> = {
+	'check-context.ts': 'builds the context every cell reads through',
+	'plugin-conformance.ts': 'the legacy door, which checks the page-wide registry by design',
+	'headless-actions.ts': 'defines the headless actions; a cell gets them from the context',
+	'kit-reading.ts': 'defines the default reading the context replaces',
+	'parse-convergence.ts': 'defines the default convergence check the context replaces',
+	'inline-menu-conformance.ts': 'the menu cell, which the commands slice replaces'
+};
 
 const OWN_READ =
 	/\b(?:defaultGrammarView|defaultCheckContext|kitReading|getBlockKindDescriptor|tryGetBlockKindDescriptor|createHeadlessActions|assertParseConverged)\b|(?<![\w.])parse(?:Inline)?\(/g;
@@ -21,15 +25,22 @@ const OWN_READ =
 const ownReads = (code: string): string[] => code.match(OWN_READ) ?? [];
 
 describe('G4.374 a conformance cell reads through its context', () => {
-	const files = collectEditorSources().filter((file) => CELL_FILES.includes(file.relPath));
+	const files = collectEditorSources().filter((file) =>
+		file.relPath.startsWith(SOURCE_DIR.testing)
+	);
+	const nameOf = (relPath: string) => relPath.slice(SOURCE_DIR.testing.length);
 
-	it('finds every cell file', () => {
-		expect(files.map((file) => file.relPath).sort()).toEqual([...CELL_FILES].sort());
+	it('finds the kit files, and every allowed file is still one', () => {
+		expect(files.length).toBeGreaterThan(10);
+		const names = files.map((file) => nameOf(file.relPath));
+		expect(Object.keys(ALLOWED).filter((name) => !names.includes(name))).toEqual([]);
 	});
 
-	it.each(CELL_FILES)('%s names no read of its own', (relPath) => {
-		const file = files.find((candidate) => candidate.relPath === relPath)!;
-		expect(ownReads(file.code)).toEqual([]);
+	it('no other file under the kits names a read of its own', () => {
+		const offenders = files
+			.filter((file) => !(nameOf(file.relPath) in ALLOWED))
+			.flatMap((file) => ownReads(file.code).map((read) => `${file.relPath}: ${read}`));
+		expect(offenders).toEqual([]);
 	});
 
 	it('catches each read a cell could make on its own, and passes the context', () => {

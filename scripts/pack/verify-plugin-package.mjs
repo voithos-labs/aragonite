@@ -3,7 +3,8 @@
 // same copy of the core, passes its own published conformance suite, its types reach no Svelte,
 // and it stays within its size budget. Run by verify-pack.mjs after the build.
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -104,8 +105,8 @@ export function verifyPluginPackage(dir) {
 
 /**
  * Installs every `setup` plugin the package's prebuilt index exports into the core's prebuilt, and
- * reads every plugin value, with dev checks on, in a Node process of its own: a plugin that brought
- * its own copy of the core warns, a value by carrying another copy's mark.
+ * runs `check` over every plugin value, with dev checks on, in a Node process of its own: a plugin
+ * that brought its own copy of the core warns, a value by carrying another copy's mark.
  * @param {{ name: string }} pkg
  * @param {string} index
  */
@@ -123,10 +124,7 @@ const probe = definePlugin({ name: 'copy-probe', version: '0.0.0', editor: '*', 
 const strays = fromAnotherCopy(values, probe);
 if (strays.length > 0) console.error(${JSON.stringify(SECOND_COPY)}, strays.join(', '));
 core.installPlugins(setups.map(([, setup]) => setup));
-if (values.length > 0) {
-	testing.configureEditorEnv({ isDev: true, isTest: true });
-	await testing.runPluginConformance({ plugins: values.map(([, value]) => value) });
-}
+for (const [, value] of values) await testing.check(value);
 `;
 	const run = spawnSync(
 		process.execPath,
@@ -144,20 +142,28 @@ if (values.length > 0) {
 }
 
 /**
- * Runs `aragonite-plugin-check` over the package, the check a plugin listing runs on it.
+ * Runs `aragonite-plugin-check` over the package in plain Node, the check a plugin listing runs on
+ * it, and reads the rows it records.
  * @param {{ name: string }} pkg
  * @param {string} dir
  */
 function passesItsConformanceSuite(pkg, dir) {
-	const run = spawnSync(process.execPath, ['--import', CORE_HOOK, PLUGIN_CHECK, dir], {
-		encoding: 'utf8'
-	});
-	return run.status === 0
-		? []
-		: [
-				`${pkg.name} fails its conformance suite:
-${run.stderr}`
-			];
+	const out = mkdtempSync(path.join(tmpdir(), 'plugin-check-'));
+	const json = path.join(out, 'result.json');
+	try {
+		const run = spawnSync(
+			process.execPath,
+			['--import', CORE_HOOK, PLUGIN_CHECK, dir, '--json', json],
+			{
+				encoding: 'utf8'
+			}
+		);
+		if (run.status !== 0) return [`${pkg.name} fails its conformance suite:\n${run.stderr}`];
+		const { rows } = JSON.parse(readFileSync(json, 'utf8'));
+		return Array.isArray(rows) ? [] : [`${pkg.name}'s check recorded no rows`];
+	} finally {
+		rmSync(out, { recursive: true, force: true });
+	}
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

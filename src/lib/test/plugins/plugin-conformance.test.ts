@@ -9,7 +9,8 @@ import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
-import { failedCells } from '../../../../scripts/plugins/check-listing.mjs';
+import type { LegacyRow } from '#lib/testing/plugin-conformance.js';
+import { KIND_CELL_CONTRACTS } from '#lib/testing/cell-contracts.js';
 
 /** A one-line leaf opened by `marker`; with `toEnd`, it reads on to the document's end instead,
  *  so cutting its closing line swallows the block below. */
@@ -44,7 +45,9 @@ describe('runPluginConformance', () => {
 		expect(report.kinds.map((k) => k.kind)).toEqual(['pair-a', 'pair-b']);
 	});
 
-	it('passes a plugin value through, installing only the setup plugins beside it', async () => {
+	// Miss-analysis: the run passed a value straight through, checking nothing of it, and no row
+	// sent its author to the check that reads one.
+	it('fails a plugin value, naming check', async () => {
 		const value = definePlugin({
 			name: 'unit-value',
 			version: '1.0.0',
@@ -52,9 +55,9 @@ describe('runPluginConformance', () => {
 			contributes: () => ({})
 		});
 		const pair = plugin('pair', () => testLeaf('pair-a', markerLeaf('%%a')));
-		const report = await runPluginConformance({ plugins: [value, pair] });
-		expect(report.plugins).toEqual(['unit-value', 'pair']);
-		expect(report.kinds.map((k) => k.kind)).toEqual(['pair-a']);
+		await expect(runPluginConformance({ plugins: [value, pair] })).rejects.toThrow(
+			'"unit-value" is a plugin value: check it with check(plugin) from @voithos-labs/aragonite/testing'
+		);
 	});
 
 	it("leaves out the editor's own kinds a plugin's setup switches on", async () => {
@@ -73,16 +76,20 @@ describe('runPluginConformance', () => {
 		);
 	});
 
-	// The listing records cells by reading this message, so its reader runs on the real thing.
-	it("writes a failure the listing's recorder reads back as kind: cell", async () => {
+	// The bin and the listing read rows, not this message, so a failure carries them.
+	it('carries every cell as a row on a failure, the failed one among them', async () => {
 		const swallows = plugin('swallows-recorded', () => {
 			testLeaf('swallow-recorded', markerLeaf('%%s', true));
 		});
-		const message = await runPluginConformance({ plugins: [swallows] }).then(
-			() => '',
-			(error: Error) => error.message
+		const failure = await runPluginConformance({ plugins: [swallows] }).then(
+			() => null,
+			(error: Error & { rows: LegacyRow[]; warnings: unknown[] }) => error
 		);
-		expect(failedCells(message)).toContain('swallow-recorded: rawWrite');
+		const rows = failure!.rows.filter((row) => row.subject === 'swallow-recorded');
+		expect(rows.map((row) => row.check)).toEqual(Object.keys(KIND_CELL_CONTRACTS));
+		expect(rows.find((row) => row.check === 'rawWrite')?.status).toBe('failed');
+		expect(rows.find((row) => row.check === 'focus')?.status).toBe('unchecked');
+		expect(failure!.warnings).toEqual([]);
 	});
 
 	it('fails a container kind the suite gives no profile', async () => {
@@ -153,7 +160,8 @@ describe('runPluginConformance', () => {
 			plugins: ['empty-kinds'],
 			kinds: [],
 			containers: [],
-			inline: []
+			inline: [],
+			rows: []
 		});
 	});
 });

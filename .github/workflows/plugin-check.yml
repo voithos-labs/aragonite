@@ -2,7 +2,8 @@ name: Plugin check
 # The editor's conformance check for one plugin package, as a reusable workflow. A plugin's own CI
 # calls it on its packed package; this repo calls it on every bundled plugin and on the template.
 # It installs the plugin beside the editor in an empty project and runs `aragonite-plugin-check`,
-# which runs the conformance kits over the package's `./conformance` suite.
+# which runs `check` (or, for a suite of `setup` plugins, the old kits) over the package's
+# `./conformance` suite.
 #
 # This workflow runs a plugin's code, so four rules hold here and in every caller in this repo: the
 # job that runs it asks for no permissions and reads no secrets, no action runs after the plugin in
@@ -144,7 +145,7 @@ jobs:
           EDITOR_VERSION: ${{ steps.install.outputs.editor-version }}
         run: |
           if [ "$OUTCOME" = out-of-range ]; then
-            node -e 'const [p, editor] = process.argv.slice(1); console.log(JSON.stringify({ package: p, version: null, editor, result: "out-of-range", failures: null }))' "$NAME" "$EDITOR_VERSION" > result.json
+            node -e 'const [p, editor] = process.argv.slice(1); console.log(JSON.stringify({ package: p, version: null, editor, result: "out-of-range", rows: [], warnings: [] }))' "$NAME" "$EDITOR_VERSION" > result.json
             echo "result=out-of-range" >> "$GITHUB_OUTPUT"
             echo "record=$(cat result.json)" >> "$GITHUB_OUTPUT"
             echo "$NAME: its peer range excludes this editor, so nothing was checked" >> "$GITHUB_STEP_SUMMARY"

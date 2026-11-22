@@ -37,6 +37,21 @@ export function applyPasteTransforms(text: string, plugins?: readonly string[]):
 export { setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
 export type { DevWarnEntry, DevWarnSink } from '@voithos-labs/aragonite/dev-checks';
 
+// ── Checking a plugin value ──────────────────────────────────────────────────
+// Every check over every sample of every block type a plugin lists: what a plugin package's
+// `./conformance` export feeds, and what `aragonite-plugin-check` runs.
+
+export { check, CheckFailure, isCheckFailure } from './testing/check';
+export type {
+	CheckName,
+	CheckOptions,
+	CheckReport,
+	CheckRow,
+	CheckStatus,
+	Conformance,
+	Excuses
+} from './testing/check';
+
 // ── Conformance kits: the shared vocabulary ──────────────────────────────────
 // Every kit reports a cell as a `CellReport`; the container and inline profiles declare each
 // cell's coverage as a `ConformanceCoverage`.

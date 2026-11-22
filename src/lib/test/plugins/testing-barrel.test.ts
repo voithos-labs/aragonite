@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
 	applyPasteTransforms,
+	check,
+	CheckFailure,
+	isCheckFailure,
 	configureEditorEnv,
 	installEditorDomStubsForTests,
 	resetEditorEnv,
@@ -202,6 +205,14 @@ describe('resetPluginPlatformForTests aggregate', () => {
 // dropped re-export fails to resolve here rather than in a downstream author's suite.
 
 describe('@voithos-labs/aragonite/testing conformance surface', () => {
+	it('publishes check, its failure and the guard that narrows one', () => {
+		expect(typeof check).toBe('function');
+		expect(typeof isCheckFailure).toBe('function');
+		expect(
+			new CheckFailure({ plugin: 'p', version: '1', editor: '1', rows: [], warnings: [] })
+		).toBeInstanceOf(Error);
+	});
+
 	it('publishes both conformance runners and the byte-slice guard', () => {
 		expect(typeof runContainerConformance).toBe('function');
 		expect(typeof runKindConformance).toBe('function');

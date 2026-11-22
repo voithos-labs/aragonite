@@ -1,22 +1,25 @@
-// @vitest-environment jsdom
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { runPluginConformance, type PluginConformanceSuite } from '#lib/testing.js';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
+import { runSuite } from '../../../../bin/aragonite-plugin-check.mjs';
 
-// Each bundled plugin publishes the suite a listing runs over it, and passes it here first, so the
-// first-party packages clear the same bar an outside author's must.
+// Each bundled plugin passes its own published suite through the bin's reading of either shape,
+// with no DOM, as a listing runs it: the first-party packages clear an outside author's bar.
+const suiteOf = async (dir: string) =>
+	((await import(`../../../../packages/${dir}/src/conformance.ts`)) as { default: object }).default;
+
 describe('every bundled plugin passes its own published conformance suite', () => {
 	it.each(bundledPluginDirs())('%s', async (dir) => {
-		const suite = (
-			(await import(`../../../../packages/${dir}/src/conformance.ts`)) as {
-				default: PluginConformanceSuite;
-			}
-		).default;
-		const report = await runPluginConformance(suite);
-		expect(report.plugins.length).toBeGreaterThan(0);
+		const outcome = await runSuite(await suiteOf(dir));
+		expect(outcome.message).toBeNull();
+		expect(outcome.result).toBe('pass');
 	});
 
-	it('enrolls every bundled plugin', () => {
-		expect(bundledPluginDirs()).toHaveLength(12);
+	it('enrolls every bundled plugin, the plugin values among them through check', async () => {
+		const dirs = bundledPluginDirs();
+		expect(dirs).toHaveLength(12);
+		const values = [];
+		for (const dir of dirs) if ('plugin' in (await suiteOf(dir))) values.push(dir);
+		expect(values).toEqual(['highlight', 'parrot', 'slash-commands', 'spellcheck']);
 	});
 });

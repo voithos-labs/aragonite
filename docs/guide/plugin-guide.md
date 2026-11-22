@@ -285,14 +285,14 @@ It dances through your `draw`.
 
 ![The parrot block, mid-party](./plugin-guide/parrot.gif)
 
-**Verify.** The conformance kit checks a plugin the way a plugin listing does: it installs it as an editor would and fails on anything the listing would refuse.
+**Verify.** `check` checks a plugin the way a plugin listing does: it installs it as an editor would, runs every check over your block type's sample and fails on anything the listing would refuse.
 
 ```ts
-import { runPluginConformance } from '@voithos-labs/aragonite/testing';
+import { check } from '@voithos-labs/aragonite/testing';
 import { parrotPlugin } from './parrot-plugin';
 
 it('parrot conforms', async () => {
-	await runPluginConformance({ plugins: [parrotPlugin()] });
+	await check(parrotPlugin());
 });
 ```
 

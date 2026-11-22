@@ -145,6 +145,8 @@ export interface ContainerCellContext {
 	context: CheckContext;
 	kind: AnyBlockKind;
 	profile: BuiltinContainerProfile;
+	/** The sample a cell types or reads, the first the kind declares unless set. */
+	sample?: string;
 }
 
 /** The kit's cells as data, so {@link runContainerConformance} and the built-in sweep run the
@@ -188,7 +190,8 @@ export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
 	},
 	{
 		cell: 'openerLine',
-		run: ({ context, kind }) => checkOpenerLineHoldsCaret(context, kind)
+		run: ({ context, kind, sample }) =>
+			checkOpenerLineHoldsCaret(context, kind, sample ?? context.descriptor(kind).samples?.[0])
 	},
 	{
 		cell: 'copyMarkers',
@@ -598,8 +601,11 @@ function assertSameKinds(actual: string[], expected: string[], copy: string): vo
 
 /** A waiting prefix of the fixture's first line is closed as it's typed, so the closed block must
  *  hold the caret at the prefix's end in a leaf, or the next letter lands in the body. */
-function checkOpenerLineHoldsCaret(context: CheckContext, kind: AnyBlockKind): CellOutcome {
-	const fixture = context.descriptor(kind).samples?.[0];
+function checkOpenerLineHoldsCaret(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	fixture: string | undefined
+): CellOutcome {
 	if (fixture === undefined) {
 		return { status: 'exempt', detail: `"${kind}" carries no sample to type` };
 	}
@@ -704,8 +710,8 @@ function assertOwnLastLineHoldsIt(
 const EDIT_MARK = '§edited';
 
 /** An edit to one child rewrites that child's lines alone: every other line of the container keeps
- *  its bytes, however `deepNesting.source` spells them. */
-function assertUntouchedLinesKept(
+ *  its bytes, however `source` spells them. */
+export function assertUntouchedLinesKept(
 	context: CheckContext,
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor,
@@ -742,7 +748,7 @@ function assertUntouchedLinesKept(
 
 /** The writer's changed-child hint is a shortcut, never a different answer: the same children
  *  rebuilt with and without it give the same bytes. */
-function assertHintedRebuildMatchesFull(
+export function assertHintedRebuildMatchesFull(
 	context: CheckContext,
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor,

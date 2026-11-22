@@ -1,7 +1,8 @@
 /**
- * The whole-plugin conformance run: install a plugin's units on a blank platform, then hold every
- * block and inline kind their setups declared to the kits. It is what a plugin listing checks, so
- * a kind can't pass by being left out: a container or inline kind needs its profile.
+ * The whole-plugin conformance run for `setup` plugins: install them on a blank platform, then hold
+ * every block and inline kind their setups declared to the kits. A plugin listing runs it over a
+ * suite of them, so a kind can't pass by being left out: a container or inline kind needs its
+ * profile. A plugin value is `check`'s.
  */
 
 import { devChecksOn, setDevWarnSink, type DevWarnEntry } from '@voithos-labs/aragonite/dev-checks';
@@ -12,7 +13,9 @@ import {
 	normalizePluginEntries,
 	type EditorPlugin
 } from '../schema/plugin-install';
-import { installPluginList, type PluginList } from '../schema/plugin-unit';
+import type { PluginList } from '../schema/plugin-unit';
+import type { CheckStatus } from './check';
+import type { CellReport, SettledCell } from './conformance-core';
 import {
 	declaredPluginInlineKind,
 	pluginInlineKindsDeclaredBy,
@@ -51,10 +54,21 @@ export interface PluginConformanceReport {
 	kinds: KindConformanceReport[];
 	containers: ContainerConformanceReport[];
 	inline: InlineConformanceReport[];
+	/** Every cell as a row, the way `check` reports one; a failed run's error carries them too. */
+	rows: LegacyRow[];
 }
 
-/** Every kit over every kind the suite's plugins declare. Throws one `Error` naming each failed
- *  cell, each kind without the profile its tier needs, and each dev warning the run raised. */
+/** A cell as a row; its `check` is the kit's cell name, which `CheckName` doesn't list. */
+export interface LegacyRow {
+	of: 'plugin' | 'block' | 'inline';
+	subject: string;
+	check: string;
+	status: CheckStatus;
+	detail: string;
+}
+
+/** Every kit over every kind the suite declares; throws one `Error`, carrying `rows` and `warnings`,
+ *  naming each failed cell, unprofiled kind, plugin value (`check`'s) and dev warning. */
 export async function runPluginConformance(
 	suite: PluginConformanceSuite
 ): Promise<PluginConformanceReport> {
@@ -69,38 +83,76 @@ export async function runPluginConformance(
 	const failures: string[] = [];
 	const warnings: DevWarnEntry[] = [];
 	const previousSink = setDevWarnSink((entry) => warnings.push(entry));
-	const report: PluginConformanceReport = { plugins: names, kinds: [], containers: [], inline: [] };
+	const report: PluginConformanceReport = {
+		plugins: names,
+		kinds: [],
+		containers: [],
+		inline: [],
+		rows: []
+	};
+	const suiteFailure = (detail: string) => {
+		failures.push(detail);
+		report.rows.push({
+			of: 'plugin',
+			subject: names.join(', '),
+			check: 'suite',
+			status: 'failed',
+			detail
+		});
+	};
 	try {
 		resetPluginPlatformForTests();
 		const { plugins, values } = normalizePluginEntries(suite.plugins);
+		for (const { name } of values) {
+			suiteFailure(
+				`"${name}" is a plugin value: check it with check(plugin) from @voithos-labs/aragonite/testing`
+			);
+		}
 		installPlugins(plugins);
-		// A plugin value installs per editor: reading its list is where it's refused.
-		installPluginList(values, ({ cause }) => failures.push(String((cause as Error)?.message)));
 		const blockKinds: AnyBlockKind[] = names.flatMap(pluginKindsDeclaredBy);
 		const inlineKinds = names.flatMap(pluginInlineKindsDeclaredBy);
-		for (const problem of missingProfiles(suite, blockKinds, inlineKinds)) failures.push(problem);
+		for (const problem of missingProfiles(suite, blockKinds, inlineKinds)) suiteFailure(problem);
 
+		const kit = async <R extends { cells: CellReport[] }>(
+			of: LegacyRow['of'],
+			subject: string,
+			run: () => Promise<R>
+		): Promise<R | null> => {
+			const { ran, cells, thrown } = await collect(run, failures);
+			for (const cell of cells) report.rows.push(legacyRow(of, subject, cell));
+			if (thrown && !cells.some((cell) => cell.status === 'failed')) {
+				report.rows.push({ of, subject, check: 'suite', status: 'failed', detail: thrown });
+			}
+			return ran;
+		};
 		for (const kind of blockKinds) {
-			const ran = await collect(() => runKindConformance(kind), failures);
+			const ran = await kit('block', kind, () => runKindConformance(kind));
 			if (ran) report.kinds.push(ran);
 			const profile = suite.containers?.[kind];
 			if (!profile || !getBlockKindDescriptor(kind).isContainer) continue;
-			const container = await collect(() => runContainerConformance(kind, profile), failures);
+			const container = await kit('block', kind, () => runContainerConformance(kind, profile));
 			if (container) report.containers.push(container);
 		}
 		for (const { kind, ...profile } of suite.inline ?? []) {
 			const inlineProfile: InlineConformanceProfile =
 				kind === undefined ? profile : { ...profile, kind: declaredPluginInlineKind(kind) };
-			const inline = await collect(() => runInlineKindConformance(inlineProfile), failures);
+			const subject = kind ?? profile.prefix ?? profile.trigger;
+			const inline = await kit('inline', subject, () => runInlineKindConformance(inlineProfile));
 			if (inline) report.inline.push(inline);
 		}
 	} catch (error) {
-		failures.push((error as Error).message);
+		suiteFailure((error as Error).message);
 	} finally {
 		setDevWarnSink(previousSink);
 	}
 	for (const { tag, message } of warnings) failures.push(`dev warning [${tag}]: ${message}`);
-	if (failures.length > 0) throw new Error(`${heading}:\n  - ${failures.join('\n  - ')}`);
+	if (failures.length > 0) {
+		const carried = {
+			rows: report.rows,
+			warnings: warnings.map(({ tag, message }) => ({ tag, message }))
+		};
+		throw Object.assign(new Error(`${heading}:\n  - ${failures.join('\n  - ')}`), carried);
+	}
 	return report;
 }
 
@@ -175,12 +227,34 @@ function missingProfiles(
 	return problems;
 }
 
-/** Runs one kit, keeping its failure message instead of stopping the run. */
-async function collect<T>(run: () => Promise<T>, failures: string[]): Promise<T | null> {
+/** Runs one kit, keeping its failure message and its settled cells instead of stopping the run. */
+async function collect<T extends { cells: CellReport[] }>(
+	run: () => Promise<T>,
+	failures: string[]
+): Promise<{ ran: T | null; cells: readonly SettledCell[]; thrown?: string }> {
 	try {
-		return await run();
+		const ran = await run();
+		return { ran, cells: ran.cells };
 	} catch (error) {
-		failures.push((error as Error).message.replace(/\n/g, '\n    '));
-		return null;
+		const { message, cells = [] } = error as Error & { cells?: SettledCell[] };
+		failures.push(message.replace(/\n/g, '\n    '));
+		return { ran: null, cells, thrown: message };
 	}
+}
+
+const LEGACY_STATUS: Record<SettledCell['status'], CheckStatus> = {
+	asserted: 'passed',
+	exempt: 'not-applicable',
+	boundary: 'unchecked',
+	failed: 'failed'
+};
+
+function legacyRow(of: LegacyRow['of'], subject: string, cell: SettledCell): LegacyRow {
+	return {
+		of,
+		subject,
+		check: cell.cell,
+		status: LEGACY_STATUS[cell.status],
+		detail: cell.detail ?? ''
+	};
 }

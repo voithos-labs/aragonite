@@ -36,12 +36,14 @@ import {
 	fail,
 	nodeAtPath,
 	runCells,
+	settleCells,
 	show,
 	subjectNode,
 	subjectPath,
 	type CellOutcome,
 	type CellReport,
-	type KitCell
+	type KitCell,
+	type SettledCell
 } from './conformance-core';
 import { installOwnRaw } from '../tree-operations/node-primitives';
 import { writeContainerRaw } from '../schema/container-writer';
@@ -115,22 +117,42 @@ interface KindRun {
 	parsed: KindCellContext | null;
 }
 
-/**
- * Runs every headless cell for `kind`, or throws an `Error` naming each failed cell. A
- * `sample` that parses to no node of the kind fails the run outright.
- */
+/** Runs every headless cell for `kind` over `sample` (its first unless told), or throws naming each
+ *  failed cell; a sample that parses to no node of the kind fails the run outright. */
 export async function runKindCells(
 	context: CheckContext,
 	kind: AnyBlockKind,
-	profile: KindConformanceProfile = {}
+	profile: KindConformanceProfile = {},
+	sample?: string
 ): Promise<KindConformanceReport> {
+	const { cells, run } = kindKit(context, kind, profile, sample);
+	const cellReports = await runCells(cells, run, {
+		subject: kind,
+		heading: `kind conformance failed for "${kind}"`,
+		contracts: KIND_CELL_CONTRACTS
+	});
+	return { kind, cells: cellReports };
+}
+
+/** Every headless cell for `kind` over `sample`, each settled rather than thrown. */
+export function settleKindCells(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	sample: string
+): Promise<SettledCell<KindCell>[]> {
+	const { cells, run } = kindKit(context, kind, {}, sample);
+	return settleCells(cells, run, kind);
+}
+
+function kindKit(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	profile: KindConformanceProfile,
+	sample: string | undefined
+): { cells: KitCell<KindCell, KindRun>[]; run: KindRun } {
 	const descriptor = context.descriptor(kind);
-	const run: KindRun = {
-		context,
-		kind,
-		descriptor,
-		parsed: buildContext(context, kind, descriptor)
-	};
+	const fixture = sample ?? descriptor.samples?.[0];
+	const run: KindRun = { context, kind, descriptor, parsed: buildContext(context, kind, fixture) };
 	const cells: KitCell<KindCell, KindRun>[] = [
 		...SYSTEM_CELLS.map((cell) => {
 			const custom = profile.cells?.[cell]?.check;
@@ -142,20 +164,14 @@ export async function runKindCells(
 		{ cell: 'rawWrite', run: execRawWrite },
 		{ cell: 'unfinishedReading', run: execUnfinishedReading }
 	];
-	const cellReports = await runCells(cells, run, {
-		subject: kind,
-		heading: `kind conformance failed for "${kind}"`,
-		contracts: KIND_CELL_CONTRACTS
-	});
-	return { kind, cells: cellReports };
+	return { cells, run };
 }
 
 function buildContext(
 	context: CheckContext,
 	kind: AnyBlockKind,
-	descriptor: BlockKindDescriptor
+	fixture: string | undefined
 ): KindCellContext | null {
-	const fixture = descriptor.samples?.[0];
 	if (fixture === undefined) return null;
 	const doc = context.parse(fixture);
 	const nodePath = subjectPath(doc, kind, 'first', `kind conformance failed for "${kind}": sample`);

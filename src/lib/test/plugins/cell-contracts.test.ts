@@ -6,6 +6,7 @@ import {
 	INLINE_CELL_CONTRACTS,
 	KIND_CELL_CONTRACTS
 } from '#lib/testing/cell-contracts.js';
+import { CHECKS } from '#lib/testing/check-names.js';
 
 // A failing cell's message sends its author to a section of the published testing guide, so a
 // renamed heading there would strand every failure that points at it.
@@ -16,7 +17,8 @@ describe('every conformance cell names a contract the testing guide explains', (
 	const tables = {
 		kind: KIND_CELL_CONTRACTS,
 		container: CONTAINER_CELL_CONTRACTS,
-		inline: INLINE_CELL_CONTRACTS
+		inline: INLINE_CELL_CONTRACTS,
+		check: Object.fromEntries(Object.entries(CHECKS).map(([name, spec]) => [name, spec.contract]))
 	};
 
 	it.each(Object.entries(tables))('the %s kit points at headings that exist', (_kit, table) => {

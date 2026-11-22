@@ -1,34 +1,56 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
+import { definePlugin } from '#lib/plugin.js';
+import { parrotPlugin } from '#packages/parrot/src/index.js';
 import {
 	manifestAbove,
-	reportLines,
 	resolveTarget,
+	rowLines,
+	runSuite,
 	suiteProblem
 } from '../../../../bin/aragonite-plugin-check.mjs';
 
 // The bin's own logic; `verify-plugin-package.mjs` runs it whole over every packed plugin.
 describe('aragonite-plugin-check', () => {
-	it('accepts a suite listing named plugins and refuses anything else', () => {
+	it('accepts a plugin value or a suite listing named plugins, and refuses anything else', () => {
+		expect(suiteProblem({ plugin: parrotPlugin() })).toBeNull();
 		expect(suiteProblem({ plugins: [{ name: 'parrot' }] })).toBeNull();
 		expect(suiteProblem(undefined)).toMatch(/not an object/);
+		expect(suiteProblem({ plugin: { name: 'parrot' } })).toMatch(/holds no plugin value/);
 		expect(suiteProblem({ plugins: [] })).toMatch(/lists no plugins/);
 		expect(suiteProblem({ plugins: [{}] })).toMatch(/has no name/);
 	});
 
-	it('prints one tally per kit run', () => {
-		const asserted = { status: 'asserted' };
-		expect(
-			reportLines({
-				kinds: [{ kind: 'parrot', cells: [asserted, asserted, { status: 'boundary' }] }],
-				containers: [{ kind: 'box', cells: [asserted] }],
-				inline: [{ prefix: '[^', cells: [{ status: 'exempt' }] }]
-			})
-		).toEqual([
-			'kind checkup, parrot: 2 asserted, 1 boundary',
-			'container checkup, box: 1 asserted',
-			'inline checkup, [^: 1 exempt'
+	it('prints a line per row, its detail where it did not pass, then a count of each status', () => {
+		const row = (status: string, check: string) => ({
+			of: 'block',
+			subject: 'parrot/parrot',
+			check,
+			status,
+			detail: 'why'
+		});
+		expect(rowLines([row('passed', 'roundTrip'), row('unchecked', 'focus')])).toEqual([
+			'passed parrot/parrot roundTrip',
+			'unchecked parrot/parrot focus: why',
+			'2 rows: 1 passed, 1 unchecked'
 		]);
+	});
+
+	it('runs a plugin value through check, and a list of setup plugins through the old kits', async () => {
+		const value = await runSuite({ plugin: parrotPlugin() });
+		expect(value.result).toBe('pass');
+		expect(value.rows.map((r) => `${r.subject} ${r.check}`)).toContain('parrot/parrot roundTrip');
+		const empty = definePlugin({ name: 'bin-empty', setup: () => {} });
+		expect(await runSuite({ plugins: [empty] })).toEqual({
+			result: 'pass',
+			rows: [],
+			warnings: [],
+			message: null
+		});
+		const failed = await runSuite({ plugins: [parrotPlugin()] });
+		expect(failed.result).toBe('fail');
+		expect(failed.rows.map((r) => r.detail)).toEqual([expect.stringMatching(/check\(plugin\)/)]);
 	});
 
 	it('checks the package a directory holds, or a name resolved from the working directory', () => {

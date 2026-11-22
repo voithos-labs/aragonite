@@ -1,12 +1,23 @@
 #!/usr/bin/env node
-// Runs a plugin package's published conformance suite (its `./conformance` export) through the
-// editor's kits, the way a plugin listing checks it: `aragonite-plugin-check [package | dir]
-// [--json file]`. The kits are this copy of the editor's, the one an install shares with the plugin.
+// Runs a plugin package's published conformance suite (its `./conformance` export) the way a plugin
+// listing checks it: `aragonite-plugin-check [package | dir] [--json file]`. A suite holding a
+// plugin value runs through `check`, one listing `setup` plugins through the old kits. Both are
+// this copy of the editor's, the one an install shares with the plugin.
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { configureEditorEnv, runPluginConformance } from '@voithos-labs/aragonite/testing';
+import {
+	check,
+	configureEditorEnv,
+	isCheckFailure,
+	runPluginConformance
+} from '@voithos-labs/aragonite/testing';
+
+/**
+ * @typedef {{ of: string, subject: string, check: string, status: string, detail: string }} Row
+ * @typedef {{ result: 'pass' | 'fail', rows: Row[], warnings: { tag: string, message: string }[], message: string | null }} Outcome
+ */
 
 // ── Pure parts ───────────────────────────────────────────────────────────────
 
@@ -17,6 +28,12 @@ import { configureEditorEnv, runPluginConformance } from '@voithos-labs/aragonit
  */
 export function suiteProblem(value) {
 	if (typeof value !== 'object' || value === null) return 'its default export is not an object';
+	if ('plugin' in value) {
+		const { plugin } = /** @type {{ plugin?: { name?: unknown } }} */ (value);
+		return typeof plugin === 'function' && typeof plugin.name === 'string'
+			? null
+			: 'its default export holds no plugin value';
+	}
 	const { plugins } = /** @type {{ plugins?: unknown }} */ (value);
 	if (!Array.isArray(plugins) || plugins.length === 0) return 'its default export lists no plugins';
 	const unnamed = plugins.filter((plugin) => typeof plugin?.name !== 'string');
@@ -24,25 +41,52 @@ export function suiteProblem(value) {
 }
 
 /**
- * One line per kit run, for the log a CI job prints.
- * @param {{ kinds: { kind: string, cells: { status: string }[] }[], containers: { kind: string, cells: { status: string }[] }[], inline: { prefix: string, cells: { status: string }[] }[] }} report
+ * A line per row, for the log a CI job prints, then a count of each status.
+ * @param {Row[]} rows
  * @returns {string[]}
  */
-export function reportLines(report) {
-	/** @param {{ status: string }[]} cells */
-	const tally = (cells) => {
-		/** @type {Record<string, number>} */
-		const counts = {};
-		for (const { status } of cells) counts[status] = (counts[status] ?? 0) + 1;
-		return Object.entries(counts)
-			.map(([status, count]) => `${count} ${status}`)
-			.join(', ');
-	};
+export function rowLines(rows) {
+	/** @type {Record<string, number>} */
+	const counts = {};
+	for (const { status } of rows) counts[status] = (counts[status] ?? 0) + 1;
+	const tally = Object.entries(counts).map(([status, count]) => `${count} ${status}`);
 	return [
-		...report.kinds.map(({ kind, cells }) => `kind checkup, ${kind}: ${tally(cells)}`),
-		...report.containers.map(({ kind, cells }) => `container checkup, ${kind}: ${tally(cells)}`),
-		...report.inline.map(({ prefix, cells }) => `inline checkup, ${prefix}: ${tally(cells)}`)
+		...rows.map(({ status, subject, check, detail }) =>
+			status === 'passed'
+				? `${status} ${subject} ${check}`
+				: `${status} ${subject} ${check}: ${detail}`
+		),
+		`${rows.length} rows: ${tally.join(', ')}`
 	];
+}
+
+/**
+ * Runs a suite of either shape: `{ plugin, options?, excuse? }` through `check`, and the old
+ * `{ plugins, containers?, inline? }` through `runPluginConformance`.
+ * @param {any} suite
+ * @returns {Promise<Outcome>}
+ */
+export async function runSuite(suite) {
+	if ('plugin' in suite) {
+		try {
+			const { rows, warnings } = await check(suite.plugin, {
+				options: suite.options,
+				excuse: suite.excuse
+			});
+			return { result: 'pass', rows: [...rows], warnings: [...warnings], message: null };
+		} catch (error) {
+			if (!isCheckFailure(error)) throw error;
+			const { rows, warnings } = error.report;
+			return { result: 'fail', rows: [...rows], warnings: [...warnings], message: error.message };
+		}
+	}
+	try {
+		const { rows } = await runPluginConformance(suite);
+		return { result: 'pass', rows, warnings: [], message: null };
+	} catch (error) {
+		const { rows = [], warnings = [], message } = /** @type {any} */ (error);
+		return { result: 'fail', rows, warnings, message };
+	}
 }
 
 /**
@@ -109,23 +153,36 @@ export async function main(argv, cwd) {
 		return 2;
 	}
 
-	const record = { package: name, version: plugin.version, editor: editor.version };
 	console.log(`checking ${name}@${plugin.version} against ${editor.name}@${editor.version}`);
-	let result;
+	/** @type {Outcome} */
+	let outcome;
 	try {
-		const report = await runPluginConformance(suite);
-		for (const line of reportLines(report)) console.log(`  ${line}`);
-		result = { ...record, result: 'pass', failures: null };
+		outcome = await runSuite(suite);
 	} catch (error) {
-		console.error(/** @type {Error} */ (error).message);
-		result = { ...record, result: 'fail', failures: /** @type {Error} */ (error).message };
+		outcome = {
+			result: 'fail',
+			rows: [],
+			warnings: [],
+			message: /** @type {Error} */ (error).message
+		};
 	}
+	for (const line of rowLines(outcome.rows)) console.log(`  ${line}`);
+	if (outcome.message) console.error(outcome.message);
+	const { result, rows, warnings } = outcome;
+	const record = {
+		package: name,
+		version: plugin.version,
+		editor: editor.version,
+		result,
+		rows,
+		warnings
+	};
 	if (jsonFile)
-		writeFileSync(path.resolve(cwd, jsonFile), JSON.stringify(result, null, '\t') + '\n');
+		writeFileSync(path.resolve(cwd, jsonFile), JSON.stringify(record, null, '\t') + '\n');
 	console.log(
-		result.result === 'pass' ? 'aragonite-plugin-check: passed' : 'aragonite-plugin-check: failed'
+		result === 'pass' ? 'aragonite-plugin-check: passed' : 'aragonite-plugin-check: failed'
 	);
-	return result.result === 'pass' ? 0 : 1;
+	return result === 'pass' ? 0 : 1;
 }
 
 // npm links the bin, so the path it was started by is compared once the link is resolved.

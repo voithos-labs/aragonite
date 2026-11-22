@@ -92,7 +92,7 @@ writeFileSync(
 		"import { createEditor } from '@voithos-labs/aragonite';",
 		`import { parrotPlugin } from '${NAME}';`,
 		`import suite from '${NAME}/conformance';`,
-		'createEditor(document.body, { plugins: [parrotPlugin(), ...suite.plugins] });'
+		'createEditor(document.body, { plugins: [parrotPlugin(), suite.plugin] });'
 	].join('\n')
 );
 run('npx --no-install tsc -p .', { cwd: check });

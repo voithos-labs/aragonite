@@ -76,26 +76,47 @@ export async function runCell<Cell extends string, Ctx>(
 	return { cell, ...outcome };
 }
 
-/** Runs every cell and throws one `Error` under `heading` naming each failure and the contract it
- *  breaks, `earlier` ones (found before any cell ran, already in `cellFailure` form) first. */
+/** A cell as a run left it: its report, or what it threw. */
+export type SettledCell<Cell extends string = string> =
+	CellReport<Cell> | { cell: Cell; status: 'failed'; detail: string };
+
+/** Runs every cell, keeping each failure as a settled cell instead of throwing it. */
+export async function settleCells<Cell extends string, Ctx>(
+	cells: readonly KitCell<Cell, Ctx>[],
+	ctx: Ctx,
+	subject: string
+): Promise<SettledCell<Cell>[]> {
+	const settled: SettledCell<Cell>[] = [];
+	for (const kitCell of cells) {
+		try {
+			settled.push(await runCell(kitCell, ctx, subject));
+		} catch (error) {
+			settled.push({ cell: kitCell.cell, status: 'failed', detail: (error as Error).message });
+		}
+	}
+	return settled;
+}
+
+/** Runs every cell; throws one `Error` under `heading` naming each failure and its contract,
+ *  `earlier` ones (already in `cellFailure` form) first, and carrying the settled `cells`. */
 export async function runCells<Cell extends string, Ctx>(
 	cells: readonly KitCell<Cell, Ctx>[],
 	ctx: Ctx,
 	names: { subject: string; heading: string; contracts: Record<Cell, CellContract> },
 	earlier: readonly string[] = []
 ): Promise<CellReport<Cell>[]> {
-	const reports: CellReport<Cell>[] = [];
-	const failures = [...earlier];
-	for (const kitCell of cells) {
-		try {
-			reports.push(await runCell(kitCell, ctx, names.subject));
-		} catch (error) {
-			const { cell } = kitCell;
-			failures.push(cellFailure(cell, (error as Error).message, names.contracts[cell]));
-		}
+	const settled = await settleCells(cells, ctx, names.subject);
+	const failures = [
+		...earlier,
+		...settled.flatMap((s) =>
+			s.status === 'failed' ? [cellFailure(s.cell, s.detail, names.contracts[s.cell])] : []
+		)
+	];
+	if (failures.length > 0) {
+		const message = `${names.heading}:\n  - ${failures.join('\n  - ')}`;
+		throw Object.assign(new Error(message), { cells: settled });
 	}
-	if (failures.length > 0) fail(`${names.heading}:\n  - ${failures.join('\n  - ')}`);
-	return reports;
+	return settled as CellReport<Cell>[];
 }
 
 // ── Assertion kit ────────────────────────────────────────────────────────────

@@ -23,8 +23,9 @@ const RESULTS = ['pass', 'fail', 'out-of-range'];
 /**
  * What a release's check recorded for one package: the version it checked (null when the peer
  * range left the editor out), where its source lives and the editor range it peers, both read from
- * its own manifest, and what the check found on which editor release.
- * @typedef {{ version: string | null, repository: string, peer: string, editor: string, result: 'pass' | 'fail' | 'out-of-range', failures?: string[] }} CheckRecord
+ * its own manifest, what the check found on which editor release, and how many checks needed what
+ * the run lacked (a browser, a DOM).
+ * @typedef {{ version: string | null, repository: string, peer: string, editor: string, result: 'pass' | 'fail' | 'out-of-range', failures?: string[], unchecked?: number }} CheckRecord
  * @typedef {Record<string, CheckRecord>} Checks
  * @typedef {{ name?: string, keywords?: string[], repository?: string | { url?: string }, peerDependencies?: Record<string, string> }} PublishedManifest
  */
@@ -64,7 +65,7 @@ export function listingProblems(names) {
  */
 export function recordProblem(record) {
 	if (typeof record !== 'object' || record === null) return 'not a record';
-	const { version, repository, peer, editor, result, failures, ...rest } =
+	const { version, repository, peer, editor, result, failures, unchecked, ...rest } =
 		/** @type {Record<string, unknown>} */ (record);
 	if (Object.keys(rest).length > 0) return `unknown fields: ${Object.keys(rest)}`;
 	if (version !== null && (typeof version !== 'string' || !VERSION.test(version)))
@@ -77,6 +78,8 @@ export function recordProblem(record) {
 		return `result is none of ${RESULTS.join(', ')}`;
 	const listed = Array.isArray(failures) && failures.every((f) => typeof f === 'string');
 	if ((result === 'fail') !== listed) return 'failures goes with a failed result only';
+	if (unchecked !== undefined && !(Number.isInteger(unchecked) && Number(unchecked) > 0))
+		return 'unchecked is no count';
 	return null;
 }
 
@@ -105,7 +108,9 @@ export function checksProblems(checks, names) {
 /** @param {CheckRecord} record */
 function checkedCell(record) {
 	const on = `on ${record.editor}`;
-	if (record.result === 'pass') return `passed ${on}`;
+	if (record.result === 'pass') {
+		return record.unchecked ? `passed ${on}, ${record.unchecked} unchecked` : `passed ${on}`;
+	}
 	if (record.result === 'out-of-range') return `not checked ${on}: its peer range leaves it out`;
 	return `failed ${on} (${(record.failures ?? []).join('; ')})`;
 }

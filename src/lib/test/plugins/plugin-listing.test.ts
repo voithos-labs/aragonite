@@ -20,7 +20,6 @@ import {
 	withTable
 } from '../../../../scripts/plugins/listing.mjs';
 import {
-	failedCells,
 	recordFrom,
 	recorded,
 	resultArtifact,
@@ -91,7 +90,8 @@ describe('the listing schema', () => {
 		['a peer range npm would not read', record({ peer: 'latest' })],
 		['an editor that is a range, not the release checked', record({ editor: '^0.12.0' })],
 		['a field the record does not know', record({ stars: 5 })],
-		['a failed result without its cells', record({ result: 'fail' })]
+		['a failed result without its cells', record({ result: 'fail' })],
+		['an unchecked count that is no count', record({ unchecked: 0 })]
 	])('refuses a record with %s', (_, problem) => {
 		expect(recordProblem(record())).toBeNull();
 		expect(recordProblem(problem)).not.toBeNull();
@@ -184,20 +184,25 @@ describe('a pull request against the listing', () => {
 });
 
 describe('recording a check', () => {
-	const failure =
-		'plugin conformance failed for "memo":\n' +
-		'  - kind conformance failed for "memo":\n' +
-		'      - rawWrite: "memo" declares no rawWrite\n' +
-		'        breaks: any bytes written into your block leave the blocks around it alone (plugin-testing.md#x)\n' +
-		'  - container conformance failed for "box":\n' +
-		'      - ancestry: stale\n' +
-		'        breaks: an edit deep inside rebuilds every container above it (plugin-testing.md#y)';
+	const row = (subject: string, check: string, status: string) => ({
+		of: 'block',
+		subject,
+		check,
+		status,
+		detail: 'never recorded'
+	});
+	const failure = [
+		row('a/memo', 'rawWrite', 'failed'),
+		row('a/memo', 'focus', 'unchecked'),
+		row('a/box', 'ancestry', 'failed')
+	];
 	const result = (extra: Record<string, unknown> = {}) => ({
 		package: 'aragonite-a',
 		version: '1.0.0',
 		editor: '0.12.0',
 		result: 'pass',
-		failures: null,
+		rows: [row('a/memo', 'roundTrip', 'passed')],
+		warnings: [],
 		...extra
 	});
 	/** A result as the recorder finds it, in the artifact its own package uploads. */
@@ -206,19 +211,19 @@ describe('recording a check', () => {
 		return { artifact: resultArtifact(value.package as string), result: value };
 	};
 
-	it('names each broken cell by its kind, or the first problem when no cell broke', () => {
-		expect(failedCells(failure)).toEqual(['memo: rawWrite', 'box: ancestry']);
-		expect(
-			failedCells('plugin conformance failed for "a":\n  - container kind "box" has no profile')
-		).toEqual(['container kind "box" has no profile']);
-	});
-
 	it('refuses a result file that is not a check result, since a plugin ran in the job that wrote it', () => {
 		expect(resultProblem(result())).toBeNull();
 		expect(resultProblem(result({ result: 'verified!' }))).toMatch(/unknown result/);
 		expect(resultProblem(result({ editor: '^0.12.0' }))).toMatch(/editor/);
 		expect(resultProblem(result({ version: '1.0.0" && curl x' }))).toMatch(/version/);
-		expect(resultProblem(result({ result: 'fail' }))).toMatch(/failures/);
+		expect(resultProblem(result({ result: 'fail' }))).toMatch(/names what failed/);
+		expect(resultProblem(result({ rows: failure }))).toMatch(/names what failed/);
+		expect(resultProblem(result({ rows: undefined, failures: 'x' }))).toMatch(/before rows/);
+		// What a row names lands in the gallery table, so nothing that hides markup gets through.
+		expect(resultProblem(result({ rows: [row('a | <b>', 'undo', 'failed')] }))).toMatch(/subject/);
+		expect(resultProblem(result({ rows: [row('a/memo', 'un do', 'failed')] }))).toMatch(/check/);
+		expect(resultProblem(result({ rows: [row('a/memo', 'undo', 'fine')] }))).toMatch(/status/);
+		expect(resultProblem(result({ warnings: [{ tag: '<x>', message: '' }] }))).toMatch(/warnings/);
 	});
 
 	it('records each result beside the repository and peer range its own manifest names', () => {
@@ -235,14 +240,19 @@ describe('recording a check', () => {
 			['aragonite-a', 'aragonite-b', 'aragonite-c'],
 			{ 'aragonite-c': record({ editor: '0.11.0' }) },
 			[
-				arrival({ result: 'fail', failures: failure }),
-				arrival({ package: 'aragonite-b', version: null, result: 'out-of-range' })
+				arrival({ result: 'fail', rows: failure, warnings: [{ tag: 'noisy', message: 'x' }] }),
+				arrival({ package: 'aragonite-b', version: null, result: 'out-of-range', rows: [] })
 			],
 			manifestOf
 		);
 
 		expect(checks['aragonite-a']).toEqual(
-			record({ ...fromManifest, result: 'fail', failures: ['memo: rawWrite', 'box: ancestry'] })
+			record({
+				...fromManifest,
+				result: 'fail',
+				failures: ['a/memo: rawWrite', 'a/box: ancestry', 'dev warning [noisy]'],
+				unchecked: 1
+			})
 		);
 		expect(checks['aragonite-b']).toEqual(
 			record({ ...fromManifest, version: null, result: 'out-of-range' })
@@ -291,14 +301,14 @@ describe('recording a check', () => {
 
 	it('shows each recorded result in the gallery, and no row for a name not checked yet', () => {
 		const table = renderTable(['aragonite-a', 'aragonite-b', 'aragonite-c', 'aragonite-d'], {
-			'aragonite-a': record(),
+			'aragonite-a': record({ unchecked: 4 }),
 			'aragonite-b': record({ version: null, result: 'out-of-range' }),
 			'aragonite-c': record({ result: 'fail', failures: ['c: undo'] })
 		});
 		expect(table).toContain(
 			'| [repository](https://github.com/someone/aragonite-thing) | `^0.12.0` |'
 		);
-		expect(table).toContain('passed on 0.12.0');
+		expect(table).toContain('passed on 0.12.0, 4 unchecked');
 		expect(table).toContain('not checked on 0.12.0: its peer range leaves it out');
 		expect(table).toContain('failed on 0.12.0 (c: undo)');
 		expect(table).not.toContain('aragonite-d');

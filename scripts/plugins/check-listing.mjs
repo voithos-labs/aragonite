@@ -22,46 +22,71 @@ import {
  * @typedef {import('./listing.mjs').Checks} Checks
  * @typedef {import('./listing.mjs').CheckRecord} CheckRecord
  * @typedef {import('./listing.mjs').PublishedManifest} PublishedManifest
- * @typedef {{ package: string, version: string | null, editor: string, result: string, failures: string | null }} CheckResult
+ * @typedef {{ of: string, subject: string, check: string, status: string, detail: string }} CheckRow
+ * @typedef {{ package: string, version: string | null, editor: string, result: string, rows: CheckRow[], warnings: { tag: string, message: string }[] }} CheckResult
  */
 
 // ── Pure parts ───────────────────────────────────────────────────────────────
 
-/**
- * The broken cells a failed run names (`kind: cell`), or its first problem line when no cell
- * broke, the way `runPluginConformance` writes them.
- * @param {string} message
- * @returns {string[]}
- */
-export function failedCells(message) {
-	const cells = [];
-	let subject = null;
-	for (const line of message.split('\n')) {
-		const heading = /conformance failed for (?:rung )?"([^"]+)"/.exec(line);
-		if (heading && !line.startsWith('plugin ')) subject = heading[1];
-		const cell = /^ {6}- (\w+): /.exec(line);
-		if (cell && subject) cells.push(`${subject}: ${cell[1]}`);
-	}
-	if (cells.length > 0) return cells;
-	const first = message.split('\n').find((line) => line.startsWith('  - '));
-	return [first ? first.slice(4) : message.split('\n')[0]];
+const OF = ['plugin', 'block', 'inline', 'command', 'menu', 'rewrite'];
+const STATUSES = ['passed', 'failed', 'advisory', 'excused', 'not-applicable', 'unchecked'];
+// What reaches the gallery table is held to a shape no Markdown or HTML hides in.
+const SUBJECT = /^[^\r\n|`<>[\]]{1,120}$/;
+const CHECK = /^[A-Za-z]{1,40}$/;
+const TAG = /^[\w:.-]{1,60}$/;
+
+/** @param {unknown} row */
+function rowProblem(row) {
+	const { of, subject, check, status } = /** @type {Partial<CheckRow>} */ (row ?? {});
+	if (!OF.includes(/** @type {string} */ (of))) return `a row of ${of}`;
+	if (typeof subject !== 'string' || !SUBJECT.test(subject)) return 'a row with no plain subject';
+	if (typeof check !== 'string' || !CHECK.test(check)) return 'a row with no check name';
+	if (!STATUSES.includes(/** @type {string} */ (status))) return `a row with status ${status}`;
+	return null;
 }
 
 /**
  * Why `value`, a result file the plugin check wrote, can't be recorded, or null when it can. The
- * file comes out of a job that ran a plugin's code, so nothing in it is trusted unchecked.
+ * file comes out of a job that ran a plugin's code, so nothing in it is trusted unchecked; a row's
+ * `detail` is never recorded.
  * @param {unknown} value
  */
 export function resultProblem(value) {
 	if (typeof value !== 'object' || value === null) return 'not an object';
-	const { package: name, version, editor, result, failures } = /** @type {CheckResult} */ (value);
+	const {
+		package: name,
+		version,
+		editor,
+		result,
+		rows,
+		warnings
+	} = /** @type {CheckResult} */ (value);
 	if (typeof name !== 'string') return 'no package';
 	if (version !== null && (typeof version !== 'string' || !VERSION.test(version)))
 		return 'version is no version';
 	if (typeof editor !== 'string' || !VERSION.test(editor)) return 'editor is no version';
 	if (!['pass', 'fail', 'out-of-range'].includes(result)) return `unknown result ${result}`;
-	if ((result === 'fail') !== (typeof failures === 'string')) return 'failures goes with fail only';
+	if (!Array.isArray(rows)) return 'rows is no list, so a check before rows wrote it';
+	const bad = rows.map(rowProblem).find((problem) => problem !== null);
+	if (bad) return bad;
+	if (!Array.isArray(warnings) || warnings.some((w) => !TAG.test(w?.tag)))
+		return 'warnings is no list of tagged warnings';
+	if ((result === 'fail') !== failuresOf(/** @type {CheckResult} */ (value)).length > 0)
+		return 'a failed result, and only one, names what failed';
 	return null;
+}
+
+/**
+ * What a run failed on, as the gallery shows it: `subject: check` per failed row, then each dev
+ * warning's tag.
+ * @param {CheckResult} result
+ * @returns {string[]}
+ */
+function failuresOf({ rows, warnings }) {
+	return [
+		...rows.filter((row) => row.status === 'failed').map((row) => `${row.subject}: ${row.check}`),
+		...warnings.map(({ tag }) => `dev warning [${tag}]`)
+	];
 }
 
 /**
@@ -74,6 +99,7 @@ export function resultProblem(value) {
 export function recordFrom(result, published) {
 	const problem = registryProblem(result.package, published);
 	if (problem !== null) throw new Error(problem);
+	/** @type {CheckRecord} */
 	const record = {
 		version: result.version,
 		repository: /** @type {string} */ (repositoryUrl(published.repository)),
@@ -81,9 +107,10 @@ export function recordFrom(result, published) {
 		editor: result.editor,
 		result: /** @type {CheckRecord['result']} */ (result.result)
 	};
-	return result.result === 'fail'
-		? { ...record, failures: failedCells(result.failures ?? '') }
-		: record;
+	const unchecked = result.rows.filter((row) => row.status === 'unchecked').length;
+	if (unchecked > 0) record.unchecked = unchecked;
+	if (result.result === 'fail') record.failures = failuresOf(result);
+	return record;
 }
 
 /**

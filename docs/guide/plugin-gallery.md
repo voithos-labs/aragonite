@@ -25,7 +25,7 @@ Start from the [plugin guide](plugin-guide.md#the-first-fifteen-minutes)'s templ
 
 - **A package on npm** with the `aragonite-plugin` keyword. An `aragonite-<name>` name helps people spot it too.
 - **Two fields in its `package.json`**, which the gallery reads straight off npm: `repository`, pointing at its source on GitHub, GitLab or Codeberg, and a peer dependency on `@voithos-labs/aragonite`, whose range is what the table says your plugin supports.
-- **A `./conformance` export** whose default export is your [conformance suite](plugin-testing.md#the-whole-plugin-at-once-runpluginconformance): your plugins, plus a profile for each container or inline kind they declare.
+- **A `./conformance` export** whose default export is your plugin value as a [`Conformance`](plugin-testing.md#checking-a-plugin-value-check), or for `setup` plugins your [conformance suite](plugin-testing.md#the-whole-plugin-at-once-runpluginconformance), with a profile for each container or inline kind they declare.
 - **A passing check.** `npx aragonite-plugin-check your-package` in a project with both installed runs exactly what the listing runs.
 
 Then open a pull request on the editor's repository that adds your package's name to [`listing.json`](plugin-gallery/listing.json), in alphabetical order (an `@` scope sorts before any letter). That one line is the whole pull request, plus a comma on the line above if yours lands last:

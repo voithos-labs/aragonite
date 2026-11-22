@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import type { EditorContext } from '#lib/schema/plugin-install.js';
 import { definePlugin } from '#lib/schema/plugin-install.js';
+import { definePluginUnit, type Editor } from '#lib/schema/plugin-unit.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -69,6 +70,29 @@ describe('a draft', () => {
 		expect(editor.instance.__test.getDocument().children[1]).toBe(between);
 		expect(editor.instance.__test.getUndoStack().undo).toHaveLength(1);
 		expect(await undo(editor)).toBe('one\n\ntwo\n\nthree\n');
+	});
+
+	// Miss-analysis: the one plugin row wrote through an old `setup` plugin, at one nesting level, and
+	// the published checks drive no operation over two levels, so a plugin value's one step was unheld.
+	it("writes a plugin value's draft inside a quote and below it as one undo step", async () => {
+		let editor: Editor | null = null;
+		const writer = definePluginUnit({
+			name: 'unit-value-writer',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ setup: (given) => void (editor = given) })
+		});
+		const mounted = mountEditor<Surface>({ source: '> one\n\ntwo\n', plugins: [writer] });
+		await mounted.settle();
+
+		const draft = editor!.edit().replace({ from: 2, to: 5 }, 'ONE');
+		const result = await draft.replace({ from: 7, to: 10 }, 'TWO').commit();
+		await mounted.settle();
+
+		expect(result).toEqual({ ok: true });
+		expect(mounted.source()).toBe('> ONE\n\nTWO\n');
+		expect(mounted.instance.__test.getUndoStack().undo).toHaveLength(1);
+		expect(await undo(mounted)).toBe('> one\n\ntwo\n');
 	});
 
 	it('lands past typing elsewhere in its paragraph, before its range and after it', async () => {

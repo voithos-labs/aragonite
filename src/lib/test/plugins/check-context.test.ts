@@ -69,6 +69,14 @@ describe('a conformance cell reads through its context', () => {
 		);
 	});
 
+	// Miss-analysis: every cell handed the headless actions a parsed document but the opener-line
+	// cell, which hands text, and no row read that text back under a plugin's grammar.
+	it('reads text handed to the headless actions under its own grammar', () => {
+		const held = installed();
+		release = held.release;
+		expect(held.context.headless('%%a memo\n').doc.children[0].kind).toBe(held.memo);
+	});
+
 	it('keeps every sample a block type and an inline declare', () => {
 		const held = installed();
 		release = held.release;

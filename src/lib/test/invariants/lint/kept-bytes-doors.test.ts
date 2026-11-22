@@ -23,6 +23,8 @@ const TEXT_READERS: Record<string, string> = {
 		'the byte splice vouches the blocks its reading took before it installs them',
 	'src/lib/editor-actions/commit/history.ts':
 		'an undo read again under another grammar vouches its reading, and reads once more',
+	'src/lib/testing/check-context.ts':
+		'the editor a check hands a plugin, whose drafts vouch the blocks they name and land through the byte splice',
 	'src/lib/components/Editor.svelte':
 		'the wiring: a draft vouches the blocks it names, and it and the test door land through the byte splice; the selection toolbar hands its text to a plugin, which writes through a draft'
 };
@@ -60,6 +62,8 @@ const POSITION_READERS: Record<string, string> = {
 		'a plugin’s reads, which write no byte; a draft made from one vouches its ranges as it commits',
 	'src/lib/components/editor-root/selection-actions.ts':
 		'the selection toolbar’s box, which writes no byte',
+	'src/lib/testing/check-context.ts':
+		'the document a check hands a plugin, which writes no byte; its drafts vouch their ranges as they commit',
 	'src/lib/inline-menu/inline-menu-state.svelte.ts':
 		'a pick’s draft vouches its range as it commits; a query taken out is written by its leaf’s path'
 };

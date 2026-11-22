@@ -24,12 +24,13 @@ And a map, so you can jump straight at your question:
 | [Proving a paste transform is wired](#proving-a-paste-transform-is-wired) | Driving the real paste pipeline over a string, no clipboard involved |
 | [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom) | Rendering your component in a simulated browser, and the helper that fills the gaps |
 | [One tab stop in reading mode](#one-tab-stop-in-reading-mode-readingtaborderproblem) | Checking your mounted block leaves reading mode's Tab to the links and the editor's one stop |
+| [Checking a plugin value](#checking-a-plugin-value-check) | Every check over every sample of every block type a plugin value lists, a row each, and excuses |
 | [The conformance kits](#the-conformance-kits) | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share |
 | [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
 | [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
 | [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for a `setup` plugin's recognizer: claiming your own bytes, declining everyone else's |
 | [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkmenupickacrossswap) | One cell for a caret menu: a pick that waits writes nothing into a note the host loaded meanwhile |
-| [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your plugin declares, the check a listing runs |
+| [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your `setup` plugin declares |
 | [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
 
 ## Verifying your plugin
@@ -212,6 +213,29 @@ expect(readingTabOrderProblem(target.querySelector('.editor')!)).toBeNull();
 // "reading mode has 2 tab stops that aren't controls (div.text-editable-block at [0], div.parrot-box at [1]): ..."
 ```
 
+### Checking a plugin value: `check`
+
+**`check(plugin, { options?, excuse?, warningsFail? })`**
+
+For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of every block type it lists, read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and no DOM.
+
+```ts
+import { check } from '@voithos-labs/aragonite/testing';
+
+it('the parrot passes every check', async () => {
+	const report = await check(parrotPlugin());
+	report.rows.map((r) => `${r.subject} ${r.check}: ${r.status}`);
+	// ['parrot install: passed', 'parrot/parrot sample: passed', 'parrot/parrot roundTrip: passed',
+	//  'parrot/parrot focus: unchecked', ..., 'parrot setup: not-applicable']
+});
+```
+
+A row is `passed`, `failed`, `excused`, `advisory` (it didn't hold, and this release only reports it), `not-applicable` (your shape has nothing for it to drive) or `unchecked` (it needs something the run lacks, a browser or, for your `setup`, a DOM; its detail says which). Unchecked rows are counted, never failed.
+
+A failed row, or a dev warning unless you pass `warningsFail: false`, rejects with a `CheckFailure`: its message names each failed row and the contract it breaks, and its `report` holds every row. `isCheckFailure(error)` tells one apart, even one thrown by another copy of the editor.
+
+An excuse covers a check your block type can't pass, with a reason of a sentence: `excuse: { blocks: { memo: { undo: '…' } } }`. It's a claim, not a waiver. One over a check that passed, a check that doesn't apply, or a block type you don't list fails the run, and a misspelt check or one no excuse covers doesn't compile. Your package's `./conformance` export is the same call as data, a `Conformance`: `{ plugin, options?, excuse? }`, the plugin value itself rather than a call of it.
+
 ### The conformance kits
 
 Conformance here means: your kind behaves the way the built-in kinds are required to behave, under the same checks. Three kits ship on the subpath, one per tier (block kind, container, inline syntax), and they share a vocabulary:
@@ -238,7 +262,7 @@ Takes your kind (the value `declaredPluginKind` returns) and runs one cell per e
   - It's `boundary` for a kind with the rule and no top-level fixture (none at all, or one sitting inside a container), and `exempt` for a kind with neither the rule nor a top-level fixture.
 - The unfinished-reading cell, last. If your opener declares `readingNotFinal`, because it backs out without its closer or reads on like a fence ([A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final)), it takes your fixture's last line off and checks `mayClose` says yes to that line, the closer that finishes it, and that `closer` hands back a line that closes the rest into your kind again. It also asks `notFinal` of your fixture a line at a time: once it says final, it has to stay final. A reading no line closes (`closer: null`) is held another way: `notFinal` has to say it waits for the first line alone and for every run of lines short of the whole fixture (a `notFinal` written for the block's own bytes fails here), then call the whole fixture final; a `crosses` you declared has to accept every line of your fixture under the first, and your opener must not read on across a blank line put above the fixture's last line, since a block that does needs a `closer`. It's `exempt` for a one-line fixture, and for a reading that names a closer when your fixture minus its last line doesn't read as waiting, which covers every kind that neither backs out nor reads on. One catch: if your fixture is a fence and your opener declares no `readingNotFinal`, the cell fails and asks for `fenceReading`.
 
-Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one, so for those `runPluginConformance` checks the plugin's install and stops there, the way the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends. For the bundled `[[toc]]` block, the whole checkup is one call:
+Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one: [`check`](#checking-a-plugin-value-check) runs these checks over it. For the bundled `[[toc]]` block, the whole checkup is one call:
 
 ```ts
 it('toc conforms', async () => {
@@ -531,7 +555,7 @@ await checkMenuPickAcrossSwap({
 
 **`runPluginConformance(suite)`**
 
-The three kits each take one kind. This one takes your whole plugin: it empties the registries, installs your units the way the `plugins` prop does, and runs every kit over every kind their setups declared. It's also the check a plugin listing runs, so it's strict about what it gets: a container kind needs a container profile and an inline kind needs an inline profile, since without fixtures those kits have nothing to run. Any dev warning raised along the way fails the run, so it wants dev checks on (it's on under Vitest; anywhere else, `configureEditorEnv({ isDev: true })` first).
+The three kits each take one kind. This one takes your whole `setup` plugin: it empties the registries, installs your units the way the `plugins` prop does, and runs every kit over every kind their setups declared. A plugin value fails it and goes to [`check`](#checking-a-plugin-value-check). It's also the check a plugin listing runs, so it's strict about what it gets: a container kind needs a container profile and an inline kind needs an inline profile, since without fixtures those kits have nothing to run. Any dev warning raised along the way fails the run, so it wants dev checks on (it's on under Vitest; anywhere else, `configureEditorEnv({ isDev: true })` first).
 
 The suite is your units plus those profiles. A profile names its kind as a string, because the branded kind only exists once your setup has run:
 
@@ -551,7 +575,7 @@ it('the plugin conforms', async () => {
 });
 ```
 
-It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
+It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`, and each cell as a row in `rows`), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
 
 ```
 Error: plugin conformance failed for "memo":
@@ -566,17 +590,21 @@ A kind left without its profile fails the same way (`container kind "conspiracy"
 
 **`npx aragonite-plugin-check [package | directory] [--json file]`**
 
-The same run from outside your test suite, over your built package the way a host installs it. Your package publishes its suite as a `./conformance` export (a module whose default export is the `PluginConformanceSuite` above), and the command comes with the editor, so it runs the kits of whichever editor version you installed. Pass a directory to check the package it holds (`.` is the default), or a package name to check one installed beside the editor:
+The same run from outside your test suite, over your built package the way a host installs it, in plain Node. Your package publishes its suite as a `./conformance` export (a module whose default export is a [`Conformance`](#checking-a-plugin-value-check), or for `setup` plugins the `PluginConformanceSuite` above), and the command comes with the editor, so it runs the checks of whichever editor version you installed. Pass a directory to check the package it holds (`.` is the default), or a package name to check one installed beside the editor:
 
 ```
 $ npx aragonite-plugin-check .
 checking aragonite-parrot@0.1.0 against @voithos-labs/aragonite@0.12.0
+  passed parrot install
+  passed parrot/parrot sample
+  ...
+  15 rows: 7 passed, 5 unchecked, 3 not-applicable
 aragonite-plugin-check: passed
 ```
 
-A plugin with kinds registered by hand gets a line per checkup in between (`kind checkup, toc: 4 asserted, 6 boundary, 1 exempt`, say).
+Each row gets a line, with its detail where it didn't pass, then a count of each status.
 
-It exits 0 when every cell passed, 1 when a contract broke (with the same message `runPluginConformance` throws), and 2 when the package publishes no suite. `--json` also writes the result to a file.
+It exits 0 when nothing failed (unchecked rows are counted, not failed), 1 when a check failed (with the message the run threw), and 2 when the package publishes no suite. `--json` also writes the result and its rows to a file.
 
 The suite ships in your package, so keep its source to your plugin's own imports plus `import type` from `@voithos-labs/aragonite/testing`: a host never loads it, and it shouldn't drag the test kits into anyone's install.
 

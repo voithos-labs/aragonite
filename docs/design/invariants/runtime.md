@@ -111,7 +111,7 @@ These checks run in three kinds of place:
 | G1.163 | A caret key the editor decided leaves the selection it wrote | A·N |
 | G1.165 | _Retired upward_: a container's chords run from the block they're pressed in, so no element needs marking | A·N |
 | G1.166 | A plugin installs into the copy of the editor that defined it | A·N |
-| G1.167 | A whole-plugin conformance run checks every kind the plugin declares, and a dev warning fails it | harness·N |
+| G1.167 | A whole-plugin conformance run checks every kind a `setup` plugin declares, refuses a plugin value, and a dev warning fails it | harness·N |
 | G1.168 | A key or a composition over a selection in live mode is written by the editor, never left to the browser | A·N |
 | G1.169 | While a finger's range is the editor's, the DOM holds only a caret | A·N |
 | G1.170 | The editor owns a range inside one block only when a finger's press made it | A·N |
@@ -144,6 +144,7 @@ These checks run in three kinds of place:
 | G1.220 | A fold of the chain rebuild spells the lines its list spelled before it | A·N |
 | G1.229 | One plugin mark or marker side name reads the same row in every editor running it | A·N |
 | G1.230 | The answers a surface's `depends` keeps equal asking every top-level block again | A·N |
+| G1.233 | `check` runs every check over every sample of every block type a plugin value lists; an excuse that doesn't stand, or a dev warning, fails it | harness·N |
 | G4.371 | A block a plugin holds answers only where its node stands, and loses it only where a write said it changed | A·N |
 
 ### The entries
@@ -336,7 +337,7 @@ These checks run in three kinds of place:
 
 **G1.166 · One copy of the editor** (`plugin-one-core-copy`). `definePlugin` marks each plugin with the copy of the core it ran in, so a plugin package that resolved a second copy (a version that doesn't match, or a bundler that didn't dedupe) warns at install, `installPlugins` or an editor's own list, instead of running where the editor never reads. The mark is written in every build, so a copy running without checks is still caught; a hand-built plugin object carries none. `checkDefinedByThisCopy` · `schema/plugin-unit.ts` · `plugin-one-core-copy.test.ts`.
 
-**G1.167 · A plugin's conformance covers all of it** (`runPluginConformance`). The run installs a plugin's units on a blank platform and runs the kind checkup on every block kind they declared, the container checkup on each container and the inline checkup on each inline profile. A container or inline kind with no profile fails, and so does a profile naming no declared kind. A dev warning fails the run, and with dev checks off it won't start. `testing/plugin-conformance.ts` · `plugin-conformance.test.ts`.
+**G1.167 · A `setup` plugin's conformance covers all of it** (`runPluginConformance`). It installs the `setup` plugins on a blank platform and runs the kind checkup on every kind they declared, the container checkup on each container, the inline checkup on each inline profile. A kind with no profile, a profile naming none, and a plugin value (G1.233's) each fail it, and so does a dev warning; with dev checks off it won't start. Its error carries each cell as a row. `testing/plugin-conformance.ts` · `plugin-conformance.test.ts`.
 
 **G1.168 · The editor writes a live edit over a selection** (`live-range-written`). The browser edits the selection as the DOM holds it, and an end of that can sit on either side of a hidden bracket, so in live mode every key and every composition over a selection in one block goes through `replaceDrawnRange`. Dev fails the shared range-edit wrapper declining a key over one; the composition commit takes the block's node and store, so it has no way to skip the write. `checkLiveRangeWritten` · `live-range-written.test.ts`, `live-ranged-edit.test.ts`.
 
@@ -401,5 +402,7 @@ These checks run in three kinds of place:
 **G1.229 · A plugin mark's row is page-wide** (`inline-type-facts`). The readers of a construct's row take its kind, so a mark, or a marker pair's side, lends its row to the page by its `plugin/name` while an editor runs it, and takes it back when the last one stops. A second editor holding the name with another row (its marker or nesting came from options) is warned of, and the first row stands. `holdInlineConstructPolicy` (`schema/inline-construct-policy.ts`) · `test/plugins/inline/mark.svelte.test.ts`.
 
 **G1.230 · The kept answers are the document's** (`kept-keys`). A block type's or an inline widget's `depends`, or a paint's `paintDepends`, is asked once per top-level block when its watch starts, then only for the blocks each write's runs replaced. Dev asks every block again after each settle (documents up to 2,000 blocks) and compares the answers: a difference means a write under-reported its runs, or a `depends` read more than its block (its place, another block). `checkKeptKeys` · `commit/block-keys.ts` · `depends.svelte.test.ts`, `paint-depends.svelte.test.ts`.
+
+**G1.233 · `check` runs everything over every sample** (`check`). It installs a plugin value as an editor does, with its defaults and with `options` held at once, and runs the block checks on each sample that reads as its type (`sample` fails the rest), the container checks on fixtures derived from it. An excuse over a check that passed, doesn't apply or takes none, or a subject not listed, fails the run, as a dev warning does. `testing/check.ts` · `check/check.test.ts`, `container-shape.test.ts`, `check-setup.test.ts`.
 
 **G4.371 · A held block reads only its node's place** (`held-block-place`). A held block moves where it was last seen through the runs each write reports and answers only where its own node stands, so a block a write replaced reads -1, never a neighbour. Dev compares each moved read with a fresh walk once per version: a read the walk disagrees with, or a block lost from a slot no run named, means a write under-reported. `checkHeldBlockPlace` · `commit/document-read.ts` · `held-block.svelte.test.ts`, `held-block-routes.svelte.test.ts`.

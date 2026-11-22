@@ -2,6 +2,7 @@
  * How a conformance check reads: the grammar of the editor under test, and every read that would
  * otherwise fall back to the default grammar without saying so. A cell takes one and reads through
  * nothing else, so a plugin value's block types and inlines are read as its own editor reads them.
+ * A check over plugin values also gets the editor their `setup` meets, with no editor mounted.
  */
 
 import type { AnyBlockKind, Document, InlineNode } from '../core/nodes';
@@ -17,14 +18,28 @@ import { installBlockTypes } from '../schema/block-type';
 import { installInlines } from '../schema/inline-type';
 import { createEditorActivation } from '../schema/plugin-activation';
 import {
+	createEditorContributions,
+	type EditorContributions
+} from '../schema/editor-contributions';
+import {
 	installPluginList,
+	type Editor,
 	type InstalledPlugin,
 	type PluginError,
 	type PluginList
 } from '../schema/plugin-unit';
-import type { PresentationMode } from '../presentation-mode';
+import type { View } from '../schema/view';
+import type { Command } from '../schema/plugin-command';
+import { modeOf, type PresentationMode } from '../presentation-mode';
 import type { Reading } from '../schema/reading';
-import { createHeadlessActions, type HeadlessActions } from './headless-actions';
+import { createDocumentRead, type DocumentRead } from '../editor-actions/commit/document-read';
+import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
+import { createUndoController } from '../editor-actions/commit/undo-controller';
+import {
+	createHeadlessActions,
+	type HeadlessActions,
+	type HeadlessActionsOptions
+} from './headless-actions';
 import { kitReading } from './kit-reading';
 import { describeConvergence } from './parse-convergence';
 
@@ -37,20 +52,28 @@ export interface CheckContext {
 	reading(mode?: () => PresentationMode): Reading;
 	descriptor(kind: AnyBlockKind): BlockKindDescriptor;
 	/** The headless edit actions over `content`, reading as the editor under test. */
-	headless(content: Parameters<typeof createHeadlessActions>[0]): HeadlessActions;
+	headless(
+		content: Parameters<typeof createHeadlessActions>[0],
+		options?: Omit<HeadlessActionsOptions, 'reading'>
+	): HeadlessActions;
 	/** Throws unless `doc` matches a fresh parse of its own bytes, kinds and metadata included. */
 	converged(doc: Document, label: string): void;
 }
 
 export function checkContext(grammar: EditorGrammar): CheckContext {
 	const reading: CheckContext['reading'] = (mode) => ({ ...kitReading(mode), grammar });
+	const read = (text: string) => parse(text, { grammar });
 	return {
 		grammar,
-		parse: (text) => parse(text, { grammar }),
+		parse: read,
 		parseInline: (raw, start, end) => parseInline(raw, start, end, undefined, grammar),
 		reading,
 		descriptor: (kind) => grammar.descriptor(kind),
-		headless: (content) => createHeadlessActions(content, { reading: reading() }),
+		headless: (content, options) =>
+			createHeadlessActions(typeof content === 'string' ? read(content) : content, {
+				...options,
+				reading: reading()
+			}),
 		converged(doc, label) {
 			const divergence = describeConvergence(doc, grammar);
 			if (divergence) throw new Error(`${label}: ${divergence}`);
@@ -58,26 +81,150 @@ export function checkContext(grammar: EditorGrammar): CheckContext {
 	};
 }
 
-/** The context of a check over plugin values: their block types and inlines installed as one
- *  editor installs them, each problem handed to `report`, and held until `release`. */
+/** A check over plugin values: their context, the plugins an editor would keep, and the editor a
+ *  `setup` meets over `source`. Hold it until `release`. */
+export interface PluginCheckRun {
+	readonly context: CheckContext;
+	readonly units: readonly InstalledPlugin[];
+	/** The block types the install kept, by kind, in list order. */
+	readonly kinds: readonly AnyBlockKind[];
+	editor(source: string): Editor;
+	release(): void;
+}
+
+/** Installs `plugins` the way an editor's list does, in its order, each problem handed to
+ *  `report`. */
 export function pluginCheckContext(
 	plugins: PluginList,
 	report: (error: PluginError) => void
-): { context: CheckContext; units: readonly InstalledPlugin[]; release(): void } {
-	const units = installPluginList(plugins, report);
+): PluginCheckRun {
+	let current: StandIn | undefined;
+	const contributions = createEditorContributions({
+		editorFor: () => current?.editor,
+		report,
+		blocksAround: () => ({ blocks: [] }),
+		blockOf: (node, path) => current!.read.blockOf(node, path),
+		clipboardBlocks: () => () => {
+			throw new Error('a check pastes nothing');
+		}
+	});
+	const units = contributions.read(installPluginList(plugins, report));
 	const blocks = installBlockTypes(units, report);
 	const inlines = installInlines(units, report);
+	const names = units.map((unit) => unit.name);
 	const grammar = createEditorGrammar({
-		plugins: createEditorActivation(units.map((unit) => unit.name)),
+		plugins: createEditorActivation(names, contributions),
 		blocks: () => blocks.blocks,
 		inlines: () => inlines.inlines
 	});
-	const release = (): void => {
-		blocks.release();
-		inlines.release();
+	const context = checkContext(grammar);
+	return {
+		context,
+		units,
+		kinds: blocks.blocks.map((block) => block.kind),
+		editor(source) {
+			current = standIn(context, source, units, contributions);
+			return current.editor;
+		},
+		release() {
+			blocks.release();
+			inlines.release();
+		}
 	};
-	return { context: checkContext(grammar), units, release };
 }
 
 /** The context of a check with no editor: every installed plugin's syntax. */
 export const defaultCheckContext: CheckContext = checkContext(defaultGrammarView);
+
+/* -------------------------------------------------------------------------- */
+/*                     The editor a check hands a plugin                      */
+/* -------------------------------------------------------------------------- */
+
+/** Answers as an editor's view does for a block off screen, which a plugin already has to take. */
+const OFF_SCREEN: View = {
+	boxOf: () => null,
+	boxesOf: () => [],
+	caretBox: () => null,
+	posAt: () => null,
+	reveal: async () => false,
+	overlay: () => () => {}
+};
+
+interface StandIn {
+	editor: Editor;
+	read: DocumentRead;
+}
+
+/** `source` read as `context` reads it, with real drafts and commands; nothing is on screen,
+ *  nothing fires, and nothing opens or selects. */
+function standIn(
+	context: CheckContext,
+	source: string,
+	units: readonly InstalledPlugin[],
+	contributions: EditorContributions
+): StandIn {
+	let version = 0;
+	const headless = context.headless(source, { bumpContentVersion: () => version++ });
+	const { deps } = headless;
+	const controller = createUndoController(deps);
+	const read = createDocumentRead({
+		getDoc: () => deps.doc,
+		measured: () => deps.bytes.measured(),
+		// A built-in type is named by its kind, which is all `is` compares.
+		typeOf: (kind) =>
+			units
+				.flatMap((unit) => unit.contribution.blocks ?? [])
+				.find((type) => type.name === kind) ?? {
+				name: kind,
+				label: kind
+			},
+		reading: deps.reading,
+		version: () => version,
+		source: () => deps.bytes.source()
+	});
+	const drafts = createDraftRegistry({
+		stamps: deps.stamps,
+		starts: deps.starts,
+		events: headless.events,
+		doc: () => deps.doc,
+		measured: () => deps.bytes.measured(),
+		source: () => deps.bytes.source(),
+		isReading: () => false,
+		isOn: () => true,
+		grammar: context.grammar,
+		writes: () => ({
+			commitSource: controller.commitSource,
+			undoStep: (seed, run) => controller.undoStep(seed, run),
+			insert: async () => false
+		})
+	});
+	const entryOf = (command: Command<unknown> | string) => contributions.command(command);
+	const editor: Editor = {
+		plugins: units.map((unit) => unit.name),
+		mode: modeOf('source'),
+		theme: 'light',
+		inserts: contributions.inserts,
+		get doc() {
+			return read.doc();
+		},
+		selection: null,
+		view: OFF_SCREEN,
+		on: () => () => {},
+		run: (command: Command<unknown> | string, arg?: unknown) => {
+			const entry = entryOf(command);
+			return !!entry && contributions.run(entry, arg);
+		},
+		can: (command: Command<unknown> | string, arg?: unknown) => {
+			const entry = entryOf(command);
+			return !!entry && contributions.can(entry, arg);
+		},
+		claims: () => false,
+		openMenu: () => false,
+		openRows: () => ({ isOpen: false, close() {} }),
+		edit: () => drafts.edit(),
+		blockAt: (at) => read.blockAt(at),
+		select: async () => false,
+		repaint: () => {}
+	};
+	return { editor, read };
+}
