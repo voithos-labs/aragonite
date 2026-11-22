@@ -4,7 +4,7 @@ Part of the [plugin guide](../plugin-guide.md).
 
 **A plugin value's `rewrites`**
 
-A plugin value rewrites pasted blocks by type. Each rewrite names a block type in `from`, and `into` answers the Markdown that takes a pasted block's place: `''` leaves it out, `null` keeps it.
+A plugin value rewrites pasted blocks by type. Each rewrite names a block type in `from`, and `into` answers the Markdown that takes a pasted block's place: `''` leaves it out, with a list item or quote that then holds nothing, and `null` keeps it.
 
 ```ts
 const alertToCallout = rewrite({

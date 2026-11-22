@@ -262,7 +262,15 @@ describe('a paste rewrite where pasted blocks land', () => {
 			three,
 			'x\n\n> one\n>\n> two\n>\n> - three\n'
 		],
-		['as nothing, the block left out', TEXT, acrossText, CLIP, () => '', 'x\n']
+		['as nothing, the block left out', TEXT, acrossText, CLIP, () => '', 'x\n'],
+		[
+			'as nothing, the list item it emptied left out',
+			'intro\n\nafter\n',
+			select(point([0], 5)),
+			'x\n\n- %> [!TIP]\n  %> pasted\n- keep\n\ny\n',
+			() => '',
+			'x\n\n- keep\n\ny\n'
+		]
 	];
 
 	it.each(LANDINGS)(
@@ -284,6 +292,28 @@ describe('a paste rewrite where pasted blocks land', () => {
 			expect(landed).toBe(control.editor.source());
 		}
 	);
+
+	// Miss-analysis: every empty answer left a block beside it, so none emptied the clipboard.
+	it.each<[string, Place, (editor: Mounted, at: HTMLElement) => Promise<void>]>([
+		['at a caret, as a paste of nothing', select(point([0], 5)), (m, at) => pasteOn(m, at, '')],
+		[
+			'over a selection across blocks, which it takes as Backspace does',
+			acrossText,
+			(m, at) => pressKey(at, { key: 'Backspace' }).then(() => m.settle())
+		]
+	])('lands nothing where its answers empty the clipboard: %s', async (_, place, control) => {
+		const { editor, read } = await mounted(() => '', TEXT);
+		await pasteOn(editor, await place(editor), '- %> [!TIP]\n  %> pasted\n');
+		const landed = { source: editor.source(), selection: editor.instance.getSelection() };
+		expect(read).toHaveLength(1);
+		await destroyMountedEditors();
+		const other = await mounted(() => null, TEXT);
+		await control(other.editor, await place(other.editor));
+		expect(landed).toEqual({
+			source: other.editor.source(),
+			selection: other.editor.instance.getSelection()
+		});
+	});
 });
 
 /** What a copy or a cut of the selection puts on the clipboard. */

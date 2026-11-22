@@ -70,8 +70,8 @@ function byType(
 	return serialize({ prefix: clip.prefix, children: tops, suffix: clip.suffix });
 }
 
-/** Writes `out` in place of the block at `path` in `tops`, a copy of the clipboard's top-level
- *  blocks: its own line ending kept, its containers' markers written around it; '' takes it out. */
+/** Writes `out` over the block at `path` in `tops`, the clipboard's top-level blocks copied, with its
+ *  line ending and its containers' markers; '' takes it out, and each container then left empty. */
 function written(
 	tops: CstNode[],
 	path: readonly number[],
@@ -79,13 +79,19 @@ function written(
 	grammar: GrammarView
 ): void {
 	const top = (tops[path[0]] = cloneNode(tops[path[0]]));
-	const parent = path.slice(1, -1).reduce((node, i) => node.children![i], top);
-	const siblings = path.length === 1 ? tops : parent.children!;
-	const at = path[path.length - 1];
-	if (out === '') siblings.splice(at, 1);
-	else {
+	const chain = path.slice(1).reduce((nodes, i) => [...nodes, nodes.at(-1)!.children![i]], [top]);
+	let depth = path.length;
+	if (out === '') while (depth > 1 && chain[depth - 2].children!.length === 1) depth--;
+	const siblings = depth === 1 ? tops : chain[depth - 2].children!;
+	const at = path[depth - 1];
+	if (out === '') {
+		const [gone] = siblings.splice(at, 1);
+		// The blank lines between a first block and the next go with it, so the next starts first.
+		if (at === 0 && siblings[0])
+			siblings[0] = { ...siblings[0], leadingTrivia: gone.leadingTrivia };
+	} else {
 		const node = siblings[at];
 		node.raw = out.replace(/(?:\r?\n)+$/, '') + ownTrailingLineEnding(node.raw);
 	}
-	if (path.length > 1) rebuildAncestryRaw(top, path.slice(1), grammar);
+	if (depth > 1) rebuildAncestryRaw(top, path.slice(1, depth), grammar);
 }

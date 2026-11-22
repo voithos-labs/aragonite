@@ -53,6 +53,28 @@ describe('a paste rewrite by block type', () => {
 		expect(rewrittenPaste(outside(QUOTE), reader(QUOTE), activation, grammar)).toBe('a\n\nb\n');
 	});
 
+	// Miss-analysis: the empty answer was given at the top level only; inside a container its only
+	// child, the splice left the container with nothing and no line ending, joining what followed.
+	it.each([
+		['a list item', 'x\n\n- # h\n- keep\n\ny\n', 'x\n\n- keep\n\ny\n'],
+		['a quote', 'x\n\n> # h\n\ny\n', 'x\n\ny\n'],
+		['a list and the item holding it', 'x\n\n- - # h\n- keep\n\ny\n', 'x\n\n- keep\n\ny\n'],
+		['a nested list item', 'x\n\n- a\n  - # h\n  - keep\n\ny\n', 'x\n\n- a\n  - keep\n\ny\n'],
+		['every block of the clipboard', '> - # h\n', '']
+	])('leaves out, with an empty answer, %s it leaves with no child', (_, text, landed) => {
+		const { activation } = listing(['heading', () => '']);
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(landed);
+	});
+
+	// The blank line between the two goes with the first, so the item starts where the block did.
+	it.each([
+		['a list item', 'x\n\n- # h\n\n  kept\n- keep\n\ny\n', 'x\n\n- kept\n- keep\n\ny\n'],
+		['a quote', 'x\n\n> # h\n>\n> kept\n', 'x\n\n> kept\n']
+	])('keeps %s an empty answer leaves holding another block', (_, text, landed) => {
+		const { activation } = listing(['heading', () => '']);
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(landed);
+	});
+
 	it('writes each claimed block in its own place when an earlier one is left out', () => {
 		const text = 'a\n\n> one\n\nb\n\n> two\n';
 		const { activation } = listing([
