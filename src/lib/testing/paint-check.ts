@@ -98,7 +98,8 @@ function paintRanges(
 		});
 		walkBlocks(stage.document(), (node, path) => void source.decorationsOf(node, path));
 	}
-	const missed = warnings.slice(before).filter(({ tag }) => tag === 'decorations');
+	// The paint source warns where it leaves a paint out; any warning while it was asked counts.
+	const missed = warnings.slice(before);
 	if (threw.length > 0) return failed(threw.join('; '));
 	if (warningsFail && missed.length > 0) {
 		return failed(missed.map(({ message }) => message).join('; '));
