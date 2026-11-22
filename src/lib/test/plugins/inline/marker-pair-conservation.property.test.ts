@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 // A live cut or drag move conserves a marker pair's sides: the sides before equal the sides left in
 // the document plus those on the clipboard or in the moved text, and a cut pasted back, or a move,
-// holds each side once. Drawn over one to three blocks of pairs, keyed and not, nested, crossed or
-// lone, beside runs and non-ASCII text; the shapes a filed issue leaves broken are named below.
+// holds each side once, and a copy carries what the cut does. Drawn over one to three paragraphs or
+// headings of pairs, keyed and not, nested, crossed or lone, beside runs and non-ASCII text; the
+// shapes a filed issue leaves broken are named below.
 // Miss-analysis: each change to the pair's removal rule came with rows for its own gesture, so a
 // drag inside one block that put a side back and carried it too had no row.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -104,9 +105,10 @@ const drawnDoc: fc.Arbitrary<Drawn> = fc
 			}),
 			{ maxLength: 3 }
 		),
-		glued: fc.array(fc.boolean(), { minLength: 24, maxLength: 24 })
+		glued: fc.array(fc.boolean(), { minLength: 24, maxLength: 24 }),
+		headings: fc.array(fc.constantFrom('', '', '# ', '## '), { minLength: 3, maxLength: 3 })
 	})
-	.map(({ keyed, words, pairs, glued }) => {
+	.map(({ keyed, words, pairs, glued, headings }) => {
 		const placed: Placed[] = [];
 		pairs.forEach(({ open, close, lone }, i) => {
 			const id = 'abcd'[i];
@@ -120,7 +122,7 @@ const drawnDoc: fc.Arbitrary<Drawn> = fc
 		});
 		let g = 0;
 		const blocks = words.map((line, block) => {
-			let out = '';
+			let out = headings[block];
 			for (let word = 0; word <= line.length; word++) {
 				for (const p of placed) if (p.block === block && p.word === word) out += p.token;
 				if (word < line.length)
@@ -143,11 +145,12 @@ function reachable(text: string): number[] {
 	for (const m of text.matchAll(/\{(?:>>|<<)\w\}|\*+|~+/g)) {
 		for (let i = m.index + 1; i < m.index + m[0].length; i++) blocked.add(i);
 	}
-	const at: number[] = [0];
+	const marker = /^#+ /.exec(text)?.[0].length ?? 0;
+	const at: number[] = [marker];
 	let i = 0;
 	for (const ch of text.match(/\P{M}\p{M}*/gu) ?? []) {
 		i += ch.length;
-		if (!blocked.has(i)) at.push(i);
+		if (i > marker && !blocked.has(i)) at.push(i);
 	}
 	return at;
 }
@@ -166,14 +169,13 @@ function sides(...texts: string[]): Map<string, number> {
 	return out;
 }
 
-/** The sides `after` holds more and fewer of than `before`. */
+/** The sides `after` holds more and fewer of than `before`, each once per copy gained or lost. */
 function drift(before: Map<string, number>, after: Map<string, number>) {
 	const more: string[] = [];
 	const fewer: string[] = [];
 	for (const token of new Set([...before.keys(), ...after.keys()])) {
 		const d = (after.get(token) ?? 0) - (before.get(token) ?? 0);
-		if (d > 0) more.push(token);
-		if (d < 0) fewer.push(token);
+		for (let n = 0; n < Math.abs(d); n++) (d > 0 ? more : fewer).push(token);
 	}
 	return { more, fewer };
 }
@@ -214,6 +216,14 @@ function kept(d: Drawn, place: Place, from: Place, to: Place): boolean {
 	return at + SIDE <= start || at >= end;
 }
 const SIDE = '{>>a}'.length;
+
+/** Whether a cut edge stands inside an autolink, the one drawn construct no reading can cut. */
+function insideUrl(d: Drawn, edge: Place): boolean {
+	for (const { 0: url, index } of d.blocks[edge.block].matchAll(/<https:[^>]*>/g)) {
+		if (edge.at > index && edge.at < index + url.length) return true;
+	}
+	return false;
+}
 const placeOf = (d: Drawn, token: string): Place => {
 	const block = d.blocks.findIndex((b) => b.includes(token));
 	return { block, at: d.blocks[block].indexOf(token) };
@@ -239,6 +249,7 @@ const EXCLUSIONS: { issue: string; text: string; holds(run: Run): boolean }[] = 
 			gesture !== 'drag' &&
 			from.block !== to.block &&
 			fewer.length === 0 &&
+			new Set(more).size === more.length &&
 			more.every((token) => {
 				const { block } = placeOf(d, token);
 				const partner = joinPartner(d, from.block, to.block, token);
@@ -255,11 +266,12 @@ const EXCLUSIONS: { issue: string; text: string; holds(run: Run): boolean }[] = 
 	{
 		issue: 'D',
 		text: 'A cut the join can’t verify takes a marker side: where the join declines, the literal splice stands and takes the side with it.',
-		// Only a side the join would have kept or written back: at the cut's edge, its partner kept,
-		// or no partner in its one block.
+		// Only a cut with an edge inside a URL, and only a side the join would have kept or written
+		// back: at the cut's edge, its partner kept, or no partner in its one block.
 		holds: ({ d, from, to, more, fewer, literal }) =>
 			more.length === 0 &&
 			literal &&
+			(insideUrl(d, from) || insideUrl(d, to)) &&
 			fewer.length > 0 &&
 			fewer.every((token) => {
 				const partner = joinPartner(d, from.block, to.block, token);
@@ -302,6 +314,8 @@ function cutRuns(d: Drawn, range: ReturnType<typeof rangeIn>): Run[] {
 	const to = startOf(d, range.to.block) + range.to.at;
 	if (from === to) return [];
 	const cut = editRange(source, { from, to }, 'cut', 'live', host);
+	// A copy carries what the cut does.
+	expect(editRange(source, { from, to }, 'copy', 'live', host).clipboard).toBe(cut.clipboard);
 	const before = sides(source);
 	const literal = cut.source === source.slice(0, from) + source.slice(to);
 	const run = { d, ...range, literal };
