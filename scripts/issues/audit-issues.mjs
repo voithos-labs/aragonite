@@ -1,6 +1,6 @@
 // Audit the defect ledger against docs/contributing/rules.md § Records: every issue carries a
-// type and one `area:`, and `severity:` is defect-only. Fails on open issues alone, so a closed
-// issue predating the forms is reported without blocking a run.
+// type and one `area:`, `severity:` is defect-only, and an open Bug says its `reach:`. Fails on
+// open issues alone, so a closed issue predating the forms is reported without blocking a run.
 // Usage: node scripts/issues/audit-issues.mjs
 import { execFileSync } from 'node:child_process';
 
@@ -50,6 +50,7 @@ function fetchIssues() {
 const labels = (issue) => issue.labels.nodes.map((node) => node.name);
 const hasArea = (issue) => labels(issue).some((name) => name.startsWith('area:'));
 const hasSeverity = (issue) => labels(issue).some((name) => name.startsWith('severity:'));
+const hasReach = (issue) => labels(issue).some((name) => name.startsWith('reach:'));
 const isOpen = (issue) => issue.state === 'OPEN';
 
 const numbers = (issues) => issues.map((issue) => `#${issue.number}`).join(' ') || 'none';
@@ -65,6 +66,7 @@ const arealessClosed = closed.filter((issue) => !hasArea(issue));
 const severityNotBug = issues.filter(
 	(issue) => hasSeverity(issue) && issue.issueType?.name !== 'Bug'
 );
+const reachlessBugs = open.filter((issue) => issue.issueType?.name === 'Bug' && !hasReach(issue));
 const goodFirst = open.filter((issue) => labels(issue).includes('good first issue'));
 
 const byType = (list) => {
@@ -102,9 +104,10 @@ console.log(`closed, no area:             ${arealessClosed.length}  ${numbers(ar
 console.log('');
 console.log(`OPEN, untyped                ${untypedOpen.length}  ${numbers(untypedOpen)}`);
 console.log(`OPEN, no area:               ${arealessOpen.length}  ${numbers(arealessOpen)}`);
+console.log(`OPEN Bug, no reach:          ${reachlessBugs.length}  ${numbers(reachlessBugs)}`);
 
-if (untypedOpen.length || arealessOpen.length) {
-	console.error('\nfail: every open issue needs a type and one area: label');
+if (untypedOpen.length || arealessOpen.length || reachlessBugs.length) {
+	console.error('\nfail: every open issue needs a type and one area: label, and a Bug its reach:');
 	process.exit(1);
 }
-console.log('\nok: every open issue carries a type and an area:');
+console.log('\nok: every open issue carries a type and an area:, and every Bug its reach:');

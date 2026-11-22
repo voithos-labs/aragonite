@@ -86,7 +86,7 @@ Merging needs one code-owner approval. For a gentler start, prob start with some
 
 ## Filing an issue
 
-Bugs and feature requests go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), through one of two forms (Bug, Feature request). Questions go to discussions. The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` if it's a bug.
+Bugs and feature requests go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), through one of two forms (Bug, Feature request). Questions go to discussions. The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` and one `reach:` if it's a bug.
 
 Note,
 
