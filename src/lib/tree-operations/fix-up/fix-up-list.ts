@@ -38,7 +38,7 @@ export function fixUpList(
 	if (!edit.span && !edit.written) return finish(work);
 	const typed = !!edit.written && !edit.before;
 	const [from, count] = placed(edit);
-	if (from + count >= work.blocks.length) endEmptiedLastLine(work, host);
+	if (from + count >= work.blocks.length) endEmptiedLastLine(work, edit, host);
 	if (!typed) endPlaced(work, edit, from, count, host);
 	takeRemovedLines(work, edit, from);
 	returnFenceLine(work, edit, from, count, host);
