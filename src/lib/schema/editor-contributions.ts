@@ -264,7 +264,7 @@ export function createEditorContributions(deps: {
 		});
 	}
 
-	/** A row's label over `block`; one that throws or answers anything but text reads as its
+	/** A row's label over `block`; one that throws, or answers no text or blank text, reads as its
 	 *  command's title, and is reported. */
 	function labelOf(entry: ContributedCommand, label: BlockAction<unknown>['label'], block: Block) {
 		const fail = (cause: unknown) => {
@@ -277,9 +277,9 @@ export function createEditorContributions(deps: {
 		} catch (cause) {
 			return fail(cause);
 		}
-		return typeof text === 'string'
-			? text
-			: fail(new TypeError(`its label is a ${typeof text}, not text`));
+		if (typeof text !== 'string')
+			return fail(new TypeError(`its label is a ${typeof text}, not text`));
+		return text.trim() ? text : fail(new TypeError('its label is blank'));
 	}
 
 	function answer(entry: ContributedRewrite, block: Block): string | null {

@@ -68,8 +68,8 @@ export interface BlockCommon<D, K extends string = BlockKey> {
 export type BlockKey = Chord | 'Enter' | 'Backspace' | 'Delete';
 
 /** A row of a block type's own menu: runs its command on the block the menu opened over. A label
- *  function reads that block each time the menu opens; one that throws or answers anything but
- *  text shows the command's `title` instead, and the editor reports it. */
+ *  function reads that block each time the menu opens; one that throws, or answers no text or
+ *  blank text, shows the command's `title` instead, and the editor reports it. */
 export interface BlockAction<D> {
 	label: string | ((block: Block<D>) => string);
 	icon?: Icon;

@@ -108,7 +108,9 @@ describe("a block type's menu row", () => {
 			},
 			'no label'
 		],
-		['answers something not text', () => 42 as unknown as string, 'a number, not text']
+		['answers something not text', () => 42 as unknown as string, 'a number, not text'],
+		// A blank row has no name for a screen reader to read, nor any for the eye.
+		['answers blank text', () => ' ', 'blank']
 	])('shows the command title where its label %s, and is reported once', async (_, label, said) => {
 		const plugin = alertsWith((cycle) => [
 			{ label, command: cycle },
