@@ -1,6 +1,7 @@
 /**
- * `check(plugin)`: every check over every sample of every block type a plugin value lists, read the
- * way the plugin's own editor reads it, answered as one row per subject and check. A failing row,
+ * `check(plugin)`: every check over every sample of every block type and inline construct a plugin
+ * value lists, read the way the plugin's own editor reads it, answered as one row per subject and
+ * check. A failing row,
  * or a dev warning, rejects the call with a `CheckFailure`, so a call nobody asserts on still fails
  * its test. Which checks run, and which an author may excuse, is `check-names.ts`.
  */
@@ -18,6 +19,7 @@ import { qualifiedName } from '../schema/plugin-name';
 import { pluginCheckContext, type CheckContext, type PluginCheckRun } from './check-context';
 import {
 	CHECKS,
+	contractOf,
 	isCheckName,
 	type BlockCheck,
 	type CheckName,
@@ -29,6 +31,7 @@ import {
 import { assertReasonDocumented, settleCells, show, type SettledCell } from './conformance-core';
 import { CONTAINER_CONFORMANCE_CELLS } from './container-conformance';
 import { CONTAINER_DECLARED, derivedProfile } from './container-shape';
+import { inlineOutcomes, inlineSubjects, type Outcome } from './inline-check';
 import { settleKindCells, type KindCell } from './kind-conformance';
 
 /* -------------------------------------------------------------------------- */
@@ -138,8 +141,6 @@ export function isCheckFailure(error: unknown): error is CheckFailure {
 /*                                  The rows                                  */
 /* -------------------------------------------------------------------------- */
 
-type Outcome = { status: 'passed' | 'failed' | 'not-applicable' | 'unchecked'; detail: string };
-
 type Warnings = readonly { tag: string; message: string }[];
 
 async function rowsOf(
@@ -155,6 +156,11 @@ async function rowsOf(
 		// A type the install left out is in `install`'s row, and nowhere else.
 		const kinds = run.kinds.filter((kind) => kind.startsWith(`${plugin.name}/`));
 		for (const kind of kinds) for (const row of await blockRows(run.context, kind)) rows.push(row);
+		for (const subject of inlineSubjects(own?.inlines, run.inlines)) {
+			for (const [check, outcome] of inlineOutcomes(run, subject)) {
+				rows.push({ of: 'inline', subject: subject.name, check, ...outcome });
+			}
+		}
 		const samples = kinds.flatMap((kind) => run.context.descriptor(kind).samples ?? []);
 		rows.push(setupRow(plugin.name, own?.setup, () => run.editor(samples.join('\n'))));
 		return rows.map(advisory);
@@ -438,7 +444,7 @@ function failureMessage(report: CheckReport): string {
 	const lines = report.rows
 		.filter((row) => row.status === 'failed')
 		.map(({ of, subject, check, detail }) => {
-			const { contract } = CHECKS[check] ?? {};
+			const contract = contractOf(check, of);
 			const breaks = contract
 				? `\n    breaks: ${contract.promise} (plugin-testing.md#${contract.anchor})`
 				: '';

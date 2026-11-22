@@ -8,6 +8,9 @@ import { collectEditorSources } from './scan-source';
 
 const HOME = 'src/lib/core/inline/live-edit/live-join.ts';
 
+// The published check asks a side's key of both sides' data to prove they agree; it pairs nothing.
+const CHECK = 'src/lib/testing/inline-check.ts';
+
 /** A read of a policy row's pair: which pair a side opens or closes, or the key it pairs by, as
  *  a member of `pair` or destructured out of it. */
 const PAIR_READ =
@@ -26,7 +29,7 @@ describe('G4.366 marker sides pair in the live join alone', () => {
 		expect(PAIR_READ.test('readonly pair: boolean; making.pair')).toBe(false);
 	});
 
-	it('only the live join reads one', () => {
-		expect(readers).toEqual([HOME]);
+	it('only the live join reads one, and the check that asks a key', () => {
+		expect(readers).toEqual([HOME, CHECK]);
 	});
 });

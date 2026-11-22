@@ -426,7 +426,17 @@ export function excusesThatDontCompile(): Excuses[] {
 		{ blocks: { memo: { roundTrip: 'a sentence long enough to count as one' } } },
 		// @ts-expect-error no plugin check takes an excuse
 		{ plugin: { install: 'a sentence long enough to count as one' } },
-		// @ts-expect-error no inline check takes an excuse yet
-		{ inlines: { tag: { claims: 'a sentence long enough to count as one' } } }
+		// @ts-expect-error claims takes no excuse
+		{ inlines: { tag: { claims: 'a sentence long enough to count as one' } } },
+		// @ts-expect-error the editor's decline over a bracket takes no excuse
+		{ inlines: { tag: { inlineDecline: 'a sentence long enough to count as one' } } }
+	];
+}
+
+/** The excuses that do compile: one per namespace with an excusable check. */
+export function excusesThatCompile(): Excuses[] {
+	return [
+		{ blocks: { memo: { undo: 'a sentence long enough to count as one' } } },
+		{ inlines: { tag: { widget: 'a sentence long enough to count as one', editingPolicy: 'x' } } }
 	];
 }

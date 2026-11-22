@@ -5,11 +5,19 @@
  * A check over plugin values also gets the editor their `setup` meets, with no editor mounted.
  */
 
-import type { AnyBlockKind, Document, InlineNode } from '../core/nodes';
+import type { AnyBlockKind, AnyInlineKind, Document, InlineNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import { parseInline } from '../core/inline';
+import { resolvedInlineContent } from '../core/inline/inline-cache';
 import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { defaultGrammarView, type EditorGrammar } from '../schema/editor-grammar';
+import {
+	createEditorGrammar,
+	defaultGrammarView,
+	type EditorGrammar
+} from '../schema/editor-grammar';
+import { createEditorActivation } from '../schema/plugin-activation';
+import type { InstalledInline } from '../schema/inline-type';
 import { listGrammar } from '../schema/own-syntax';
 import type { EditorContributions } from '../schema/editor-contributions';
 import type { Editor, InstalledPlugin, PluginError, PluginList } from '../schema/plugin-unit';
@@ -33,6 +41,10 @@ export interface CheckContext {
 	readonly grammar: EditorGrammar;
 	parse(text: string): Document;
 	parseInline(raw: string, start: number, end: number): InlineNode[];
+	/** A block's inline content as the editor reads it; empty for a block whose text isn't inline. */
+	inline(node: NodeView): readonly InlineNode[];
+	/** The same reading with no plugin's syntax: what the editor reads on its own. */
+	builtIns(): CheckContext;
 	/** The reading an editor part built without an editor takes, source mode unless told. */
 	reading(mode?: () => PresentationMode): Reading;
 	descriptor(kind: AnyBlockKind): BlockKindDescriptor;
@@ -48,10 +60,14 @@ export interface CheckContext {
 export function checkContext(grammar: EditorGrammar): CheckContext {
 	const reading: CheckContext['reading'] = (mode) => ({ ...kitReading(mode), grammar });
 	const read = (text: string) => parse(text, { grammar });
+	let builtIns: CheckContext | undefined;
 	return {
 		grammar,
 		parse: read,
 		parseInline: (raw, start, end) => parseInline(raw, start, end, undefined, grammar),
+		inline: (node) => resolvedInlineContent(node, reading()),
+		builtIns: () =>
+			(builtIns ??= checkContext(createEditorGrammar({ plugins: createEditorActivation([]) }))),
 		reading,
 		descriptor: (kind) => grammar.descriptor(kind),
 		headless: (content, options) =>
@@ -73,6 +89,8 @@ export interface PluginCheckRun {
 	readonly units: readonly InstalledPlugin[];
 	/** The block types the install kept, by kind, in list order. */
 	readonly kinds: readonly AnyBlockKind[];
+	/** The inline constructs it kept, by kind. */
+	readonly inlines: ReadonlyMap<AnyInlineKind, InstalledInline>;
 	editor(source: string): Editor;
 	release(): void;
 }
@@ -93,6 +111,7 @@ export function pluginCheckContext(
 		context,
 		units: list.units,
 		kinds: list.blocks.map((block) => block.kind),
+		inlines: list.inlines,
 		editor(source) {
 			current = standIn(context, source, list.units, list.contributions);
 			return current.editor;

@@ -18,7 +18,11 @@ describe('every conformance cell names a contract the testing guide explains', (
 		kind: KIND_CELL_CONTRACTS,
 		container: CONTAINER_CELL_CONTRACTS,
 		inline: INLINE_CELL_CONTRACTS,
-		check: Object.fromEntries(Object.entries(CHECKS).map(([name, spec]) => [name, spec.contract]))
+		check: Object.fromEntries(
+			Object.entries(CHECKS).flatMap(([name, spec]) =>
+				Object.entries(spec.contract).map(([of, contract]) => [`${of} ${name}`, contract])
+			)
+		)
 	};
 
 	it.each(Object.entries(tables))('the %s kit points at headings that exist', (_kit, table) => {

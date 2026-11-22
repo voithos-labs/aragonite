@@ -24,7 +24,7 @@ And a map, so you can jump straight at your question:
 | [Proving a paste transform is wired](#proving-a-paste-transform-is-wired) | Driving the real paste pipeline over a string, no clipboard involved |
 | [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom) | Rendering your component in a simulated browser, and the helper that fills the gaps |
 | [One tab stop in reading mode](#one-tab-stop-in-reading-mode-readingtaborderproblem) | Checking your mounted block leaves reading mode's Tab to the links and the editor's one stop |
-| [Checking a plugin value](#checking-a-plugin-value-check) | Every check over every sample of every block type a plugin value lists, a row each, and excuses |
+| [Checking a plugin value](#checking-a-plugin-value-check) | Every check over every sample of every block type and inline construct a plugin value lists, a row each, and excuses |
 | [The conformance kits](#the-conformance-kits) | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share |
 | [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
 | [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
@@ -217,7 +217,7 @@ expect(readingTabOrderProblem(target.querySelector('.editor')!)).toBeNull();
 
 **`check(plugin, { options?, excuse?, warningsFail? })`**
 
-For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of every block type it lists, read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and no DOM.
+For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of every block type and inline construct it lists, read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and no DOM.
 
 ```ts
 import { check } from '@voithos-labs/aragonite/testing';
@@ -234,7 +234,15 @@ A row is `passed`, `failed`, `excused`, `advisory` (it didn't hold, and this rel
 
 A failed row, or a dev warning unless you pass `warningsFail: false`, rejects with a `CheckFailure`: its message names each failed row and the contract it breaks, and its `report` holds every row. `isCheckFailure(error)` tells one apart, even one thrown by another copy of the editor.
 
-An excuse covers a check your block type can't pass, with a reason of a sentence: `excuse: { blocks: { memo: { undo: '…' } } }`. It's a claim, not a waiver. One over a check that passed, a check that doesn't apply, or a block type you don't list fails the run, and a misspelt check or one no excuse covers doesn't compile. Your package's `./conformance` export is the same call as data, a `Conformance`: `{ plugin, options?, excuse? }`, the plugin value itself rather than a call of it.
+An inline construct is one subject, and so is a marker pair, both its sides. Each gets `sample`, `claims` (every sample holds a claim, starting at its prefix) and `roundTrip` (each sample, and each line holding a claim beside any neighbour, reads back to its bytes). The rest follow its shape:
+
+- `inlineDecline`, for all but a mark: a claim at a bracket gives way where the editor's own link or image closes inside it.
+- `widget`, `editingPolicy` and `dependsContent`, for a widget: one unit over bytes that read alone; its fields, `inner` and a whole delete as the editor reads them; `depends` answering the same wherever the block stands.
+- `inlineWriter`, for `as: 'image'` or `'link'`: your `write` gives a claim's bytes back from what was read out of them.
+- `inlinePlace`, for an inline or a mark with `after`: it names a construct on its own character, or a mark.
+- `pairSides`, for a marker pair: each side reads alone in a block, and both sides of one pair read one `key`.
+
+An excuse covers a check your block type or inline can't pass, with a reason of a sentence: `excuse: { blocks: { memo: { undo: '…' } } }`, or `{ inlines: { formula: { widget: '…' } } }`. It's a claim, not a waiver. One over a check that passed, a check that doesn't apply, or a subject you don't list fails the run, and a misspelt check or one no excuse covers doesn't compile. Your package's `./conformance` export is the same call as data, a `Conformance`: `{ plugin, options?, excuse? }`, the plugin value itself rather than a call of it.
 
 ### The conformance kits
 

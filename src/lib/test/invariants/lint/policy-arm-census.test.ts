@@ -100,7 +100,9 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/schema/block-commands.ts':
 		'the command dispatch: which mark a command toggles, so a plugin mark runs at the block as Mod+B does',
 	'src/lib/schema/inline-type.ts':
-		'the mark install: the nesting rank of the mark a plugin mark is placed after'
+		'the mark install: the nesting rank of the mark a plugin mark is placed after',
+	'src/lib/testing/inline-check.ts':
+		"the published check: the nesting rank a mark's `after` names, and the key both sides of a marker pair read, asked and never acted on"
 };
 
 /** A file asking both tables, and why. Only a whole block legitimately does, hosting every inline
@@ -113,7 +115,9 @@ const BOTH_TABLE_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/link-at-point.ts':
 		'what a click follows and Edit link edits is a construct whose row declares followEdit or a widget whose kind claims the activation click, one answer across both tables',
 	'src/lib/core/inline/live-edit/live-split.ts':
-		'where a cut goes is a row’s splitBehavior, or the nearer edge of a widget no row covers, one answer across both tables'
+		'where a cut goes is a row’s splitBehavior, or the nearer edge of a widget no row covers, one answer across both tables',
+	'src/lib/testing/inline-check.ts':
+		"the published check holds a widget to the editing policy the editor reads and a mark's `after` to a mark with a row"
 };
 
 // ── The branches that answer by hand ─────────────────────────────────────────

@@ -340,23 +340,35 @@ function checkRoundTrip(
 ): string {
 	let count = 0;
 	for (const fixture of profile.fixtures) {
-		for (const source of interleavings(fixture, profile.trigger)) {
-			const withEnding = `${source}\n`;
-			assertIs(
-				serialize(context.parse(withEnding)),
-				withEnding,
-				`serialize(context.parse(source)) round-trips ${JSON.stringify(withEnding)}`
-			);
-			assertScanTiles(context, source, source.length);
-
-			// A scan range short of the raw (a heading's excluded `#` run) catches a terminator
-			// search with no `end` bound; two cut points vary where the boundary falls.
-			assertScanTiles(context, source + fixture, source.length);
-			assertScanTiles(context, source + fixture, source.length + openerWidth(fixture, rung.prefix));
-			count++;
-		}
+		count += assertLineRoundTrips(context, fixture, profile.trigger, rung.prefix);
 	}
 	return `${count} source(s) round-trip byte-for-byte and tile their scan range`;
+}
+
+/** `line`, a line holding a claim, beside each neighbour: it reads back to its bytes and its scan
+ *  tiles, in full and cut short. Answers how many sources it read. */
+export function assertLineRoundTrips(
+	context: CheckContext,
+	line: string,
+	trigger: string,
+	prefix: string
+): number {
+	const sources = interleavings(line, trigger);
+	for (const source of sources) {
+		const withEnding = `${source}\n`;
+		assertIs(
+			serialize(context.parse(withEnding)),
+			withEnding,
+			`serialize(context.parse(source)) round-trips ${JSON.stringify(withEnding)}`
+		);
+		assertScanTiles(context, source, source.length);
+
+		// A scan range short of the raw (a heading's excluded `#` run) catches a terminator
+		// search with no `end` bound; two cut points vary where the boundary falls.
+		assertScanTiles(context, source + line, source.length);
+		assertScanTiles(context, source + line, source.length + openerWidth(line, prefix));
+	}
+	return sources.length;
 }
 
 /** Round-trip never sees a handler, so check the scanner's contract: the nodes tile `[0, end)`
@@ -449,7 +461,7 @@ function checkWidgetAtomicity(
 
 /** The claimed bytes must re-form on their own: `data-source-*` hands exactly this slice to the
  *  clipboard and a source view, where a context-dependent slice pastes back broken. */
-function assertSelfDelimiting(
+export function assertSelfDelimiting(
 	context: CheckContext,
 	fixture: string,
 	node: InlineNode,
@@ -509,7 +521,10 @@ function checkEditingPolicy(
 	return 'policy vocabulary';
 }
 
-function assertPolicyVocabulary(policy: InlineWidgetEditingPolicy, kind: AnyInlineKind): void {
+export function assertPolicyVocabulary(
+	policy: InlineWidgetEditingPolicy,
+	kind: AnyInlineKind
+): void {
 	if (policy.revealSource !== undefined) {
 		assertIs(typeof policy.revealSource, 'boolean', `"${kind}" revealSource is a boolean`);
 	}
@@ -593,7 +608,16 @@ function assertRewriteReproducesSource(
 			`the rung's own syntax`
 	);
 	const source = fixture.slice(node.start, node.end);
-	const fields: ImageFields = {
+	assertIs(
+		rung.rewriteImage(source, imageFieldsOf(node)),
+		source,
+		`rewriteImage re-emits ${JSON.stringify(source)} from the fields the scan read out of it`
+	);
+}
+
+/** What an image edit hands a writer: the fields the scan read out of `node`, unedited. */
+export function imageFieldsOf(node: InlineNode): ImageFields {
+	return {
 		alt: node.alt ?? '',
 		url: node.url ?? '',
 		...(node.title !== undefined ? { title: node.title } : {}),
@@ -602,11 +626,6 @@ function assertRewriteReproducesSource(
 		...(node.height !== undefined ? { height: node.height } : {}),
 		...(node.crop !== undefined ? { crop: node.crop } : {})
 	};
-	assertIs(
-		rung.rewriteImage(source, fields),
-		source,
-		`rewriteImage re-emits ${JSON.stringify(source)} from the fields the scan read out of it`
-	);
 }
 
 // ── registration ─────────────────────────────────────────────────────────────
