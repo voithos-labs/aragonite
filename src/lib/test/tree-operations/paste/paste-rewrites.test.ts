@@ -60,20 +60,24 @@ describe('a paste rewrite by block type', () => {
 		['a quote', 'x\n\n> # h\n\ny\n', 'x\n\ny\n'],
 		['a list and the item holding it', 'x\n\n- - # h\n- keep\n\ny\n', 'x\n\n- keep\n\ny\n'],
 		['a nested list item', 'x\n\n- a\n  - # h\n  - keep\n\ny\n', 'x\n\n- a\n  - keep\n\ny\n'],
-		['every block of the clipboard', '> - # h\n', '']
-	])('leaves out, with an empty answer, %s it leaves with no child', (_, text, landed) => {
+		['every container up to the top, which empties the clipboard', '> - # h\n', '']
+	])('takes out with its block %s an empty answer leaves with no child', (_, text, landed) => {
 		const { activation } = listing(['heading', () => '']);
 		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(landed);
 	});
 
-	// The blank line between the two goes with the first, so the item starts where the block did.
+	// The blank line between the two goes with the first, so the next starts where the first did.
 	it.each([
 		['a list item', 'x\n\n- # h\n\n  kept\n- keep\n\ny\n', 'x\n\n- kept\n- keep\n\ny\n'],
-		['a quote', 'x\n\n> # h\n>\n> kept\n', 'x\n\n> kept\n']
-	])('keeps %s an empty answer leaves holding another block', (_, text, landed) => {
-		const { activation } = listing(['heading', () => '']);
-		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(landed);
-	});
+		['a quote', 'x\n\n> # h\n>\n> kept\n', 'x\n\n> kept\n'],
+		['the clipboard', '# h\n\nkept\n', 'kept\n']
+	])(
+		'starts %s with its next block where an empty answer takes out the first',
+		(_, text, landed) => {
+			const { activation } = listing(['heading', () => '']);
+			expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(landed);
+		}
+	);
 
 	it('writes each claimed block in its own place when an earlier one is left out', () => {
 		const text = 'a\n\n> one\n\nb\n\n> two\n';

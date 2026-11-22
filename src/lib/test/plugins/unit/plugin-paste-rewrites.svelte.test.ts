@@ -264,6 +264,14 @@ describe('a paste rewrite where pasted blocks land', () => {
 		],
 		['as nothing, the block left out', TEXT, acrossText, CLIP, () => '', 'x\n'],
 		[
+			'as nothing, the first block left out with the blank line after it',
+			'intro\n\nafter\n',
+			select(point([0], 5)),
+			'%> [!TIP]\n%> pasted\n\nb\n',
+			() => '',
+			'b\n'
+		],
+		[
 			'as nothing, the list item it emptied left out',
 			'intro\n\nafter\n',
 			select(point([0], 5)),
