@@ -3126,7 +3126,12 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		reason:
 			'with no DOM a plugin’s setup may not get the mounted editor it was promised, so its row reads unchecked'
 	},
-	'src/lib/testing/mount-dom-stubs.ts :: installEditorDomStubsForTests': {
+	'src/lib/testing/command-check.ts :: withSetup': {
+		branches: 1,
+		reason:
+			'with no DOM a plugin’s setup can’t run ahead of the rows that drive its code, so they read unchecked'
+	},
+	'src/lib/testing/mount-dom-stubs.ts :: headless': {
 		branches: 2,
 		reason: 'with no DOM there is no element or range prototype to fill in'
 	}
@@ -3387,7 +3392,9 @@ const PAINT_CALLERS: FileRule = {
 		[PAINT_ENGINE]:
 			'runs a whole-document source after an edit, and asks each block source as a block reads its paint',
 		[PLUGIN_PAINT]:
-			"asks a plugin's `paint` or `paintContainer` for a block whose kept answer no longer holds"
+			"asks a plugin's `paint` or `paintContainer` for a block whose kept answer no longer holds",
+		'src/lib/testing/paint-check.ts':
+			'the published checks ask a plugin’s paint source once a sample block, with no editor to keep it'
 	},
 	reaches: [PAINT_ENGINE, PLUGIN_PAINT],
 	reason:

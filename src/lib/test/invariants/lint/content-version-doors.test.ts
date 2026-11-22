@@ -25,7 +25,9 @@ const ANNOUNCERS: Record<string, string> = {
 	'src/lib/components/Editor.svelte': 'the wiring, which hands the window the content version',
 	'src/lib/components/editor-root/document-swap.ts':
 		'the `source` prop swap, `load` on the handle, and the re-read a changed plugin list makes',
-	'src/lib/testing/headless-actions.ts': 'the published harness counts what its doors announced'
+	'src/lib/testing/headless-actions.ts': 'the published harness counts what its doors announced',
+	'src/lib/testing/check-context.ts':
+		'the note a check loads while a plugin waits, as a host’s load does'
 };
 
 /** A byte write outside a commit copies ancestors off `deps.doc` (a commit reaches them through its
@@ -64,7 +66,8 @@ const READING_CHECKED: Record<string, Partial<Record<DoorCheck, string[]>>> = {
 const ALONE_CHECKED: Record<string, Partial<Record<DoorCheck, string[]>>> = {
 	'src/lib/editor-actions/commit/commit-frame.ts': { startsAlone: ['runFrame'] },
 	'src/lib/editor-actions/commit/history.ts': { startsAlone: ['requestUndo', 'requestRedo'] },
-	'src/lib/components/editor-root/document-swap.ts': { startsAlone: ['swapTo', 'load', 'reparse'] }
+	'src/lib/components/editor-root/document-swap.ts': { startsAlone: ['swapTo', 'load', 'reparse'] },
+	'src/lib/testing/check-context.ts': { startsAlone: ['swap'] }
 };
 
 /** Announcers that start no write of their own. */

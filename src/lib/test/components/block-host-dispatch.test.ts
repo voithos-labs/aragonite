@@ -10,7 +10,7 @@ import { activationFor } from '#lib/schema/plugin-activation.js';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
 import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
@@ -20,7 +20,7 @@ import type { PluginBlockKind } from '#lib/core/nodes.js';
 afterEach(() => allowDevWarns(['block-host']));
 
 beforeAll(() => {
-	installEditorDomStubsForTests();
+	headless();
 	registerBuiltInBlocks();
 });
 

@@ -9,7 +9,7 @@ import { svelteBlockView } from '#lib/components/svelte-block-view.js';
 import { mountPluginView } from '#lib/plugin-view.js';
 import { svelteView } from '#lib/svelte-view.svelte.js';
 import { isForeignRuntimeError } from '#lib/foreign-runtime.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
@@ -29,7 +29,7 @@ async function loadForeign(name: keyof typeof FIXTURES): Promise<Component> {
 	return (await FIXTURES[name]()).default;
 }
 
-beforeAll(installEditorDomStubsForTests);
+beforeAll(headless);
 beforeAll(installLayoutStubs);
 
 let mounted: MountedHost | null = null;

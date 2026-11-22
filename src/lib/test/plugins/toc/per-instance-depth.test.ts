@@ -3,7 +3,7 @@
 // Miss-analysis: no test mounted a second toc instance, so a process-wide depth went unseen.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { EditorPluginEntry } from '#lib/plugin.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { tocPlugin } from '#packages/toc/src/toc-plugin.js';
 import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
 
@@ -17,7 +17,7 @@ const entryLabels = (root: HTMLElement): string[] =>
 	[...root.querySelectorAll('.toc-block-item')].map((el) => el.textContent?.trim() ?? '');
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 });
 
 afterEach(async () => {

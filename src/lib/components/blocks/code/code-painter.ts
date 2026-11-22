@@ -6,7 +6,7 @@
  */
 
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
-import type { CodePainter, CodeToken } from '../../../schema/code-highlighter';
+import { nestedTokens, type CodePainter, type CodeToken } from '../../../schema/code-highlighter';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import { isThenable } from '../../../schema/editor-contributions';
 import { languageOwner } from './code-languages';
@@ -39,7 +39,7 @@ export function createCodePainter(
 const plain = (body: string): Node => document.createTextNode(body);
 
 /** Each token as a span around its slice of `body`, nested as the tokens nest; every character of
- *  `body` is drawn once, so a token out of order or crossing its parent is dropped. */
+ *  `body` is drawn once, so a token `nestedTokens` drops is dropped here with a dev warning. */
 export function drawTokens(body: string, tokens: readonly CodeToken[]): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	const open: { el: ParentNode; to: number }[] = [{ el: frag, to: body.length }];
@@ -55,13 +55,12 @@ export function drawTokens(body: string, tokens: readonly CodeToken[]): Document
 			open[open.length - 1].el.appendChild(document.createTextNode(body.slice(at, end)));
 		at = Math.max(at, end);
 	};
-	const sorted = [...tokens].sort((a, b) => a.from - b.from || b.to - a.to);
-	for (const token of sorted) {
+	const { kept, dropped } = nestedTokens(body.length, tokens);
+	for (const token of dropped) {
+		devWarn('code-token-order', `dropped the token at ${token.from}..${token.to}: out of order`);
+	}
+	for (const token of kept) {
 		while (open.length > 1 && open[open.length - 1].to <= token.from) close();
-		if (token.from < at || token.to <= token.from || token.to > open[open.length - 1].to) {
-			devWarn('code-token-order', `dropped the token at ${token.from}..${token.to}: out of order`);
-			continue;
-		}
 		textTo(token.from);
 		const span = document.createElement('span');
 		span.className = token.class;

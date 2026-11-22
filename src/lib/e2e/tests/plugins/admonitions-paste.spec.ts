@@ -57,7 +57,7 @@ test.describe('plugin admonitions: native alert paste', () => {
 	});
 
 	// Pasting over a whole selected table parses the text itself, outside the shared paste dispatch,
-	// so this checks it lands the alert natively too (G4.11 holds both to `applyPasteTransforms`).
+	// so this checks it lands the alert natively too (G4.11 holds both to `rewrittenPaste`).
 	test('whole-table-selection paste replaces the table with a native alert', async ({ page }) => {
 		await editor.loadContent('before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
 		await page.locator('.table-cell').nth(2).click();

@@ -6,7 +6,7 @@ import type { Component } from 'svelte';
 import type { BlockComponent, BlockComponentExports, BlockComponentProps } from '#lib/plugin.js';
 import { definePlugin, OPENER_PRIORITIES, type EditorPlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { mountEditor, type MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
 import { takeDevWarns } from '../support/warn-gate';
 import RogueCaretDoorBlock from './fixtures/RogueCaretDoorBlock.svelte';
@@ -90,7 +90,7 @@ async function mountWith(
 }
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 });
 
 afterEach(async () => {

@@ -9,7 +9,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { createEditorEvents } from '#lib/editor-events.js';
 import { svelteBlockView } from '#lib/components/svelte-block-view.js';
 import { defineBlockView, type BlockView } from '#lib/plugin.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import type { PluginBlockKind } from '#lib/core/nodes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
@@ -18,7 +18,7 @@ import ThrowingAtMountBlock from './fixtures/ThrowingAtMountBlock.svelte';
 import ThrowingOnChangeBlock from './fixtures/ThrowingOnChangeBlock.svelte';
 import { THROWN_MESSAGE } from './fixtures/thrown-message';
 
-beforeAll(installEditorDomStubsForTests);
+beforeAll(headless);
 
 let mounted: MountedHost | null = null;
 afterEach(async () => {

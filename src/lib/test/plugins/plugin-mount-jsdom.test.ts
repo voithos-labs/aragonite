@@ -16,7 +16,7 @@ import {
 	type ParsedLine
 } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
@@ -81,7 +81,7 @@ function mountEditor(plugins: EditorPlugin[], presentationMode?: PresentationMod
 }
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 });
 
 afterEach(() => {
@@ -152,7 +152,7 @@ describe('a plain-mode plugin leaf in reading mode', () => {
 });
 
 // Miss-analysis: every caller ran in a bare jsdom, so no stub met an API already in place.
-describe('installEditorDomStubsForTests', () => {
+describe('headless', () => {
 	it('keeps a ResizeObserver the environment already provides', () => {
 		class RealResizeObserver {
 			observe(): void {}
@@ -163,7 +163,7 @@ describe('installEditorDomStubsForTests', () => {
 		const previous = globals.ResizeObserver;
 		globals.ResizeObserver = RealResizeObserver;
 		try {
-			installEditorDomStubsForTests();
+			headless();
 			expect(globals.ResizeObserver).toBe(RealResizeObserver);
 		} finally {
 			globals.ResizeObserver = previous;
@@ -175,7 +175,7 @@ describe('installEditorDomStubsForTests', () => {
 		const previous = globals.ResizeObserver;
 		delete globals.ResizeObserver;
 		try {
-			installEditorDomStubsForTests();
+			headless();
 			expect(typeof globals.ResizeObserver).toBe('function');
 		} finally {
 			globals.ResizeObserver = previous;
@@ -188,7 +188,7 @@ describe('installEditorDomStubsForTests', () => {
 		const previous = Element.prototype.scrollIntoView;
 		Element.prototype.scrollIntoView = provided;
 		try {
-			installEditorDomStubsForTests();
+			headless();
 			expect(Element.prototype.scrollIntoView).toBe(provided);
 		} finally {
 			Element.prototype.scrollIntoView = previous;
@@ -200,7 +200,7 @@ describe('installEditorDomStubsForTests', () => {
 		const previous = proto.scrollIntoView;
 		delete proto.scrollIntoView;
 		try {
-			installEditorDomStubsForTests();
+			headless();
 			expect(typeof proto.scrollIntoView).toBe('function');
 		} finally {
 			proto.scrollIntoView = previous;

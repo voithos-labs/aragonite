@@ -8,13 +8,13 @@ import type { CstNode, Document } from '#lib/core/nodes.js';
 import { svelteBlockView } from '#lib/components/svelte-block-view.js';
 import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import { editorMountContext } from '../harness/mount-context';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const MARKER = '[^a]: ';
 
-beforeAll(installEditorDomStubsForTests);
+beforeAll(headless);
 
 /** A recording kind that answers "does this block paint inline content?" one way or the
  *  other, which is the only thing the list reads. */

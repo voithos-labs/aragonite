@@ -11,10 +11,10 @@ import type { CstNode } from '#lib/core/nodes.js';
 import ThrowingBlock from './fixtures/ThrowingBlock.svelte';
 import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
-beforeAll(installEditorDomStubsForTests);
+beforeAll(headless);
 
 let mounted: MountedHost | null = null;
 afterEach(async () => {

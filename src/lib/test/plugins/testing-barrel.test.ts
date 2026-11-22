@@ -1,17 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
-	applyPasteTransforms,
 	check,
 	CheckFailure,
 	isCheckFailure,
 	configureEditorEnv,
-	installEditorDomStubsForTests,
+	headless,
 	resetEditorEnv,
 	resetPluginPlatformForTests,
+	rewritePaste,
 	runContainerConformance,
 	runKindConformance,
-	checkCopyIsRawByteSlice,
-	setDevWarnSink
+	tabOrder
 } from '#lib/testing.js';
 import {
 	declarePluginKind,
@@ -32,7 +31,6 @@ import {
 	type PluginBlockKind,
 	type PluginInlineKind
 } from '#lib/plugin.js';
-import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { installPlugins, onEditorCallbacks } from '#lib/schema/plugin-install.js';
 import { getBlockCommand } from '#lib/schema/block-commands.js';
 import { insertRows } from '#lib/schema/insert-catalogue.js';
@@ -136,7 +134,7 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 				name: 'probe-transform',
 				transform: (text) => (text === 'probe' ? 'probed' : null)
 			}),
-		registered: () => applyPasteTransforms('probe') === 'probed'
+		registered: () => rewritePaste('probe', undefined) === 'probed'
 	},
 	{
 		entry: 'registerDirective',
@@ -213,15 +211,15 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 		).toBeInstanceOf(Error);
 	});
 
-	it('publishes both conformance runners and the byte-slice guard', () => {
+	it('publishes the conformance runners for setup plugins', () => {
 		expect(typeof runContainerConformance).toBe('function');
 		expect(typeof runKindConformance).toBe('function');
-		expect(typeof checkCopyIsRawByteSlice).toBe('function');
 	});
 
-	it('publishes the paste-pipeline driver and the mount stubs', () => {
-		expect(typeof applyPasteTransforms).toBe('function');
-		expect(typeof installEditorDomStubsForTests).toBe('function');
+	it('publishes the three helpers', () => {
+		expect(typeof headless).toBe('function');
+		expect(typeof rewritePaste).toBe('function');
+		expect(typeof tabOrder).toBe('function');
 	});
 
 	// The reset's own error tells a non-Vitest runner to opt in through this function, so it
@@ -231,17 +229,42 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 		expect(typeof resetEditorEnv).toBe('function');
 	});
 
-	// An author's own fail-on-warn gate needs the same channel this repo's gate reads.
-	it('publishes the dev-warning sink, which hands back the sink it replaced', () => {
-		const seen: unknown[] = [];
-		const gate = setDevWarnSink((entry) => seen.push(entry));
-		devWarn('probe', 'through the published sink');
-		expect(setDevWarnSink(gate)).not.toBe(gate);
-		expect(seen).toEqual([
-			{ tag: 'probe', message: 'through the published sink', details: undefined }
-		]);
+	// Pinned by name, so nothing joins the section for `setup` plugins.
+	it('holds the section for setup plugins to the names it has', () => {
+		const { text } = readSource('src/lib/testing.ts');
+		const section = text.slice(text.indexOf('// ── Kits for setup plugins'));
+		const names = [...section.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)]
+			.flatMap((found) => found[1].split(','))
+			.map((name) => name.trim())
+			.filter(Boolean);
+		expect(names.sort()).toEqual(LEGACY.toSorted());
 	});
 });
+
+const LEGACY = [
+	'resetPluginPlatformForTests',
+	'runContainerConformance',
+	'runInlineKindConformance',
+	'runKindConformance',
+	'runPluginConformance',
+	'PluginConformanceReport',
+	'PluginConformanceSuite',
+	'CellReport',
+	'CellStatus',
+	'ConformanceCoverage',
+	'ConformanceCell',
+	'ContainerConformanceProfile',
+	'ContainerConformanceReport',
+	'LocalIndexFixture',
+	'KindCell',
+	'KindCellCheck',
+	'KindCellContext',
+	'KindConformanceProfile',
+	'KindConformanceReport',
+	'InlineConformanceCell',
+	'InlineConformanceProfile',
+	'InlineConformanceReport'
+];
 
 // ── What the published `@voithos-labs/aragonite/testing` code may depend on ────────────────
 

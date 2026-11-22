@@ -1,0 +1,253 @@
+/**
+ * `check`'s rows over what a plugin runs: each command it lists or its block types place, and each
+ * caret menu, by trigger. A row drives the plugin's own code against the editor a check hands it: a
+ * command or a pick that waits, with the host loading another note while it does, and a block's
+ * command handed the second of two blocks while the caret sits in the first.
+ */
+
+import type { Contribution } from '../schema/plugin-unit';
+import { togglesOf } from '../schema/inline-type';
+import { isThenable, type ContributedCommand } from '../schema/editor-contributions';
+import type { ContributedMenu } from '../schema/caret-menu';
+import type { AnyBlockKind } from '../core/nodes';
+import type { CommandCheck } from './check-names';
+import type { PluginCheckRun, Stage } from './check-context';
+import type { Outcome } from './inline-check';
+
+/** The commands `plugin` runs; a mark's toggle is left out, since it is the mark's own. */
+export function commandSubjects(
+	run: PluginCheckRun,
+	plugin: string,
+	own: Contribution | undefined
+): ContributedCommand[] {
+	// Installed, so each toggle's id already names its plugin.
+	const toggles = new Set(togglesOf(own?.inlines).map(({ id }) => id));
+	return run.contributions.commands.filter(
+		(entry) => entry.plugin === plugin && !toggles.has(entry.id)
+	);
+}
+
+/** `plugin`'s caret menus by trigger, in list order: the first that takes a query opens. */
+export function menuSubjects(run: PluginCheckRun, plugin: string): Map<string, ContributedMenu[]> {
+	const byTrigger = new Map<string, ContributedMenu[]>();
+	for (const entry of run.contributions.menus) {
+		if (entry.plugin !== plugin) continue;
+		const { trigger } = entry.menu;
+		byTrigger.set(trigger, [...(byTrigger.get(trigger) ?? []), entry]);
+	}
+	return byTrigger;
+}
+
+/** `waitingWrite` and `actionTarget` over `entry`; a command its block types place is handed a
+ *  block of the first of them with a sample. */
+export async function commandOutcomes(
+	run: PluginCheckRun,
+	entry: ContributedCommand,
+	setup: Contribution['setup']
+): Promise<[CommandCheck, Outcome][]> {
+	const placing = placingSample(run, entry);
+	if (entry.placedBy.size > 0 && !placing) {
+		const none: Outcome = {
+			status: 'not-applicable',
+			detail: 'no block type placing it has a sample'
+		};
+		return [
+			['waitingWrite', none],
+			['actionTarget', none]
+		];
+	}
+	const waiting = await withSetup(run, setup, placing?.sample ?? 'A note.\n', (stage) => {
+		const block = placing && blocksOf(stage, placing.kind)[0];
+		return waitingCommand(run, stage, entry, block ?? undefined);
+	});
+	const target = placing
+		? await withSetup(run, setup, `${placing.sample}\n${placing.sample}`, (stage) =>
+				actionTarget(run, stage, entry, placing.kind)
+			)
+		: { status: 'not-applicable' as const, detail: 'takes no block, so none is handed to it' };
+	return [
+		['waitingWrite', waiting],
+		['actionTarget', target]
+	];
+}
+
+/** `waitingWrite` over the menus sharing `trigger`: each picks its first row for an empty query. */
+export async function menuOutcome(
+	run: PluginCheckRun,
+	trigger: string,
+	menus: readonly ContributedMenu[],
+	setup: Contribution['setup']
+): Promise<Outcome> {
+	const outcomes: Outcome[] = [];
+	for (const { menu } of menus) {
+		const outcome = await withSetup(run, setup, `${trigger}\n`, (stage) =>
+			waitingPick(stage, menu)
+		);
+		const named =
+			menus.length > 1 ? { ...outcome, detail: `${menu.label}: ${outcome.detail}` } : outcome;
+		outcomes.push(named);
+	}
+	// Failed where any failed, else passed where any held, as a block type's samples fold.
+	for (const status of ['failed', 'passed', 'unchecked'] as const) {
+		const found = outcomes.find((outcome) => outcome.status === status);
+		if (found) return found;
+	}
+	return outcomes[0];
+}
+
+// ── Internal ─────────────────────────────────────────────────────────────────
+
+/** The note a waiting row has the host load while the plugin waits. */
+const ANOTHER_NOTE = 'Another note.\n';
+
+const failed = (detail: string): Outcome => ({ status: 'failed', detail });
+const messageOf = (error: unknown) => (error as Error)?.message ?? String(error);
+
+/** The plugin's `setup` first, as a mounted editor runs it, and its disposer after. With no DOM
+ *  and a `setup` to run, the row can't be driven as the plugin was promised. */
+async function withSetup(
+	run: PluginCheckRun,
+	setup: Contribution['setup'],
+	source: string,
+	drive: (stage: Stage) => Promise<Outcome>
+): Promise<Outcome> {
+	if (setup && typeof document === 'undefined') {
+		return {
+			status: 'unchecked',
+			detail: 'needs a DOM: the plugin’s setup runs first, and setup may use one'
+		};
+	}
+	const stage = run.stage(source);
+	let dispose: void | (() => void) = undefined;
+	try {
+		dispose = setup?.(stage.editor);
+		return await drive(stage);
+	} catch (error) {
+		return failed(`threw: ${messageOf(error)}`);
+	} finally {
+		if (typeof dispose === 'function') dispose();
+	}
+}
+
+function placingSample(run: PluginCheckRun, entry: ContributedCommand) {
+	for (const kind of entry.placedBy) {
+		const sample = run.context.descriptor(kind as AnyBlockKind).samples?.[0];
+		if (sample !== undefined) return { kind, sample };
+	}
+	return null;
+}
+
+const blocksOf = (stage: Stage, kind: string) =>
+	stage.editor.doc.blocks.filter((block) => block.type.name === kind);
+
+async function waitingCommand(
+	run: PluginCheckRun,
+	stage: Stage,
+	entry: ContributedCommand,
+	block: unknown
+): Promise<Outcome> {
+	if (!run.contributions.can(entry, block)) {
+		return { status: 'not-applicable', detail: 'its `when` declines the sample' };
+	}
+	const answer = entry.spec.run(stage.editor, block);
+	if (!isThenable(answer)) {
+		return { status: 'not-applicable', detail: 'answers at once, with no wait to outlive a note' };
+	}
+	return outlives(stage, answer, 'it');
+}
+
+async function waitingPick(stage: Stage, menu: ContributedMenu['menu']): Promise<Outcome> {
+	const ctx = { editor: stage.editor };
+	const rows = menu.accepts && !menu.accepts('', ctx) ? [] : await menu.rows('', ctx);
+	if (rows.length === 0) {
+		return {
+			status: 'not-applicable',
+			detail: 'lists no row for an empty query, so none is picked'
+		};
+	}
+	const row = rows[0];
+	const label = (row as { label?: unknown })?.label;
+	const picked = typeof label === 'string' ? `its pick of "${label}"` : 'its first pick';
+	const pick = stage.pick(menu.trigger, '');
+	try {
+		const answer = menu.pick(row, pick);
+		if (!isThenable(answer)) {
+			await stage.idle();
+			return { status: 'not-applicable', detail: `${picked} answers at once, with no wait` };
+		}
+		return await outlives(stage, answer, picked);
+	} finally {
+		pick.end();
+	}
+}
+
+/** Loads another note once `answer`'s own writes through the editor are done, as a host's load waits
+ *  for an open write, then fails any write made after it. */
+async function outlives(
+	stage: Stage,
+	answer: PromiseLike<unknown>,
+	what: string
+): Promise<Outcome> {
+	if (stage.busy()) await stage.idle();
+	const before = stage.writes.length;
+	stage.swap(ANOTHER_NOTE);
+	let rejected: { cause: unknown } | null = null;
+	try {
+		await answer;
+	} catch (cause) {
+		rejected = { cause };
+	}
+	await stage.idle();
+	const late = stage.writes.slice(before);
+	if (late.length > 0) {
+		return failed(
+			`${what} made ${late.join(', ')} after the host loaded another note; write through a ` +
+				'draft opened before the wait, which is refused once its note is gone'
+		);
+	}
+	if (rejected) {
+		return failed(
+			`${what} rejected once the host loaded another note: ${messageOf(rejected.cause)}`
+		);
+	}
+	return { status: 'passed', detail: `${what} waited, and wrote nothing into the next note` };
+}
+
+/** Runs `entry` on the second of two blocks of `kind` with the caret in the first. */
+async function actionTarget(
+	run: PluginCheckRun,
+	stage: Stage,
+	entry: ContributedCommand,
+	kind: string
+): Promise<Outcome> {
+	const blocks = blocksOf(stage, kind);
+	if (blocks.length < 2) {
+		return { status: 'not-applicable', detail: 'two samples in a row read as one block' };
+	}
+	const [first, second] = [blocks[0], blocks[blocks.length - 1]];
+	const before = stage.source();
+	const kept = before.slice(0, first.to);
+	stage.caret(first.from);
+	if (!run.contributions.can(entry, second)) {
+		return { status: 'not-applicable', detail: 'its `when` declines the sample' };
+	}
+	const answer = entry.spec.run(stage.editor, second);
+	if (isThenable(answer)) await answer;
+	await stage.idle();
+	const inserted = stage.writes.find((write) => write.startsWith('an insert'));
+	if (!stage.source().startsWith(kept) || inserted) {
+		const how = inserted ? `made ${inserted} at the caret` : 'wrote the first block';
+		return failed(`handed the second block, it ${how}, where the caret was`);
+	}
+	if (stage.source() !== before) {
+		return { status: 'passed', detail: 'wrote the block it was handed, not the one at the caret' };
+	}
+	if (stage.screen.length > 0) {
+		const asked = [...new Set(stage.screen)].join(', ');
+		return {
+			status: 'unchecked',
+			detail: `needs a browser: it asked ${asked}, which only a mounted editor answers`
+		};
+	}
+	return { status: 'not-applicable', detail: 'wrote nothing on the sample' };
+}

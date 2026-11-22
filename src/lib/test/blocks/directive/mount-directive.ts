@@ -7,13 +7,13 @@ import { expect } from 'vitest';
 import DirectiveContainerBlock from '#lib/components/blocks/directive/DirectiveContainerBlock.svelte';
 import { activateDirectives } from '#lib/components/blocks/directive/activate-directives.js';
 import type { ContainerBlockComponent } from '#lib/block-component.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { mountBlock, type MountedBlock } from '../../harness/mount-block';
 import type { MountContextOverrides } from '../../harness/mount-context';
 
 export function installDirectiveStubs(): void {
 	activateDirectives();
-	installEditorDomStubsForTests();
+	headless();
 }
 
 export interface MountedDirective extends MountedBlock<unknown> {

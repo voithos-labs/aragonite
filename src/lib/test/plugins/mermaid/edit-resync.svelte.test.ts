@@ -4,7 +4,7 @@
 // blur commit writes text based on bytes the document has since dropped.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import {
 	destroyMountedEditors,
@@ -44,7 +44,7 @@ async function rewriteCodeExternally(code: string): Promise<void> {
 }
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 });
 
 afterEach(async () => {

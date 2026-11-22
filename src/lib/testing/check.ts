@@ -23,15 +23,22 @@ import {
 	isCheckName,
 	type BlockCheck,
 	type CheckName,
+	type CommandCheck,
 	type ContainerCheck,
 	type Excused,
 	type InlineCheck,
-	type PluginCheck
+	type MenuCheck,
+	type PluginCheck,
+	type RewriteCheck
 } from './check-names';
+import { blockReadOutcomes } from './block-reads';
+import { commandOutcomes, commandSubjects, menuOutcome, menuSubjects } from './command-check';
 import { assertReasonDocumented, settleCells, show, type SettledCell } from './conformance-core';
 import { CONTAINER_CONFORMANCE_CELLS } from './container-conformance';
 import { CONTAINER_DECLARED, derivedProfile } from './container-shape';
 import { inlineOutcomes, inlineSubjects, type Outcome } from './inline-check';
+import { paintOutcomes } from './paint-check';
+import { rewriteOutcome, rewriteSubjects } from './rewrite-check';
 import { settleKindCells, type KindCell } from './kind-conformance';
 
 /* -------------------------------------------------------------------------- */
@@ -109,6 +116,12 @@ export interface Excuses {
 	readonly plugin?: Excused<PluginCheck>;
 	readonly blocks?: { readonly [local: string]: Excused<BlockCheck | ContainerCheck> };
 	readonly inlines?: { readonly [local: string]: Excused<InlineCheck> };
+	/** By the command's own id; a block action's row is its command's. */
+	readonly commands?: { readonly [id: string]: Excused<CommandCheck> };
+	/** By trigger; menus sharing one are one subject. */
+	readonly menus?: { readonly [trigger: string]: Excused<MenuCheck> };
+	/** By the full name of the type rewritten (`paragraph`, `alerts/alert`). */
+	readonly rewrites?: { readonly [type: string]: Excused<RewriteCheck> };
 }
 
 /** A package's `./conformance` default export: the plugin value itself, not a call of it. */
@@ -155,11 +168,42 @@ async function rowsOf(
 		const own = run.units.find((unit) => unit.name === plugin.name)?.contribution;
 		// A type the install left out is in `install`'s row, and nowhere else.
 		const kinds = run.kinds.filter((kind) => kind.startsWith(`${plugin.name}/`));
-		for (const kind of kinds) for (const row of await blockRows(run.context, kind)) rows.push(row);
+		for (const kind of kinds) {
+			const kindRows = await blockRows(run.context, kind);
+			for (const row of kindRows) rows.push(row);
+			if (kindRows[0].status === 'failed') continue;
+			const samples = run.context.descriptor(kind).samples ?? [];
+			for (const [check, outcome] of await blockReadOutcomes(run, own, kind, samples)) {
+				rows.push({ of: 'block', subject: kind, check, ...outcome });
+			}
+		}
 		for (const subject of inlineSubjects(own?.inlines, run.inlines)) {
 			for (const [check, outcome] of inlineOutcomes(run, subject)) {
 				rows.push({ of: 'inline', subject: subject.name, check, ...outcome });
 			}
+		}
+		for (const entry of commandSubjects(run, plugin.name, own)) {
+			for (const [check, outcome] of await commandOutcomes(run, entry, own?.setup)) {
+				rows.push({ of: 'command', subject: entry.id, check, ...outcome });
+			}
+		}
+		for (const [trigger, menus] of menuSubjects(run, plugin.name)) {
+			const outcome = await menuOutcome(run, trigger, menus, own?.setup);
+			rows.push({ of: 'menu', subject: trigger, check: 'waitingWrite', ...outcome });
+		}
+		for (const [from, entries] of rewriteSubjects(run, plugin.name)) {
+			const outcome = rewriteOutcome(run, from, entries);
+			rows.push({ of: 'rewrite', subject: from, check: 'rewriteLands', ...outcome });
+		}
+		const warningsFail = options.warningsFail !== false;
+		for (const [check, outcome] of await paintOutcomes(
+			run,
+			plugin.name,
+			own,
+			warnings,
+			warningsFail
+		)) {
+			rows.push({ of: 'plugin', subject: plugin.name, check, ...outcome });
 		}
 		const samples = kinds.flatMap((kind) => run.context.descriptor(kind).samples ?? []);
 		rows.push(setupRow(plugin.name, own?.setup, () => run.editor(samples.join('\n'))));
@@ -377,12 +421,17 @@ function excused(rows: CheckRow[], excuse: Excuses | undefined, plugin: string):
 	for (const [check, reason] of Object.entries(excuse?.plugin ?? {})) {
 		claims.push({ of: 'plugin', local: plugin, subject: plugin, check, reason });
 	}
-	for (const [of, space] of [
-		['block', excuse?.blocks],
-		['inline', excuse?.inlines]
+	// A command is named after its plugin as a type is; a trigger and a rewritten type's full name are
+	// spelled as the author wrote them.
+	for (const [of, space, named] of [
+		['block', excuse?.blocks, true],
+		['inline', excuse?.inlines, true],
+		['command', excuse?.commands, true],
+		['menu', excuse?.menus, false],
+		['rewrite', excuse?.rewrites, false]
 	] as const) {
 		for (const [local, checks] of Object.entries(space ?? {})) {
-			const subject = qualifiedName(plugin, local);
+			const subject = named ? qualifiedName(plugin, local) : local;
 			for (const [check, reason] of Object.entries(checks ?? {})) {
 				claims.push({ of, local, subject, check, reason });
 			}

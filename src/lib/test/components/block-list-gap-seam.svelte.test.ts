@@ -12,13 +12,13 @@ import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import type { WindowResult } from '#lib/windowing/block-window.svelte.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { editorMountContext } from '../harness/mount-context';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 
 const BLOCK_COUNT = 6;
 const SLICE_END = 3;
 
 beforeAll(() => {
-	installEditorDomStubsForTests();
+	headless();
 	registerBuiltInBlocks();
 });
 

@@ -445,7 +445,9 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/selection/cross-block/range-paste.ts':
 				'the paste through the range-edit core hands the core the rewrites, which it runs where the clipboard lands as blocks',
 			'src/lib/components/blocks/table/table-cell-paste.ts':
-				'a clipboard of blocks pasted in a table cell slices the table, ahead of the core, and takes the same rewrite'
+				'a clipboard of blocks pasted in a table cell slices the table, ahead of the core, and takes the same rewrite',
+			'src/lib/testing/rewrite-check.ts':
+				'the published checks paste a plugin’s rewrites over a string, as a paste from outside the editor that lands as blocks'
 		},
 		reason:
 			'every route that lands a paste as blocks runs rewrittenPaste; a new site routes through a declared one or joins the list with a call',

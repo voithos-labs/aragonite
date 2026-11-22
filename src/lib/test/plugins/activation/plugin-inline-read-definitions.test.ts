@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, type EditorContext } from '#lib/plugin.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { collectHeadings } from '#packages/toc/src/heading-outline.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
@@ -47,7 +47,7 @@ async function replaceText(mounted: MountedEditor, from: string, to: string): Pr
 }
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 	editorContext = undefined;
 });
 

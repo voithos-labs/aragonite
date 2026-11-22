@@ -7,12 +7,11 @@ import {
 	registerBlockKind,
 	type BlockKindRegistration
 } from '#lib/plugin.js';
+import { runContainerConformance, type ContainerConformanceProfile } from '#lib/testing.js';
 import {
-	reversedAncestryLeavesRootStale,
-	runContainerConformance,
-	type ContainerConformanceProfile
-} from '#lib/testing.js';
-import { checkDeclarationSanity } from '#lib/testing/container-conformance.js';
+	checkDeclarationSanity,
+	reversedAncestryLeavesRootStale
+} from '#lib/testing/container-conformance.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
 import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
@@ -122,7 +121,7 @@ describe('G4.3 conformance kit: plugin containers', () => {
 	// Non-vacuity for the ancestry cell: an opaque container rebuilds from its direct
 	// children, so rebuilding outer-first must leave the root's raw stale.
 	it('ancestry check is non-vacuous: an outer-first rebuild leaves the callout root stale', () => {
-		expect(reversedAncestryLeavesRootStale(calloutProfile)).toBe(true);
+		expect(reversedAncestryLeavesRootStale(defaultCheckContext, calloutProfile)).toBe(true);
 	});
 });
 

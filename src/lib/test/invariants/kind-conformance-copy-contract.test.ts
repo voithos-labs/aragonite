@@ -33,7 +33,8 @@ vi.mock('#lib/selection/range-clipboard.js', async (importOriginal) => {
 });
 
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { checkCopyIsRawByteSlice } from '#lib/testing.js';
+import { checkCopyIsRawByteSlice } from '#lib/testing/kind-conformance.js';
+import { defaultCheckContext } from '#lib/testing/check-context.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -51,13 +52,15 @@ afterEach(() => {
 describe('kind conformance: the whole-unit copy contract', () => {
 	it('accepts a childless opaque kind whose range copy carries it whole', () => {
 		const { kind, fixture } = mermaidFixture();
-		expect(() => checkCopyIsRawByteSlice(kind, fixture)).not.toThrow();
+		expect(() => checkCopyIsRawByteSlice(defaultCheckContext, kind, fixture)).not.toThrow();
 	});
 
 	it('rejects a copy that truncates the unit it starts in', () => {
 		const { kind, fixture } = mermaidFixture();
 		stub.mode = 'unit-start';
-		expect(() => checkCopyIsRawByteSlice(kind, fixture)).toThrow(/raw byte slice/);
+		expect(() => checkCopyIsRawByteSlice(defaultCheckContext, kind, fixture)).toThrow(
+			/raw byte slice/
+		);
 	});
 
 	// Reds on a kit that only ever drives the kind as the range start: with no end-side
@@ -65,6 +68,8 @@ describe('kind conformance: the whole-unit copy contract', () => {
 	it('rejects a copy that truncates the unit it ends in', () => {
 		const { kind, fixture } = mermaidFixture();
 		stub.mode = 'unit-end';
-		expect(() => checkCopyIsRawByteSlice(kind, fixture)).toThrow(/raw byte slice/);
+		expect(() => checkCopyIsRawByteSlice(defaultCheckContext, kind, fixture)).toThrow(
+			/raw byte slice/
+		);
 	});
 });

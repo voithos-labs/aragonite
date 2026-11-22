@@ -19,7 +19,7 @@ import {
 } from '../../selection/caret-landing';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { stubScrollport } from '../harness/stub-scrollport';
 import { takeDevWarns } from '../support/warn-gate';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
@@ -282,7 +282,7 @@ describe('the other entry points', () => {
 
 	// Parking moves focus to the end's block, and a rule's own keys would then win over the range's.
 	it('showing a range end mounts it and shows it, the caret left where the range began', async () => {
-		installEditorDomStubsForTests();
+		headless();
 		const { scroll, calls } = recordingScroll(false);
 		const { landing, placements, selectionState } = landingOver('a\n\nbc\n\n---\n', {
 			scroll,

@@ -10,7 +10,7 @@ import { svelteBlockView } from '#lib/components/svelte-block-view.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import SurfacelessBlock from './fixtures/SurfacelessBlock.svelte';
 import { mountBlockHost, type MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { makeShimChildList } from '#lib/test/harness/editor-actions.js';
 import { componentAt } from '#lib/block-lists/child-list.js';
@@ -18,7 +18,7 @@ import { componentAt } from '#lib/block-lists/child-list.js';
 // The vitest setup registers the built-in descriptors only, but the container
 // assertions need BlockHost to dispatch a real blockquote.
 beforeAll(() => {
-	installEditorDomStubsForTests();
+	headless();
 	registerBuiltInBlocks();
 });
 

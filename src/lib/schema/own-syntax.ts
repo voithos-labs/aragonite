@@ -60,15 +60,16 @@ export function listGrammar(
 		/** The editor a plugin's command meets; with none, no command runs. */
 		editorFor?: (plugin: string) => Editor | undefined;
 		blockOf?: (node: NodeView, path: readonly number[]) => Block;
+		clipboardBlocks?: EditorContributions['clipboardBlocks'];
 	} = {}
 ): ListGrammar {
 	const contributions = createEditorContributions({
 		editorFor: options.editorFor ?? (() => undefined),
 		report,
-		// With no editor there's no caret to find a block at, and nothing is pasted.
+		// With no editor there's no caret to find a block at.
 		blocksAround: () => ({ blocks: [] }),
 		blockOf: options.blockOf ?? noEditor,
-		clipboardBlocks: () => noEditor
+		clipboardBlocks: options.clipboardBlocks ?? (() => noEditor)
 	});
 	const units = contributions.read(installPluginList(plugins, report));
 	const own = installOwnSyntax(units, report);

@@ -2,7 +2,7 @@
 // The parrot's caption: the bytes after the marker, without the Markdown whitespace around them.
 // Miss-analysis: every caption case was ASCII with one space after the marker.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { parrotPlugin, parrot } from '#packages/parrot/src/index.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import {
@@ -31,7 +31,7 @@ async function offsetAtCaptionStart(source: string): Promise<number | undefined>
 }
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 });
 
 afterEach(async () => {

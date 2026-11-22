@@ -7,7 +7,7 @@
 
 import { CONTAINER_CELL_CONTRACTS, KIND_CELL_CONTRACTS, type CellContract } from './cell-contracts';
 
-type PluginCheck = 'install' | 'setup';
+type PluginCheck = 'install' | 'setup' | 'paintRanges' | 'codeTokens';
 type BlockCheck =
 	| 'sample'
 	| 'roundTrip'
@@ -21,7 +21,10 @@ type BlockCheck =
 	| 'focus'
 	| 'selectionPaint'
 	| 'reorder'
-	| 'simOracle';
+	| 'simOracle'
+	| 'completion'
+	| 'dataWriteback'
+	| 'docPositions';
 type ContainerCheck =
 	'localIndex' | 'ancestry' | 'focusBubble' | 'openerLine' | 'containerCopy' | 'containerDeclared';
 type InlineCheck =
@@ -35,9 +38,13 @@ type InlineCheck =
 	| 'inlinePlace'
 	| 'dependsContent'
 	| 'pairSides';
+type CommandCheck = 'waitingWrite' | 'actionTarget';
+type MenuCheck = 'waitingWrite';
+type RewriteCheck = 'rewriteLands';
 
 /** A check `check` runs: a row names the one it ran, and an excuse the one it covers. */
-export type CheckName = PluginCheck | BlockCheck | ContainerCheck | InlineCheck;
+export type CheckName =
+	PluginCheck | BlockCheck | ContainerCheck | InlineCheck | CommandCheck | RewriteCheck;
 
 type ExcusableCheck =
 	| 'mergeBackspace'
@@ -47,14 +54,25 @@ type ExcusableCheck =
 	| 'focusBubble'
 	| 'openerLine'
 	| 'widget'
-	| 'editingPolicy';
+	| 'editingPolicy'
+	| 'waitingWrite'
+	| 'actionTarget'
+	| 'completion';
 
 /** A reason per check an excuse may cover; where a subject has none, no key compiles. */
 export type Excused<C extends CheckName> = [Extract<C, ExcusableCheck>] extends [never]
 	? { readonly [name: string]: never }
 	: { readonly [K in Extract<C, ExcusableCheck>]?: string };
 
-export type { PluginCheck, BlockCheck, ContainerCheck, InlineCheck };
+export type {
+	PluginCheck,
+	BlockCheck,
+	ContainerCheck,
+	InlineCheck,
+	CommandCheck,
+	MenuCheck,
+	RewriteCheck
+};
 
 /** The guide's section every check's failure points to. */
 const ANCHOR = 'checking-a-plugin-value-check';
@@ -68,6 +86,9 @@ interface CheckSpec<C extends CheckName> {
 		readonly plugin?: CellContract;
 		readonly block?: CellContract;
 		readonly inline?: CellContract;
+		readonly command?: CellContract;
+		readonly menu?: CellContract;
+		readonly rewrite?: CellContract;
 	};
 }
 
@@ -103,6 +124,22 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		excusable: false,
 		contract: {
 			plugin: promise('your setup runs against an editor, and so does the function it returns')
+		}
+	},
+	paintRanges: {
+		excusable: false,
+		contract: {
+			plugin: promise(
+				'each paint you answer for a block lands inside it, where the editor can draw it'
+			)
+		}
+	},
+	codeTokens: {
+		excusable: false,
+		contract: {
+			plugin: promise(
+				'your tokens for a language you list nest inside the body, none crossing another'
+			)
 		}
 	},
 	sample: {
@@ -144,6 +181,26 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		excusable: false,
 		contract: { block: promise('your line shape reads back every marker and line it writes') }
 	},
+	completion: {
+		excusable: true,
+		contract: {
+			block: promise(
+				'a prefix of your sample completes into lines that read as your type, the caret inside them'
+			)
+		}
+	},
+	dataWriteback: {
+		excusable: false,
+		contract: { block: promise('the data read from a block writes back to the same bytes') }
+	},
+	docPositions: {
+		excusable: false,
+		contract: {
+			block: promise(
+				'each block of your type sits at the bytes it reads, its text inside its line, its pieces inside it'
+			)
+		}
+	},
 	claims: {
 		excusable: false,
 		contract: inline('every sample holds a claim of your construct, starting at its prefix')
@@ -181,6 +238,27 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		contract: inline(
 			'each side of your pair reads on its own, and both sides of one pair read one key'
 		)
+	},
+	waitingWrite: {
+		excusable: true,
+		contract: {
+			command: promise('a command that waits writes nothing once the host loads another note'),
+			menu: promise('a pick that waits writes nothing once the host loads another note')
+		}
+	},
+	actionTarget: {
+		excusable: true,
+		contract: {
+			command: promise('a block command writes the block it is handed, not the one at the caret')
+		}
+	},
+	rewriteLands: {
+		excusable: false,
+		contract: {
+			rewrite: promise(
+				'a rewrite’s answer lands as blocks of its own, leaving the block after it and the container around it, and a paste of it is not rewritten again'
+			)
+		}
 	}
 };
 

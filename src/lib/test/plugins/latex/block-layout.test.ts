@@ -2,7 +2,7 @@
 // Which layout a `$$` block opens in: the factory's choice, overridden by an editor's entry.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { EditorPluginEntry } from '#lib/plugin.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
 
@@ -21,7 +21,7 @@ async function openedLayout(plugins: EditorPluginEntry[]): Promise<string> {
 }
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 });
 
 afterEach(async () => {

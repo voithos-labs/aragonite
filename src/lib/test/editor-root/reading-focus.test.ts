@@ -8,7 +8,7 @@ import {
 	mountEditor,
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { readingTabOrderProblem } from '#lib/testing.js';
+import { tabOrder } from '#lib/testing.js';
 import { definePlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
@@ -73,7 +73,7 @@ describe('reading mode keeps one tab stop', () => {
 		await mounted.settle();
 
 		expect(blockStops()).toEqual(['[0]']);
-		expect(readingTabOrderProblem(root())).toBeNull();
+		expect(tabOrder(root())).toBeNull();
 	});
 
 	it("moves to a block whose own element takes focus, a cell or a divider's host included", async () => {
@@ -116,7 +116,7 @@ describe('reading mode keeps one tab stop', () => {
 		await mounted.settle();
 
 		root().querySelector<HTMLElement>('[data-block-path="[2]"]')!.tabIndex = 0;
-		expect(readingTabOrderProblem(root())).toMatch(/2 tab stops that aren't controls/);
+		expect(tabOrder(root())).toMatch(/2 tab stops that aren't controls/);
 
 		leaf('[1]').focus();
 		await mounted.settle();
@@ -131,12 +131,12 @@ describe('reading mode keeps one tab stop', () => {
 		header.setAttribute('data-host-content', '');
 		header.innerHTML = '<div tabindex="0"></div><div contenteditable="true"></div>';
 		root().append(header);
-		expect(readingTabOrderProblem(root())).toBeNull();
+		expect(tabOrder(root())).toBeNull();
 
 		const field = document.createElement('div');
 		field.setAttribute('contenteditable', 'true');
 		root().querySelector('[data-block-path="[2]"]')!.append(field);
-		expect(readingTabOrderProblem(root())).toMatch(/2 tab stops that aren't controls/);
+		expect(tabOrder(root())).toMatch(/2 tab stops that aren't controls/);
 	});
 });
 

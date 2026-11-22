@@ -3,7 +3,7 @@
 // IME commit whatever order its events arrive in, and the document's undo filling it.
 // Miss-analysis: Chromium ends a commit on a composing input, and no row composed in a shown math source.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import {
@@ -47,7 +47,7 @@ const input = (inputType: string, isComposing = false) =>
 	new InputEvent('input', { bubbles: true, inputType, isComposing });
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 });
 afterEach(async () => {
 	await destroyMountedEditors();

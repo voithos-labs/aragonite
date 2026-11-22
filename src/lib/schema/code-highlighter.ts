@@ -12,6 +12,30 @@ export interface CodeToken {
 	readonly class: string;
 }
 
+/** `tokens` as a body of `length` draws them, in drawing order; a token out of order, empty, past the
+ *  body or crossing the run around it is dropped. */
+export function nestedTokens(
+	length: number,
+	tokens: readonly CodeToken[]
+): { kept: CodeToken[]; dropped: CodeToken[] } {
+	const kept: CodeToken[] = [];
+	const dropped: CodeToken[] = [];
+	// The ends of the runs open around the next token, the body's own first; `at` is drawn up to.
+	const open = [length];
+	let at = 0;
+	for (const token of [...tokens].sort((a, b) => a.from - b.from || b.to - a.to)) {
+		while (open.length > 1 && open[open.length - 1] <= token.from) at = Math.max(at, open.pop()!);
+		if (token.from < at || token.to <= token.from || token.to > open[open.length - 1]) {
+			dropped.push(token);
+			continue;
+		}
+		at = Math.max(at, token.from);
+		open.push(token.to);
+		kept.push(token);
+	}
+	return { kept, dropped };
+}
+
 /** A language the picker offers: one row under `name`, with `aliases` as search keys. */
 export interface CodeLanguage {
 	readonly name: string;

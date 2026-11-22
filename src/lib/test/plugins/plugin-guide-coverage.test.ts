@@ -149,8 +149,8 @@ describe('plugin-testing § Verifying your plugin names every aragonite/testing 
 	});
 
 	it('is not vacuous: a dropped mention is detected', () => {
-		const withoutOne = section.replaceAll('applyPasteTransforms', '__dropped__');
-		expect(undocumented(exportNames, withoutOne, true)).toEqual(['applyPasteTransforms']);
+		const withoutOne = section.replaceAll('rewritePaste', '__dropped__');
+		expect(undocumented(exportNames, withoutOne, true)).toEqual(['rewritePaste']);
 	});
 });
 

@@ -4,7 +4,9 @@ import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
 } from '#lib/schema/block-kind-descriptor.js';
-import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
+import { runKindConformance } from '#lib/testing.js';
+import { checkCopyIsRawByteSlice } from '#lib/testing/kind-conformance.js';
+import { defaultCheckContext } from '#lib/testing/check-context.js';
 import { KIND_CELL_CONTRACTS } from '#lib/testing/cell-contracts.js';
 import { BUILTIN_KIND_PROFILES } from './builtin-kind-profiles';
 import type { PluginBlockKind } from '#lib/core/nodes.js';
@@ -111,11 +113,13 @@ function percentFence(): PluginBlockKind {
 
 describe('kind conformance: byte-slice clipboard executor is the false-cell guard', () => {
 	it('throws for a kind whose copy adds its closing line, declared inherit-default', () => {
-		expect(() => checkCopyIsRawByteSlice(percentFence(), '%\nx\n%\n')).toThrow(/raw byte slice/);
+		expect(() => checkCopyIsRawByteSlice(defaultCheckContext, percentFence(), '%\nx\n%\n')).toThrow(
+			/raw byte slice/
+		);
 	});
 
 	it('passes for a prose leaf whose copy is a true byte slice', () => {
 		const fixture = getBlockKindDescriptor('paragraph').samples![0];
-		expect(() => checkCopyIsRawByteSlice('paragraph', fixture)).not.toThrow();
+		expect(() => checkCopyIsRawByteSlice(defaultCheckContext, 'paragraph', fixture)).not.toThrow();
 	});
 });

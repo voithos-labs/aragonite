@@ -26,7 +26,8 @@ describeManifests(
 				'src/lib/components/editor-root/headless-grammar.ts':
 					'`grammar(plugins).parse`, a document no editor holds and no write changes',
 				'src/lib/testing/conformance-core.ts': 'the conformance kit’s own parse',
-				'src/lib/testing/inline-menu-conformance.ts': 'the kit’s stand-in host document'
+				'src/lib/testing/check-context.ts':
+					'a clipboard read as blocks, whose block a paste rewrite reads'
 			},
 			reason:
 				'a new caller of `measured` sums every top-level block of its document: read the editor’s own through `deps.bytes.measured()`, or declare what this document is',

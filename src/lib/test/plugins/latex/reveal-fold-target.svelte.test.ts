@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { mount, unmount, flushSync, tick } from 'svelte';
 import type { EditorInstance } from '#lib';
 import { Editor } from '#lib/svelte.js';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
@@ -17,7 +17,7 @@ let target: HTMLElement | null = null;
 let instance: EditorInstance | null = null;
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 	installLayoutStubs();
 });
 

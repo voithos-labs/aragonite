@@ -23,7 +23,6 @@ import {
 } from '../schema/plugin-kind';
 import { defaultCheckContext } from './check-context';
 import {
-	reversedAncestryLeavesRootStale as reversedAncestryStale,
 	runContainerCells,
 	type ContainerConformanceProfile,
 	type ContainerConformanceReport
@@ -34,7 +33,6 @@ import {
 	type InlineConformanceReport
 } from './inline-conformance';
 import {
-	checkCopyIsRawByteSlice as checkCopySlice,
 	runKindCells,
 	type KindConformanceProfile,
 	type KindConformanceReport
@@ -181,16 +179,6 @@ export function runInlineKindConformance(
 	profile: InlineConformanceProfile
 ): Promise<InlineConformanceReport> {
 	return runInlineCells(defaultCheckContext, profile);
-}
-
-/** Asserts the default cross-block copy over `kind`'s fixture is a raw byte slice at both ends. */
-export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
-	checkCopySlice(defaultCheckContext, kind, fixture);
-}
-
-/** Shows the ancestry check can fail: true when an outer-first rebuild leaves the root stale. */
-export function reversedAncestryLeavesRootStale(profile: ContainerConformanceProfile): boolean {
-	return reversedAncestryStale(defaultCheckContext, profile);
 }
 
 // ── Internals ────────────────────────────────────────────────────────────────

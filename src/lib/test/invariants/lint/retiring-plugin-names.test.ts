@@ -48,7 +48,6 @@ const CALLERS: readonly string[] = [
 	'src/lib/schema/keybindings.ts',
 	'src/lib/schema/range-indent-forms.ts',
 	'src/lib/selection/cross-block/keydown.ts',
-	'src/lib/testing.ts',
 	'src/lib/tree-operations/paste/paste-rewrites.ts',
 	'src/lib/tree-operations/paste/paste-transforms.ts',
 	'packages/admonitions/src/admonition-kind.ts',

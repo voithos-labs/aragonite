@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { definePlugin, registerPasteTransform } from '#lib/plugin.js';
 import { installPlugins } from '#lib';
-import { applyPasteTransforms, resetPluginPlatformForTests } from '#lib/testing.js';
+import { resetPluginPlatformForTests, rewritePaste } from '#lib/testing.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const upcaseHeadings = {
@@ -21,12 +21,12 @@ const bangToBullet = {
 describe('the registered paste pipeline, driven through aragonite/testing', () => {
 	it('runs a registered transform over the pasted text', () => {
 		registerPasteTransform(upcaseHeadings);
-		expect(applyPasteTransforms('# title\n')).toBe('# TITLE\n');
+		expect(rewritePaste('# title\n', undefined)).toBe('# TITLE\n');
 	});
 
 	it('leaves text a transform declines untouched', () => {
 		registerPasteTransform(upcaseHeadings);
-		expect(applyPasteTransforms('plain body\n')).toBe('plain body\n');
+		expect(rewritePaste('plain body\n', undefined)).toBe('plain body\n');
 	});
 
 	it('runs transforms in install order, each seeing the prior output', () => {
@@ -38,21 +38,24 @@ describe('the registered paste pipeline, driven through aragonite/testing', () =
 			name: 'bullet-to-heading',
 			transform: (text) => (text.startsWith('- ') ? `# ${text.slice(2)}` : null)
 		});
-		expect(applyPasteTransforms('!note\n')).toBe('# note\n');
+		expect(rewritePaste('!note\n', undefined)).toBe('# note\n');
 	});
 
 	it('runs a plugin transform only for a list of plugins that names it', () => {
-		installPlugins([
-			definePlugin({ name: 'shouter', setup: () => registerPasteTransform(upcaseHeadings) })
-		]);
-		expect(applyPasteTransforms('# title\n', ['shouter'])).toBe('# TITLE\n');
-		expect(applyPasteTransforms('# title\n', [])).toBe('# title\n');
+		const shouter = definePlugin({
+			name: 'shouter',
+			setup: () => registerPasteTransform(upcaseHeadings)
+		});
+		const quiet = definePlugin({ name: 'quiet', setup: () => {} });
+		installPlugins([shouter]);
+		expect(rewritePaste('# title\n', [shouter])).toBe('# TITLE\n');
+		expect(rewritePaste('# title\n', [quiet])).toBe('# title\n');
 	});
 
 	it('declines for the whole pipeline once the registry is reset', () => {
 		registerPasteTransform(upcaseHeadings);
 		resetPluginPlatformForTests();
-		expect(applyPasteTransforms('# title\n')).toBe('# title\n');
+		expect(rewritePaste('# title\n', undefined)).toBe('# title\n');
 	});
 
 	// A throwing transform is contained as a decline, so one bad plugin cannot swallow a paste
@@ -64,7 +67,7 @@ describe('the registered paste pipeline, driven through aragonite/testing', () =
 				throw new Error('boom');
 			}
 		});
-		expect(applyPasteTransforms('body\n')).toBe('body\n');
+		expect(rewritePaste('body\n', undefined)).toBe('body\n');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['paste-transform']);
 	});
 });

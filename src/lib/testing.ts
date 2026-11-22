@@ -2,44 +2,19 @@
 // processes only, and nothing here may import a test runner: the kits run inside an author's
 // own case, so failures come back as plain `Error`s.
 
-import { activationFor, everyInstalledPlugin } from './schema/plugin-activation';
-import { applyPasteTransforms as runPasteTransforms } from './tree-operations/paste/paste-transforms';
-
-export { resetPluginPlatformForTests } from './testing/platform-reset';
-
-// ── Editor env override ──────────────────────────────────────────────────────
-// What the reset's own error message points to: a runner other than Vitest declares itself
-// a test environment here, and `resetEditorEnv` puts the detected defaults back.
-
-export { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
-
-// ── Mounting the editor under a non-browser DOM ──────────────────────────────
-
-export { installEditorDomStubsForTests } from './testing/mount-dom-stubs';
-
-export { readingTabOrderProblem } from './testing/reading-tab-order';
-
-// ── Paste pipeline ───────────────────────────────────────────────────────────
-
-/**
- * The production paste transforms, the very function a paste that lands as blocks runs (G4.11),
- * over `text` as an editor whose `plugins` prop lists `plugins` would run it; absent, every
- * installed plugin's transforms run.
- */
-export function applyPasteTransforms(text: string, plugins?: readonly string[]): string {
-	return runPasteTransforms(text, plugins ? activationFor(plugins) : everyInstalledPlugin);
-}
-
-// ── Where dev warnings go ────────────────────────────────────────────────────
-// The channel every editor dev warning reaches, for a suite's own fail-on-warning check: register
-// a callback, empty it per case, fail on leftovers. Registering one silences the console line.
-
-export { setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
-export type { DevWarnEntry, DevWarnSink } from '@voithos-labs/aragonite/dev-checks';
+import { createEditorActivation } from './schema/plugin-activation';
+import {
+	installPlugins,
+	normalizePluginEntries,
+	runningNames,
+	type PluginsProp
+} from './schema/plugin-install';
+import { pluginCheckContext } from './testing/check-context';
+import { heardOutside, pasted } from './testing/rewrite-check';
 
 // ── Checking a plugin value ──────────────────────────────────────────────────
-// Every check over every sample of every block type and inline a plugin lists: what a package's
-// `./conformance` export feeds, and what `aragonite-plugin-check` runs.
+// Every check over every sample of everything a plugin lists: what a package's `./conformance`
+// export feeds, and what `aragonite-plugin-check` runs.
 
 export { check, CheckFailure, isCheckFailure } from './testing/check';
 export type {
@@ -52,30 +27,56 @@ export type {
 	Excuses
 } from './testing/check';
 
-// ── Conformance kits: the shared vocabulary ──────────────────────────────────
-// Every kit reports a cell as a `CellReport`; the container and inline profiles declare each
-// cell's coverage as a `ConformanceCoverage`.
+// ── Editor env override ──────────────────────────────────────────────────────
+// What `check` and the reset point to: a runner other than Vitest turns the dev checks on, or
+// declares itself a test process, here; `resetEditorEnv` puts the detected defaults back.
 
-export type { CellReport, CellStatus, ConformanceCoverage } from './testing/conformance-core';
+export { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
 
-// ── Container conformance kit ────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
+export { headless } from './testing/mount-dom-stubs';
+export { tabOrder } from './testing/reading-tab-order';
+
+/**
+ * `text` as an editor listing `plugins` rewrites a paste from the clipboard that reads as blocks,
+ * through the function every such paste runs; undefined lists every installed `setup` plugin. It
+ * answers for that paste alone: plain text, the editor's own copy and a program's insert
+ * (`Draft.insert`, an insert row, a menu pick) are never rewritten.
+ */
+export function rewritePaste(text: string, plugins: PluginsProp | undefined): string {
+	const entries = plugins?.length ? normalizePluginEntries(plugins) : undefined;
+	if (entries) installPlugins(entries.plugins);
+	const run = pluginCheckContext(entries?.values ?? [], heardOutside);
+	try {
+		run.stage(text);
+		const names = entries ? runningNames(entries, run.units) : null;
+		const activation = createEditorActivation(names, run.contributions);
+		return pasted(run.readingWith(activation), activation, text);
+	} finally {
+		run.release();
+	}
+}
+
+// ── Kits for setup plugins ───────────────────────────────────────────────────
+// The kits for `setup` plugins and the reset of their process-wide registries. Nothing joins
+// this section: a plugin value goes through `check`.
+
+export { resetPluginPlatformForTests } from './testing/platform-reset';
 export {
 	runContainerConformance,
-	reversedAncestryLeavesRootStale
+	runInlineKindConformance,
+	runKindConformance,
+	runPluginConformance
 } from './testing/plugin-conformance';
+export type { PluginConformanceReport, PluginConformanceSuite } from './testing/plugin-conformance';
+export type { CellReport, CellStatus, ConformanceCoverage } from './testing/conformance-core';
 export type {
 	ConformanceCell,
 	ContainerConformanceProfile,
 	ContainerConformanceReport,
 	LocalIndexFixture
 } from './testing/container-conformance';
-
-// ── Generic per-kind conformance battery ─────────────────────────────────────
-// Registering a kind signs it up for every cell that runs without a browser;
-// the browser pass runs the browser-only ones.
-
-export { runKindConformance, checkCopyIsRawByteSlice } from './testing/plugin-conformance';
 export type {
 	KindCell,
 	KindCellCheck,
@@ -83,28 +84,8 @@ export type {
 	KindConformanceProfile,
 	KindConformanceReport
 } from './testing/kind-conformance';
-
-// ── Inline-syntax conformance kit ────────────────────────────────────────────
-// The behavioural tests a registered inline syntax handler is held to: what it takes,
-// what it declines, and whether its widget behaves as a single unit.
-
-export { runInlineKindConformance } from './testing/plugin-conformance';
 export type {
 	InlineConformanceCell,
 	InlineConformanceProfile,
 	InlineConformanceReport
 } from './testing/inline-conformance';
-
-// ── Caret-menu pick conformance cell ─────────────────────────────────────────
-// What a menu's `pick` is held to: a pick that waits writes nothing into a note the host loaded
-// meanwhile.
-
-export { checkMenuPickAcrossSwap } from './testing/inline-menu-conformance';
-export type { MenuPickCase } from './testing/inline-menu-conformance';
-
-// ── Whole-plugin conformance ─────────────────────────────────────────────────
-// Every kit over every kind a plugin's setup declares: what a plugin package's `./conformance`
-// export feeds, and what `aragonite-plugin-check` runs.
-
-export { runPluginConformance } from './testing/plugin-conformance';
-export type { PluginConformanceReport, PluginConformanceSuite } from './testing/plugin-conformance';

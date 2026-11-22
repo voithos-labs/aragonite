@@ -2,7 +2,7 @@
 // A plugin author's suite, written against the published testing API: reset in `beforeEach`,
 // re-install in each case, and every case sees exactly one install's registrations.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { applyPasteTransforms, resetPluginPlatformForTests } from '#lib/testing.js';
+import { resetPluginPlatformForTests, rewritePaste } from '#lib/testing.js';
 import {
 	definePlugin,
 	registerBlockCompleter,
@@ -29,12 +29,12 @@ describe('resetPluginPlatformForTests between cases', () => {
 
 	it('case 1 pastes through its own transform', () => {
 		installRewrite('one');
-		expect(applyPasteTransforms('probe')).toBe('one');
+		expect(rewritePaste('probe', undefined)).toBe('one');
 	});
 
 	it("case 2 pastes through its own transform, not an earlier case's", () => {
 		installRewrite('two');
-		expect(applyPasteTransforms('probe')).toBe('two');
+		expect(rewritePaste('probe', undefined)).toBe('two');
 	});
 });
 

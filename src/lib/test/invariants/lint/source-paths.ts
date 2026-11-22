@@ -188,7 +188,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	publicBarrel: 'export { createEditor',
 	pluginBarrel: 'export { definePlugin, isPluginInstalled }',
 	svelteBarrel: 'export { default as Editor }',
-	testingBarrel: 'export function applyPasteTransforms',
+	testingBarrel: 'export function rewritePaste',
 	editorProps: 'export interface EditorOptions',
 	blockComponentApi: 'export interface BlockComponent ',
 	actionContracts: 'export type CommitSnapshotArg',
@@ -266,7 +266,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	rangeHost: 'export function rangeHost',
 	pointerPreamble: 'export interface CrossBlockPointer',
 	blockHitTest: 'export function blockAtPoint(',
-	editorDomStubs: 'export function installEditorDomStubsForTests(',
+	editorDomStubs: 'export function headless(',
 	rangeReplace: 'export type RangeInsertion',
 
 	// ── Caret geometry and windowing ────────────────────────────────────────

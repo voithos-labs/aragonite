@@ -49,9 +49,9 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/schema/container-writer.js'
 		],
 		reason:
-			'the opaque stale-raw / rebuild-determinism predicates are off the testing barrel (only ' +
-			'checkCopyIsRawByteSlice is published), and nothing published runs the ancestor rebuild a ' +
-			'commit runs over a parsed document or writes a container alone'
+			'the opaque stale-raw / rebuild-determinism predicates are off the testing barrel, and ' +
+			'nothing published runs the ancestor rebuild a commit runs over a parsed document or writes ' +
+			'a container alone'
 	},
 	'src/lib/test/plugins/admonitions/formation-harness.ts': {
 		specifiers: [

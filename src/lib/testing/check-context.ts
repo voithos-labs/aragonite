@@ -5,9 +5,20 @@
  * A check over plugin values also gets the editor their `setup` meets, with no editor mounted.
  */
 
-import type { AnyBlockKind, AnyInlineKind, Document, InlineNode } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
+import {
+	ALL_BLOCK_KINDS,
+	type AnyBlockKind,
+	type AnyInlineKind,
+	type Document,
+	type InlineNode
+} from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
+import { serialize } from '../core/serializer';
+import { measured } from '../tree-operations/top-level-starts';
+import { createMenuPick, type MenuPick } from '../schema/caret-menu';
+import { isBuiltinCommandId } from '../schema/commands';
+import type { Draft } from '../schema/drafts';
 import { parseInline } from '../core/inline';
 import { resolvedInlineContent } from '../core/inline/inline-cache';
 import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -16,17 +27,19 @@ import {
 	defaultGrammarView,
 	type EditorGrammar
 } from '../schema/editor-grammar';
-import { createEditorActivation } from '../schema/plugin-activation';
+import { createEditorActivation, type PluginActivation } from '../schema/plugin-activation';
 import type { InstalledInline } from '../schema/inline-type';
 import { listGrammar } from '../schema/own-syntax';
 import type { EditorContributions } from '../schema/editor-contributions';
 import type { Editor, InstalledPlugin, PluginError, PluginList } from '../schema/plugin-unit';
 import type { View } from '../schema/view';
+import type { Block } from '../schema/doc-view';
 import type { Command } from '../schema/plugin-command';
 import { modeOf, type PresentationMode } from '../presentation-mode';
 import type { Reading } from '../schema/reading';
 import { createDocumentRead, type DocumentRead } from '../editor-actions/commit/document-read';
 import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
+import { startsAlone } from '../editor-actions/commit/reading-write-gate';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
 import {
 	createHeadlessActions,
@@ -45,6 +58,8 @@ export interface CheckContext {
 	inline(node: NodeView): readonly InlineNode[];
 	/** The same reading with no plugin's syntax: what the editor reads on its own. */
 	builtIns(): CheckContext;
+	/** Every sample the editor's own block types list. */
+	builtInSamples(): readonly string[];
 	/** The reading an editor part built without an editor takes, source mode unless told. */
 	reading(mode?: () => PresentationMode): Reading;
 	descriptor(kind: AnyBlockKind): BlockKindDescriptor;
@@ -68,6 +83,8 @@ export function checkContext(grammar: EditorGrammar): CheckContext {
 		inline: (node) => resolvedInlineContent(node, reading()),
 		builtIns: () =>
 			(builtIns ??= checkContext(createEditorGrammar({ plugins: createEditorActivation([]) }))),
+		builtInSamples: () =>
+			ALL_BLOCK_KINDS.flatMap((kind) => grammar.tryDescriptor(kind)?.samples ?? []),
 		reading,
 		descriptor: (kind) => grammar.descriptor(kind),
 		headless: (content, options) =>
@@ -91,8 +108,38 @@ export interface PluginCheckRun {
 	readonly kinds: readonly AnyBlockKind[];
 	/** The inline constructs it kept, by kind. */
 	readonly inlines: ReadonlyMap<AnyInlineKind, InstalledInline>;
+	readonly contributions: EditorContributions;
 	editor(source: string): Editor;
+	/** The editor over `source`, with what a row reads of what the plugin did to it. */
+	stage(source: string): Stage;
+	/** The list's own syntax read with the plugins `activation` turns on, `setup` plugins among them. */
+	readingWith(activation: PluginActivation): CheckContext;
 	release(): void;
+}
+
+/** The editor a row drives, and what a mounted editor would have shown of the plugin's run. */
+export interface Stage {
+	readonly editor: Editor;
+	/** Each write the plugin made or started, in order: a commit, an insert, a built-in command. */
+	readonly writes: readonly string[];
+	/** Each member that answers only on screen the plugin asked, in order. */
+	readonly screen: readonly string[];
+	/** Whether a write the plugin started through the editor is still going. */
+	busy(): boolean;
+	/** Settles once no write the plugin started through the editor is still going. */
+	idle(): Promise<void>;
+	/** Puts the caret at byte `at`. */
+	caret(at: number): void;
+	/** Loads `text` as a host's `load` does: every draft opened before it is refused. */
+	swap(text: string): void;
+	source(): string;
+	/** The document as the editor holds it now. */
+	document(): DocumentView;
+	/** `node`, at `path` in that document, as a plugin reads it. */
+	blockOf(node: NodeView, path: readonly number[]): Block;
+	/** The pick of a menu whose trigger and `query` start the document, as a mounted editor hands
+	 *  one to a menu's `pick`. */
+	pick(trigger: string, query: string): MenuPick;
 }
 
 /** Installs `plugins` the way an editor's list does, in its order, each problem handed to
@@ -101,21 +148,31 @@ export function pluginCheckContext(
 	plugins: PluginList,
 	report: (error: PluginError) => void
 ): PluginCheckRun {
-	let current: StandIn | undefined;
+	let current: (Stage & { read: DocumentRead }) | undefined;
 	const list = listGrammar(plugins, report, {
 		editorFor: () => current?.editor,
-		blockOf: (node, path) => current!.read.blockOf(node, path)
+		blockOf: (node, path) => current!.read.blockOf(node, path),
+		clipboardBlocks: (clip) => clipboardRead(clip, list.units, context.reading()).blockOf
 	});
 	const context = checkContext(list.grammar);
+	const stage = (source: string) =>
+		(current = standIn(context, source, list.units, list.contributions));
 	return {
 		context,
 		units: list.units,
 		kinds: list.blocks.map((block) => block.kind),
 		inlines: list.inlines,
-		editor(source) {
-			current = standIn(context, source, list.units, list.contributions);
-			return current.editor;
-		},
+		contributions: list.contributions,
+		editor: (source) => stage(source).editor,
+		stage,
+		readingWith: (activation) =>
+			checkContext(
+				createEditorGrammar({
+					plugins: activation,
+					blocks: () => list.blocks,
+					inlines: () => list.inlines
+				})
+			),
 		release: list.release
 	};
 }
@@ -137,9 +194,37 @@ const OFF_SCREEN: View = {
 	overlay: () => () => {}
 };
 
-interface StandIn {
-	editor: Editor;
-	read: DocumentRead;
+/** `answer`, noting `member` in `screen` each time it's asked. */
+function screened<A extends unknown[], R>(
+	screen: string[],
+	member: string,
+	answer: (...args: A) => R
+): (...args: A) => R {
+	return (...args) => (screen.push(member), Reflect.apply(answer, undefined, args) as R);
+}
+
+/** A built-in type is named by its kind, which is all `is` compares. */
+const typeIn = (units: readonly InstalledPlugin[], kind: string) =>
+	units.flatMap((unit) => unit.contribution.blocks ?? []).find((type) => type.name === kind) ?? {
+		name: kind,
+		label: kind
+	};
+
+/** `clip`, a clipboard read as blocks, as a rewrite reads its blocks. */
+function clipboardRead(
+	clip: DocumentView,
+	units: readonly InstalledPlugin[],
+	reading: Reading
+): DocumentRead {
+	const of = measured(clip);
+	return createDocumentRead({
+		getDoc: () => clip,
+		measured: () => of,
+		typeOf: (kind) => typeIn(units, kind),
+		reading,
+		version: () => 0,
+		source: () => serialize(clip)
+	});
 }
 
 /** `source` read as `context` reads it, with real drafts and commands; nothing is on screen,
@@ -149,22 +234,23 @@ function standIn(
 	source: string,
 	units: readonly InstalledPlugin[],
 	contributions: EditorContributions
-): StandIn {
+): Stage & { read: DocumentRead } {
 	let version = 0;
 	const headless = context.headless(source, { bumpContentVersion: () => version++ });
 	const { deps } = headless;
 	const controller = createUndoController(deps);
+	const writes: string[] = [];
+	const screen: string[] = [];
+	const going = new Set<Promise<unknown>>();
+	const track = <T>(write: Promise<T>): Promise<T> => {
+		going.add(write);
+		void write.finally(() => going.delete(write)).catch(() => {});
+		return write;
+	};
 	const read = createDocumentRead({
 		getDoc: () => deps.doc,
 		measured: () => deps.bytes.measured(),
-		// A built-in type is named by its kind, which is all `is` compares.
-		typeOf: (kind) =>
-			units
-				.flatMap((unit) => unit.contribution.blocks ?? [])
-				.find((type) => type.name === kind) ?? {
-				name: kind,
-				label: kind
-			},
+		typeOf: (kind) => typeIn(units, kind),
 		reading: deps.reading,
 		version: () => version,
 		source: () => deps.bytes.source()
@@ -180,11 +266,20 @@ function standIn(
 		isOn: () => true,
 		grammar: context.grammar,
 		writes: () => ({
-			commitSource: controller.commitSource,
+			commitSource: (splice) => (writes.push('a commit'), controller.commitSource(splice)),
 			undoStep: (seed, run) => controller.undoStep(seed, run),
-			insert: async () => false
+			insert: async (markdown) => (writes.push(`an insert of ${JSON.stringify(markdown)}`), false)
 		})
 	});
+	// A draft's commit is a write the plugin started, still going until it settles.
+	const tracked = <D extends Draft>(draft: D): D => {
+		const { commit } = draft;
+		draft.commit = (options) => track(commit.call(draft, options));
+		return draft;
+	};
+	const asked = <A extends unknown[], R>(member: string, answer: (...args: A) => R) =>
+		screened(screen, member, answer);
+	let caret: number | null = null;
 	const entryOf = (command: Command<unknown> | string) => contributions.command(command);
 	const editor: Editor = {
 		plugins: units.map((unit) => unit.name),
@@ -194,24 +289,98 @@ function standIn(
 		get doc() {
 			return read.doc();
 		},
-		selection: null,
-		view: OFF_SCREEN,
+		get selection() {
+			if (caret === null) return null;
+			const at = caret;
+			return {
+				anchor: at,
+				head: at,
+				from: at,
+				to: at,
+				empty: true,
+				block: read.blockAt(at),
+				cells: null
+			};
+		},
+		view: {
+			boxOf: asked('view.boxOf', OFF_SCREEN.boxOf),
+			boxesOf: asked('view.boxesOf', OFF_SCREEN.boxesOf),
+			caretBox: asked('view.caretBox', OFF_SCREEN.caretBox),
+			posAt: asked('view.posAt', OFF_SCREEN.posAt),
+			reveal: asked('view.reveal', OFF_SCREEN.reveal),
+			overlay: asked('view.overlay', OFF_SCREEN.overlay)
+		},
 		on: () => () => {},
 		run: (command: Command<unknown> | string, arg?: unknown) => {
 			const entry = entryOf(command);
-			return !!entry && contributions.run(entry, arg);
+			if (entry) return contributions.run(entry, arg);
+			// A built-in runs on the block holding the caret, which only a drawn block can do: the
+			// run is heard as the write it would make, and answers as it would at a paragraph.
+			if (typeof command !== 'string' || !isBuiltinCommandId(command)) return false;
+			writes.push(`a run of ${command}`);
+			return true;
 		},
 		can: (command: Command<unknown> | string, arg?: unknown) => {
 			const entry = entryOf(command);
-			return !!entry && contributions.can(entry, arg);
+			if (entry) return contributions.can(entry, arg);
+			return typeof command === 'string' && isBuiltinCommandId(command);
 		},
 		claims: () => false,
-		openMenu: () => false,
-		openRows: () => ({ isOpen: false, close() {} }),
-		edit: () => drafts.edit(),
+		openMenu: asked('openMenu', () => false),
+		openRows: asked('openRows', () => ({ isOpen: false, close() {} })),
+		edit: () => tracked(drafts.edit()),
 		blockAt: (at) => read.blockAt(at),
-		select: async () => false,
+		select: asked('select', async () => false),
 		repaint: () => {}
 	};
-	return { editor, read };
+	return {
+		editor,
+		read,
+		writes,
+		screen,
+		busy: () => going.size > 0,
+		async idle() {
+			while (going.size > 0) await Promise.allSettled([...going]);
+		},
+		caret: (at) => void (caret = at),
+		swap(text) {
+			if (!startsAlone({ starts: deps.starts, events: headless.events })) return;
+			deps.stamps.retire();
+			drafts.closeAll('document-swap');
+			const next = context.parse(text);
+			deps.starts.duringWrite(() => {
+				deps.setDoc(next);
+				return { touched: null };
+			});
+			caret = null;
+		},
+		source: () => deps.bytes.source(),
+		document: () => deps.doc,
+		blockOf: (node, path) => read.blockOf(node, path),
+		pick(trigger, query) {
+			const range = { from: 0, to: trigger.length + query.length };
+			const typed = range.to - range.from;
+			const pick = createMenuPick({
+				draft: tracked(drafts.edit(undefined, range)),
+				trigger,
+				query,
+				range,
+				removeQuery: async (at) =>
+					at !== null &&
+					(
+						await tracked(drafts.edit())
+							.replace({ from: at, to: at + typed }, '')
+							.commit()
+					).ok,
+				editor: () => editor,
+				undoStep: (run) => run().then(() => {})
+			});
+			for (const name of ['write', 'insertBlock', 'run'] as const) {
+				const own = pick[name] as (...args: unknown[]) => Promise<unknown>;
+				(pick as unknown as Record<string, unknown>)[name] = (...args: unknown[]) =>
+					track(own.apply(pick, args));
+			}
+			return pick;
+		}
+	};
 }

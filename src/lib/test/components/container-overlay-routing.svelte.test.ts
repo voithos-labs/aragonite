@@ -8,10 +8,10 @@ import { parse } from '#lib/core/parser.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { mountBlockHost, type MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 
 beforeAll(() => {
-	installEditorDomStubsForTests();
+	headless();
 	registerBuiltInBlocks();
 });
 

@@ -77,7 +77,10 @@ describe('check over block types', () => {
 			clipboard: 'passed',
 			simOracle: 'unchecked',
 			rawWrite: 'passed',
-			unfinishedReading: 'not-applicable'
+			unfinishedReading: 'not-applicable',
+			completion: 'not-applicable',
+			dataWriteback: 'not-applicable',
+			docPositions: 'passed'
 		});
 		expect(rowOf(report, 'focus')?.detail).toMatch(/^needs a browser/);
 	});

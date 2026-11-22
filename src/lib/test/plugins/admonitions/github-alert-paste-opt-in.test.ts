@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
-import { applyPasteTransforms } from '#lib/testing.js';
+import { rewritePaste } from '#lib/testing.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 
 // Native rendering makes the alert paste transform opt-in. By default a pasted
@@ -12,11 +12,11 @@ const ALERT = '> [!TIP]\n> Handy.\n';
 describe('github alert: paste transform is opt-in', () => {
 	it('leaves pasted alert bytes untouched by default', () => {
 		installPlugins([admonitionsPlugin()]);
-		expect(applyPasteTransforms(ALERT)).toBe(ALERT);
+		expect(rewritePaste(ALERT, undefined)).toBe(ALERT);
 	});
 
 	it('rewrites pasted alerts to :::name source when convertAlertsOnPaste is set', () => {
 		installPlugins([admonitionsPlugin({ convertAlertsOnPaste: true })]);
-		expect(applyPasteTransforms(ALERT)).toBe(':::tip\nHandy.\n:::\n');
+		expect(rewritePaste(ALERT, undefined)).toBe(':::tip\nHandy.\n:::\n');
 	});
 });

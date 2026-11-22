@@ -4,7 +4,7 @@
 // Miss-analysis: every reorder test pressed the default Alt+Arrow, never a rebound chord.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { headless } from '#lib/testing.js';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
@@ -16,7 +16,7 @@ import { mountOpaque, registerOpaqueKind, type MountedOpaque } from './fixtures/
 let mounted: MountedOpaque | null = null;
 
 beforeEach(() => {
-	installEditorDomStubsForTests();
+	headless();
 	registerOpaqueKind();
 });
 

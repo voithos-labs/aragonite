@@ -14,7 +14,7 @@ import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */
-export { installEditorDomStubsForTests as installLayoutStubs } from '#lib/testing.js';
+export { headless as installLayoutStubs } from '#lib/testing.js';
 
 export interface MountedEditor<Seam = unknown> {
 	instance: EditorInstance & { __test: Seam };
