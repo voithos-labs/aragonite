@@ -11,6 +11,7 @@ import { textBlockView } from '#lib/components/blocks/text/text-block-view.js';
 import type { ContainerSpec } from '#lib/schema/container-block.js';
 import type { ContainerDrawContext } from '#lib/schema/drawing.js';
 import type { PluginError } from '#lib/schema/plugin-unit.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import {
 	blockHostAt,
 	destroyMountedEditors,
@@ -232,10 +233,18 @@ describe('a container whose data is not an object', () => {
 		}
 	};
 
+	// An array spreads into index keys as a string does, and a copy of the node keeps no array.
+	const ARRAY = {
+		...NOTE_LINES,
+		data: (match: RegExpExecArray) => [match[1]],
+		first: (data: string[]) => `[^${data[0]}]: `
+	};
+
 	it.each([
-		['an indented one', INDENTED, '[^a]: first\n'],
-		['one under a head line', HEADED, '%> [!NOTE]\n%> first\n']
-	])('leaves its plugin out at install, %s', async (_, lines, source) => {
+		['an indented one', INDENTED, '[^a]: first\n', 'a string'],
+		['one under a head line', HEADED, '%> [!NOTE]\n%> first\n', 'a string'],
+		['one whose data is an array', ARRAY, '[^a]: first\n', 'an array']
+	])('leaves its plugin out at install, %s', async (_, lines, source, what) => {
 		const errors: PluginError[] = [];
 		const plugin = boxes({ lines: lines as never, sample: source });
 		const m = mountEditor({ source, plugins: [plugin], onError: (e) => errors.push(e) });
@@ -243,7 +252,7 @@ describe('a container whose data is not an object', () => {
 		expect(errors.map((e) => [e.doing, (e.cause as Error).message])).toEqual([
 			[
 				'install',
-				"plugin 'boxes' has the block type 'boxes/box', whose data is a string: a container's data must be an object"
+				`plugin 'boxes' has the block type 'boxes/box', whose data is ${what}: a container's data must be an object`
 			]
 		]);
 		expect(m.instance.plugins).not.toContain('boxes');
@@ -276,6 +285,48 @@ describe('a container whose data is not an object', () => {
 			expect(m.instance.getSource()).toBe('plain\n');
 		}
 	);
+
+	// Miss-analysis: the install check reads the type's sample alone, and no row wrote data read
+	// from a line the sample doesn't hold, or handed in by a draft.
+	const BY_LINE = {
+		...NOTE_LINES,
+		data: (match: RegExpExecArray) => (match[1] === 'obj' ? { label: 'obj' } : match[1]),
+		first: (data: { label: string } | string) =>
+			`[^${typeof data === 'string' ? data : data.label}]: `
+	};
+	const warned = (what: string) => [
+		`boxes/box: its data is ${what}, where a container's data must be an object`
+	];
+
+	it.each([
+		['a string, in a type with no sample', INDENTED, undefined, 'a string'],
+		['a string, from a line its sample reads as an object', BY_LINE, '[^obj]: x', 'a string'],
+		['an array, in a type with no sample', ARRAY, undefined, 'an array']
+	])('warns in a dev build where its writer is handed %s', async (_, lines, sample, what) => {
+		const plugin = boxes({ lines: lines as never, sample: sample as never });
+		const m = mountEditor({ source: '[^a]: first\n', plugins: [plugin] });
+		await m.settle();
+		typeInto(surfaceAt(m, [0, 0]), 'first word');
+		await m.settle();
+		expect(m.instance.getSource()).toContain('first word');
+		expect([...new Set(takeDevWarnsOf('container-data').map((w) => w.message))]).toEqual(
+			warned(what)
+		);
+	});
+
+	it('warns in a dev build where a draft hands its writer a string', async () => {
+		const m = mountEditor({ source: '[^a]: first\n', plugins: [boxes({ lines: NOTE_LINES })] });
+		await m.settle();
+		const [box] = m.instance.doc.blocks;
+		await m.instance
+			.edit()
+			.data(box, 'b' as never)
+			.commit();
+		await m.settle();
+		expect([...new Set(takeDevWarnsOf('container-data').map((w) => w.message))]).toEqual(
+			warned('a string')
+		);
+	});
 });
 
 function thrown(message: string): never {

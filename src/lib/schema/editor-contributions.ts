@@ -25,6 +25,7 @@ import type { ContributedMenu } from './caret-menu';
 import { iconProblem, type Icon } from '../menu-icons';
 import type { BlockAction } from './block-shapes';
 import { openingData } from '../core/parsers/strip-container';
+import { nonObjectData } from './container-writer';
 import { firstDisplayLine } from '../core/lines';
 import type { ContributedAction } from './selection-action';
 import type { CodeHighlighter, CodeLanguage, CodeToken } from './code-highlighter';
@@ -438,9 +439,10 @@ function containerDataProblem(unit: InstalledPlugin): string | null {
 		} catch (cause) {
 			return `has the block type '${kind}', which throws reading its sample (${String(cause)})`;
 		}
-		if (data === undefined || (typeof data === 'object' && data !== null)) continue;
-		const what = data === null ? 'null' : `a ${typeof data}`;
-		return `has the block type '${kind}', whose data is ${what}: a container's data must be an object`;
+		const what = nonObjectData(data);
+		if (what) {
+			return `has the block type '${kind}', whose data is ${what}: a container's data must be an object`;
+		}
 	}
 	return null;
 }
