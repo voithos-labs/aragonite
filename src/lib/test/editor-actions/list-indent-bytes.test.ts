@@ -42,6 +42,16 @@ describe('indentItem writes the moved item under the item above', () => {
 			into: 'an ordered sublist it already holds',
 			source: '1. a\n   1. x\n2. b\n',
 			bytes: '1. a\n   1. x\n   2. b\n'
+		},
+		{
+			into: 'one of another delimiter it already holds',
+			source: '1. a\n   1) x\n2. b\n',
+			bytes: '1. a\n   1) x\n   2) b\n'
+		},
+		{
+			into: 'a bullet sublist of another glyph it already holds',
+			source: '- a\n  * x\n- b\n',
+			bytes: '- a\n  * x\n  * b\n'
 		}
 	])('into $into', async ({ source, bytes }) => {
 		expect(await indentSecondItem(source)).toBe(bytes);
