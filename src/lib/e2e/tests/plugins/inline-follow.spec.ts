@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
 import { PluginsPage, dragBetweenPoints } from './helpers';
+import { multiClick } from '../../multi-click';
 
 /**
  * Styled inline text that follows a click (requirements/plugins/inline-follow.md): the `#work` tag
@@ -43,7 +44,7 @@ test.describe('styled inline text that follows a click', () => {
 
 	test('a double click follows nothing and selects a word', async ({ page }) => {
 		const at = await insideTag(page);
-		await page.mouse.dblclick(at.x, at.y);
+		await multiClick(page, at, 2);
 		await ep.waitForRenderFlush();
 		expect(await followed(page)).toEqual([]);
 		expect(await page.evaluate(() => getSelection()?.toString())).toContain('work');
