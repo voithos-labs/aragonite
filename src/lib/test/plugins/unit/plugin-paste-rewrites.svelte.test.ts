@@ -234,6 +234,8 @@ const overDividers = select(point([1], 0), point([3], 0));
 const again = (block: Block<AlertData>) => `%> [!${block.data.type}X]\n%> again`;
 const AGAIN = 'x\n\n%> [!TIPX]\n%> again\n';
 const three = () => 'one\n\ntwo\n\n- three';
+/** A clipboard an empty answer leaves with nothing: an alert, the only block of a list item. */
+const EMPTIED = '- %> [!TIP]\n  %> pasted\n';
 
 // Miss-analysis: the rows' answers were no alert, so a second ask on any route left the same bytes;
 // only a caret and one selection were pasted over.
@@ -301,26 +303,55 @@ describe('a paste rewrite where pasted blocks land', () => {
 		}
 	);
 
-	// Miss-analysis: every empty answer left a block beside it, so none emptied the clipboard.
-	it.each<[string, Place, (editor: Mounted, at: HTMLElement) => Promise<void>]>([
-		['at a caret, as a paste of nothing', select(point([0], 5)), (m, at) => pasteOn(m, at, '')],
-		[
-			'over a selection across blocks, which it takes as Backspace does',
-			acrossText,
-			(m, at) => pressKey(at, { key: 'Backspace' }).then(() => m.settle())
-		]
-	])('lands nothing where its answers empty the clipboard: %s', async (_, place, control) => {
-		const { editor, read } = await mounted(() => '', TEXT);
-		await pasteOn(editor, await place(editor), '- %> [!TIP]\n  %> pasted\n');
-		const landed = { source: editor.source(), selection: editor.instance.getSelection() };
-		expect(read).toHaveLength(1);
-		await destroyMountedEditors();
-		const other = await mounted(() => null, TEXT);
-		await control(other.editor, await place(other.editor));
-		expect(landed).toEqual({
-			source: other.editor.source(),
-			selection: other.editor.instance.getSelection()
+	// Miss-analysis: every empty answer left a block beside it, so none emptied the clipboard, and
+	// over a selection the core removed the range for a paste of nothing.
+	it.each<[string, Place]>([
+		['at a caret', select(point([0], 5))],
+		['over a selection across blocks', acrossText]
+	])(
+		'lands nothing %s where its answers empty the clipboard, as a paste of nothing',
+		async (_, place) => {
+			const { editor, read } = await mounted(() => '', TEXT);
+			await pasteOn(editor, await place(editor), EMPTIED);
+			const landed = { source: editor.source(), selection: editor.instance.getSelection() };
+			expect(read).toHaveLength(1);
+			await destroyMountedEditors();
+			const control = await mounted(() => null, TEXT);
+			await pasteOn(control.editor, await place(control.editor), '');
+			expect(landed).toEqual({
+				source: control.editor.source(),
+				selection: control.editor.instance.getSelection()
+			});
+		}
+	);
+
+	it('leaves undo nothing of its own where its answers empty the clipboard', async () => {
+		const { editor } = await mounted(() => '', TEXT);
+		await insertBy('hardware key', await select(point([2], 5))(editor), 'Q');
+		await editor.settle();
+		await pasteOn(editor, await acrossText(editor), EMPTIED);
+		await pressKey(document.activeElement!, { key: 'z', ctrlKey: true });
+		await editor.settle();
+		expect(editor.source()).toBe(TEXT);
+	});
+
+	it('writes nothing by Replace with clipboard where its answers empty the clipboard', async () => {
+		const doc = 'intro\n\n```\ncode here\n```\n';
+		const { editor, read } = await mounted(() => '', doc);
+		Object.defineProperty(navigator, 'clipboard', {
+			value: { readText: async () => EMPTIED },
+			configurable: true
 		});
+		surfaceAt(editor, [1]).dispatchEvent(
+			new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+		);
+		await editor.settle();
+		[...document.querySelectorAll<HTMLElement>('.block-menu .md-menu-item')]
+			.find((row) => row.textContent?.trim() === 'Replace with clipboard')!
+			.click();
+		await editor.settle();
+		expect(read).toHaveLength(1);
+		expect(editor.source()).toBe(doc);
 	});
 });
 

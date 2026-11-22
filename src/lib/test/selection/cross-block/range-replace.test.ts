@@ -193,14 +193,16 @@ describe('Tab over a range with nothing to indent', () => {
 	}
 });
 
-describe('a gesture whose insertion writes nothing lands at the removal’s caret', () => {
+// A paste of nothing removes nothing, and a paste its transforms empty is a paste of nothing.
+describe('a paste whose transforms leave nothing', () => {
 	// Blocks, since one line after text goes in as text and no transform sees it.
-	it('a paste of blocks a transform empties, over prose', async () => {
+	it('over prose: no write, no undo entry, no landing', async () => {
 		registerPasteTransform({ name: 'drops-everything', transform: () => '' });
 		const env = await perform('paste', SHAPES['plain prose'], 'P\n\nQ');
 
-		expect(serialize(env.doc)).toBe('alma\n');
-		expect(landedAt(env)).toEqual([[[0], 2]]);
+		expect(serialize(env.doc)).toBe(SHAPES['plain prose'].source);
+		expect(env.deps.undoManager.getStacks().undo).toHaveLength(0);
+		expect(landedAt(env)).toEqual([]);
 	});
 });
 

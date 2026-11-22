@@ -11,7 +11,7 @@
 import type { CommitSnapshotArg, UndoGrouping } from '../../action-contracts';
 import type { TextEdit } from '../../caret/next-insertion';
 import { docPathFrom } from '../../core/coordinate-spaces';
-import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { isBlankText, ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import type { DocumentView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
 import type { DocumentGetter } from '../../editor-keys';
@@ -137,6 +137,8 @@ export async function pasteThroughCore(
 	if (!read) return false;
 	const { place } = read;
 	const answer = pasteAnswer(ctx, read, place, clip, spend);
+	// A paste its rewrites empty is a paste of nothing, which removes nothing, as in a cell.
+	if (!answer) return false;
 	if (answer.source === read.source) {
 		// A range pasted over with its own bytes is written nowhere, and still ends where they end.
 		if (place.range.from !== place.range.to) await endRangeAt(ctx, answer.caret.at);
@@ -145,20 +147,30 @@ export async function pasteThroughCore(
 	return landAnswer(ctx, read.source, answer, undo);
 }
 
-/** The core's answer for `clip` pasted at `place` in `doc`. */
+/** The core's answer for `clip` pasted at `place` in `doc`; null where its rewrites leave none of
+ *  the clipboard. */
 function pasteAnswer(
 	ctx: PasteContext,
 	doc: CurrentDocument,
 	place: PastePlace,
 	clip: Clip,
 	spend: SpendInsertion | null
-): RangeEditResult {
-	const host = textHost(ctx.reading, doc, spend, (text, blocks) =>
-		rewrittenPaste({ ...clip, text }, () => blocks, ctx.activePlugins, ctx.reading.grammar)
-	);
+): RangeEditResult | null {
+	let emptied = false;
+	const host = textHost(ctx.reading, doc, spend, (text, blocks) => {
+		const out = rewrittenPaste(
+			{ ...clip, text },
+			() => blocks,
+			ctx.activePlugins,
+			ctx.reading.grammar
+		);
+		emptied = isBlankText(out) && !isBlankText(text);
+		return out;
+	});
 	const { range, ...held } = puttingBack(place, clip, doc.source);
 	const gesture = { paste: clip.text, plain: clip.plain, own: clip.own, ...held };
-	return editRange(doc.source, range, gesture, modeOf(ctx), host);
+	const answer = editRange(doc.source, range, gesture, modeOf(ctx), host);
+	return emptied ? null : answer;
 }
 
 /** The core's answer over a range, the read it was answered on and the host that read it. */
