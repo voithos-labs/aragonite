@@ -9,25 +9,10 @@ import type { AnyBlockKind, Document, InlineNode } from '../core/nodes';
 import { parse } from '../core/parser';
 import { parseInline } from '../core/inline';
 import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
-import {
-	createEditorGrammar,
-	defaultGrammarView,
-	type EditorGrammar
-} from '../schema/editor-grammar';
-import { installBlockTypes } from '../schema/block-type';
-import { installInlines } from '../schema/inline-type';
-import { createEditorActivation } from '../schema/plugin-activation';
-import {
-	createEditorContributions,
-	type EditorContributions
-} from '../schema/editor-contributions';
-import {
-	installPluginList,
-	type Editor,
-	type InstalledPlugin,
-	type PluginError,
-	type PluginList
-} from '../schema/plugin-unit';
+import { defaultGrammarView, type EditorGrammar } from '../schema/editor-grammar';
+import { listGrammar } from '../schema/own-syntax';
+import type { EditorContributions } from '../schema/editor-contributions';
+import type { Editor, InstalledPlugin, PluginError, PluginList } from '../schema/plugin-unit';
 import type { View } from '../schema/view';
 import type { Command } from '../schema/plugin-command';
 import { modeOf, type PresentationMode } from '../presentation-mode';
@@ -99,37 +84,20 @@ export function pluginCheckContext(
 	report: (error: PluginError) => void
 ): PluginCheckRun {
 	let current: StandIn | undefined;
-	const contributions = createEditorContributions({
+	const list = listGrammar(plugins, report, {
 		editorFor: () => current?.editor,
-		report,
-		blocksAround: () => ({ blocks: [] }),
-		blockOf: (node, path) => current!.read.blockOf(node, path),
-		clipboardBlocks: () => () => {
-			throw new Error('a check pastes nothing');
-		}
+		blockOf: (node, path) => current!.read.blockOf(node, path)
 	});
-	const units = contributions.read(installPluginList(plugins, report));
-	const blocks = installBlockTypes(units, report);
-	const inlines = installInlines(units, report);
-	const names = units.map((unit) => unit.name);
-	const grammar = createEditorGrammar({
-		plugins: createEditorActivation(names, contributions),
-		blocks: () => blocks.blocks,
-		inlines: () => inlines.inlines
-	});
-	const context = checkContext(grammar);
+	const context = checkContext(list.grammar);
 	return {
 		context,
-		units,
-		kinds: blocks.blocks.map((block) => block.kind),
+		units: list.units,
+		kinds: list.blocks.map((block) => block.kind),
 		editor(source) {
-			current = standIn(context, source, units, contributions);
+			current = standIn(context, source, list.units, list.contributions);
 			return current.editor;
 		},
-		release() {
-			blocks.release();
-			inlines.release();
-		}
+		release: list.release
 	};
 }
 

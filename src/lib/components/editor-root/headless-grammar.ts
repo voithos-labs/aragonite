@@ -1,23 +1,16 @@
 /**
  * A plugin list's grammar with no editor: `grammar(plugins).parse(text)` reads text into a `Doc`
  * as an editor running those plugins reads it, its blocks placed in the text's bytes. The plugins'
- * block types stay known to the process while the grammar is reachable, as a mounted editor's do.
+ * syntax stays known to the process while the grammar is reachable, as a mounted editor's does.
  */
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import type { AnyBlockKind } from '../../core/nodes';
 import { blockKindLabel } from '../../a11y-strings';
 import { createDocumentRead } from '../../editor-actions/commit/document-read';
 import { measured } from '../../tree-operations/top-level-starts';
-import { createEditorActivation } from '../../schema/plugin-activation';
-import { createEditorGrammar, type SyntaxOptions } from '../../schema/editor-grammar';
-import { installBlockTypes } from '../../schema/block-type';
-import {
-	installPluginList,
-	type BlockType,
-	type InstalledPlugin,
-	type PluginError,
-	type PluginList
-} from '../../schema/plugin-unit';
+import type { SyntaxOptions } from '../../schema/editor-grammar';
+import { listGrammar } from '../../schema/own-syntax';
+import type { BlockType, InstalledPlugin, PluginError, PluginList } from '../../schema/plugin-unit';
 import type { Doc } from '../../schema/doc-view';
 import { initDocument } from './document-swap';
 
@@ -27,13 +20,7 @@ export interface Grammar {
 }
 
 export function grammar(plugins: PluginList, options: { syntax?: SyntaxOptions } = {}): Grammar {
-	const units = installPluginList(plugins, reportOutsideEditor);
-	const types = installBlockTypes(units, reportOutsideEditor);
-	const view = createEditorGrammar({
-		plugins: createEditorActivation(units.map((unit) => unit.name)),
-		syntax: options.syntax,
-		blocks: () => types.blocks
-	});
+	const { units, grammar: view } = listGrammar(plugins, reportOutsideEditor, options);
 	return {
 		parse: (text) => {
 			const { doc, resolver, signature } = initDocument(text, view);

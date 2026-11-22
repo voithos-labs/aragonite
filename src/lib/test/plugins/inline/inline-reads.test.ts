@@ -15,7 +15,7 @@ import {
 } from '#lib/plugin.js';
 import { readInline } from '#lib/core/inline/scan/index.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { installInlines } from '#lib/schema/inline-type.js';
+import { installOwnSyntax } from '#lib/schema/own-syntax.js';
 import { buildImageEditBytes } from '#lib/core/inline/image-source-bytes.js';
 import { buildLinkRetitleBytes, buildLinkUnwrapBytes } from '#lib/core/inline/link-source-bytes.js';
 import { cutOutsideWhole, splitBehaviorOf } from '#lib/core/inline/live-edit/live-split.js';
@@ -38,7 +38,7 @@ function editorReading(listing: Listing) {
 		plugin: { name, version: '1.0.0', editor: '*' },
 		contribution: { inlines }
 	}));
-	const { inlines } = installInlines(units, (error) => reports.push(error));
+	const { inlines } = installOwnSyntax(units, (error) => reports.push(error));
 	const grammar = createEditorGrammar({ inlines: () => inlines });
 	const read = (raw: string, end = raw.length) => readInline(raw, 0, end, undefined, grammar);
 	return { grammar, read, reports };

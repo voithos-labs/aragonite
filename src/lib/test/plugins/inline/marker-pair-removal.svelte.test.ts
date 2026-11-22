@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { markerPair, type MarkerPairSpec } from '#lib/plugin.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { installInlines } from '#lib/schema/inline-type.js';
+import { installOwnSyntax } from '#lib/schema/own-syntax.js';
 import { makeBlockNode } from '#lib/core/nodes.js';
 import { fixtureReading, topLevelStore } from '#lib/test/harness/fixture-grammar.js';
 import {
@@ -32,7 +32,7 @@ let release = () => {};
 afterEach(() => release());
 
 function store(raw: string, mode: 'live' | 'source' = 'live', over: Spec = {}) {
-	const installed = installInlines(
+	const installed = installOwnSyntax(
 		[
 			{
 				name: 'cm',

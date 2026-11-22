@@ -16,7 +16,7 @@ import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { builtin, definePlugin, mark, type Mark } from '#lib/plugin.js';
 import { readInline } from '#lib/core/inline/scan/index.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { installInlines } from '#lib/schema/inline-type.js';
+import { installOwnSyntax } from '#lib/schema/own-syntax.js';
 import {
 	getInlineConstructPolicy,
 	getInlineMarkPolicy,
@@ -42,7 +42,7 @@ const highlight = (over: Partial<Parameters<typeof mark>[0]> = {}) =>
 	});
 
 function installed(marks: Mark[]) {
-	const { inlines, release } = installInlines(
+	const { inlines, release } = installOwnSyntax(
 		[
 			{
 				name: 'hl',

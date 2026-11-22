@@ -233,15 +233,15 @@ export function asMarkerSide<D>(made: Inline<D>, side: Pick<InlineMaking, 'marke
 	return madeInline<D>({ ...(made as unknown as Made)[MAKING], className: null, ...side });
 }
 
-/** Names the inline constructs one editor's plugins contribute; a construct is the first listing
- *  plugin's, and a clash is reported and left out. */
+/** Names the inline constructs one editor's plugins contribute, each release pushed on `held`
+ *  (`own-syntax.ts` gives them back); a clash is reported and left out. */
 export function installInlines(
 	units: readonly InstalledPlugin[],
-	report: (error: PluginError) => void
-): { readonly inlines: ReadonlyMap<AnyInlineKind, InstalledInline>; release(): void } {
+	report: (error: PluginError) => void,
+	held: (() => void)[]
+): ReadonlyMap<AnyInlineKind, InstalledInline> {
 	const inlines = new Map<AnyInlineKind, InstalledInline>();
 	const marks = new Map<string, { mark: MarkMaking; after: InlineType | undefined }>();
-	const releases: (() => void)[] = [];
 	for (const { name: plugin, contribution } of units) {
 		// A marker pair lists as its two sides, each knowing its open side.
 		const listing = (contribution.inlines ?? []).flatMap((listed): [Inline, Inline?][] =>
@@ -276,7 +276,7 @@ export function installInlines(
 					opens: listed === opener,
 					key: making.pairKey
 				};
-				releases.push(holdInlineConstructPolicy(kind, { ...markerRow(making.marker), pair }));
+				held.push(holdInlineConstructPolicy(kind, { ...markerRow(making.marker), pair }));
 			}
 			inlines.set(kind, {
 				kind,
@@ -305,9 +305,9 @@ export function installInlines(
 	const ranks = markRanks(marks);
 	for (const [kind, { mark }] of marks) {
 		const row = markRow(mark, ranks.get(kind)!);
-		releases.push(holdInlineConstructPolicy(kind as PluginInlineKind, row));
+		held.push(holdInlineConstructPolicy(kind as PluginInlineKind, row));
 	}
-	return { inlines, release: () => releases.forEach((release) => release()) };
+	return inlines;
 }
 
 /** The toggles of the marks in a contribution's `inlines`, which join its commands. */

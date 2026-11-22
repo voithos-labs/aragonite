@@ -26,7 +26,7 @@ import { resolveEdgeDeletion } from '#lib/components/blocks/text/construct-edge-
 import type { DeleteDirection } from '#lib/browser/input.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { installInlines } from '#lib/schema/inline-type.js';
+import { installOwnSyntax } from '#lib/schema/own-syntax.js';
 import {
 	getInlineConstructPolicy,
 	holdInlineConstructPolicy,
@@ -60,7 +60,7 @@ const anchor = (text?: Text) =>
 	});
 
 function installed(text?: Text, pair: MarkerPair = anchor(text)) {
-	const { inlines, release } = installInlines(
+	const { inlines, release } = installOwnSyntax(
 		[
 			{
 				name: 'cm',
@@ -160,7 +160,7 @@ describe('a marker pair, read', () => {
 	// Miss-analysis: every row listed the pair whole, so a side listed alone lost its row once
 	// the install took a side's pair from the pair's listing.
 	it('holds a row for a side listed alone, paired with nothing', () => {
-		const { release } = installInlines(
+		const { release } = installOwnSyntax(
 			[
 				{
 					name: 'cm',

@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { markerPair } from '#lib/plugin.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { installInlines } from '#lib/schema/inline-type.js';
+import { installOwnSyntax } from '#lib/schema/own-syntax.js';
 import { serialize } from '#lib/core/serializer.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { editRange } from '#lib/range-edit/edit-range.js';
@@ -53,7 +53,7 @@ beforeEach(() => {
 		const name = keyed ? 'keyed' : 'ordered';
 		const plugin = { name, version: '1.0.0', editor: '*' as const };
 		const contribution = { inlines: [anchor(keyed)] };
-		const installed = installInlines([{ name, plugin, contribution }], () => {});
+		const installed = installOwnSyntax([{ name, plugin, contribution }], () => {});
 		releases.push(installed.release);
 		const grammar = createEditorGrammar({ inlines: () => installed.inlines });
 		readings.set(keyed, fixtureReading({ grammar }, 'live'));

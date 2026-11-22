@@ -58,14 +58,14 @@ export function makingOf(type: BlockType<unknown>): BlockMaking | undefined {
 	return (type as Partial<Made>)[MAKING];
 }
 
-/** Names and holds the block types one editor's plugins contribute; a type is the first listing
- *  plugin's, and a clash is reported and left out. `release` gives the facts back. */
+/** Names and holds the block types one editor's plugins contribute, each release pushed on `held`
+ *  (`own-syntax.ts` gives them back); a clash is reported and left out. */
 export function installBlockTypes(
 	units: readonly InstalledPlugin[],
-	report: (error: PluginError) => void
-): { readonly blocks: readonly InstalledBlock[]; release(): void } {
+	report: (error: PluginError) => void,
+	held: (() => void)[]
+): readonly InstalledBlock[] {
 	const blocks: InstalledBlock[] = [];
-	const releases: (() => void)[] = [];
 	for (const { name: plugin, contribution } of units) {
 		for (const type of contribution.blocks ?? []) {
 			const made = type as unknown as Made;
@@ -85,11 +85,11 @@ export function installBlockTypes(
 			const kind = type.name as PluginBlockKind;
 			const opener = making.opener(kind);
 			const registration = withChords(making.registration, making.chords);
-			releases.push(holdBlockKind(kind, registration, opener !== null, plugin));
+			held.push(holdBlockKind(kind, registration, opener !== null, plugin));
 			blocks.push({ kind, opener, view: making.view, completer: making.completer });
 		}
 	}
-	return { blocks, release: () => releases.forEach((release) => release()) };
+	return blocks;
 }
 
 /** The type's keymap with its own keys first, each bound to its command's id; the install pass

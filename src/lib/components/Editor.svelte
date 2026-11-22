@@ -180,8 +180,7 @@
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
-	import { installBlockTypes } from '../schema/block-type';
-	import { installInlines } from '../schema/inline-type';
+	import { installOwnSyntax } from '../schema/own-syntax';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, modeOf, type PresentationMode } from '../presentation-mode';
 	import { selectionOf, selectionTarget } from '../editor-actions/commit/plugin-selection';
@@ -307,12 +306,8 @@
 	const firstUnits = pluginEntries ? installList(pluginEntries.values) : [];
 	let units = $state.raw<readonly InstalledPlugin[]>(firstUnits);
 	// The block types and inline constructs a list's plugins contribute, held until it stops running.
-	const installOwn = (kept: readonly InstalledPlugin[]) => {
-		const types = installBlockTypes(kept, reportPluginError);
-		const constructs = installInlines(kept, reportPluginError);
-		const release = () => (types.release(), constructs.release());
-		return { blocks: types.blocks, inlines: constructs.inlines, release };
-	};
+	const installOwn = (kept: readonly InstalledPlugin[]) =>
+		installOwnSyntax(kept, reportPluginError);
 	let ownBlocks = installOwn(firstUnits);
 	onDestroy(() => ownBlocks.release());
 
