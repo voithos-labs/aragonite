@@ -172,6 +172,8 @@ export interface InlineMaking {
 	readonly after: readonly InlineType[];
 	readonly pair: boolean;
 	readonly split: 'whole' | 'plain';
+	/** Bytes the construct reads, which the published checks parse and drive. */
+	readonly samples: readonly string[];
 	/** The node claimed at `pos` in `[pos, end)`; a widget's or a class's takes `kind`. */
 	claim(raw: string, pos: number, end: number, kind: PluginInlineKind): InlineNode | null;
 	/** A widget's entry, its plugin named at install; null for the other arms. */
@@ -206,6 +208,7 @@ export interface InstalledInline {
 	/** The constructs it is tried after on its character, read once every construct is named. */
 	readonly after: readonly InlineType[];
 	readonly split: 'whole' | 'plain';
+	readonly samples: readonly string[];
 	readonly widget: WidgetEntry | null;
 	readonly className: string | null;
 	/** A class construct's `follow`, and the plugin whose editor it gets. */
@@ -289,6 +292,7 @@ export function installInlines(
 				pair: making.pair,
 				after: making.after,
 				split: making.split,
+				samples: making.samples,
 				widget: making.widget && { ...making.widget, own: { ...making.widget.own, plugin } },
 				className: making.className,
 				follow: making.follow ? { run: making.follow, plugin } : null,

@@ -2,6 +2,7 @@
 // list indent, each through the kind's own context. No published API can perform either op, so
 // they live beside the built-in profiles, which hand them to the kit as `drivers`.
 
+import { defaultCheckContext } from '#lib/testing/check-context.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { parse } from '#lib/core/parser.js';
@@ -55,7 +56,7 @@ export async function checkTableLocalIndexAddressing(): Promise<void> {
 
 /** Indenting item 1 under item 0 spans the outer list and the new nested list. */
 export async function checkListIndentOneUndo(): Promise<void> {
-	const list = firstChildOfKind('- alpha\n- beta\n', 'list');
+	const list = firstChildOfKind(defaultCheckContext, '- alpha\n- beta\n', 'list');
 	const { deps } = createHeadlessActions([list]);
 	const controller = createUndoController(deps);
 
@@ -95,7 +96,11 @@ export async function checkListIndentOneUndo(): Promise<void> {
 
 /** A column insert writes the table and every row, as one undo entry. */
 export async function checkTableColumnOneUndo(): Promise<void> {
-	const table = firstChildOfKind('| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n', 'table');
+	const table = firstChildOfKind(
+		defaultCheckContext,
+		'| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n',
+		'table'
+	);
 	const { ctx, deps } = mountTableMutations([table], 0);
 
 	const before = deps.undoManager.getStacks().undo.length;

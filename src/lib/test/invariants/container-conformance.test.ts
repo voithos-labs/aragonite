@@ -1,3 +1,4 @@
+import { defaultCheckContext } from '#lib/testing/check-context.js';
 import { describe, it, expect } from 'vitest';
 import { isBuiltinBlockKind } from '#lib/core/nodes.js';
 import {
@@ -85,7 +86,7 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 			it.skip(`${cell.cell}: ${coverage.reason}`);
 		} else {
 			it(cell.cell, async () => {
-				await runCell(cell, { kind, profile }, kind);
+				await runCell(cell, { context: defaultCheckContext, kind, profile }, kind);
 			});
 		}
 	}
@@ -97,7 +98,7 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 	// Non-vacuous ancestry: a reversed (outer-first) rebuild must leave the root stale.
 	it.runIf(profile.ancestry.mode === 'assert')('ancestry check is non-vacuous', () => {
 		expect(
-			reversedAncestryLeavesRootStale(profile),
+			reversedAncestryLeavesRootStale(defaultCheckContext, profile),
 			`reversed rebuild leaves "${kind}" root stale`
 		).toBe(true);
 	});

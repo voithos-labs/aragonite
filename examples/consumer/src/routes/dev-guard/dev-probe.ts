@@ -46,7 +46,7 @@ export function devProbePlugin(): EditorPlugin {
 				gapEdges: 'none',
 				supportsInline: false,
 				container: { lines: COLON_LINES },
-				conformanceFixture: ':::devprobe\n\nbody\n\n:::\n'
+				samples: [':::devprobe\n\nbody\n\n:::\n']
 			});
 
 			registerDirective('container', DEVPROBE, {

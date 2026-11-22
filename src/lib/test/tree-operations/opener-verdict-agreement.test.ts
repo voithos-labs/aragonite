@@ -57,8 +57,8 @@ function eligibleContainers(): { kind: AnyBlockKind; node: CstNode }[] {
 	for (const kind of getAllRegisteredKinds()) {
 		const descriptor = getBlockKindDescriptor(kind);
 		if (!descriptor.isContainer || !hasOwnOpener(kind)) continue;
-		if (!descriptor.conformanceFixture) continue;
-		const node = findKind(parse(descriptor.conformanceFixture).children, kind);
+		if (!descriptor.samples?.[0]) continue;
+		const node = findKind(parse(descriptor.samples?.[0]).children, kind);
 		if (node) out.push({ kind, node });
 	}
 	return out;

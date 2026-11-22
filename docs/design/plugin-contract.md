@@ -379,7 +379,7 @@ The table lists the flat shape the editor reads back, which isn't quite what you
 | `estimateHeight` | any | a container gets the container estimate, a leaf the prose one | An O(1) content-height estimate in px for windowing; `schema/height-estimates.ts` holds the shared shapes |
 | `pageRole` | any | `'object'` | Whether the block reads as prose (no drag handle; a prose leaf takes the clipboard rows on a right-click) or as an object picked up whole |
 | `dragLabel` | any | the block's first words | What the drag ghost calls the block, for one whose text makes a bad label; a blank one throws |
-| `conformanceFixture` | any | the kind enrols in no fixtured conformance cell | Markdown that parses to a tree holding this kind |
+| `samples` | any | the kind enrols in no sampled conformance cell | Markdown snippets that each open with this kind |
 
 **Combinations the types cannot refuse.** Most bad pairings get caught before a user ever meets them, just not all in the same place:
 
@@ -580,7 +580,7 @@ A new extension tier meets every editor subsystem whether or not its author cons
 
 **Every tier supplies `measurePartialRects`**, the childless opaque container included. A decoration is only as good as its worst-painting tier, so a tier that can't measure a partial range ships the whole annotation layer a hole the ecosystem inherits.
 
-**A kind's row is run, not declared.** Registering a kind enrolls it in a generic per-cell suite, and each cell runs wherever the kind's descriptor and `conformanceFixture` make it apply; there's no field to opt a kind out of one. The headless cells (round-trip, merge eligibility, byte-slice clipboard, undo, and the search skip for a kind that isn't editable) run at the unit gate; focus, selection paint and search paint run per registered kind in a browser sweep; reorder and the simulation column (`simOracle`: whether a long random editing session ever produces a document gone wrong) run in their own e2e suites.
+**A kind's row is run, not declared.** Registering a kind enrolls it in a generic per-cell suite, and each cell runs wherever the kind's descriptor and `samples` make it apply; there's no field to opt a kind out of one. The headless cells (round-trip, merge eligibility, byte-slice clipboard, undo, and the search skip for a kind that isn't editable) run at the unit gate; focus, selection paint and search paint run per registered kind in a browser sweep; reorder and the simulation column (`simOracle`: whether a long random editing session ever produces a document gone wrong) run in their own e2e suites.
 
 **The inline tier has its own harness.** An inline recognizer carries no descriptor to hang a row on, so its equivalent is the inline conformance kit on `@voithos-labs/aragonite/testing` ([the testing guide](../guide/plugin-testing.md#the-inline-checkup-runinlinekindconformance) covers its cells). Its four declared cells are required declarations rather than optional ones, like the container kit's `terminatorCollision`, because each failure is invisible to a byte round-trip and an optional cell gets left out by exactly the recognizers that need it. Fixtures are required, an unclaimed one fails rather than skips, and an excuse the kit can falsify, it falsifies.
 

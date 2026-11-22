@@ -1,3 +1,4 @@
+import { defaultCheckContext } from '#lib/testing/check-context.js';
 import { describe, it, expect } from 'vitest';
 import {
 	getPluginMetadata,
@@ -95,23 +96,25 @@ const seatCode = (node: CstNode, body: string): void =>
 describe('G4.3 terminator collision: the childless, metadata-bodied shape', () => {
 	it('passes a childless container whose rebuild widens its fence past the body', () => {
 		const kind = registerProbeKind('probe-wide');
-		expect(() => checkTerminatorCollision(kind, profileFor('probe-wide', seatCode))).not.toThrow();
+		expect(() =>
+			checkTerminatorCollision(defaultCheckContext, kind, profileFor('probe-wide', seatCode))
+		).not.toThrow();
 	});
 
 	// Non-vacuity: the same fixture against a rebuild that keeps a fixed fence must be caught,
 	// or the childless branch is running the write and asserting nothing about the reparse.
 	it('fails a childless container whose fixed fence lets the body close the block', () => {
 		const kind = registerProbeKind('probe-fixed');
-		expect(() => checkTerminatorCollision(kind, profileFor('probe-fixed', seatCode))).toThrow(
-			/survives a body line reproducing its terminator/
-		);
+		expect(() =>
+			checkTerminatorCollision(defaultCheckContext, kind, profileFor('probe-fixed', seatCode))
+		).toThrow(/survives a body line reproducing its terminator/);
 	});
 
 	it('refuses a childless fixture that carries no writeBody', () => {
 		const kind = registerProbeKind('probe-wide');
-		expect(() => checkTerminatorCollision(kind, profileFor('probe-wide'))).toThrow(
-			/parses childless, so there is no last child to overwrite/
-		);
+		expect(() =>
+			checkTerminatorCollision(defaultCheckContext, kind, profileFor('probe-wide'))
+		).toThrow(/parses childless, so there is no last child to overwrite/);
 	});
 
 	// The floor under the whole cell: a write that never reaches the container's bytes would
@@ -120,6 +123,7 @@ describe('G4.3 terminator collision: the childless, metadata-bodied shape', () =
 		const kind = registerProbeKind('probe-wide');
 		expect(() =>
 			checkTerminatorCollision(
+				defaultCheckContext,
 				kind,
 				profileFor('probe-wide', () => {})
 			)

@@ -18,17 +18,24 @@ import {
 	pluginInlineKindsDeclaredBy,
 	pluginKindsDeclaredBy
 } from '../schema/plugin-kind';
+import { defaultCheckContext } from './check-context';
 import {
-	runContainerConformance,
+	reversedAncestryLeavesRootStale as reversedAncestryStale,
+	runContainerCells,
 	type ContainerConformanceProfile,
 	type ContainerConformanceReport
 } from './container-conformance';
 import {
-	runInlineKindConformance,
+	runInlineCells,
 	type InlineConformanceProfile,
 	type InlineConformanceReport
 } from './inline-conformance';
-import { runKindConformance, type KindConformanceReport } from './kind-conformance';
+import {
+	checkCopyIsRawByteSlice as checkCopySlice,
+	runKindCells,
+	type KindConformanceProfile,
+	type KindConformanceReport
+} from './kind-conformance';
 import { resetPluginPlatformForTests } from './platform-reset';
 
 /** A plugin package's conformance suite: its units, plus a profile per container and inline
@@ -95,6 +102,43 @@ export async function runPluginConformance(
 	for (const { tag, message } of warnings) failures.push(`dev warning [${tag}]: ${message}`);
 	if (failures.length > 0) throw new Error(`${heading}:\n  - ${failures.join('\n  - ')}`);
 	return report;
+}
+
+// ── The kits one at a time ───────────────────────────────────────────────────
+// Each runs over the kinds registered process-wide, read with every installed plugin's syntax.
+
+/** Runs every headless kind cell for `kind`, or throws an `Error` naming each failed cell. */
+export function runKindConformance(
+	kind: AnyBlockKind,
+	profile?: KindConformanceProfile
+): Promise<KindConformanceReport> {
+	return runKindCells(defaultCheckContext, kind, profile);
+}
+
+/** Runs every container cell for `kind` over `profile`, or throws naming each failed cell. */
+export function runContainerConformance(
+	kind: AnyBlockKind,
+	profile: ContainerConformanceProfile
+): Promise<ContainerConformanceReport> {
+	return runContainerCells(defaultCheckContext, kind, profile);
+}
+
+/** Runs every inline cell for the registered handler `profile` names, or throws naming each
+ *  failed cell. */
+export function runInlineKindConformance(
+	profile: InlineConformanceProfile
+): Promise<InlineConformanceReport> {
+	return runInlineCells(defaultCheckContext, profile);
+}
+
+/** Asserts the default cross-block copy over `kind`'s fixture is a raw byte slice at both ends. */
+export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
+	checkCopySlice(defaultCheckContext, kind, fixture);
+}
+
+/** Shows the ancestry check can fail: true when an outer-first rebuild leaves the root stale. */
+export function reversedAncestryLeavesRootStale(profile: ContainerConformanceProfile): boolean {
+	return reversedAncestryStale(defaultCheckContext, profile);
 }
 
 // ── Internals ────────────────────────────────────────────────────────────────

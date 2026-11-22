@@ -73,7 +73,7 @@ export function registerCalloutKind(view: BlockView): void {
 		editable: true,
 		supportsInline: false,
 		container: { lines: COLON_LINES },
-		conformanceFixture: ':::callout My Title\n\nbody\n\n:::\n',
+		samples: [':::callout My Title\n\nbody\n\n:::\n'],
 		// Not Mod+Shift+digit: the browser turns a Shift-held digit into its layout's symbol, so
 		// the chord would never match. Mod+0 to Mod+6 belong to heading.cycle.
 		keymap: [

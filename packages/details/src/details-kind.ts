@@ -255,7 +255,7 @@ export function registerDetailsKind(view: BlockView): void {
 			unwrapRole: { middleChildBackspace: 'default-merge' },
 			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }
 		},
-		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n'
+		samples: ['<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n']
 	});
 
 	registerChromeLeaf(detailsSummary, { label: 'Summary', blockClass: 'details-summary' });

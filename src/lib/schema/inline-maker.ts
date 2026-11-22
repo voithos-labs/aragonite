@@ -53,6 +53,7 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 		after: spec.after === undefined ? [] : 'name' in spec.after ? [spec.after] : spec.after,
 		pair: spec.pair ?? false,
 		split,
+		samples: [spec.sample ?? []].flat(),
 		widget: null,
 		className: null
 	};

@@ -95,7 +95,7 @@ export function registerAdmonitions(view: BlockView, options?: AdmonitionsOption
 			lines: COLON_LINES
 		},
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
-		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n'
+		samples: [':::note Heads up\n\nbody\n\n:::\n']
 	});
 
 	if (options?.convertAlertsOnPaste) {

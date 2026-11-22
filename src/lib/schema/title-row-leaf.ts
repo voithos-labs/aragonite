@@ -58,7 +58,7 @@ export function registerTitleRowLeaf(
 		supportsInline: false,
 		contextDependentKind: true,
 		keymap: mergeChromeKeymap(opts.keymap)
-		// No conformanceFixture: the container's parser creates child 0, so a title-row leaf
+		// No sample: the container's parser creates child 0, so a title-row leaf
 		// never comes out of a document parse on its own.
 	});
 }

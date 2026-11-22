@@ -251,7 +251,7 @@ export function registerMathBlock(view: BlockView): void {
 		// The open source takes Enter as a literal newline and never splits, so neither edge
 		// can grow a neighbouring block.
 		gapEdges: 'both',
-		conformanceFixture: `${mathBlockLines('x^2').join('\n')}\n`,
+		samples: [`${mathBlockLines('x^2').join('\n')}\n`],
 		caretTargetAtPoint: mathCaretAtPoint,
 		bodyRange: mathBodyRange,
 		rawWrite: mathBlockWrite
@@ -301,7 +301,7 @@ export function registerMathFence(view: BlockView): void {
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
 		bodyRange: mathBodyRange,
-		conformanceFixture: '```math\nx^2\n```\n',
+		samples: ['```math\nx^2\n```\n'],
 		rawWrite: fenceRawWrite(fenceShapeOfRaw)
 	});
 }

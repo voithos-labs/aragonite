@@ -58,7 +58,7 @@ function registerTitledKind(): PluginBlockKind {
 		container: {
 			lines: COLON_LINES
 		},
-		conformanceFixture: ':::titled T\n\nbody\n\n:::\n'
+		samples: [':::titled T\n\nbody\n\n:::\n']
 	});
 	return kind;
 }

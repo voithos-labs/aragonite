@@ -102,7 +102,7 @@ function registerConspiracy(view: BlockView): void {
 			// container like this one declines the move.
 		},
 		// The Markdown the conformance kits parse: a top-level conspiracy with a title and a body.
-		conformanceFixture: ':::conspiracy Birds are drones\nthey never land near me\n:::\n',
+		samples: [':::conspiracy Birds are drones\nthey never land near me\n:::\n'],
 		keymap: [
 			{ chord: 'Mod+7', command: setVerdict, arg: 'conspiracy' }, // allege
 			{ chord: 'Mod+8', command: setVerdict, arg: 'debunked' } // debunk

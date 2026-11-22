@@ -406,7 +406,7 @@ describe('replaceRangeInLeaf', () => {
 /** A block of every built-in kind, plus the shapes whose own write rule could move a byte. */
 function everyKindBlock(): CstNode[] {
 	const sources = getAllRegisteredKinds().flatMap(
-		(kind) => tryGetBlockKindDescriptor(kind)?.conformanceFixture ?? []
+		(kind) => tryGetBlockKindDescriptor(kind)?.samples?.[0] ?? []
 	);
 	sources.push('# a **b** #\n', '**a** b\n', '~~~\ny\n', '*a*\n---\n', '<div>\nh\n</div>\n');
 	const blocks = sources.flatMap((source) => parse(source).children);

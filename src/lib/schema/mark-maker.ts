@@ -59,6 +59,7 @@ export function mark(spec: MarkSpec): Mark {
 		after: spec.after ? [spec.after] : [],
 		pair: false,
 		split: 'whole',
+		samples: [spec.sample ?? []].flat(),
 		claim: () => null,
 		widget: null,
 		className: null,

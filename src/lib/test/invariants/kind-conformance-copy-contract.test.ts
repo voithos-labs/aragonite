@@ -41,7 +41,7 @@ import { testView } from '#lib/test/harness/test-view.js';
 function mermaidFixture() {
 	registerMermaidKind(testView());
 	const kind = declaredPluginKind(MERMAID);
-	return { kind, fixture: getBlockKindDescriptor(kind).conformanceFixture! };
+	return { kind, fixture: getBlockKindDescriptor(kind).samples![0] };
 }
 
 afterEach(() => {

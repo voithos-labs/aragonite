@@ -205,7 +205,7 @@ export function leafRegistration(spec: LeafCommon<unknown>, text: LeafText): Bui
 		// An edge where Enter already makes a paragraph takes no gap caret: a one-line text splits
 		// at either end, a box focused whole opens one below.
 		gapEdges: box ? ('before' as const) : multiLine ? ('both' as const) : ('none' as const),
-		...fixtureOf(spec.sample),
+		...samplesOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
 		...(writes ? { rawWrite: writes } : {})
 	};
@@ -343,12 +343,12 @@ export function checkLocalName(maker: string, name: string): void {
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-/** A block type's first sample as the checks' fixture; a JavaScript author can leave it out, which
- *  the published checks report. */
-export function fixtureOf(sample: string | readonly string[] | undefined) {
-	const first = typeof sample === 'string' ? sample : sample?.[0];
-	if (first === undefined) return {};
-	return { conformanceFixture: first.endsWith('\n') ? first : `${first}\n` };
+/** A block type's samples as the checks read them, each ending its last line; a JavaScript
+ *  author can leave them out, which the published checks report. */
+export function samplesOf(sample: string | readonly string[] | undefined) {
+	const samples = sample === undefined ? [] : [sample].flat();
+	if (samples.length === 0) return {};
+	return { samples: samples.map((text) => (text.endsWith('\n') ? text : `${text}\n`)) };
 }
 
 export function heightEstimate(height: (block: Block<never>) => number) {

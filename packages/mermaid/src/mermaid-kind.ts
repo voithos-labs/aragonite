@@ -168,6 +168,6 @@ export function registerMermaidKind(view: BlockView): void {
 		estimateHeight: () => 320,
 		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		keymap: [{ chord: 'Mod+M', command: focusCommand }],
-		conformanceFixture: '```mermaid\ngraph TD\n```\n'
+		samples: ['```mermaid\ngraph TD\n```\n']
 	});
 }

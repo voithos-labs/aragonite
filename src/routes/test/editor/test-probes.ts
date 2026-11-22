@@ -185,7 +185,7 @@ function collectConformanceEntries(grammar: GrammarView): ConformanceSweepEntry[
 	const entries: ConformanceSweepEntry[] = [];
 	for (const kind of getAllRegisteredKinds()) {
 		const descriptor = getBlockKindDescriptor(kind);
-		const fixture = descriptor.conformanceFixture;
+		const fixture = descriptor.samples?.[0];
 		if (fixture === undefined) continue;
 		const node = firstNodeOfKind(readBlocks(fixture, { grammar, scope: 'document' }), kind);
 		entries.push({
@@ -199,7 +199,7 @@ function collectConformanceEntries(grammar: GrammarView): ConformanceSweepEntry[
 	// A sweep over zero rows checks nothing about any kind, so this fails loudly instead.
 	if (entries.length === 0) {
 		throw new Error(
-			'collectConformanceEntries: no registered kind declares a conformanceFixture; the browser sweep would run over an empty set'
+			'collectConformanceEntries: no registered kind declares a sample; the browser sweep would run over an empty set'
 		);
 	}
 	return entries;

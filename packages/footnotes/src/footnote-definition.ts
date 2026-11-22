@@ -140,7 +140,7 @@ export function registerFootnoteDefinition(view: BlockView): void {
 		supportsInline: false,
 		// A conformance fixture has to survive a write unchanged, so the continuation line is
 		// indented: the lazy form would be rewritten.
-		conformanceFixture: '[^1]: A footnote definition.\n    with an indented continuation.\n',
+		samples: ['[^1]: A footnote definition.\n    with an indented continuation.\n'],
 		// Body blocks reorder inside the definition, unlike a list item, which moves under its
 		// list; the marker does not depend on position, so the writer puts it back.
 		container: {

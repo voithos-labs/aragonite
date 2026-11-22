@@ -31,7 +31,7 @@ describe('bundled container labels', () => {
 		const kind = declaredPluginKind(name);
 		const descriptor = getBlockKindDescriptor(kind);
 		expect(descriptor.label).toBe(label);
-		expect(blockAccessibleName(parse(descriptor.conformanceFixture!).children[0])).toBe(label);
+		expect(blockAccessibleName(parse(descriptor.samples![0]).children[0])).toBe(label);
 	});
 });
 
@@ -41,7 +41,7 @@ describe('bundled title-row labels', () => {
 		[DETAILS, DETAILS_SUMMARY, 'Summary']
 	])('the %s title row (%s) is named %s', (container, leaf, label) => {
 		// A title row never parses on its own, so it is read as its container's first child.
-		const fixture = getBlockKindDescriptor(declaredPluginKind(container)).conformanceFixture!;
+		const fixture = getBlockKindDescriptor(declaredPluginKind(container)).samples![0];
 		const row = parse(fixture).children[0].children![0];
 		expect(row.kind).toBe(declaredPluginKind(leaf));
 		expect(blockAccessibleName(row)).toBe(label);

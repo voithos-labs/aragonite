@@ -131,10 +131,10 @@ export interface BlockKindDescriptor {
 	 */
 	label?: string;
 	/**
-	 * Markdown that parses to a tree holding this kind, for the conformance suite. Omit it for a
-	 * kind no document parse yields alone; the conformance kit fails a fixture that parses to none.
+	 * Markdown holding this kind, each opening with it, for the conformance checks. Omit them for a
+	 * kind no document parse yields alone; a sample that parses to no block of the kind fails.
 	 */
-	conformanceFixture?: string;
+	samples?: readonly string[];
 	/**
 	 * `'whole-block'` opts an opaque, childless block into the focus-then-delete model: arrow
 	 * traversal stops on it, and Backspace/Delete focuses it before a second keypress deletes.
@@ -251,7 +251,7 @@ export const DESCRIPTOR_FIELDS = [
 	'mergeRole',
 	'editable',
 	'label',
-	'conformanceFixture',
+	'samples',
 	'blockFocus',
 	'gapEdges',
 	'isContainer',
@@ -904,6 +904,6 @@ export function holdBlockKind(
 // The fields that are data, which two editors running one block type must agree on; a sample may
 // follow the options, since only the checks read it.
 const factsOf = (descriptor: BlockKindDescriptor): string =>
-	JSON.stringify({ ...descriptor, conformanceFixture: undefined }, (_key, value) =>
+	JSON.stringify({ ...descriptor, samples: undefined }, (_key, value) =>
 		typeof value === 'function' ? undefined : value
 	);

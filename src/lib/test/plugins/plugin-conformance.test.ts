@@ -15,7 +15,7 @@ import { failedCells } from '../../../../scripts/plugins/check-listing.mjs';
  *  so cutting its closing line swallows the block below. */
 function markerLeaf(marker: string, toEnd = false) {
 	return (kind: PluginBlockKind) => ({
-		conformanceFixture: toEnd ? `${marker} a\nbody\n` : `${marker} hello\n`,
+		samples: [toEnd ? `${marker} a\nbody\n` : `${marker} hello\n`],
 		opener: {
 			priority: 25,
 			interruptsParagraph: false as const,

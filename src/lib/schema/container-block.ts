@@ -7,7 +7,7 @@ import type { NodeView } from '../core/node-views';
 import type { IndentedLines, MarkedLines } from '../core/strip-lines';
 import type { ContainerLines } from '../core/parsers/strip-container';
 import type { BuiltinRegistration } from './block-kind-descriptor';
-import { fixtureOf, heightEstimate, type BlockCommon, type DrawDepends } from './block-shapes';
+import { samplesOf, heightEstimate, type BlockCommon, type DrawDepends } from './block-shapes';
 import type { Block } from './doc-view';
 import type { Chord } from './plugin-command';
 import type { ContainerDrawContext, Drawn } from './drawing';
@@ -50,7 +50,7 @@ export function containerRegistration(
 		pageRole: spec.role ?? (marked ? 'prose' : 'object'),
 		mergeRole: spec.joins === false ? 'not-mergeable' : 'container',
 		gapEdges: 'none',
-		...fixtureOf(spec.sample),
+		...samplesOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
 		container: {
 			lines,

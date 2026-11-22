@@ -57,7 +57,7 @@ export function registerDirectiveKinds(views: DirectiveViews): void {
 		// An opaque container has no text of its own at either edge, so both take the gap caret.
 		gapEdges: 'both',
 		container: { lines: COLON_LINES },
-		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n'
+		samples: [':::spoiler\n\nhidden\n\n:::\n']
 	});
 
 	registerBlockKind(leaf, {
@@ -69,7 +69,7 @@ export function registerDirectiveKinds(views: DirectiveViews): void {
 		supportsInline: false,
 		contentStart: { range: directiveLineContentRange },
 		keymap: DIRECTIVE_LEAF_KEYMAP,
-		conformanceFixture: '::spoiler\n'
+		samples: ['::spoiler\n']
 	});
 }
 

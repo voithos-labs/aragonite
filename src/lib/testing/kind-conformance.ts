@@ -1,7 +1,7 @@
 /**
  * The generic per-kind conformance battery: registering a block kind enrolls it, one cell per
  * editor system a block takes part in, each run wherever the kind's descriptor and
- * `conformanceFixture` make it apply. A cell headless code can't observe is reported `boundary` or
+ * `sample` make it apply. A cell headless code can't observe is reported `boundary` or
  * `exempt`, never stubbed green.
  */
 
@@ -15,10 +15,8 @@ import {
 	trailingLineEnding,
 	trimTrailingLineEnding
 } from '../core/lines';
-import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import {
-	getBlockKindDescriptor,
 	type BlockKindDescriptor,
 	type MergeRole,
 	type WriteRule
@@ -53,10 +51,8 @@ import {
 	type ClosedReading,
 	type UnclosedReading
 } from '../schema/block-openers';
-import { defaultGrammarView } from '../schema/editor-grammar';
-import { createHeadlessActions } from './headless-actions';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
-import { assertParseConverged } from './parse-convergence';
+import type { CheckContext } from './check-context';
 import { checkWriteRuleKeepsBytes } from '../invariants/write-rule-keeps-bytes';
 import { fenceReading } from '../core/parsers/fence-syntax';
 import { writtenSpan } from '../core/written-span';
@@ -89,7 +85,7 @@ export interface KindConformanceReport {
 	cells: KindCellReport[];
 }
 
-/** The parsed fixture context a cell executor reads; absent without a `conformanceFixture`. */
+/** The parsed fixture context a cell executor reads; absent without a `sample`. */
 export interface KindCellContext {
 	kind: AnyBlockKind;
 	fixture: string;
@@ -113,6 +109,7 @@ export interface KindConformanceProfile {
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 interface KindRun {
+	context: CheckContext;
 	kind: AnyBlockKind;
 	descriptor: BlockKindDescriptor;
 	parsed: KindCellContext | null;
@@ -120,14 +117,20 @@ interface KindRun {
 
 /**
  * Runs every headless cell for `kind`, or throws an `Error` naming each failed cell. A
- * `conformanceFixture` that parses to no node of the kind fails the run outright.
+ * `sample` that parses to no node of the kind fails the run outright.
  */
-export async function runKindConformance(
+export async function runKindCells(
+	context: CheckContext,
 	kind: AnyBlockKind,
 	profile: KindConformanceProfile = {}
 ): Promise<KindConformanceReport> {
-	const descriptor = getBlockKindDescriptor(kind);
-	const run: KindRun = { kind, descriptor, parsed: buildContext(kind, descriptor) };
+	const descriptor = context.descriptor(kind);
+	const run: KindRun = {
+		context,
+		kind,
+		descriptor,
+		parsed: buildContext(context, kind, descriptor)
+	};
 	const cells: KitCell<KindCell, KindRun>[] = [
 		...SYSTEM_CELLS.map((cell) => {
 			const custom = profile.cells?.[cell]?.check;
@@ -147,21 +150,20 @@ export async function runKindConformance(
 	return { kind, cells: cellReports };
 }
 
-function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): KindCellContext | null {
-	const fixture = descriptor.conformanceFixture;
+function buildContext(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	descriptor: BlockKindDescriptor
+): KindCellContext | null {
+	const fixture = descriptor.samples?.[0];
 	if (fixture === undefined) return null;
-	const doc = parse(fixture);
-	const nodePath = subjectPath(
-		doc,
-		kind,
-		'first',
-		`kind conformance failed for "${kind}": conformanceFixture`
-	);
+	const doc = context.parse(fixture);
+	const nodePath = subjectPath(doc, kind, 'first', `kind conformance failed for "${kind}": sample`);
 	// Every check receives the fixture here, so the rule they rely on (the node at
 	// `doc.children[0]`) is enforced once: undo deletes it and the byte-slice copy starts from it.
 	if (nodePath[0] !== 0) {
 		fail(
-			`kind conformance failed for "${kind}": conformanceFixture must open with the "${kind}" ` +
+			`kind conformance failed for "${kind}": sample must open with the "${kind}" ` +
 				`block (found under top-level index ${nodePath[0]}) — the kit drives the fixture's first ` +
 				`block and rides its own sentinel beside it`
 		);
@@ -175,9 +177,7 @@ async function runCustomCheck(
 	{ kind, parsed }: KindRun
 ): Promise<CellOutcome> {
 	if (!parsed) {
-		fail(
-			`profile supplies a "${cell}" check but "${kind}" has no conformanceFixture to run it over`
-		);
+		fail(`profile supplies a "${cell}" check but "${kind}" has no sample to run it over`);
 	}
 	await check(parsed);
 	return 'profile custom check';
@@ -187,23 +187,23 @@ async function runCustomCheck(
 
 // aragonite's own e2e sweep runs these for the kinds its repository registers, never a plugin's.
 const BROWSER_ONLY = 'browser-only cell, for a browser test of your own';
-const NO_FIXTURE = 'no conformanceFixture, so unchecked: declare one for the kit to parse';
+const NO_FIXTURE = 'no sample, so unchecked: declare one for the kit to parse';
 
 async function executeCell(
 	cell: SystemCell,
-	{ kind, descriptor, parsed: ctx }: KindRun
+	{ context, kind, descriptor, parsed: ctx }: KindRun
 ): Promise<CellOutcome> {
 	switch (cell) {
 		case 'roundTrip':
-			return execRoundTrip(kind, descriptor, ctx);
+			return execRoundTrip(context, kind, descriptor, ctx);
 		case 'mergeBackspace':
 			return execMergeBackspace(kind, descriptor.mergeRole);
 		case 'searchPaint':
 			return execSearchPaint(descriptor, ctx);
 		case 'undo':
-			return execUndo(ctx);
+			return execUndo(context, ctx);
 		case 'clipboard':
-			return execClipboard(ctx);
+			return execClipboard(context, ctx);
 		case 'focus':
 			return { status: 'boundary', detail: `native caret / focus policy: ${BROWSER_ONLY}` };
 		case 'selectionPaint':
@@ -224,6 +224,7 @@ async function executeCell(
 }
 
 function execRoundTrip(
+	context: CheckContext,
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor,
 	ctx: KindCellContext | null
@@ -235,15 +236,15 @@ function execRoundTrip(
 		};
 	}
 	assertIs(
-		serialize(parse(ctx.fixture)),
+		serialize(context.parse(ctx.fixture)),
 		ctx.fixture,
-		`serialize(parse(fixture)) round-trips for "${kind}"`
+		`serialize(context.parse(fixture)) round-trips for "${kind}"`
 	);
 	if (descriptor.isContainer) {
-		const first = rebuildRawOf(ctx);
-		const second = rebuildRawOf(ctx);
+		const first = rebuildRawOf(context, ctx);
+		const second = rebuildRawOf(context, ctx);
 		assertIs(first, second, `"${kind}"'s writer is deterministic`);
-		assertRebuildKeepsParsedBytes(descriptor, freshSubject(ctx), `"${kind}"`);
+		assertRebuildKeepsParsedBytes(context, freshSubject(context, ctx), `"${kind}"`);
 		return 'byte round-trip + writer parse-identity + determinism';
 	}
 	return 'byte round-trip';
@@ -308,22 +309,22 @@ function execSearchPaint(
 	return 'document scan finds no match (degradation)';
 }
 
-async function execUndo(ctx: KindCellContext | null): Promise<CellOutcome> {
+async function execUndo(context: CheckContext, ctx: KindCellContext | null): Promise<CellOutcome> {
 	if (!ctx)
 		return {
 			status: 'boundary',
 			detail: `undo depth: ${NO_FIXTURE}`
 		};
 
-	const doc = parse(ctx.fixture + '\n\nundo sentinel\n');
+	const doc = context.parse(ctx.fixture + '\n\nundo sentinel\n');
 	assert(
 		doc.children.length > 1,
 		`the kit's trailing sentinel parses beside the "${ctx.kind}" fixture rather than being ` +
 			`swallowed by it, so there is a second block to delete`
 	);
 	// Block 0 is the one deleted, so the kind has to still sit under it with the sentinel added.
-	subjectPath(doc, ctx.kind, ctx.nodePath, 'conformanceFixture with the undo sentinel');
-	const { deps } = createHeadlessActions(doc);
+	subjectPath(doc, ctx.kind, ctx.nodePath, 'sample with the undo sentinel');
+	const { deps } = context.headless(doc);
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
 	const before = deps.undoManager.getStacks().undo.length;
@@ -337,7 +338,7 @@ async function execUndo(ctx: KindCellContext | null): Promise<CellOutcome> {
 	return 'one structural op → one undo entry';
 }
 
-function execClipboard(ctx: KindCellContext | null): CellOutcome {
+function execClipboard(context: CheckContext, ctx: KindCellContext | null): CellOutcome {
 	if (!ctx)
 		return {
 			status: 'boundary',
@@ -350,49 +351,50 @@ function execClipboard(ctx: KindCellContext | null): CellOutcome {
 				'nested kind: copied as part of its container; the enclosing container cell covers its bytes'
 		};
 	}
-	checkCopyIsRawByteSlice(ctx.kind, ctx.fixture);
+	checkCopyIsRawByteSlice(context, ctx.kind, ctx.fixture);
 	return 'copy is a raw byte slice (no synthesis)';
 }
 
-function execRawWrite({ kind, descriptor, parsed: ctx }: KindRun): CellOutcome {
+function execRawWrite({ context, kind, descriptor, parsed: ctx }: KindRun): CellOutcome {
 	const hasTopLevelFixture = ctx !== null && ctx.nodePath.length === 1;
 	if (!descriptor.rawWrite) {
 		if (!hasTopLevelFixture) {
 			return {
 				status: 'exempt',
-				detail: 'declares no rawWrite and has no top-level conformanceFixture to cut'
+				detail: 'declares no rawWrite and has no top-level sample to cut'
 			};
 		}
-		checkClosingCutNeedsNoRule(kind, ctx.fixture);
+		checkClosingCutNeedsNoRule(context, kind, ctx.fixture);
 		return 'declares no rawWrite, and the closing line cut leaves the next block its own';
 	}
 	if (!hasTopLevelFixture) {
 		return {
 			status: 'boundary',
-			detail: 'declares rawWrite but has no top-level conformanceFixture to write over'
+			detail: 'declares rawWrite but has no top-level sample to write over'
 		};
 	}
-	checkLeafRawWrite(kind, ctx.fixture);
+	checkLeafRawWrite(context, kind, ctx.fixture);
 	return 'five writes, each idempotent, leaving the next block its own, caret map agreeing';
 }
 
 /** An opener that backs out says which lines could finish it, and that has to hold for the closer
  *  that finishes the kind's own fixture, or a closer typed blocks below goes unasked. */
-function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
-	if (!ctx) return { status: 'exempt', detail: 'has no conformanceFixture to read a closer from' };
+function execUnfinishedReading({ context, parsed: ctx }: KindRun): CellOutcome {
+	if (!ctx) return { status: 'exempt', detail: 'has no sample to read a closer from' };
 	const lines = displayLines(trimTrailingLineEnding(ctx.node.raw));
 	const closer = lines[lines.length - 1].text;
 	const opened = ctx.node.raw.slice(0, ctx.node.raw.lastIndexOf(closer));
-	const waiting = defaultGrammarView.orderedOpeners().filter((opener) => {
+	const waiting = context.grammar.orderedOpeners().filter((opener) => {
 		const reading = opener.readingNotFinal;
-		if (!reading || lines.length < 2 || !opensKind(opener, ctx.node.raw, ctx.kind)) return false;
+		if (!reading || lines.length < 2 || !opensKind(context, opener, ctx.node.raw, ctx.kind))
+			return false;
 		// A reading no line closes is held even where it says nothing waits: saying so is its job.
-		return reading.closer === null || reading.notFinal(opened, defaultGrammarView);
+		return reading.closer === null || reading.notFinal(opened, context.grammar);
 	});
 	if (waiting.length === 0) {
 		// A fence that nothing closes takes in every block below, so its opener has to say so.
 		assert(
-			lines.length < 2 || !fenceReading.notFinal(opened, defaultGrammarView),
+			lines.length < 2 || !fenceReading.notFinal(opened, context.grammar),
 			`${ctx.kind}'s fixture is a fence, but its opener declares no readingNotFinal: declare ` +
 				`fenceReading, or an edit that moves where the fence closes leaves the blocks below ` +
 				`paired the old way`
@@ -407,16 +409,16 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 		const reading = opener.readingNotFinal!;
 		if (reading.closer === null) {
 			assert(
-				(opener.tryOpen(openContext(opened + ending + closer + ending))?.consumed ?? 0) <=
+				(opener.tryOpen(openContext(context, opened + ending + closer + ending))?.consumed ?? 0) <=
 					lines.length,
 				`${ctx.kind}'s readingNotFinal declares no closer, but its opener reads on across a blank ` +
 					`line to ${show(closer)}: a wait no line closes ends at a blank line, so name the ` +
 					`closer, or an edit under the blank line leaves the block above it unread`
 			);
-			assertWaitCrossesFixture(ctx.kind, reading, ctx.node.raw, lines.slice(1));
+			assertWaitCrossesFixture(context, ctx.kind, reading, ctx.node.raw, lines.slice(1));
 			continue;
 		}
-		assertStaysFinal(ctx.kind, reading, ctx.node.raw);
+		assertStaysFinal(context, ctx.kind, reading, ctx.node.raw);
 		assert(
 			reading.mayClose(closer),
 			`${ctx.kind}'s opener says its fixture without its last line is unfinished, but its ` +
@@ -425,7 +427,7 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 		);
 		const closed = opened + reading.closer(opened) + ending;
 		assert(
-			opensKind(opener, closed, ctx.kind),
+			opensKind(context, opener, closed, ctx.kind),
 			`${ctx.kind}'s readingNotFinal.closer gives ${show(reading.closer(opened))}, which doesn't ` +
 				`close its fixture: the closer must make the opener's bytes one block of the kind`
 		);
@@ -434,12 +436,17 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 }
 
 /** `notFinal` asked of the fixture a line at a time: once it says final, more lines keep it so. */
-function assertStaysFinal(kind: string, reading: ClosedReading, raw: string): void {
+function assertStaysFinal(
+	context: CheckContext,
+	kind: string,
+	reading: ClosedReading,
+	raw: string
+): void {
 	let bytes = '';
 	let final = false;
 	for (const line of splitLines(raw)) {
 		bytes += line.raw;
-		const now = !reading.notFinal(bytes, defaultGrammarView);
+		const now = !reading.notFinal(bytes, context.grammar);
 		assert(
 			now || !final,
 			`${kind}'s readingNotFinal.notFinal calls its fixture's first lines final and then, with ` +
@@ -453,6 +460,7 @@ function assertStaysFinal(kind: string, reading: ClosedReading, raw: string): vo
 /** A reading no line closes waits across its own fixture: every line short of the whole waits,
  *  `crosses`, where it is declared, accepts each line under the first, and the whole is final. */
 function assertWaitCrossesFixture(
+	context: CheckContext,
 	kind: string,
 	reading: UnclosedReading,
 	raw: string,
@@ -462,7 +470,7 @@ function assertWaitCrossesFixture(
 	splitLines(raw).forEach((line, i) => {
 		bytes += line.raw;
 		assert(
-			i === under.length || reading.notFinal(bytes, defaultGrammarView),
+			i === under.length || reading.notFinal(bytes, context.grammar),
 			`${kind}'s readingNotFinal.notFinal calls the first ${i ? `${i + 1} lines` : 'line'} of ` +
 				`its fixture final, though the lines under still change the block: notFinal gets a ` +
 				`block's bytes with or without the blocks under it, and waits until none can change it`
@@ -470,26 +478,31 @@ function assertWaitCrossesFixture(
 	});
 	for (const line of under) {
 		assert(
-			reading.crosses?.(line.text, defaultGrammarView) ?? true,
+			reading.crosses?.(line.text, context.grammar) ?? true,
 			`${kind}'s readingNotFinal.crosses refuses ${show(line.text)}, a line of its own fixture: ` +
 				`crosses must accept every line the opener reads through, or an edit below such a ` +
 				`line leaves the block above it unread`
 		);
 	}
 	assert(
-		!reading.notFinal(raw, defaultGrammarView),
+		!reading.notFinal(raw, context.grammar),
 		`${kind}'s readingNotFinal.notFinal says its whole fixture still waits: it must answer ` +
 			`final once nothing below can change the block, or every edit under one reads to the blank line`
 	);
 }
 
 /** Whether `opener` reads `raw` alone as a block of `kind`. */
-function opensKind(opener: BlockOpener, raw: string, kind: AnyBlockKind): boolean {
-	return opener.tryOpen(openContext(raw))?.node.kind === kind;
+function opensKind(
+	context: CheckContext,
+	opener: BlockOpener,
+	raw: string,
+	kind: AnyBlockKind
+): boolean {
+	return opener.tryOpen(openContext(context, raw))?.node.kind === kind;
 }
 
 /** `raw` as the lines an opener is asked to open at, on their own. */
-function openContext(raw: string): OpenContext {
+function openContext(context: CheckContext, raw: string): OpenContext {
 	const lines = splitLines(raw);
 	return {
 		lines,
@@ -499,7 +512,7 @@ function openContext(raw: string): OpenContext {
 		leadingTrivia: '',
 		isDocumentParse: false,
 		depth: 0,
-		grammar: defaultGrammarView
+		grammar: context.grammar
 	};
 }
 
@@ -510,21 +523,25 @@ const LEADING_SENTINEL = 'clipboard lead\n\n';
 
 /** Asserts the default cross-block copy over `kind`'s fixture is a raw byte slice at both endpoint
  *  roles; the fixture opens with `kind`. */
-export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
+export function checkCopyIsRawByteSlice(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	fixture: string
+): void {
 	subjectNode(
-		parse(fixture),
+		context.parse(fixture),
 		kind,
 		[0],
-		`the copy fixture (a conformanceFixture must parse to its kind at children[0], and the kit ` +
+		`the copy fixture (a sample must parse to its kind at children[0], and the kit ` +
 			`adds its own sentinel block on the sweeping side)`
 	);
-	checkCopyFromKind(kind, fixture);
-	checkCopyIntoKind(kind, fixture);
+	checkCopyFromKind(context, kind, fixture);
+	checkCopyIntoKind(context, kind, fixture);
 }
 
 /** The kind as the start of the range: its tail, then the sentinel's head. */
-function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
-	const doc = parse(fixture + TRAILING_SENTINEL);
+function checkCopyFromKind(context: CheckContext, kind: AnyBlockKind, fixture: string): void {
+	const doc = context.parse(fixture + TRAILING_SENTINEL);
 	const lastIndex = doc.children.length - 1;
 	assert(lastIndex >= 1, 'fixture + sentinel yields a second block to copy across');
 	const kindNode = subjectNode(doc, kind, [0], 'the copy fixture');
@@ -532,6 +549,7 @@ function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 	const startOffset = interiorOffset(kindNode);
 	const endOffset = displayLength(sentinel.raw);
 	const copied = copyThroughFunnel(
+		context,
 		doc,
 		{ path: [0], offset: startOffset },
 		{ path: [lastIndex], offset: endOffset }
@@ -548,15 +566,16 @@ function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 }
 
 /** The kind as the end of the range, the role a start-only check never exercises. */
-function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
-	const doc = parse(LEADING_SENTINEL + fixture);
+function checkCopyIntoKind(context: CheckContext, kind: AnyBlockKind, fixture: string): void {
+	const doc = context.parse(LEADING_SENTINEL + fixture);
 	// Counted from the end, since a fixture may carry blocks after its kind.
-	const kindIndex = doc.children.length - parse(fixture).children.length;
+	const kindIndex = doc.children.length - context.parse(fixture).children.length;
 	assert(kindIndex >= 1, 'sentinel + fixture yields a block to copy across from');
 	const sentinel = doc.children[0];
 	const kindNode = subjectNode(doc, kind, [kindIndex], 'the copy fixture after the sentinel');
 	const startOffset = interiorOffset(sentinel);
 	const copied = copyThroughFunnel(
+		context,
 		doc,
 		{ path: [0], offset: startOffset },
 		{ path: [kindIndex], offset: interiorOffset(kindNode) }
@@ -595,13 +614,13 @@ function interiorOffset(node: CstNode): number {
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
 /** The kind's node in a fresh parse of the fixture, for a check that writes to it. */
-function freshSubject(ctx: KindCellContext): CstNode {
-	return subjectNode(parse(ctx.fixture), ctx.kind, ctx.nodePath, 'conformanceFixture');
+function freshSubject(context: CheckContext, ctx: KindCellContext): CstNode {
+	return subjectNode(context.parse(ctx.fixture), ctx.kind, ctx.nodePath, 'sample');
 }
 
-function rebuildRawOf(ctx: KindCellContext): string {
-	const node = freshSubject(ctx);
-	writeContainerRaw(node, defaultGrammarView);
+function rebuildRawOf(context: CheckContext, ctx: KindCellContext): string {
+	const node = freshSubject(context, ctx);
+	writeContainerRaw(node, context.grammar);
 	return node.raw;
 }
 
@@ -624,9 +643,13 @@ function fixtureLines(fixture: string) {
  * For a kind with no `rawWrite`: the fixture with its closing line cut must not absorb
  * the block after it, or a range delete over the closer turns the document below into its body.
  */
-function checkClosingCutNeedsNoRule(kind: AnyBlockKind, fixture: string): void {
+function checkClosingCutNeedsNoRule(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	fixture: string
+): void {
 	const { ending, closingCut } = fixtureLines(fixture);
-	const following = parse(closingCut + ending + RAW_WRITE_SENTINEL).children.at(-1);
+	const following = context.parse(closingCut + ending + RAW_WRITE_SENTINEL).children.at(-1);
 	if (following?.raw === RAW_WRITE_SENTINEL) return;
 	fail(
 		`"${kind}" declares no rawWrite, and the closing line cut (${show(closingCut)}) ` +
@@ -638,9 +661,10 @@ function checkClosingCutNeedsNoRule(kind: AnyBlockKind, fixture: string): void {
 /** Drives five writes over `kind`'s fixture through its `rawWrite` rule; each result must be a
  *  fixed point, keep every byte the write left alone, map carets, and free the next block. */
 export function checkLeafRawWrite(
+	context: CheckContext,
 	kind: AnyBlockKind,
 	fixture: string,
-	rule: WriteRule | undefined = getBlockKindDescriptor(kind).rawWrite
+	rule: WriteRule | undefined = context.descriptor(kind).rawWrite
 ): void {
 	if (!rule) fail(`"${kind}" declares no rawWrite to drive`);
 	const { ending, lines, closingCut } = fixtureLines(fixture);
@@ -659,7 +683,7 @@ export function checkLeafRawWrite(
 		);
 	}
 	for (const [label, written, keepsKind, closes] of writes) {
-		const doc = parse(fixture + ending + RAW_WRITE_SENTINEL);
+		const doc = context.parse(fixture + ending + RAW_WRITE_SENTINEL);
 		const node = subjectNode(doc, kind, [0], 'the rawWrite fixture');
 		const ctx = { node, mode: 'literal', lineEnding: documentLineEnding(doc) } as const;
 		const legal = rule.normalize(written, ctx);
@@ -671,7 +695,7 @@ export function checkLeafRawWrite(
 		);
 		if (closes === false) continue;
 
-		const following = parse(legal + ending + RAW_WRITE_SENTINEL).children.at(-1);
+		const following = context.parse(legal + ending + RAW_WRITE_SENTINEL).children.at(-1);
 		assertIs(
 			following?.raw,
 			RAW_WRITE_SENTINEL,
@@ -679,10 +703,10 @@ export function checkLeafRawWrite(
 		);
 		if (!keepsKind) continue;
 
-		const reparsed = parse(legal).children;
+		const reparsed = context.parse(legal).children;
 		assertIs(reparsed[0]?.kind, kind, `"${kind}" stays its kind after ${label}`);
-		installOwnRaw(node, legal, defaultGrammarView);
-		assertParseConverged(doc, `"${kind}" written in place after ${label}`);
+		installOwnRaw(node, legal, context.grammar);
+		context.converged(doc, `"${kind}" written in place after ${label}`);
 	}
 }
 

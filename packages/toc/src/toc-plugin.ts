@@ -51,7 +51,7 @@ export function registerTocBlock(view: BlockView): void {
 		// Render-primary like the math blocks: the rendered view gives the caret nowhere to sit
 		// at either edge, so both edges take the gap caret.
 		gapEdges: 'both',
-		conformanceFixture: '[[toc]]\n'
+		samples: ['[[toc]]\n']
 	});
 }
 

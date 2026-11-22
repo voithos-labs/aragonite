@@ -21,7 +21,7 @@ import { checkHost, testReading } from './test-host';
 function fixtures(): [string, string][] {
 	testReading();
 	return getAllRegisteredKinds().flatMap((kind) => {
-		const fixture = getBlockKindDescriptor(kind).conformanceFixture;
+		const fixture = getBlockKindDescriptor(kind).samples?.[0];
 		return fixture ? [[kind, fixture] as [string, string]] : [];
 	});
 }

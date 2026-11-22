@@ -11,9 +11,7 @@ import {
 	type ImageFields,
 	type InlineNode
 } from '../core/nodes';
-import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import { parseInline } from '../core/inline';
 import {
 	getInlineWidgetEditing,
 	isInlineWidget,
@@ -37,7 +35,7 @@ import {
 	type KitCell
 } from './conformance-core';
 import { INLINE_CELL_CONTRACTS } from './cell-contracts';
-import { defaultGrammarView } from '../schema/editor-grammar';
+import type { CheckContext } from './check-context';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -86,41 +84,49 @@ export interface InlineConformanceReport {
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 interface InlineRun {
+	context: CheckContext;
 	profile: InlineConformanceProfile;
 	prefix: string;
 	rung: InlineHandler;
 }
 
 const INLINE_CELLS: readonly KitCell<InlineConformanceCell, InlineRun>[] = [
-	{ cell: 'claims', run: ({ profile, rung }) => checkClaimsItsFixtures(profile, rung) },
-	{ cell: 'roundTrip', run: ({ profile, rung }) => checkRoundTrip(profile, rung) },
+	{
+		cell: 'claims',
+		run: ({ context, profile, rung }) => checkClaimsItsFixtures(context, profile, rung)
+	},
+	{
+		cell: 'roundTrip',
+		run: ({ context, profile, rung }) => checkRoundTrip(context, profile, rung)
+	},
 	{
 		cell: 'overlapDecline',
 		coverage: ({ profile }) => profile.overlapDecline,
-		run: ({ profile, rung }) => checkOverlapDecline(profile, rung),
+		run: ({ context, profile, rung }) => checkOverlapDecline(context, profile, rung),
 		falsify: ({ profile }) => refuseExcusedOverlap(profile)
 	},
 	{
 		cell: 'widget',
 		coverage: ({ profile }) => profile.widget,
-		run: ({ profile, rung }) => checkWidgetAtomicity(profile, rung),
-		falsify: ({ profile, rung }) => refuseExcusedWidget(profile, rung)
+		run: ({ context, profile, rung }) => checkWidgetAtomicity(context, profile, rung),
+		falsify: ({ context, profile, rung }) => refuseExcusedWidget(context, profile, rung)
 	},
 	{
 		cell: 'editingPolicy',
 		coverage: ({ profile }) => profile.editingPolicy,
-		run: ({ profile, rung }) => checkEditingPolicy(profile, rung),
-		falsify: ({ profile }) => refuseExcusedEditingPolicy(profile)
+		run: ({ context, profile, rung }) => checkEditingPolicy(context, profile, rung),
+		falsify: ({ context, profile }) => refuseExcusedEditingPolicy(context, profile)
 	},
 	{
 		cell: 'imageClaim',
 		coverage: ({ profile }) => profile.imageClaim,
-		run: ({ profile, rung }) => checkImageClaimStamp(profile, rung),
-		falsify: ({ profile, rung }) => refuseExcusedImageClaim(profile, rung)
+		run: ({ context, profile, rung }) => checkImageClaimStamp(context, profile, rung),
+		falsify: ({ context, profile, rung }) => refuseExcusedImageClaim(context, profile, rung)
 	},
 	{
 		cell: 'registration',
-		run: ({ profile, prefix, rung }) => checkRegistrationHygiene(profile, prefix, rung)
+		run: ({ context, profile, prefix, rung }) =>
+			checkRegistrationHygiene(context, profile, prefix, rung)
 	}
 ];
 
@@ -128,15 +134,16 @@ const INLINE_CELLS: readonly KitCell<InlineConformanceCell, InlineRun>[] = [
  * Runs every conformance cell for the registered handler the profile names. Resolves with the
  * coverage report, or throws an `Error` naming every failed cell.
  */
-export async function runInlineKindConformance(
+export async function runInlineCells(
+	context: CheckContext,
 	profile: InlineConformanceProfile
 ): Promise<InlineConformanceReport> {
 	const prefix = profile.prefix ?? profile.trigger;
 	validateProfile(profile, prefix);
-	const rung = locateRung(profile, prefix);
+	const rung = locateRung(context, profile, prefix);
 	const cells = await runCells(
 		INLINE_CELLS,
-		{ profile, prefix, rung },
+		{ context, profile, prefix, rung },
 		{
 			subject: prefix,
 			heading: `inline conformance failed for rung "${prefix}"`,
@@ -184,10 +191,15 @@ function assertSingleLine(source: string, label: string): void {
 }
 
 /** The handlers a parse with no editor asks on `trigger`, the core's included. */
-const handlersOn = (trigger: string) => inlineTable(defaultGrammarView).handlers(trigger);
+const handlersOn = (context: CheckContext, trigger: string) =>
+	inlineTable(context.grammar).handlers(trigger);
 
-function locateRung(profile: InlineConformanceProfile, prefix: string): InlineHandler {
-	const matches = handlersOn(profile.trigger).filter(
+function locateRung(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	prefix: string
+): InlineHandler {
+	const matches = handlersOn(context, profile.trigger).filter(
 		(r) =>
 			r.prefix === prefix && (profile.priority === undefined || r.priority === profile.priority)
 	);
@@ -212,6 +224,7 @@ function locateRung(profile: InlineConformanceProfile, prefix: string): InlineHa
 /** Every node this handler produced from `source`, in document order: its declared kind (which
  *  carries no mark), or a built-in node the scan marked with the handler's `syntaxClaim`. */
 function mintedNodes(
+	context: CheckContext,
 	source: string,
 	profile: InlineConformanceProfile,
 	rung: InlineHandler
@@ -223,7 +236,7 @@ function mintedNodes(
 			else if (node.children) visit(node.children);
 		}
 	};
-	visit(parseInline(source, 0, source.length));
+	visit(context.parseInline(source, 0, source.length));
 	return out;
 }
 
@@ -232,11 +245,12 @@ function mintedNodes(
  * (`see [^a] and [^b]`), and every cell below goes through all of them.
  */
 function claimsIn(
+	context: CheckContext,
 	fixture: string,
 	profile: InlineConformanceProfile,
 	rung: InlineHandler
 ): InlineNode[] {
-	const minted = mintedNodes(fixture, profile, rung);
+	const minted = mintedNodes(context, fixture, profile, rung);
 	assert(
 		minted.length > 0,
 		`fixture ${JSON.stringify(fixture)} is not claimed by the "${rung.prefix}" rung — ` +
@@ -248,12 +262,13 @@ function claimsIn(
 /** The claims of `kind` across every fixture, failing when there is none, so a cell about the kind
  *  never reports `asserted` over only the built-in nodes the handler claimed. */
 function claimsOfKind(
+	context: CheckContext,
 	profile: InlineConformanceProfile,
 	rung: InlineHandler,
 	kind: AnyInlineKind
 ): { fixture: string; node: InlineNode }[] {
 	const claims = profile.fixtures.flatMap((fixture) =>
-		claimsIn(fixture, profile, rung)
+		claimsIn(context, fixture, profile, rung)
 			.filter((node) => node.kind === kind)
 			.map((node) => ({ fixture, node }))
 	);
@@ -267,10 +282,14 @@ function claimsOfKind(
 
 // ── claims ───────────────────────────────────────────────────────────────────
 
-function checkClaimsItsFixtures(profile: InlineConformanceProfile, rung: InlineHandler): string {
+function checkClaimsItsFixtures(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	rung: InlineHandler
+): string {
 	let claims = 0;
 	for (const fixture of profile.fixtures) {
-		for (const node of claimsIn(fixture, profile, rung)) {
+		for (const node of claimsIn(context, fixture, profile, rung)) {
 			assert(node.end > node.start, `the claim over ${JSON.stringify(fixture)} advances`);
 			assert(
 				node.start >= 0 && node.end <= fixture.length,
@@ -314,22 +333,26 @@ function openerWidth(fixture: string, prefix: string): number {
 	return at < 0 ? prefix.length : at + prefix.length;
 }
 
-function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineHandler): string {
+function checkRoundTrip(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	rung: InlineHandler
+): string {
 	let count = 0;
 	for (const fixture of profile.fixtures) {
 		for (const source of interleavings(fixture, profile.trigger)) {
 			const withEnding = `${source}\n`;
 			assertIs(
-				serialize(parse(withEnding)),
+				serialize(context.parse(withEnding)),
 				withEnding,
-				`serialize(parse(source)) round-trips ${JSON.stringify(withEnding)}`
+				`serialize(context.parse(source)) round-trips ${JSON.stringify(withEnding)}`
 			);
-			assertScanTiles(source, source.length);
+			assertScanTiles(context, source, source.length);
 
 			// A scan range short of the raw (a heading's excluded `#` run) catches a terminator
 			// search with no `end` bound; two cut points vary where the boundary falls.
-			assertScanTiles(source + fixture, source.length);
-			assertScanTiles(source + fixture, source.length + openerWidth(fixture, rung.prefix));
+			assertScanTiles(context, source + fixture, source.length);
+			assertScanTiles(context, source + fixture, source.length + openerWidth(fixture, rung.prefix));
 			count++;
 		}
 	}
@@ -338,8 +361,8 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineHandler):
 
 /** Round-trip never sees a handler, so check the scanner's contract: the nodes tile `[0, end)`
  *  with no gap or overlap and their slices reassemble the bytes. */
-function assertScanTiles(raw: string, end: number): void {
-	const nodes = parseInline(raw, 0, end);
+function assertScanTiles(context: CheckContext, raw: string, end: number): void {
+	const nodes = context.parseInline(raw, 0, end);
 	let cursor = 0;
 	for (const node of nodes) {
 		assertIs(
@@ -361,7 +384,11 @@ function assertScanTiles(raw: string, end: number): void {
 
 /** Every overlap fixture parses to the built-in construct its bytes spell, the handler's claim
  *  declined, and round-trips. */
-function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineHandler): string {
+function checkOverlapDecline(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	rung: InlineHandler
+): string {
 	const fixtures = profile.overlapFixtures ?? [];
 	let consulted = 0;
 	for (const source of fixtures) {
@@ -376,7 +403,7 @@ function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineHand
 		);
 		consulted += positions;
 
-		const minted = mintedNodes(source, profile, rung);
+		const minted = mintedNodes(context, source, profile, rung);
 		assertIs(
 			minted.length,
 			0,
@@ -386,7 +413,7 @@ function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineHand
 
 		const withEnding = `${source}\n`;
 		assertIs(
-			serialize(parse(withEnding)),
+			serialize(context.parse(withEnding)),
 			withEnding,
 			`the declined overlap ${JSON.stringify(withEnding)} round-trips`
 		);
@@ -398,7 +425,11 @@ function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineHand
 
 /** The widget's shell (the element carrying its bytes and the editor's attributes) is the editor's
  *  own, so what the kind can get wrong is which bytes it claims. */
-function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineHandler): string {
+function checkWidgetAtomicity(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	rung: InlineHandler
+): string {
 	const kind = profile.kind;
 	assert(
 		kind !== undefined,
@@ -406,21 +437,26 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineHan
 			'kinds renders through the built-in widget and declares this cell exempt'
 	);
 
-	for (const { fixture, node } of claimsOfKind(profile, rung, kind)) {
+	for (const { fixture, node } of claimsOfKind(context, profile, rung, kind)) {
 		assert(
-			isInlineWidget(node, fixture, defaultGrammarView),
+			isInlineWidget(node, fixture, context.grammar),
 			`the "${kind}" node from ${JSON.stringify(fixture)} is a registered live widget`
 		);
-		assertSelfDelimiting(fixture, node, kind);
+		assertSelfDelimiting(context, fixture, node, kind);
 	}
 	return 'recognition and a self-delimiting claim';
 }
 
 /** The claimed bytes must re-form on their own: `data-source-*` hands exactly this slice to the
  *  clipboard and a source view, where a context-dependent slice pastes back broken. */
-function assertSelfDelimiting(fixture: string, node: InlineNode, kind: AnyInlineKind): void {
+function assertSelfDelimiting(
+	context: CheckContext,
+	fixture: string,
+	node: InlineNode,
+	kind: AnyInlineKind
+): void {
 	const slice = fixture.slice(node.start, node.end);
-	const alone = parseInline(slice, 0, slice.length);
+	const alone = context.parseInline(slice, 0, slice.length);
 	const first = alone[0];
 	assert(
 		first !== undefined && first.kind === kind && first.start === 0 && first.end === slice.length,
@@ -435,10 +471,14 @@ function assertSelfDelimiting(fixture: string, node: InlineNode, kind: AnyInline
  * A policy field outside the caret-edge dispatch's vocabulary is read as absent and the
  * kind silently takes the default, with no byte differing.
  */
-function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineHandler): string {
+function checkEditingPolicy(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	rung: InlineHandler
+): string {
 	const kind = profile.kind;
 	assert(kind !== undefined, 'the editingPolicy cell asserts but the profile names no kind');
-	const policy = getInlineWidgetEditing(kind, defaultGrammarView);
+	const policy = getInlineWidgetEditing(kind, context.grammar);
 	assert(
 		policy !== undefined,
 		`"${kind}" declares no editing policy — register one, or declare this cell exempt if the ` +
@@ -455,10 +495,10 @@ function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineHandl
 
 	if (policy.deleteGranularity === 'atomic') {
 		// One keypress deletes one widget, so each claim is removed on its own.
-		for (const { fixture, node } of claimsOfKind(profile, rung, kind)) {
+		for (const { fixture, node } of claimsOfKind(context, profile, rung, kind)) {
 			const excised = `${fixture.slice(0, node.start)}${fixture.slice(node.end)}\n`;
 			assertIs(
-				serialize(parse(excised)),
+				serialize(context.parse(excised)),
 				excised,
 				`the one-press whole-delete of the claim at ${node.start} in ` +
 					`${JSON.stringify(fixture)} leaves bytes that round-trip`
@@ -501,10 +541,14 @@ function assertPolicyVocabulary(policy: InlineWidgetEditingPolicy, kind: AnyInli
 
 /** A handler producing a built-in kind borrows the editor's model for its own bytes, so without
  *  `rewriteImage` a resize writes `![[cat.png|300]]` back as GFM, which still round-trips. */
-function checkImageClaimStamp(profile: InlineConformanceProfile, rung: InlineHandler): string {
+function checkImageClaimStamp(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	rung: InlineHandler
+): string {
 	let stamped = 0;
 	for (const fixture of profile.fixtures) {
-		for (const node of mintedNodes(fixture, profile, rung)) {
+		for (const node of mintedNodes(context, fixture, profile, rung)) {
 			if (node.kind === profile.kind) {
 				assertIs(
 					node.syntaxClaim,
@@ -568,6 +612,7 @@ function assertRewriteReproducesSource(
 // ── registration ─────────────────────────────────────────────────────────────
 
 function checkRegistrationHygiene(
+	context: CheckContext,
 	profile: InlineConformanceProfile,
 	prefix: string,
 	rung: InlineHandler
@@ -575,7 +620,7 @@ function checkRegistrationHygiene(
 	const reserved = isBuiltInTrigger(profile.trigger);
 	// Two handlers may share a prefix at different priorities (emoji and directive text both
 	// live on `:`), but two at the same priority could not be ordered by the dispatch.
-	const sameRung = handlersOn(profile.trigger).filter(
+	const sameRung = handlersOn(context, profile.trigger).filter(
 		(r) => r.prefix === prefix && r.priority === rung.priority
 	);
 	assertIs(
@@ -594,7 +639,7 @@ function checkRegistrationHygiene(
 	} else {
 		// The parse reads a character in plain prose only while a bare handler is registered on it.
 		assert(
-			handlersOn(profile.trigger).some((h) => h.prefix === profile.trigger),
+			handlersOn(context, profile.trigger).some((h) => h.prefix === profile.trigger),
 			`the parse visits ${JSON.stringify(profile.trigger)} in plain text — a trigger it skips ` +
 				`makes the recognizer unreachable there`
 		);
@@ -615,11 +660,15 @@ function refuseExcusedOverlap(profile: InlineConformanceProfile): void {
 	);
 }
 
-function refuseExcusedWidget(profile: InlineConformanceProfile, rung: InlineHandler): void {
+function refuseExcusedWidget(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	rung: InlineHandler
+): void {
 	if (profile.kind === undefined) return;
 	const claimed = profile.fixtures
-		.flatMap((f) => mintedNodes(f, profile, rung).map((n) => ({ f, n })))
-		.find(({ f, n }) => n.kind === profile.kind && isInlineWidget(n, f, defaultGrammarView));
+		.flatMap((f) => mintedNodes(context, f, profile, rung).map((n) => ({ f, n })))
+		.find(({ f, n }) => n.kind === profile.kind && isInlineWidget(n, f, context.grammar));
 	if (claimed) {
 		fail(
 			`"${profile.kind}" is a registered live widget (from ${JSON.stringify(claimed.f)}), so ` +
@@ -628,9 +677,12 @@ function refuseExcusedWidget(profile: InlineConformanceProfile, rung: InlineHand
 	}
 }
 
-function refuseExcusedEditingPolicy(profile: InlineConformanceProfile): void {
+function refuseExcusedEditingPolicy(
+	context: CheckContext,
+	profile: InlineConformanceProfile
+): void {
 	if (profile.kind === undefined) return;
-	const policy = getInlineWidgetEditing(profile.kind, defaultGrammarView);
+	const policy = getInlineWidgetEditing(profile.kind, context.grammar);
 	if (policy && Object.keys(policy).length > 0) {
 		fail(
 			`"${profile.kind}" declares an editing policy, so the editingPolicy cell cannot be excused`
@@ -638,9 +690,13 @@ function refuseExcusedEditingPolicy(profile: InlineConformanceProfile): void {
 	}
 }
 
-function refuseExcusedImageClaim(profile: InlineConformanceProfile, rung: InlineHandler): void {
+function refuseExcusedImageClaim(
+	context: CheckContext,
+	profile: InlineConformanceProfile,
+	rung: InlineHandler
+): void {
 	const stamped = profile.fixtures
-		.flatMap((f) => mintedNodes(f, profile, rung))
+		.flatMap((f) => mintedNodes(context, f, profile, rung))
 		.find((n) => n.syntaxClaim?.prefix === rung.prefix);
 	if (stamped) {
 		fail(

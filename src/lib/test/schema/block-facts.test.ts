@@ -94,7 +94,7 @@ function samples(): Map<string, CstNode> {
 		node.children?.forEach(visit);
 	};
 	for (const kind of getAllRegisteredKinds()) {
-		const fixture = descriptorOf(kind)?.conformanceFixture;
+		const fixture = descriptorOf(kind)?.samples?.[0];
 		if (fixture) parse(fixture).children.forEach(visit);
 	}
 	return found;

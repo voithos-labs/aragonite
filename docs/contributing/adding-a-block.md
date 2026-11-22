@@ -54,7 +54,7 @@ Only the list and the table are wired by hand. If yours truly can't use the fact
 
 The order is requirements, then tests, then code. `docs/contributing/testing.md` has the mechanics.
 
-- **A conformance fixture.** Set `conformanceFixture` on the descriptor: a source snippet that parses to the kind. Without one the conformance kit skips the kind and says nothing. With one, every cell the descriptor makes apply runs, and no field opts a kind out. Leave it out only when no document produces the kind by itself (a table cell, say), and say so in review.
+- **A sample.** Set `samples` on the descriptor: source snippets that each open with the kind. Without one the conformance kit skips the kind and says nothing. With one, every cell the descriptor makes apply runs, and no field opts a kind out. Leave it out only when no document produces the kind by itself (a table cell, say), and say so in review.
 - **A conformance profile, for a container.** Add it to `src/lib/test/invariants/builtin-container-profiles.ts`. A cell that doesn't apply is declared as such, with a reason. It's never just left out.
 
 ## A code-block language

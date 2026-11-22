@@ -15,7 +15,7 @@ import { ADMONITION } from '#packages/admonitions/src/kinds.js';
 import { registerTocBlock, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
-// Every declared `conformanceFixture` parses to a tree containing the kind that declared it
+// Every declared `sample` parses to a tree containing the kind that declared it
 // (G1.24 rule c). Checked here rather than at registration, because a `parse` import there would
 // close a schema → core/parser → schema cycle. It covers kinds that live in the library only.
 
@@ -30,8 +30,8 @@ function treeContainsKind(
 function checkFixture(kind: string): void {
 	const descriptor = tryGetBlockKindDescriptor(kind as AnyBlockKind);
 	expect(descriptor, `${kind} is not registered`).toBeDefined();
-	const fixture = descriptor!.conformanceFixture;
-	expect(fixture, `${kind} declares no conformanceFixture`).toBeDefined();
+	const fixture = descriptor!.samples?.[0];
+	expect(fixture, `${kind} declares no sample`).toBeDefined();
 	const doc = parse(fixture!);
 	expect(
 		treeContainsKind(doc, kind),
@@ -41,7 +41,7 @@ function checkFixture(kind: string): void {
 
 describe('built-in conformance fixtures parse to their kind', () => {
 	const withFixture = ALL_BLOCK_KINDS.filter(
-		(kind) => getBlockKindDescriptor(kind).conformanceFixture !== undefined
+		(kind) => getBlockKindDescriptor(kind).samples?.[0] !== undefined
 	);
 
 	it('is not vacuous: the parser-reachable built-ins carry fixtures', () => {
@@ -53,8 +53,8 @@ describe('built-in conformance fixtures parse to their kind', () => {
 	}
 
 	it('leaves context-dependent and reserved kinds fixture-less', () => {
-		expect(getBlockKindDescriptor('tableCell').conformanceFixture).toBeUndefined();
-		expect(getBlockKindDescriptor('unrecognized').conformanceFixture).toBeUndefined();
+		expect(getBlockKindDescriptor('tableCell').samples?.[0]).toBeUndefined();
+		expect(getBlockKindDescriptor('unrecognized').samples?.[0]).toBeUndefined();
 	});
 });
 

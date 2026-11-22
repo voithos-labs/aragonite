@@ -192,7 +192,7 @@ These checks run in three kinds of place:
 
 **G1.23 · No decoration sources mid-commit.** A decoration source running mid-commit would read a half-written tree, so `notifyEdit` and `runAll` assert no commit is open, and a source handle's `invalidate()` waits until the last one ends. The commit helper opens and closes the scope in `src/lib/commit-scope.ts`. Inline closure, watcher-netted. In `decorations/decoration-state.svelte.ts`.
 
-**G1.24 · Retired.** The per-system answers it checked are gone from the descriptor. The kind kit (`testing/kind-conformance.ts`) runs every cell a kind's descriptor and fixture make apply, and fails a `conformanceFixture` that doesn't open with its kind.
+**G1.24 · Retired.** The per-system answers it checked are gone from the descriptor. The kind kit (`testing/kind-conformance.ts`) runs every cell a kind's descriptor and fixture make apply, and fails a sample that doesn't open with its kind.
 
 **G1.25 · Widget-pool pass bracket.** Inline widgets (the rendered stand-ins for inline constructs) are recycled through a pool, one bracket per render pass: every `acquire` sits inside an open `beginPass`/`sweep` bracket, `beginPass` never opens over an unswept pass, and `sweep` never closes one that isn't open. Outside a bracket, byte-identical duplicate widgets can't be told apart. Predicate `checkPoolBracket` (`inline-transitions.ts`) · run in `components/blocks/widget-portal.ts` · `inline-transitions.test.ts`, `test/blocks/widget-portal-bracket.test.ts`.
 

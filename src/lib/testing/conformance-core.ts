@@ -4,12 +4,11 @@
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import { parse } from '../core/parser';
 import { ancestorsOf, walkBlocks } from '../core/paths';
 import { blockNodeAt } from '../tree-operations/node-primitives';
-import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { showValue as show } from '../core/metadata-parity';
 import { cellFailure, type CellContract } from './cell-contracts';
+import type { CheckContext } from './check-context';
 import type { SelectionPoint } from '../selection/primitives';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { rangeClipboard } from '../selection/range-clipboard';
@@ -17,9 +16,7 @@ import { documentBytes } from '../selection/range-bytes';
 import { measured } from '../tree-operations/top-level-starts';
 import { serialize } from '../core/serializer';
 import { coverRange, rangeCoverage } from '../selection/range-coverage';
-import { kitReading } from './kit-reading';
 import { writeContainerRaw } from '../schema/container-writer';
-import { defaultGrammarView } from '../schema/editor-grammar';
 
 export { show };
 
@@ -51,7 +48,7 @@ export type CellOutcome = void | string | { status: CellStatus; detail: string }
 export interface KitCell<Cell extends string, Ctx> {
 	cell: Cell;
 	/** The profile's declaration for the cell; a cell without one always runs. */
-	coverage?: (ctx: Ctx) => ConformanceCoverage;
+	coverage?: (declared: Omit<Ctx, 'context'>) => ConformanceCoverage;
 	run: (ctx: Ctx) => CellOutcome | Promise<CellOutcome>;
 	/** Throws when the declared excuse can be disproved. */
 	falsify?: (ctx: Ctx) => void;
@@ -143,13 +140,13 @@ function assertExemptionDocumented(cell: ConformanceCoverage, label: string): vo
 /** A rebuild of a freshly parsed node keeps the parsed bytes. Writes `node.raw` in place: pass a
  *  fresh parse, never a node a cell shares. */
 export function assertRebuildKeepsParsedBytes(
-	descriptor: BlockKindDescriptor,
+	context: CheckContext,
 	node: CstNode,
 	label: string
 ): void {
 	const before = node.raw;
 	try {
-		writeContainerRaw(node, defaultGrammarView);
+		writeContainerRaw(node, context.grammar);
 	} catch (error) {
 		fail(`${label}'s writer throws over a parsed fixture: ${(error as Error).message}`);
 	}
@@ -190,8 +187,12 @@ export function subjectNode(
 
 // ── Tree walks ───────────────────────────────────────────────────────────────
 
-export function firstChildOfKind(source: string, kind: AnyBlockKind): CstNode {
-	const node = subjectNode(parse(source), kind, [0], 'the sample');
+export function firstChildOfKind(
+	context: CheckContext,
+	source: string,
+	kind: AnyBlockKind
+): CstNode {
+	const node = subjectNode(context.parse(source), kind, [0], 'the sample');
 	assert(node.children, 'sample container has children');
 	return node;
 }
@@ -235,6 +236,7 @@ export function pathPassesThroughKind(
 /** Copies through the production selection code, so a kind whose endpoints `SelectionState`
  *  normalizes is copied the way the editor copies it. */
 export function copyThroughFunnel(
+	context: CheckContext,
 	doc: Document,
 	anchor: SelectionPoint,
 	focus: SelectionPoint
@@ -253,5 +255,5 @@ export function copyThroughFunnel(
 		vouch: () => true
 	});
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
-	return rangeClipboard(bytes, coverage, kitReading())?.text ?? '';
+	return rangeClipboard(bytes, coverage, context.reading())?.text ?? '';
 }

@@ -261,6 +261,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.369 | The process-wide block-command and paste-transform names gain no caller | L |
 | G4.372 | A core-only editor's production page carries no highlight.js | harness |
 | G4.373 | The core imports no highlight.js | L |
+| G4.374 | A conformance cell reads through its context | L |
 
 ### The entries
 
@@ -760,3 +761,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.372 · A core-only page carries no highlight.js.** A core-only editor paints code plain, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name a highlight.js module, through either build. The core's prebuilt inlines what it imports, which the maps can't see, so on that route G4.373 is the guard. Highlighting is the highlight package's, which an editor lists.
 
 **G4.373 · The core imports no highlight.js.** No module under `src/lib/` imports it, so the page G4.372 builds can't start carrying it again; the highlight package and the tests may. `lint/file-rules.test.ts`.
+
+**G4.374 · A conformance cell reads through its context.** The four cell files under `src/lib/testing/` name no parse, no descriptor lookup and no default grammar of their own: each read goes through the `CheckContext` the run was handed (`testing/check-context.ts`), so a plugin value is checked as its own editor reads it. A round trip stays green under the wrong grammar, which is why this is a scan. `lint/kit-cells-read-context.test.ts`; the behaviour half is `test/plugins/check-context.test.ts`.

@@ -14,7 +14,7 @@ import { testLeaf } from '#lib/test/harness/test-kinds.js';
 // Swept over the descriptor registry, so registering a built-in kind enrolls it here:
 // a new kind is auto-covered the moment it registers.
 const builtinKinds = getAllRegisteredKinds().filter(isBuiltinBlockKind);
-const fixturedKinds = builtinKinds.filter((k) => getBlockKindDescriptor(k).conformanceFixture);
+const fixturedKinds = builtinKinds.filter((k) => getBlockKindDescriptor(k).samples?.[0]);
 
 // ── Enrollment sweep ─────────────────────────────────────────────────────────
 
@@ -115,7 +115,7 @@ describe('kind conformance: byte-slice clipboard executor is the false-cell guar
 	});
 
 	it('passes for a prose leaf whose copy is a true byte slice', () => {
-		const fixture = getBlockKindDescriptor('paragraph').conformanceFixture!;
+		const fixture = getBlockKindDescriptor('paragraph').samples![0];
 		expect(() => checkCopyIsRawByteSlice('paragraph', fixture)).not.toThrow();
 	});
 });

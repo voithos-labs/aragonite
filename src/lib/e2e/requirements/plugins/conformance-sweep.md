@@ -2,7 +2,7 @@
 
 The kind kit has three cells only a browser can run (`focus`, `selectionPaint`, `searchPaint`).
 The headless battery records them as `boundary`; this sweep runs them in a real browser. It is driven from the live registry: every registered kind that declares a
-`conformanceFixture` is swept, a kind that depends on its context and declares no fixture never
+sample is swept, a kind that depends on its context and declares no fixture never
 appears, and a new kind joins the moment it registers with a fixture. Each kind's fixture is
 loaded between two plain neighbor paragraphs, so focus and selection have blocks to cross into
 and out of.
@@ -28,7 +28,7 @@ time. It is not a behavioral suite: the per-kind specs still own the depth.
 
 ## Enrolment and reachability
 
-- Every registered kind with a `conformanceFixture` is swept.
+- Every registered kind with a sample is swept.
 - Enrollment covers a floor of known kinds (paragraph, heading, table, blockquote, mermaid, mathBlock, toc, callout, admonition): a kind quietly dropped from the bridge fails the floor instead of disappearing from the column tests. The floor is a subset assertion, so new kinds can enroll without touching it.
 - Loading each kind's document waits for exact source equality rather than checking for a substring, because every sweep document carries both filler paragraphs and the previous kind's stale document can satisfy a substring wait.
 - Every enrolled kind mounts a node from its own fixture. No kind may be unreachable: a fixture nothing claims means a lost registrar, or a directive name a second plugin took, and both are regressions.

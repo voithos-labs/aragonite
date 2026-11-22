@@ -16,6 +16,6 @@ describe('a new $$ block is written as it always was', () => {
 	it('by the kind conformance kit’s fixture', () => {
 		installPlugins([latexPlugin()]);
 		const [node] = parse('$$\nx\n$$\n').children;
-		expect(tryGetBlockKindDescriptor(node.kind)?.conformanceFixture).toBe('$$\nx^2\n$$\n');
+		expect(tryGetBlockKindDescriptor(node.kind)?.samples?.[0]).toBe('$$\nx^2\n$$\n');
 	});
 });

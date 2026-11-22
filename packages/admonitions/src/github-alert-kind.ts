@@ -88,7 +88,7 @@ export function registerGithubAlert(view: BlockView): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		conformanceFixture: '> [!NOTE]\n> Heads up.\n',
+		samples: ['> [!NOTE]\n> Heads up.\n'],
 		container: {
 			lines: ALERT_LINES,
 			merges: { key: 'alertType' },

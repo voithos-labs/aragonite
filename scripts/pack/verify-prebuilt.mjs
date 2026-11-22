@@ -103,7 +103,7 @@ async function sharesOneRegistry(entries) {
 					mergeRole: 'not-mergeable',
 					editable: true,
 					supportsInline: false,
-					conformanceFixture: '%%probe\n',
+					samples: ['%%probe\n'],
 					// The prebuilt can't compile a component, so its one view is the text block.
 					view: plugin.textBlockView(),
 					opener: {

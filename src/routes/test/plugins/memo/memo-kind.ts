@@ -51,7 +51,7 @@ export function registerMemoBlock(view: BlockView): void {
 			{ chord: 'Mod+Shift+K', command: tag },
 			{ chord: 'Mod+Shift+J', command: boom }
 		],
-		conformanceFixture: '%%a memo\n'
+		samples: ['%%a memo\n']
 	});
 }
 

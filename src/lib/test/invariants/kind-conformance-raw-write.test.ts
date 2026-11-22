@@ -1,6 +1,7 @@
 // The kind kit's raw-write cell: a kind that declares `rawWrite` has its rule driven
 // through truncating writes over its fixture, and a kind without one must survive its closer's cut.
 // Miss-analysis: the cell exempted every ruleless kind, so a fence losing its closer passed the kit.
+import { defaultCheckContext } from '#lib/testing/check-context.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	declaredPluginKind,
@@ -74,7 +75,7 @@ function registerRulelessFence(): AnyBlockKind {
 			}
 		},
 		editable: false,
-		conformanceFixture: '```ruleless\nbody\n```\n'
+		samples: ['```ruleless\nbody\n```\n']
 	}));
 	return kind;
 }
@@ -89,7 +90,7 @@ describe('kind conformance: the raw-write cell fails a kind that needs a rule an
 });
 
 describe('kind conformance: the raw-write cell fails a broken rule', () => {
-	const fixture = getBlockKindDescriptor('fencedCode').conformanceFixture!;
+	const fixture = getBlockKindDescriptor('fencedCode').samples![0];
 	const keepsOffsets = (normalize: WriteRule['normalize']): WriteRule => ({
 		normalize,
 		mapOffset: (_raw, offset) => offset
@@ -99,9 +100,9 @@ describe('kind conformance: the raw-write cell fails a broken rule', () => {
 		const dropsCloser = keepsOffsets((raw, ctx) =>
 			fencedCodeWrite.normalize(raw, ctx).replace(/```\n$/, '')
 		);
-		expect(() => checkLeafRawWrite('fencedCode', fixture, dropsCloser)).toThrow(
-			/the closing line cut/
-		);
+		expect(() =>
+			checkLeafRawWrite(defaultCheckContext, 'fencedCode', fixture, dropsCloser)
+		).toThrow(/the closing line cut/);
 	});
 
 	// Miss-analysis (GH #768): the cell held the next block its own after every write, so a rule that
@@ -111,14 +112,15 @@ describe('kind conformance: the raw-write cell fails a broken rule', () => {
 			const legal = fencedCodeWrite.normalize(raw, ctx);
 			return legal.startsWith('```') ? legal : legal.replace(/```\n$/, '');
 		});
-		expect(() => checkLeafRawWrite('fencedCode', fixture, dropsStranded)).toThrow(
-			/the first line cut .*deleted bytes the write left alone, from "```\\n" on/
-		);
+		expect(() =>
+			checkLeafRawWrite(defaultCheckContext, 'fencedCode', fixture, dropsStranded)
+		).toThrow(/the first line cut .*deleted bytes the write left alone, from "```\\n" on/);
 	});
 
 	it('fails a rule that repairs nothing', () => {
 		expect(() =>
 			checkLeafRawWrite(
+				defaultCheckContext,
 				'fencedCode',
 				fixture,
 				keepsOffsets((raw) => raw)
@@ -128,17 +130,21 @@ describe('kind conformance: the raw-write cell fails a broken rule', () => {
 
 	it('fails a rule that is not idempotent', () => {
 		const grows = keepsOffsets((raw) => raw + 'x');
-		expect(() => checkLeafRawWrite('fencedCode', fixture, grows)).toThrow(/idempotent/);
+		expect(() => checkLeafRawWrite(defaultCheckContext, 'fencedCode', fixture, grows)).toThrow(
+			/idempotent/
+		);
 	});
 
 	it('fails a caret map that moves an offset the rule left alone', () => {
 		const drifts: WriteRule = { ...fencedCodeWrite, mapOffset: (_raw, offset) => offset + 1 };
-		expect(() => checkLeafRawWrite('fencedCode', fixture, drifts)).toThrow(/at 0 .* stays/);
+		expect(() => checkLeafRawWrite(defaultCheckContext, 'fencedCode', fixture, drifts)).toThrow(
+			/at 0 .* stays/
+		);
 	});
 
 	it('fails a caret map that ignores the bytes the rule inserted before an offset', () => {
 		const indents = keepsOffsets((raw) => (raw.startsWith(' ') ? raw : ' ' + raw));
-		expect(() => checkLeafRawWrite('fencedCode', fixture, indents)).toThrow(
+		expect(() => checkLeafRawWrite(defaultCheckContext, 'fencedCode', fixture, indents)).toThrow(
 			/at 1 .* moves by what the rule changed/
 		);
 	});

@@ -48,7 +48,7 @@ export type { CellReport, CellStatus, ConformanceCoverage } from './testing/conf
 export {
 	runContainerConformance,
 	reversedAncestryLeavesRootStale
-} from './testing/container-conformance';
+} from './testing/plugin-conformance';
 export type {
 	ConformanceCell,
 	ContainerConformanceProfile,
@@ -60,7 +60,7 @@ export type {
 // Registering a kind signs it up for every cell that runs without a browser;
 // the browser pass runs the browser-only ones.
 
-export { runKindConformance, checkCopyIsRawByteSlice } from './testing/kind-conformance';
+export { runKindConformance, checkCopyIsRawByteSlice } from './testing/plugin-conformance';
 export type {
 	KindCell,
 	KindCellCheck,
@@ -73,7 +73,7 @@ export type {
 // The behavioural tests a registered inline syntax handler is held to: what it takes,
 // what it declines, and whether its widget behaves as a single unit.
 
-export { runInlineKindConformance } from './testing/inline-conformance';
+export { runInlineKindConformance } from './testing/plugin-conformance';
 export type {
 	InlineConformanceCell,
 	InlineConformanceProfile,

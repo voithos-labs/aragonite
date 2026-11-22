@@ -97,7 +97,7 @@ Here's why the editor cares. After each edit it rejoins neighbouring blocks wher
 
 So the editor runs `mayClose` over the lines an edit wrote. Only on a yes does it walk up looking for a block whose `notFinal` says it's waiting, and then it rereads the stretch between them the way a reload would. It works the other way round too: an edit that leaves one of your blocks waiting reads down through the lines `mayClose` says yes to, until one of them finishes it. Leave `readingNotFinal` out on an opener like that, and typing the closing `$$` a few blocks below leaves two blocks on screen where a reload shows one.
 
-`mayClose` is a cheap candidate test, not a match. It has to say yes to every line your opener would accept as its closer; saying yes to a few more is fine (a `:::` under a `::::note` opener, say), since the reread decides and a yes only costs a look. A no on a real closer is the bug, and the kind conformance kit checks it against the closer in your `conformanceFixture`.
+`mayClose` is a cheap candidate test, not a match. It has to say yes to every line your opener would accept as its closer; saying yes to a few more is fine (a `:::` under a `::::note` opener, say), since the reread decides and a yes only costs a look. A no on a real closer is the bug, and the kind conformance kit checks it against the closer in your first sample.
 
 Answer `notFinal` true only while the reading really isn't final:
 

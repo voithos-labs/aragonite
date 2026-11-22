@@ -231,7 +231,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: true,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: 'hello world\n'
+		samples: ['hello world\n']
 	});
 	registerBuiltinBlockKind('heading', {
 		opener: BUILT_IN_OPENERS.heading,
@@ -245,7 +245,7 @@ function registerBuiltIns(): void {
 		// structure they can see; the second merges, through the usual path.
 		contentStart: { range: headingContentRange, backspace: 'demote-first' },
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: '# Heading\n'
+		samples: ['# Heading\n']
 	});
 	registerBuiltinBlockKind('setextHeading', {
 		pageRole: 'prose',
@@ -257,7 +257,7 @@ function registerBuiltIns(): void {
 		contentStart: { range: setextHeadingContentRange, backspace: 'demote-first' },
 		rawWrite: setextHeadingWrite,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: 'Title\n===\n'
+		samples: ['Title\n===\n']
 	});
 	registerBuiltinBlockKind('fencedCode', {
 		opener: BUILT_IN_OPENERS.fencedCode,
@@ -281,7 +281,7 @@ function registerBuiltIns(): void {
 			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 			...INLINE_FORMAT_KEYMAP
 		],
-		conformanceFixture: '```\ncode\n```\n'
+		samples: ['```\ncode\n```\n']
 	});
 	registerBuiltinBlockKind('thematicBreak', {
 		opener: BUILT_IN_OPENERS.thematicBreak,
@@ -294,7 +294,7 @@ function registerBuiltIns(): void {
 		blockFocus: 'whole-block',
 		// Leading edge only: its focused Enter already inserts a paragraph below.
 		gapEdges: 'before',
-		conformanceFixture: '---\n'
+		samples: ['---\n']
 	});
 	registerBuiltinBlockKind('indentedCode', {
 		opener: BUILT_IN_OPENERS.indentedCode,
@@ -305,7 +305,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: '    indented code\n'
+		samples: ['    indented code\n']
 	});
 	registerBuiltinBlockKind('htmlBlock', {
 		opener: BUILT_IN_OPENERS.htmlBlock,
@@ -316,7 +316,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: '<div>\nhtml\n</div>\n'
+		samples: ['<div>\nhtml\n</div>\n']
 	});
 	registerBuiltinBlockKind('linkReferenceDefinition', {
 		opener: BUILT_IN_OPENERS.linkReferenceDefinition,
@@ -327,7 +327,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: '[id]: /url "title"\n'
+		samples: ['[id]: /url "title"\n']
 	});
 	registerBuiltinBlockKind('table', {
 		pageRole: 'object',
@@ -342,7 +342,7 @@ function registerBuiltIns(): void {
 			rebuildRaw: rebuildTableRaw,
 			lastLineChild: tableLastLineChild
 		},
-		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n'
+		samples: ['| a | b |\n| - | - |\n| 1 | 2 |\n']
 	});
 	registerBuiltinBlockKind('tableRow', {
 		pageRole: 'object',
@@ -352,7 +352,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		container: { contract: 'grid', rebuildRaw: rebuildTableRowRaw },
-		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n'
+		samples: ['| a | b |\n| - | - |\n| 1 | 2 |\n']
 	});
 	registerBuiltinBlockKind('tableCell', {
 		pageRole: 'prose',
@@ -365,7 +365,7 @@ function registerBuiltIns(): void {
 		rawWrite: tableCellWrite,
 		renderImagesAsWidgets: false,
 		keymap: TABLE_CELL_KEYMAP
-		// No `conformanceFixture`: the table opener creates the cells, so one is never the
+		// No sample: the table opener creates the cells, so one is never the
 		// top-level result of a document scan.
 	});
 	registerBuiltinBlockKind('unrecognized', {
@@ -376,7 +376,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP
-		// No `conformanceFixture`: it is the fallback for content no opener took, so a document
+		// No sample: it is the fallback for content no opener took, so a document
 		// scan never produces it on its own.
 	});
 	registerBuiltinBlockKind('blockquote', {
@@ -397,7 +397,7 @@ function registerBuiltIns(): void {
 			contentStartSpace: 'complete-marker',
 			reorderChildren: {}
 		},
-		conformanceFixture: '> quoted\n'
+		samples: ['> quoted\n']
 	});
 	registerBuiltinBlockKind('list', {
 		opener: BUILT_IN_OPENERS.list,
@@ -418,7 +418,7 @@ function registerBuiltIns(): void {
 			},
 			reorderChildren: {}
 		},
-		conformanceFixture: '- item\n'
+		samples: ['- item\n']
 	});
 	registerBuiltinBlockKind('listItem', {
 		pageRole: 'object',
@@ -433,7 +433,7 @@ function registerBuiltIns(): void {
 			{ chord: 'Shift+Tab', command: 'list.unindent' },
 			{ chord: 'Mod+Enter', command: 'list.toggleTask' }
 		],
-		conformanceFixture: '- item\n'
+		samples: ['- item\n']
 	});
 	// Over a range, the item holding each covered line nests or lifts, as at a caret.
 	setBuiltInRangeIndent('listItem', 'list.indent', { item: 'nest' });

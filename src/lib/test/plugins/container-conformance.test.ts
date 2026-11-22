@@ -1,3 +1,4 @@
+import { defaultCheckContext } from '#lib/testing/check-context.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	augmentBlockKind,
@@ -165,7 +166,7 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 			}
 		} as unknown as BlockKindRegistration);
 
-		expect(() => checkDeclarationSanity(kind, calloutProfile)).toThrow(
+		expect(() => checkDeclarationSanity(defaultCheckContext, kind, calloutProfile)).toThrow(
 			/unwrap-typo first-child unwrap strategy "no-such-strategy" is implemented/
 		);
 	});
@@ -211,21 +212,21 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 
 	// The bodyWrap check reads the descriptor's own fixture, so a container with none
 	// leaves the declaration unchecked while the cell still reports asserted.
-	it('fails declaration sanity when the container carries no conformanceFixture', async () => {
-		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: undefined });
+	it('fails declaration sanity when the container carries no sample', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { samples: undefined });
 
 		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
-			/declarations: callout declares no conformanceFixture/
+			/declarations: callout declares no sample/
 		);
 	});
 
 	// Miss-analysis: no case hit the bodyWrap check's early return on a nested fixture (GH #78).
 	// Callout is the hardest pick: its recognizer is the shared `:::` opener.
-	it('fails declaration sanity when the conformanceFixture nests the kind', async () => {
-		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: '> :::callout T\n> body\n> :::\n' });
+	it('fails declaration sanity when the sample nests the kind', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { samples: ['> :::callout T\n> body\n> :::\n'] });
 
 		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
-			/declarations: callout conformanceFixture must open a "callout" at the top level/
+			/declarations: callout sample must open a "callout" at the top level/
 		);
 	});
 
@@ -256,7 +257,7 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 		augmentBlockKind(alert, { container: { lastLineChild: () => -1 } });
 
 		expect(() =>
-			checkDeclarationSanity(alert, {
+			checkDeclarationSanity(defaultCheckContext, alert, {
 				...calloutProfile,
 				deepNesting: { source: '> [!NOTE]\n> a\n>\n> b\n', leafPath: [0, 1] }
 			})
@@ -297,7 +298,7 @@ describe('the kit holds an edit to the lines it changed', () => {
 		{ kind: FOOTNOTE_DEF_KIND, source: '[^1]:a\n\n     b\n' }
 	])('passes the bundled $kind spelled as its author wrote it', ({ kind, source }) => {
 		expect(() =>
-			checkDeclarationSanity(declaredPluginKind(kind), {
+			checkDeclarationSanity(defaultCheckContext, declaredPluginKind(kind), {
 				...calloutProfile,
 				deepNesting: { source, leafPath: [0, 0] }
 			})
@@ -321,7 +322,7 @@ describe('the kit holds an edit to the lines it changed', () => {
 		const kind = respellingAlert(`respelling-${name.replaceAll(' ', '-')}`, respell);
 
 		expect(() =>
-			checkDeclarationSanity(kind, {
+			checkDeclarationSanity(defaultCheckContext, kind, {
 				...calloutProfile,
 				deepNesting: { source, leafPath: [0, 0] }
 			})

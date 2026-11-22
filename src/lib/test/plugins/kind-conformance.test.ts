@@ -86,7 +86,7 @@ describe('kind conformance: plugin kinds enroll', () => {
 function demoFence(name: string, reading?: UnfinishedReading) {
 	const match = matchFenceInfo('demo');
 	return testLeaf(name, (kind) => ({
-		conformanceFixture: '```demo\nx\n```\n',
+		samples: ['```demo\nx\n```\n'],
 		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		opener: {
 			priority: OPENER_PRIORITIES.fencedCode - 6,
@@ -138,7 +138,7 @@ function backingOut(
 		? { notFinal: awaitsCloser, mayClose: (line: string) => line === fence, closer }
 		: { notFinal: awaitsCloser, closer: null };
 	return testLeaf(name, (kind) => ({
-		conformanceFixture: `${fence}\nx\n${fence}\n`,
+		samples: [`${fence}\nx\n${fence}\n`],
 		opener: {
 			priority: OPENER_PRIORITIES.fencedCode + 7,
 			interruptsParagraph: (line) => line === fence,
@@ -215,7 +215,7 @@ function bodyTaker(
 		return 'open';
 	};
 	return testLeaf(name, (kind) => ({
-		conformanceFixture: `%%${name}\n<<b\ntext\nend>>\n`,
+		samples: [`%%${name}\n<<b\ntext\nend>>\n`],
 		opener: {
 			priority: OPENER_PRIORITIES.fencedCode + 8,
 			interruptsParagraph: opens,
@@ -343,7 +343,7 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 		const directiveFallback = new Set<string>([DIRECTIVE_CONTAINER, DIRECTIVE_LEAF]);
 		const registeredBundled = getAllRegisteredKinds()
 			.filter((k) => !isBuiltinBlockKind(k))
-			.filter((k) => getBlockKindDescriptor(k).conformanceFixture !== undefined)
+			.filter((k) => getBlockKindDescriptor(k).samples?.[0] !== undefined)
 			.filter((k) => !directiveFallback.has(k));
 		expect(new Set(registeredBundled)).toEqual(
 			new Set([...BUNDLED_INSTALLS.map((b) => b.kind), ...CO_REGISTERED_FIXTURED])
@@ -377,33 +377,33 @@ describe('kind conformance: a broken plugin registration fails', () => {
 
 	// Profile drift: when an author's fixture stops producing their kind, the runner
 	// must refuse the tree rather than exercise the wrong nodes.
-	it('rejects a conformanceFixture that parses to the wrong kind', async () => {
-		augmentBlockKind(MEMO_KIND(), { conformanceFixture: 'just a paragraph\n' });
+	it('rejects a sample that parses to the wrong kind', async () => {
+		augmentBlockKind(MEMO_KIND(), { samples: ['just a paragraph\n'] });
 		await expect(runKindConformance(MEMO_KIND())).rejects.toThrow(
-			/conformanceFixture parses to no "memo" node/
+			/sample parses to no "memo" node/
 		);
 	});
 
 	// Undo and the byte-slice copy both act on the fixture's first block, so a kind under a
 	// later block lets the undo cell delete something else and still report `asserted`.
-	it('rejects a conformanceFixture whose kind is not under the first block', async () => {
+	it('rejects a sample whose kind is not under the first block', async () => {
 		registerAdmonitions(testView());
 		const alert = declaredPluginKind(GITHUB_ALERT);
 		augmentBlockKind(alert, {
-			conformanceFixture: 'lead paragraph\n\n> > [!NOTE]\n> > Heads up.\n'
+			samples: ['lead paragraph\n\n> > [!NOTE]\n> > Heads up.\n']
 		});
 
 		await expect(runKindConformance(alert)).rejects.toThrow(
-			/conformanceFixture must open with the "githubAlert" block/
+			/sample must open with the "githubAlert" block/
 		);
 	});
 
 	// The undo cell's trailing marker must parse as its own block: a fixture that swallows it
 	// leaves one block, and deleting a document's only block still pushes an undo entry.
-	it('rejects a conformanceFixture that swallows the undo cell sentinel', async () => {
+	it('rejects a sample that swallows the undo cell sentinel', async () => {
 		registerMermaidKind(testView());
 		const kind = declaredPluginKind(MERMAID);
-		augmentBlockKind(kind, { conformanceFixture: '```mermaid\ngraph TD\n' });
+		augmentBlockKind(kind, { samples: ['```mermaid\ngraph TD\n'] });
 
 		await expect(runKindConformance(kind)).rejects.toThrow(/trailing sentinel/);
 	});
