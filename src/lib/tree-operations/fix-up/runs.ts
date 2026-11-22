@@ -1,6 +1,11 @@
 // Runs of blank lines held where a reload holds them, and the lines a blank block the edit filled
 // or took away gives back to the blocks beside it.
-import { endsInBlankLine, ownTrailingLineEnding } from '../../core/lines';
+import {
+	endsInBlankLine,
+	isBlankText,
+	ownTrailingLineEnding,
+	trimTrailingLineEnding
+} from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 import type { Host, ListEdit } from './types';
 import { bodyStart, isBlankBlock, ownsBlankLine, readAt } from './reading';
@@ -187,7 +192,7 @@ function blanksTaken(work: Work, edit: ListEdit, from: number, count: number): C
 	return gone.filter(isBlankBlock).length > placedBlanks ? gone : [];
 }
 
-/** A write at the open end that leaves the last line empty, whole or under its block's other lines,
+/** A write at the open end that leaves the last line blank, whole or under its block's other lines,
  *  ends it, since a blank last line keeps its break (`docs/design/syntax-tree.md` § The last line). */
 export function endEmptiedLastLine(work: Work, edit: ListEdit, host: Host): void {
 	const { written } = edit;
@@ -195,12 +200,26 @@ export function endEmptiedLastLine(work: Work, edit: ListEdit, host: Host): void
 	if (!written || ownTrailingLineEnding(written.previous.raw) !== '') return;
 	const last = work.blocks.length - 1;
 	const node = work.blocks.at(last);
-	const whole = node.raw === '';
+	const line = node.raw.slice(node.raw.lastIndexOf('\n') + 1);
 	// The host is asked last, so a key that leaves the last line its text asks it nothing.
-	if (!whole && ownTrailingLineEnding(node.raw) === '') return;
+	if (!isBlankText(line)) return;
+	const whole = line.length === node.raw.length;
 	// A paragraph emptied whole on its body's first line stays on its container's opening line.
 	if (whole && (last <= 0 || !isBlankBlock(node) || last <= bodyStart(work, host))) return;
+	if (!whole && endsOnCloser(node.raw, host)) return;
 	work.blocks.set(last, { ...node, raw: node.raw + work.list.lineEnding });
+}
+
+/** Whether the last line of `raw` with text is the one that closed it (a fence's closing line):
+ *  the line ending after it is that line's own, and no line under it stands empty. */
+function endsOnCloser(raw: string, host: Host): boolean {
+	const body = trimTrailingLineEnding(raw);
+	const above = body.slice(0, body.lastIndexOf('\n') + 1);
+	return host
+		.readingsThatMayChange()
+		.some(
+			(reading) => reading.closer !== null && reading.notFinal(above) && !reading.notFinal(raw)
+		);
 }
 
 /** An unended blank last line its block's reading leaves out is the body's trailing line. */

@@ -7,6 +7,8 @@
 // always kept an ending of its own, and no row emptied one on a line that had none.
 // Miss-analysis: the open-file rows then emptied whole paragraphs only, never a line under a
 // block's other lines, whose break the commit read as the file's own and took off.
+// Miss-analysis: no row deleted a closed block's closing line or left the last line a space, so
+// the step's test for an emptied line (the bytes end in a line ending) was never asked either.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -174,6 +176,23 @@ describe('a last line emptied under its block’s other lines keeps its line', (
 		const editor = await mountAt('zz\n\n```\npq', 'live', [1], 4, 6);
 		const compose = () => insertBy('composition', focused(), 'y');
 		expect(await thenLetter(editor, compose)).toEqual(['zz\n\n```\ny\n', 'zz\n\n```\nyx\n']);
+	});
+});
+
+// The step ends only a line the write left blank, never a line the block wrote back itself.
+describe('a last line the write did not leave empty gets no second break', () => {
+	it('a closed code block’s closing line deleted comes back once, and the letter lands above it', async () => {
+		const editor = await mountAt('zz\n\n~~~\npq\n~~~', 'source', [1], 7, 10);
+		expect(await thenLetter(editor, () => deleteBy(focused(), 'Delete'))).toEqual([
+			'zz\n\n~~~\npq\n~~~',
+			'zz\n\n~~~\npq\nx\n~~~'
+		]);
+	});
+
+	it.each(MODES)('a last line left one space keeps its line, %s', async (mode) => {
+		const editor = await mountAt('above\npq', mode, [0], 6, 8);
+		const space = () => insertBy('hardware key', focused(), ' ');
+		expect(await thenLetter(editor, space)).toEqual(['above\n \n', 'above\n x\n']);
 	});
 });
 
