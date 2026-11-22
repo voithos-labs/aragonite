@@ -1,4 +1,5 @@
-/** List marker bookkeeping: reads, renumbering, and matching item style to a list. */
+/** List marker bookkeeping: reads, renumbering, and matching item style to a list. A pass over many
+ *  items writes each one before the tree holds it (`writeUnsharedChild`). */
 
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
@@ -112,10 +113,40 @@ export function normalizeItemMarkerToList(
 	parentList: CstNode,
 	grammar: GrammarView
 ): void {
-	const parentOrdered = metadataOf(parentList, 'list')?.ordered ?? false;
 	const meta = metadataOf(item, 'listItem');
-	const itemOrdered = /^\d/.test(meta.marker);
+	const target = styledAs(parentList, meta.marker);
+	if (meta.marker === target) return;
+	meta.marker = target;
+	writeContainerRaw(item, grammar);
+}
 
+/** Items `from` on, which a move appended to `list`: each takes the list's marker style and, in an
+ *  ordered list, the number after the item above, written once before the tree holds it. */
+export function joinItemsToList(
+	list: CstNode,
+	from: number,
+	sharing: SharingState,
+	grammar: GrammarView
+): void {
+	const ordered = metadataIfKind(list, 'list')?.ordered ?? false;
+	for (let j = from; j < list.children!.length; j++) {
+		const above = j === 0 ? undefined : list.children![j - 1];
+		const prevNum = above ? parseInt(metadataOf(above, 'listItem').marker, 10) || 0 : 0;
+		writeUnsharedChild(list, j, sharing, (item) => {
+			const meta = metadataOf(item, 'listItem');
+			const styled = styledAs(list, meta.marker);
+			// An ordered item is written even where its marker stands, as a renumber writes it.
+			if (!ordered && styled === meta.marker) return;
+			meta.marker = ordered ? String(prevNum + 1) + styled.replace(/^\d+/, '') : styled;
+			writeContainerRaw(item, grammar);
+		});
+	}
+}
+
+/** `marker` in `parentList`'s style: its first item's glyph and suffix, an ordered number kept. */
+function styledAs(parentList: NodeView, marker: string): string {
+	const parentOrdered = metadataOf(parentList, 'list')?.ordered ?? false;
+	const itemOrdered = /^\d/.test(marker);
 	const siblings = parentList.children ?? [];
 	const templateMarker =
 		siblings.length > 0 ? metadataOf(siblings[0], 'listItem').marker : undefined;
@@ -123,16 +154,11 @@ export function normalizeItemMarkerToList(
 	let target: string;
 	if (parentOrdered) {
 		const suffix = templateMarker?.replace(/^\d+/, '');
-		target = itemOrdered
-			? meta.marker.replace(/\D.*$/, '') + (suffix || '. ')
-			: '1' + (suffix ?? '. ');
+		target = itemOrdered ? marker.replace(/\D.*$/, '') + (suffix || '. ') : '1' + (suffix ?? '. ');
 	} else {
 		target = templateMarker ?? '- ';
 	}
-	target = keepingWidth(target, meta.marker);
-	if (meta.marker === target) return;
-	meta.marker = target;
-	writeContainerRaw(item, grammar);
+	return keepingWidth(target, marker);
 }
 
 /** `target`, keeping `current`'s run of spaces when it is the wider one: those spaces are the

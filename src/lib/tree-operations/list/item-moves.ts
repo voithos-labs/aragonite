@@ -16,6 +16,7 @@ import { trackChildIds } from '../structural-change';
 import { spliceChildren } from '../children';
 import { cascadeCleanupEmptyAncestors } from '../cleanup';
 import {
+	joinItemsToList,
 	renumberOrderedList,
 	renumberOrderedListFrom,
 	normalizeItemMarkerToList
@@ -84,12 +85,9 @@ export function nestListItem(
 
 					// Each branch renumbers the moved item's marker through `sharing`, which copies it first.
 					if (existingNestedList) {
-						const destList = destScope.node;
 						destScope.children.push(movedItem);
 						// The item takes the sublist's marker style, as a paste does; a fresh list has none.
-						const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
-						normalizeItemMarkerToList(moved, destList, grammar);
-						numberJoinedItems(destList, destScope.children.length - 1, sharing, grammar);
+						joinItemsToList(destScope.node, destScope.children.length - 1, sharing, grammar);
 					} else {
 						const shell = buildListShell(ordered, [movedItem]);
 						sharing.stamp(shell);
@@ -97,7 +95,7 @@ export function nestListItem(
 						// Write, then read back (tree-operations/unshare.ts): the writes below go through the
 						// value in the tree, not the list the proxy has observed.
 						const destList = destScope.children[destScope.children.length - 1];
-						numberJoinedItems(destList, 0, sharing, grammar);
+						renumberOrderedListFrom(destList, 1, sharing, grammar);
 						// A new sublist sits below the commit's chain, which never rebuilds it; the blank-line
 						// rule below reads its bytes too.
 						destScope.rebuild(destList);
@@ -260,23 +258,20 @@ function adoptAsLastChildren(
 ): void {
 	if (later.length === 0 || !item.children) return;
 	const last = item.children.length - 1;
-	let first = 0;
 	if (isListOfKind(item.children[last], ordered)) {
 		const list = ensureUnsharedChild(item, last, sharing);
-		first = list.children!.length;
+		const first = list.children!.length;
 		spliceChildren(list, first, 0, later);
-		for (let i = first; i < list.children!.length; i++) {
-			normalizeItemMarkerToList(ensureUnsharedChild(list, i, sharing), list, grammar);
-		}
+		joinItemsToList(list, first, sharing, grammar);
 	} else {
 		const shell = buildListShell(ordered, later);
 		sharing.stamp(shell);
 		spliceChildren(item, item.children.length, 0, [shell]);
+		// Write, then read back (tree-operations/unshare.ts) before the writes below.
+		renumberOrderedListFrom(item.children[item.children.length - 1], 1, sharing, grammar);
 	}
-	// Write, then read back (tree-operations/unshare.ts) before the writes below.
 	const at = item.children.length - 1;
 	const list = item.children[at];
-	numberJoinedItems(list, first, sharing, grammar);
 	rebuild(list);
 	settleSublistSeparator(item.children, at);
 }
@@ -308,17 +303,6 @@ function separatorBelow(above: CstNode, below: CstNode): string | null {
 		isListOfKind(below, metadataOf(above, 'list').ordered) &&
 		below.leadingTrivia === '';
 	return merges ? ownTrailingLineEnding(above.raw) : null;
-}
-
-/** Numbers the items a move put at `from` and after; items that open the list start it at 1. */
-function numberJoinedItems(
-	list: CstNode,
-	from: number,
-	sharing: SharingState,
-	grammar: GrammarView
-): void {
-	if (from === 0) renumberOrderedListFrom(list, 1, sharing, grammar);
-	else renumberOrderedList(list, from, sharing, grammar);
 }
 
 function isListOfKind(node: NodeView | undefined, ordered: boolean): boolean {
