@@ -35,6 +35,10 @@ instead of entering it.
 - reading mode has no caret: the bridge reports no selection while reading, and
   the caret banked on entry comes back on the switch out, where typing resumes at
   it
+- a range dragged in live across a styled run leaves nothing selected once reading
+  takes over
+  (miss-analysis: every row placed a caret, never a range across several nodes,
+  and only WebKit keeps that range through the switch's render, over other text)
 - a click while reading moves that caret: the switch out puts it in the clicked
   block, and the next typed byte lands there
   (miss-analysis: the only reading row switched straight back out, so a reading
@@ -44,8 +48,8 @@ instead of entering it.
 ## User interactions
 
 - every switch is a real click on a header toggle; the caret is placed by
-  clicking and arrow-stepping, and the proof afterwards is a typed byte landing
-  where the caret was
+  clicking and arrow-stepping, a range by a mouse drag, and the proof afterwards
+  is a typed byte landing where the caret was
 
 ## Error cases
 

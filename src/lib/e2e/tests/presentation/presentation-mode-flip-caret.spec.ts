@@ -3,6 +3,7 @@ import type { EditorPage } from '../../editor-page';
 import { clickWordSettled, enterPresentationMode, landAt } from './helpers';
 import { clickModeToggle } from '../../mode-switch';
 import { textRunCenter } from '../../text-runs';
+import { dragBetweenPoints } from '../plugins/helpers';
 
 // The caret half of the mode-switch rules: a mode change moves no byte, so the caret the user
 // had comes back on the other side, saved across reading mode, which has no caret.
@@ -52,6 +53,23 @@ test.describe('mode flips: the caret comes back', () => {
 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('boXld');
+	});
+
+	test('a range dragged across a styled run leaves nothing selected in reading', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
+		await dragBetweenPoints(
+			page,
+			await textRunCenter(page, 'Some'),
+			await textRunCenter(page, 'more')
+		);
+		await ep.waitForRenderFlush();
+		expect(await page.evaluate(() => getSelection()?.toString())).toContain('bold');
+
+		await clickModeToggle(page, 'reading');
+		await ep.waitForRenderFlush();
+		expect(await page.evaluate(() => getSelection()?.toString())).toBe('');
 	});
 
 	test('a click while reading moves the caret the flip out puts back', async ({ page }) => {
