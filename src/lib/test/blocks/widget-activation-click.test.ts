@@ -64,7 +64,16 @@ function widgetActs(
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
 		reading,
-		activationClick: bindActivationClick(reading.mode, () => linkClick, createPressTracker())
+		activationClick: bindActivationClick(reading.mode, () => linkClick, createPressTracker()),
+		own: {
+			editorFor: () => {
+				throw new Error('no plugin editor in a fixture');
+			},
+			byteAt: () => -1,
+			keys: () => {
+				throw new Error('no document read in a fixture');
+			}
+		}
 	});
 	const start = SOURCE.indexOf('%%');
 	pool.beginPass();

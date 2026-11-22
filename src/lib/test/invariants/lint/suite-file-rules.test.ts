@@ -306,6 +306,8 @@ const RULES: FileRule[] = [
 				'walks the classes fileClasses returns, so every character it tests is code',
 			'src/lib/test/core/inline/adversarial-scan-bounds.test.ts':
 				'floods the inline parse with unclosed `<!--` openers; it reads no source',
+			'src/lib/test/plugins/inline/inline-reads.test.ts':
+				'its function matchers read document text; it reads no source',
 			'src/lib/test/range-laws/shapes.ts':
 				'draws HTML comment blocks (`<!--`) as document text; it reads no source',
 			'src/lib/test/invariants/lint/consumer-guide-reserved-set.test.ts':
@@ -568,7 +570,7 @@ const RULES: FileRule[] = [
 			),
 			at(
 				'src/lib/test/i.test.ts',
-				"const p = definePlugin({\n\tsetup() {\n\t\tregisterLanguage('x', g);\n\t}\n});"
+				'const p = definePlugin({\n\tsetup() {\n\t\tregisterPasteTransform(t);\n\t}\n});'
 			),
 			at(
 				'src/lib/test/j.test.ts',

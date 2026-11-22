@@ -14,7 +14,7 @@ import {
 import { readBack, shownOf } from '../../../core/inline/live-edit/read-back';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { StoredAs } from '../../../schema/stored-as';
-import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
+import { getInlineConstructPolicy, markerSideEdge } from '../../../schema/inline-construct-policy';
 import { removesExactly } from './screen-diff';
 import { characterExtent } from '../../../caret/delete-extent';
 import type { DeleteDirection } from '../../../browser/input';
@@ -211,7 +211,8 @@ function policyConstructs(inlines: readonly InlineNode[]): PolicyConstruct[] {
 		if (!policy) continue;
 		found.push({
 			node,
-			content: constructContentRange(node),
+			// A marker side is all marker, so a key beside it skips it like any hidden run.
+			content: constructContentRange(node) ?? markerSideEdge(node),
 			autoUnwrapOnEmpty: policy.autoUnwrapOnEmpty,
 			markable: policy.mark !== undefined,
 			splitsWhole: policy.splitBehavior === 'whole'

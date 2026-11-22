@@ -12,9 +12,10 @@ string's first word, or `text` when there is none. A click opens a picker below 
 field over every registered language, one row each, the block's own language highlighted first
 in the spelling the fence uses. An alias (`rs`, `py`) is a search key rather than a row of its
 own, so the list never holds a language twice. Enter commits what the field holds whenever that
-spelling names a language the registry knows and the highlight has not moved, and the highlighted
-row otherwise, which is also how a language the registry does not know can still be written
-(§ The commit has the whole rule); `text` is the row that clears a language; Escape and clicking
+spelling names a language a highlighter answers and the highlight has not moved, the marked row
+otherwise, and the text as typed when no row is marked, which is how a language no highlighter
+knows can still be written (§ The commit, and `picker-enter.md` for which row is marked); `text`
+is the row that clears a language; Escape and clicking
 away both cancel, byte for byte. Only Enter and a pick from the list write. A bare fence that has
 just taken the caret with no language opens the picker itself, unless the caret stepped in from a
 neighbour: moving through an existing fence with the keyboard is not the moment its author picks
@@ -52,10 +53,11 @@ cannot destroy it.
   it like every other gesture, and it lands as one
   undo entry, kept apart on both sides, so neither a burst of typing before it nor one after it
   joins the entry.
-- A typed spelling the registry resolves is a name, not a query: it commits as typed, so `rs`
+- A typed spelling a highlighter answers is a name, not a query: it commits as typed, so `rs`
   lands as `rs` rather than as the `rust` row it found. Moving the highlight (an arrow key, or
-  the pointer over a row) makes that row win instead, and a spelling no grammar answers to
-  commits as typed too, which is how a language the registry does not know can still be written.
+  the pointer over a row) makes that row win instead. A spelling no highlighter answers takes the
+  first row it starts (`pyth` takes python) and otherwise commits as typed, which is how a
+  language no highlighter knows can still be written.
 - An info string that did not change closes the picker rather than writing: no undo entry, no
   `edit` event. What is compared is the value the field started with, not the bytes that would
   be written, because `meta.info` is trimmed: on a padded opener (trailing spaces after `js`, or

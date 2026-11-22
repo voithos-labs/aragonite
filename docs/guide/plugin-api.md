@@ -30,9 +30,9 @@ The groups, in page order:
 | [Directive authoring](#directive-authoring) | Owning a `:::name` block without writing your own parsing |
 | [Container authoring](#container-authoring) | Blocks that hold other blocks, plus their title line |
 | [Editable-leaf authoring](#editable-leaf-authoring) | A text-editing block with the editor's own caret, undo, and selection |
-| [Code-block languages](#code-block-languages) | Adding syntax-highlighting grammars beyond the bundled set |
+| [Code-block languages](#code-block-languages) | What highlights fenced code, and drawing a fenced source of your own |
 | [Plugin views](#plugin-views) | What an inline widget, a decoration's widget and an inline menu row are drawn with |
-| [Inline authoring](#inline-authoring) | Your own syntax inside a paragraph, rendered as a widget |
+| [Inline authoring](#inline-authoring) | A `setup` plugin's registrars for syntax inside a paragraph, on their way out |
 | [Commands and keybindings](#commands-and-keybindings) | Keyboard shortcuts and commands, per block type or editor-wide |
 | [Paste transforms](#paste-transforms) | Rewriting pasted text before the editor parses it |
 | [Decorations](#decorations) | View-only annotations over content your plugin does not own |
@@ -61,7 +61,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: its `blocks`, a `setup(editor)` that runs once that editor mounts (a function it returns runs when the plugin's turned off or the editor goes), the `commands` it runs, its `inserts` rows, its caret `menus`, its `selectionActions`, its paste `rewrites`, a `paint(block, ctx)` that says what to lay over a block of text, a `paintContainer(block, ctx)` for the classes and badge of a block holding other blocks (a list, a quote, a table row), a `paintDepends(block)` when your paint reads other blocks, answered from each block's own content (footnote numbers: [the document recipe](plugin-guide/reading-the-document.md)), and `checksSpelling: true` if your plugin underlines misspelled words itself (the editor turns the browser's checker off on its prose while your plugin runs) |
+| `Contribution` | What `contributes` hands back for one editor: its `blocks`, its `inlines`, a `setup(editor)` that runs once that editor mounts (a function it returns runs when the plugin's turned off or the editor goes), the `commands` it runs, its `inserts` rows, its caret `menus`, its `selectionActions`, its paste `rewrites`, a `paint(block, ctx)` that says what to lay over a block of text, a `paintContainer(block, ctx)` for the classes and badge of a block holding other blocks (a list, a quote, a table row), a `paintDepends(block)` when your paint reads other blocks, answered from each block's own content (footnote numbers: [the document recipe](plugin-guide/reading-the-document.md)), a `code` highlighter for fenced code ([Code-block languages](#code-block-languages)), and `checksSpelling: true` if your plugin underlines misspelled words itself (the editor turns the browser's checker off on its prose while your plugin runs) |
 | `Editor` | What `setup` and your commands get: the plugins on, the `mode` (a `Mode`), the theme, the `inserts` rows, `doc` (the document as it stands), `selection` (a `Selection`, or null), `view` (a `View`), `on` (the `Events` map), `run` and `can` (a command by value or id, with its argument; a block type's command with none runs on the nearest block at the caret whose type places it, or on each one a selection across blocks covers), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it), `openRows` (opens a selection action's rows over a range), `edit`, `blockAt(at)` (the deepest block holding a document byte: a list item's paragraph, a table cell), `select(input)` (a caret's byte, a range, a block whole or table cells, scrolled into view first) and `repaint(blocks?)`, which asks your `paint` again for those blocks, or every one on screen. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type: its `name` (yours read `plugin/local` once an editor runs your plugin) and its `label` |
@@ -72,6 +72,21 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `fencedBlock` | A block type opened by one line and closed by a later one: a code fence with your info string (` ```math `), or your own opening and closing lines. A code fence's closer grows past a body line that would close it |
 | `FencedBlockSpec` | What `fencedBlock` takes: `fence`, one spelling or several |
 | `container` | A block type holding other blocks. You say how its lines look in `lines` and the editor reads and writes them, so there's no opener or writer to write. Its children are the editor's to draw, inside your drawing |
+| `inline` | An inline construct: a claim that starts at its `prefix` (`[[`, `#`), found by `match` and read into data by `read`, drawn as a `widget`, `as` a built-in `image` or `link` in your own syntax, or as its bytes with a `class`. List it in `contributes(...).inlines`; it reads only in an editor running your plugin |
+| `InlineSpec` | What `inline` takes: `name`, `label`, `prefix`, `sample`, the matcher, one arm, and `after` (constructs on the same character it's tried after), `pair` and `split` |
+| `RegexMatcher`, `FunctionMatcher` | The two matchers: a regex matched at the prefix with `read(match)`, or, for a match a regex would make slow, `match(text, at, end)` returning where the claim ends (-1 for none) with `read(claim)` |
+| `InlineArm` | The four ways a claim draws. A widget's `draw` is `svelteView(Note)`, `reactView(Note)` or `vueView(Note)` of a component taking `WidgetProps`; `follow(data, editor)` runs on the host's link click (the `class` arm takes it too), `key(event, props)` gets a key while the widget is selected, and `depends(block)` says what the drawing reads of each top-level block, answered from its own content (a footnote reference's number: [the document recipe](plugin-guide/reading-the-document.md)) |
+| `Widget` | How a widget edits: what a key deletes, what an arrow and a click do (step over, select, or show its bytes; follow), and `height: 'tall'` for one that stands like a picture |
+| `WidgetProps` | What a widget's drawing gets: its `data`, `source`, `from` and `to` (document bytes, read when you ask), `mode` (a `Mode`), `theme`, your plugin's `editor` and `depends` (what your `depends` answered for each top-level block, in `editor.doc.blocks`' order, never changed after it's handed to you; empty without one). It's told again when any of them change |
+| `Inline` | An inline construct as you list it: its `name` (`plugin/local` once an editor runs your plugin) and its `label`. `piece.is` takes it |
+| `mark` | A rich-text mark, like a highlight: one character, once or twice, on each side (`==`), which pairs like `~~`, edits like `**` in live mode (hidden runs, letters at its end join it, Enter closes and reopens it) and draws its text in `tag` with `class`. List it in `contributes(...).inlines` |
+| `MarkSpec` | What `mark` takes: `name`, `label`, `marker`, `chord` (required: where its runs are hidden, it's the only way out of the mark at its edge), `after` (the mark it nests inside when several are written at once: a built-in mark or one of a plugin's, listed in any order; two marks at one place nest by name), `tag`, `class` and `sample` |
+| `Mark` | A mark as you list it, with `toggle`, the command its chord runs. A host rebinds the chord by that command's id (`plugin/toggle-name`), and `editor.claims` answers for it |
+| `markerPair` | Two markers around ordinary text, in one block or in two, like a comment's anchor. Each side is claimed by its own matcher and draws nothing in live mode; you match the sides up by their `piece.data`. A letter typed at a side joins its pair's text, and a live removal that takes one side and keeps the other puts it back. List it in `contributes(...).inlines` |
+| `MarkerPairSpec` | What `markerPair` takes: `name`, `label`, `open` and `close` (each a `MarkerSide`), `sample`, `text`, the side of each marker a letter typed at it joins (by default the text between them), and `key`, which returns what the two sides of one pair share (an id), so a removal keeps overlapping pairs apart (without it, sides pair by nesting order) |
+| `MarkerPair` | A marker pair as you list it: `open` and `close`, each an `Inline` that `piece.is` takes, named `plugin/name-open` and `plugin/name-close` |
+| `MarkerSide` | One side as `open` and `close` take it: a `prefix` and a matcher, the same two forms `inline` takes. Its `read` returns the side's data, such as the pair's id |
+| `ImagePiece`, `LinkPiece` | What an `as` arm's `image(data)` or `link(data)` returns, and what its `write` gets back after a resize or a link card edit. Without `write` those edits are refused. A link's `text` is a run of its bytes: its one run after the prefix, or the one starting at `at` in the claim. Give `at` whenever the text can appear elsewhere in the claim (a wiki link's alias): without it such a claim is left as plain text, and a dev build warns |
 | `ContainerSpec` | What `container` takes: `lines`, plus `joins` (default true: text joined to its end from below lands in its deepest text block), `merges` (the data field a pasted one must share with the one it lands in to join it, rather than nest), `draw` and, with it, `depends` |
 | `ContainerLines` | The line shapes a `container` takes: a `marked` one (a marker on every line, with a `head` line or not) or an `indented` one, the same shapes as [`LineShape`](#lineshape-markedlines-indentedlines). An indented container shows its marker ahead of its first child's text, read-only |
 | `Fence` | `{ info }` takes over code fences with that info string; `{ open, close, escape? }` opens on a line `open` matches and closes on the line `close` spells. A body line spelling the closer goes through `escape`, or ends the block there without one. Unclosed, the opening line stays plain text |
@@ -92,7 +107,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `Doc` | The document at one version: its `text`, its `eol`, its top-level `blocks`, `blockAt(at)` and `walk()` (every block, depth first). Each block is built only when you reach it. `current` turns false once a write replaces it; its `text` stays that version's, but its blocks read the document as it stands, so read `editor.doc` again after an `await` |
 | `grammar`, `Grammar` | `grammar(plugins).parse(text)` reads text into a `Doc` the way an editor running those plugins would, with no editor mounted: a build step, a test, a server |
 | `Block` | A block as your code reads it: its `type`, `data`, `text`, `body` and `children` (a title row is its `title`, not a child), its `parent` and `index`, whether its text is `prose`, `from` and `to` (its bytes in the document, read when you ask, so a box writes itself with `edit().replace({ from: block.from, to: block.to }, text)`; both -1 where it isn't placed, which a key typed in it can make it, so ask the document again or take the block `update` hands you), `walk()` over it and every block inside it (a title row right after its container), and `is(type)` to narrow its data. A node reads as one `Block` while the document holds it. On a title row the pair spans what the row itself holds: the whole `:::note Title` line, or just the title inside `<summary>` tags, which are the container's. That title's pair holds no line ending (nor does a table cell's), so write none over it. `rowContentRange` says where the title sits on either. Its `pieces` are its inline content in document bytes, and `byteAt(i)` and `offsetAt(byte)` turn an offset into `text` into a document byte and back (in a quote, its lines' markers sit between) |
-| `Piece` | One piece of a block's inline content: its `kind` (core's names: `text`, `emphasis`, `strong`, `strikethrough`, `inlineCode`, `link`, ... or a plugin's), `from` and `to` in document bytes, its `text`, its `data` (undefined on a built-in), its `children`, and `is(type)` to narrow its data. A `text` piece holds one line at most, so its character `i` is at byte `from + i` |
+| `Piece` | One piece of a block's inline content: its `kind` (core's names: `text`, `emphasis`, `strong`, `strikethrough`, `inlineCode`, `link`, ... or a plugin's), `from` and `to` in document bytes, its `text`, its `data` (what a plugin construct's `read` returned; undefined on a built-in or a mark), its `children`, and `is(type)` to narrow its data. A `text` piece holds one line at most, so its character `i` is at byte `from + i` |
 | `InlineType` | An inline construct's type, as `piece.is` takes it: one of `builtin.inlines`, or a plugin's |
 | `Mode` | A presentation mode as a plugin reads it: its `name`, whether it's `editable`, and where its `markers` show (`shown`, `hidden`, in the caret's block or the construct under the caret) |
 | `View` | Where the document sits on screen, in document bytes and viewport rects: `boxOf(block)`, `boxesOf({ from, to })` (one box per line of text, one per cell), `caretBox()`, `posAt({ x, y })` (the byte a click there would put the caret at, placing nothing), `reveal(block or byte, { align })` (true once it's on screen) and `overlay(el, block or byte)`, which pins your element at the block's top-left corner through scrolls and edits and returns the call that takes it off. A block that isn't placed (its `from` is -1) reveals false and drops its overlay, as a key typed inside it can make it, so pin again on the block you read next. A block from another editor or a parsed document isn't placed here either: `boxOf` gives null, `reveal` false, an overlay on it never pins, and a dev build warns once. Keys and right-clicks inside an overlay are yours, as in the host's header |
@@ -713,31 +728,62 @@ The factory's inputs. The required ones are live getters, for the node, the inde
 
 ### Code-block languages
 
-_(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. The editor ships a curated couple dozen (the usual suspects: javascript, python, rust, bash, sql, the C family, and friends) plus their aliases, since every grammar is bundle weight for every host. `listLanguages()` tells you exactly which ones you have.
-
-Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error: the fence still authors, commits and round-trips, and its body renders untokenized. A language your plugin's `setup` registers highlights, and shows in the picker, only in the editors that list your plugin. `listLanguages`, `getLanguageAliases` and `highlightCode` have no editor to ask, so they answer for every installed plugin.
+_(pre-freeze / unstable)_ What highlights fenced code. The editor ships no grammars: a fence paints plain until a plugin value contributes a `code` highlighter. The first-party one is the `highlight` package (`@voithos-labs/aragonite-highlight`), with 24 common languages by default and every highlight.js grammar for a host that passes `allLanguages`; its README (`packages/highlight/README.md`) has its options. A language no listed highlighter knows isn't an error: the fence still authors, commits and round-trips, and its body paints plain.
 
 | Export | Role |
 | --- | --- |
-| `registerLanguage` | Add a grammar under a name, with optional aliases; register-once, so a repeat call with the same name throws |
-| `listLanguages` | Every registered language once, under its canonical name, sorted: the rows a picker with every installed plugin offers |
-| `getLanguageAliases` | The other spellings a language answers to, asked by any of them: what a picker's filter matches on |
-| `highlightCode` | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface |
-| `LanguageGrammar` | The registry's read shape: the resolved name and its definition |
-| `LanguageFn` | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
+| `CodeHighlighter` | What `contributes(...).code` answers: `highlight(body, language)` gives the body's tokens, `null` for plain, or a promise of either, and `languages()` lists what it answers, in the order the picker shows them. Several plugins may contribute one; the picker lists each plugin's rows after the ones before it, and for each spelling the first plugin listing it is asked. The `highlight` package is one |
+| `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap, and of two over one range the first listed is outside); a language is `{ name, aliases? }`, one picker row with its search keys |
+| `CodePainter` | `renderSource`'s second argument: `code(body, language)` paints a body through the editor's highlighters, plain where none answers, and repaints when a late answer arrives |
 | `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence |
-| `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`highlightCode`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
+| `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`paint.code`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
 | `fenceBodyAsDrawn` | The body as `renderFencedSource` draws it: the line break before the closer belongs to the closer's line, unless the body is blank or nothing closes the fence |
 | `fencedBodyRange` | Where the body sits in a fenced source, its line ending left out, or null while the fence has no body line yet. It's what a fenced kind returns from its descriptor's `bodyRange` |
 
-```ts
-import { registerLanguage } from '@voithos-labs/aragonite/plugin';
-import elixir from 'highlight.js/lib/languages/elixir';
+A grammar the package doesn't highlight (one you wrote, say) goes on its engine, loaded the first time a fence names it:
 
-registerLanguage('elixir', elixir, ['ex', 'exs']);
+```ts
+import { highlight } from '@voithos-labs/aragonite-highlight';
+import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
+
+const code = highlight({
+	renderer: highlightJs({
+		languages: { mylang: { load: () => import('./mylang-grammar'), aliases: ['mlg'] } }
+	})
+});
 ```
 
-The picker shows `elixir` once, and `ex` and `exs` are search keys for that row, so a user typing `ex` finds it without knowing the full name.
+The picker shows `mylang` once, after the package's own rows, and `mlg` is a search key for that row, so a user typing `mlg` finds it without knowing the full name.
+
+A plugin with a language of its own contributes a highlighter for that language alone, and an editor may list it beside the `highlight` package:
+
+```ts
+import { definePlugin, type CodeToken } from '@voithos-labs/aragonite/plugin';
+
+const LANGUAGES = [{ name: 'recipe', aliases: ['rcp'] }];
+
+export const recipe = definePlugin({
+	name: 'recipe',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		code: {
+			languages: () => LANGUAGES,
+			highlight: (body: string): CodeToken[] =>
+				[...body.matchAll(/\b(?:mix|bake|rest)\b/g)].map((step) => ({
+					from: step.index,
+					to: step.index + step[0].length,
+					class: 'code-tok-keyword'
+				}))
+		}
+	})
+});
+```
+
+- **The theme colors these classes:** `code-tok-keyword`, `-string`, `-number`, `-literal`, `-comment`, `-type`, `-function`, `-variable`, `-operator`, `-punctuation`, `-meta`, `-attr`, `-regexp`, `-symbol`, `-subst`, `-added`, `-removed`, `-heading` and `-link`, in light and dark. Any other class is yours to style.
+- **Hand back the same `languages()` array** while the list holds; the editor rebuilds its language table when it gets a new one.
+- **Answer at once when you can.** A promise leaves the fence plain until it settles, on every edit, so an engine that always answers later (a worker, say) unpaints the fence at each key.
+- **Only a plugin value contributes one.** A `setup` plugin ships its highlighter as a second plugin, a value, for hosts to list beside it.
 
 ### Plugin views
 
@@ -753,7 +799,7 @@ _(pre-freeze / unstable)_ What an inline widget, a decoration's widget or badge,
 
 ### Inline authoring
 
-_(pre-freeze / unstable)_ Syntax inside a paragraph: recognize it at a trigger character, render it as an **atomic widget** (one indivisible rendered thing the caret can sit beside but not inside), give it an editing policy. Several recognizers can share one trigger character; the editor asks them in priority order, and a **prefix handler** is one that's only asked where its multi-character prefix matches. The render paths and the tier's limits: [Inline kinds](plugin-guide/inline-kinds.md#inline-kinds).
+_(pre-freeze / unstable)_ A `setup` plugin's registrars for syntax inside a paragraph, on their way out: a recognizer at a trigger character, asked in priority order (a **prefix handler** only where its multi-character prefix matches), drawn as an **atomic widget** with an editing policy. New syntax is a plugin value's `inline`, `mark` or `markerPair` instead ([The plugin unit](#the-plugin-unit), [Inline kinds](plugin-guide/inline-kinds.md#inline-kinds)).
 
 | Export | Role |
 | --- | --- |
@@ -812,8 +858,6 @@ The policy, the descriptor's `editing` field. Every field is optional:
 - `onEdge`, the edge behavior: `'select'` or `'step-over'`;
 - `onSelectedKey`, a selected-key handler, which receives an `InlineWidgetEditingContext`;
 - `claimsActivationClick`, whether the widget goes somewhere on a click the way a link does.
-
-The policy field by field: [The editing policy](plugin-guide/inline-kinds.md#the-editing-policy).
 
 ### Commands and keybindings
 

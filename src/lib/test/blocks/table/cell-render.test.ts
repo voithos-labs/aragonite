@@ -63,6 +63,15 @@ function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = 
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
 		activationClick: () => false,
+		ownWidgets: {
+			editorFor: () => {
+				throw new Error('no plugin editor in a fixture');
+			},
+			byteAt: () => -1,
+			keys: () => {
+				throw new Error('no document read in a fixture');
+			}
+		},
 		reportRenderError: () => {},
 		get islands() {
 			return islands;

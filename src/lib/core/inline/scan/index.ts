@@ -8,6 +8,7 @@ import type { GrammarView } from '../../../schema/block-openers';
 import { buildTree } from './build';
 import type { LinkReferenceResolver } from './definitions';
 import { Scan, specialFinder } from './scan';
+import { inlineTable } from './inline-table';
 
 /** Both bounds are checked at runtime: a caller outside the type checker that passes only the
  *  source would get one whole-string text node, wrong output that looks like a result. */
@@ -23,7 +24,7 @@ export function readInline(
 	}
 	if (start >= end) return [];
 	// Most keystrokes land in a span with nothing to read, which then costs one search.
-	if (specialFinder(raw, end)(start) < 0)
+	if (specialFinder(raw, end, inlineTable(grammar))(start) < 0)
 		return [{ kind: 'text', start, end, text: raw.slice(start, end) }];
 	const { tokens, shapes } = new Scan(raw, start, end, resolver, grammar).run();
 	return buildTree(raw, tokens, shapes);

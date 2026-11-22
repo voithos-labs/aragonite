@@ -4,7 +4,7 @@
  * setext headings and tables come out of its continuation scan.
  */
 
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { AnyBlockKind, AnyInlineKind, CstNode } from '../core/nodes';
 import type { ParsedLine } from '../core/lines';
 import { hasPendingRegistrationChecks, markGrammarConsumed } from './registration-pending';
 import { flushPendingRegistrationChecks } from './registration-checks';
@@ -14,6 +14,7 @@ import { onBlockKindChange, openerRecords } from './block-kind-descriptor';
 import { registerBuiltInDescriptors } from './built-in-descriptors';
 import type { BlockCompleter } from './block-completions';
 import type { MarkedLines } from '../core/strip-lines';
+import type { InstalledInline } from './inline-type';
 
 /** Created fresh for each block and read synchronously; never keep it past the call. */
 export interface OpenContext {
@@ -350,6 +351,9 @@ export interface GrammarView {
 	/** The line shapes of the containers this grammar opens that mark every line (a quote's `>`),
 	 *  each once: what the range core reads a line's markers through. */
 	markedLines(): readonly MarkedLines[];
+	/** The inline constructs this editor's plugins contribute, by kind; the same map until they
+	 *  change. */
+	inlines?(): ReadonlyMap<AnyInlineKind, InstalledInline>;
 }
 
 // ── Outer block starts ──────────────────────────────────────────────────

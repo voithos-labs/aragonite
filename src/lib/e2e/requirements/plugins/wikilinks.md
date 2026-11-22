@@ -1,11 +1,10 @@
 # Feature: links that follow on a plain click
 
 `[[note]]` written in prose renders as a link carrying the note's name. The harness plugin
-(`routes/test/plugins/wikilinks`) reproduces limestone's integration: a `[[` recognizer at
-prefix-override priority, and a widget registered with `revealSource` and
-`claimsActivationClick`. The seed's editor sets `linkClick: 'plain'`, the host's way of saying a
-plain click follows a link, the way it does on a web page. The widget decides whether to act by
-asking its `isActivationClick` prop, so these tests go through the same answer the editor uses.
+(`routes/test/plugins/wikilinks`) reproduces limestone's integration as an `inline()` widget on
+`[[` with `arrows: 'into'` and `click: 'follow'`. The seed's editor sets `linkClick: 'plain'`, the
+host's way of saying a plain click follows a link, the way it does on a web page. The editor
+decides the click and runs the plugin's `follow`, by the same answer it uses for a link.
 Seed `wikilinks`: a link mid-prose in block 0, a plain place to type in block 1, a Markdown link
 in block 2, a link and a bare URL in a table cell in block 3, a bare URL in block 4 and an angle
 autolink (`<https://...>`) in block 5.

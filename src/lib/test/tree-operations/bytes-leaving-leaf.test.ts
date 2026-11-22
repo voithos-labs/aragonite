@@ -26,7 +26,7 @@ function leaving(
 	const range = { start, end: node.raw.indexOf(to, start) + to.length };
 	const store = storedAsAt(doc, path, fixtureReading({}, mode));
 	const cut = replaceRangeInLeaf(node, range, '', store);
-	return { node, store, cut, moved: bytesLeavingLeaf(node, range, store) };
+	return { node, store, cut, moved: bytesLeavingLeaf(node, range, store, true) };
 }
 
 const shown = (bytes: string, store: StoredAs): string => shownOf(readBack(bytes, store)!, store);

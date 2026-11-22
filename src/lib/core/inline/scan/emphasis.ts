@@ -1,6 +1,6 @@
-// Emphasis, strong emphasis and strikethrough pairing: commonmark.js's delimiter
+// Emphasis, strong emphasis, strikethrough and plugin mark pairing: commonmark.js's delimiter
 // algorithm over a linked list, with its per-kind lower bounds so unmatched closers stay linear.
-import type { InlineNode } from '../../nodes';
+import type { AnyInlineKind, InlineNode } from '../../nodes';
 import { closeWrapper, openWrapper, type Token } from './token';
 
 export interface Delimiter {
@@ -12,6 +12,8 @@ export interface Delimiter {
 	count: number;
 	canOpen: boolean;
 	canClose: boolean;
+	/** A plugin mark's kind: its runs pair as `~`'s do, at equal length. */
+	kind?: AnyInlineKind;
 	previous: Delimiter | null;
 	next: Delimiter | null;
 }
@@ -41,10 +43,9 @@ export class DelimiterStack {
 				closer = closer.next;
 				continue;
 			}
-			const key =
-				closer.char === '~'
-					? `~${closer.length}`
-					: `${closer.char}${+closer.canOpen}${closer.length % 3}`;
+			const key = pairsExactly(closer)
+				? `${closer.char}${closer.length}`
+				: `${closer.char}${+closer.canOpen}${closer.length % 3}`;
 			const floor = openersBottom.has(key) ? openersBottom.get(key) : bottom;
 			let opener = closer.previous;
 			while (opener && opener !== bottom && opener !== floor && !pairs(opener, closer))
@@ -63,10 +64,11 @@ export class DelimiterStack {
 
 	/** Wraps the bytes between the two runs; returns the closer to look at next. */
 	private pair(opener: Delimiter, closer: Delimiter): Delimiter | null {
-		const use = closer.char === '~' ? closer.count : closer.count >= 2 && opener.count >= 2 ? 2 : 1;
+		const exact = pairsExactly(closer);
+		const use = exact ? closer.count : closer.count >= 2 && opener.count >= 2 ? 2 : 1;
 		opener.token.litEnd -= use;
 		closer.token.litStart += use;
-		const kind = closer.char === '~' ? 'strikethrough' : use === 1 ? 'emphasis' : 'strong';
+		const kind = closer.kind ?? (exact ? 'strikethrough' : use === 1 ? 'emphasis' : 'strong');
 		const wrapper: InlineNode = {
 			kind,
 			start: opener.token.litEnd,
@@ -88,10 +90,12 @@ export class DelimiterStack {
 
 function pairs(opener: Delimiter, closer: Delimiter): boolean {
 	if (opener.char !== closer.char || !opener.canOpen) return false;
-	if (closer.char === '~') return opener.length === closer.length;
+	if (pairsExactly(closer)) return opener.length === closer.length;
 	const oddMatch =
 		(closer.canOpen || opener.canClose) &&
 		closer.length % 3 !== 0 &&
 		(opener.length + closer.length) % 3 === 0;
 	return !oddMatch;
 }
+
+const pairsExactly = (d: Delimiter): boolean => d.char === '~' || d.kind !== undefined;

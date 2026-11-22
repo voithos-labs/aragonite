@@ -27,7 +27,7 @@ And a map, so you can jump straight at your question:
 | [The conformance kits](#the-conformance-kits) | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share |
 | [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
 | [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
-| [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's |
+| [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for a `setup` plugin's recognizer: claiming your own bytes, declining everyone else's |
 | [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkmenupickacrossswap) | One cell for a caret menu: a pick that waits writes nothing into a note the host loaded meanwhile |
 | [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your plugin declares, the check a listing runs |
 | [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
@@ -88,8 +88,8 @@ isPluginInstalled('conspiracy'); // false, and declaredPluginKind('conspiracy') 
 
 What that clears, and what it deliberately leaves alone:
 
-- Cleared: everything a plugin registered (kinds, components, openers, commands, languages, inline syntax, paste transforms, directive names and the rest), the renderer a plugin set on a renderer slot, and the installed-plugin set.
-- Built-in registrations survive, exactly as in production, the built-in paste surfaces and code languages included, so a case that pastes into a built-in block after a reset needs nothing re-registered.
+- Cleared: everything a plugin registered (kinds, components, openers, commands, inline syntax, paste transforms, directive names and the rest), the renderer a plugin set on a renderer slot, and the installed-plugin set.
+- Built-in registrations survive, exactly as in production, the built-in paste surfaces included, so a case that pastes into a built-in block after a reset needs nothing re-registered.
 - Runtime state is untouched. The undo stack, the selection, and any live document are yours to set up.
 - It's test-only and throws outside a detected test environment. Detection is Vitest-specific (it reads `process.env.VITEST`), so a suite on another runner (Jest, Playwright component tests, anything else) opts in first and puts the detected defaults back after. The same switch lets a test call a register function outside a plugin's setup, which throws in a dev build otherwise:
 
@@ -422,13 +422,15 @@ Two rules of thumb from that container. Ask the **grammar**, not your own spelli
 
 **`runInlineKindConformance(profile)`**
 
-The same idea one layer down: register your recognizer (the `registerInlineSyntax` call, one of possibly several asked in priority order at your trigger character), then point the kit at it and it drives the behaviors a recognizer can break without moving a byte. The profile's fields, before the cells:
+This kit checks a `setup` plugin's recognizer, the `registerInlineSyntax` call. A construct made by `inline()`, `mark()` or `markerPair()` reads only in an editor running your plugin, which the kit doesn't mount yet, so test one by mounting an editor with your plugin ([Mounting the editor under jsdom](#mounting-the-editor-under-jsdom)) and checking its bytes and what it draws.
+
+The same idea one layer down: register your recognizer (one of possibly several asked in priority order at your trigger character), then point the kit at it and it drives the behaviors a recognizer can break without moving a byte. The profile's fields, before the cells:
 
 - `trigger`: the single character you registered on.
 - `prefix`: your multi-character opener. Omit it for a bare-trigger registration.
 - `priority`: only when two registrations share a prefix at different priorities; it says which one is yours.
 - `kind`: the inline kind you created with `declarePluginInlineKind`. Omit it for a recognizer that only builds built-in nodes over its own bytes.
-- `fixtures`: single-line sources your recognizer claims; `overlapFixtures`: sources it must decline (the star cell below).
+- `fixtures`: single-line sources your recognizer claims; `overlapFixtures`: sources where your prefix also spells a built-in construct (the star cell below).
 
 The cells:
 
@@ -436,13 +438,13 @@ The cells:
 | --- | --- |
 | `claims` | Every fixture you supply is actually claimed by **your** recognizer, starting at your own prefix |
 | `roundTrip` | Your fixtures, and the kit's interleavings of them with other syntax, round-trip, and your claims tile the scanned range with no gap |
-| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, you decline it |
+| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, the parse holds the built-in's construct, not yours |
 | `widget` | Your claimed bytes are one atomic unit, and your rendered widget spans exactly the bytes it stands for |
 | `editingPolicy` | Your widget's editing declaration exists, is in the vocabulary the caret-edge dispatch actually reads, and (for one-press delete) leaves bytes behind that round-trip |
 | `imageClaim` | A recognizer that builds built-in nodes comes with the `rewriteImage` hook the write paths need |
 | `registration` | Your recognizer is registered the way your profile says, alone at its prefix and priority |
 
-`claims`, `roundTrip`, and `registration` always run; the other four you declare. Here's a profile for an `![[…]]` embed like the [guide's](plugin-guide/inline-kinds.md#inline-kinds), in a variant that declares its own `EMBED` kind and renders it with a Svelte component (the guide's own builds built-in images instead):
+`claims`, `roundTrip`, and `registration` always run; the other four you declare. Here's a profile for an `![[…]]` embed recognizer that declares its own `EMBED` kind and renders it with a Svelte component:
 
 ```ts
 import { runInlineKindConformance } from '@voithos-labs/aragonite/testing';
@@ -462,7 +464,7 @@ it('the embed recognizer conforms', async () => {
 });
 ```
 
-(The guide's own embed, the one that builds real built-in images, asserts `imageClaim` instead, and excuses `widget` and `editingPolicy`, since a built-in kind renders through the built-in widget.)
+(An embed recognizer that builds real built-in images asserts `imageClaim` instead, and excuses `widget` and `editingPolicy`, since a built-in kind renders through the built-in widget.)
 
 Its `detail` strings say how much each cell actually chewed through. For that profile:
 
@@ -488,7 +490,7 @@ Error: overlapDecline asserts but the profile supplies no overlapFixtures
 
 `fixtures` is required and non-empty, and a fixture your recognizer doesn't claim **fails** rather than being skipped: every cell reads the nodes a fixture produces, so an unclaimed one would enroll your syntax without testing it. `widget` and `editingPolicy` only look at the nodes of your `kind` (built-in nodes your recognizer builds are `imageClaim`'s job), so if none of your fixtures produce your kind, an asserted `widget` fails instead of passing over some images, and so does an asserted `editingPolicy` whose policy deletes the widget in one press.
 
-**`overlapDecline` is the cell most inline authors haven't considered, and on a reserved trigger it's required.** Registering on a trigger the built-in scanner owns (`[`, `!`, `*`, `` ` ``, and friends) puts your recognizer ahead of the built-in case, so wherever your prefix matches you're claiming those bytes whether or not they spell something the built-in owns. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`; a recognizer that claims every `![[…]]` takes it, and the document still round-trips, as a wiki embed nobody ever wrote. Supply the sources where your grammar and a built-in one collide; the kit asks your recognizer at every position the scanner would, and requires a decline at each. A recognizer on a reserved trigger may not excuse this cell at all, since the overlap exists by construction.
+**`overlapDecline` is the cell most inline authors haven't considered, and on a reserved trigger it's required.** Registering on a trigger the built-in scanner owns (`[`, `!`, `*`, `` ` ``, and friends) puts your recognizer ahead of the built-in case. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`, and on `[` and `!` the editor declines your claim there itself. Supply the sources where your grammar and a built-in one collide; the kit parses each and requires that none holds a node of yours, so a fixture that spells no built-in construct fails as an overlap that isn't one. A recognizer on a reserved trigger may not excuse this cell at all, since the overlap exists by construction.
 
 The other three declared cells are yours to excuse, since only you know whether they have anything to bite on. But an excuse the kit can falsify, it falsifies: declaring `imageClaim` exempt while a fixture produces a stamped built-in (a built-in node the scan marked as your recognizer's) fails, as does excusing `widget` for a kind that **is** a registered live widget, or `editingPolicy` for a kind that declares one.
 

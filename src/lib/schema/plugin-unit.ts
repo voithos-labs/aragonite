@@ -18,6 +18,9 @@ import type { Block, Doc } from './doc-view';
 import type { PasteRewrite } from './paste-rewrite';
 import type { Selection, SelectionInput } from './selection-read';
 import type { BlockPaint, Paint, PaintContext } from '../decorations/paint';
+import type { CodeHighlighter } from './code-highlighter';
+import type { Inline } from './inline-type';
+import type { MarkerPair } from './marker-pair-maker';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -61,6 +64,9 @@ export interface Contribution {
 	/** Its block types, made by `lineBlock`, `fencedBlock` or `container`; each is named after the
 	 *  plugin (`callouts/callout`) when an editor first runs it. */
 	blocks?: readonly BlockType<unknown>[];
+	/** Its inline constructs, made by `inline`, `mark` or `markerPair`; each is named after the
+	 *  plugin as a block type is. */
+	inlines?: readonly (Inline<unknown> | MarkerPair)[];
 	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin.
 	 *  A function it returns runs once, when the plugin is turned off or the editor unmounts. */
 	setup?(editor: Editor): void | (() => void);
@@ -88,6 +94,8 @@ export interface Contribution {
 	/** What the paint reads of `block`, a top-level block, from its content alone (the footnotes it
 	 *  references, say), handed back as `ctx.depends`; a changed answer paints the screen again. */
 	paintDepends?(block: Block): string;
+	/** Highlights fenced code in the languages it lists, which the code block's picker offers. */
+	code?: CodeHighlighter;
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */

@@ -26,6 +26,11 @@ const at = (relPath: string, code: string): Probe => ({ relPath, code });
 
 const WIDGETS = 'src/lib/components/blocks/text/widget-interaction.ts';
 
+// ── G4.365 a parse names its grammar ─────────────────────────────────────────
+
+// The editor-less entry points, whose missing grammar falls back to every installed plugin's.
+const PARSE_ENTRIES: string[] = [SOURCE.parser, SOURCE.inlineEntry, SOURCE.quoteExtent];
+
 // ── The rules ────────────────────────────────────────────────────────────────
 
 const RULES: CallSiteRule[] = [
@@ -65,6 +70,34 @@ const RULES: CallSiteRule[] = [
 			'parse(unclosed(")"), { scope: \'fragment\' })',
 			'parseInline(raw); JSON.parse(raw); doc.parse(raw); reparse(raw);',
 			'export function parse(source: string): Document {'
+		]
+	},
+	{
+		id: 'G4.365 inside the library every parse names the grammar it reads',
+		// The published kits read every installed plugin, and the three entry points are the fallback.
+		population: (file) =>
+			file.relPath.startsWith(SOURCE_DIR.library) &&
+			!file.relPath.startsWith(SOURCE_DIR.testing) &&
+			!PARSE_ENTRIES.includes(file.relPath),
+		calls: ['parse', 'parseInline', 'blockquoteExtent'],
+		holds: (args) => /\bgrammar\b/.test(args),
+		reason:
+			"a parse with no grammar reads every installed plugin's syntax and none of an editor's own `inline()` constructs: pass the editor's grammar, or call `readBlocks` / `readInline`",
+		allowed: {
+			'src/lib/core/inline/scan/index.ts :: readInline':
+				'the bounds error names the call to make in its message'
+		},
+		atLeastCallers: 0,
+		hits: [
+			at('src/lib/components/x.ts', 'const nodes = parseInline(raw, 0, raw.length);'),
+			at('src/lib/x.ts', "parse(raw, { scope: 'fragment' });"),
+			at('src/lib/x.ts', 'blockquoteExtent(lines, 0, lines.length);')
+		],
+		misses: [
+			at('src/lib/x.ts', 'parseInline(raw, 0, n, reading.resolver, reading.grammar);'),
+			at('src/lib/x.ts', "parse(raw, { grammar, scope: 'fragment' });"),
+			at('src/lib/testing/x.ts', 'parseInline(raw, 0, raw.length);'),
+			at('src/lib/core/parser.ts', "parse(raw, { scope: 'document' });")
 		]
 	},
 	{

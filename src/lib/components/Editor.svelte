@@ -181,6 +181,7 @@
 	import { insertRows } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
 	import { installBlockTypes } from '../schema/block-type';
+	import { installInlines } from '../schema/inline-type';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, modeOf, type PresentationMode } from '../presentation-mode';
 	import { selectionOf, selectionTarget } from '../editor-actions/commit/plugin-selection';
@@ -305,7 +306,14 @@
 		contributions.read(installPluginList(values, reportPluginError, previous));
 	const firstUnits = pluginEntries ? installList(pluginEntries.values) : [];
 	let units = $state.raw<readonly InstalledPlugin[]>(firstUnits);
-	let ownBlocks = installBlockTypes(firstUnits, reportPluginError);
+	// The block types and inline constructs a list's plugins contribute, held until it stops running.
+	const installOwn = (kept: readonly InstalledPlugin[]) => {
+		const types = installBlockTypes(kept, reportPluginError);
+		const constructs = installInlines(kept, reportPluginError);
+		const release = () => (types.release(), constructs.release());
+		return { blocks: types.blocks, inlines: constructs.inlines, release };
+	};
+	let ownBlocks = installOwn(firstUnits);
 	onDestroy(() => ownBlocks.release());
 
 	// The editor runs exactly the plugins it lists; with no `plugins` prop, every installed one.
@@ -344,7 +352,8 @@
 	const editorGrammar = createEditorGrammar({
 		plugins: activePlugins,
 		syntax,
-		blocks: () => ownBlocks.blocks
+		blocks: () => ownBlocks.blocks,
+		inlines: () => ownBlocks.inlines
 	});
 
 	// Plain state, not $derived: structural edits write `doc` and `blockIds` directly.
@@ -1878,7 +1887,7 @@
 	): UseFailure | null {
 		const kept = installList(entries.values, was.units);
 		// Both lists' block types are held until the call lands, so one in both keeps its facts.
-		const blocks = installBlockTypes(kept, reportPluginError);
+		const blocks = installOwn(kept);
 		held(blocks);
 		const names = runningNames(entries, kept);
 		// A plugin listed again with other options starts over on them, whichever shape it has.

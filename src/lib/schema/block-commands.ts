@@ -28,6 +28,7 @@ import {
 	type GlobalCommandRun
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
+import { inlineMarkForCommand } from './inline-construct-policy';
 import { pluginEditorFor, type EditorContext } from './plugin-install';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 import type { MarkActivation } from '../decorations/mark-activation';
@@ -305,7 +306,8 @@ function resolveUnplaced(
 	target: KindCommandTarget,
 	activation: PluginActivation
 ): BlockLocalResolution {
-	if (getCommand(id, activation)) return { tier: 'dead' };
+	const marks = marksHere(id, activation);
+	if (!marks && getCommand(id, activation)) return { tier: 'dead' };
 	const handler = getBlockCommand(target.kind, id, activation);
 	// A context is built only where a handler matched, so a built-in id costs nothing extra on the
 	// read a host may run per selection change.
@@ -316,11 +318,17 @@ function resolveUnplaced(
 	}
 	const dir = MOVE_STEP[id];
 	if (dir && target.getPath) return { tier: 'move', target, path: target.getPath, dir };
-	if (isBuiltinCommandId(id)) {
+	if (marks || isBuiltinCommandId(id)) {
 		return target.runCommand ? { tier: 'builtin', target } : { tier: 'no-surface' };
 	}
 	const installedElsewhere = blockCommands.has(compositeKey(target.kind, id));
 	return installedElsewhere && !handler ? { tier: 'unlisted' } : { tier: 'dead' };
+}
+
+/** Whether `id` is a plugin mark's toggle in this editor: its own plugins list it and a row names
+ *  it. The list is asked first, since every key that runs a command ends here at that one lookup. */
+function marksHere(id: AnyCommandId, activation: PluginActivation): boolean {
+	return activation.contributions?.command(id) !== undefined && inlineMarkForCommand(id) !== null;
 }
 
 /** The full lookup, a command the target's block type places first, then global commands. The
@@ -332,7 +340,8 @@ function resolveCommand(
 ): CommandResolution {
 	const placed = target && placedAt(id, target, activation);
 	if (placed) return placed;
-	const globalRun = getCommand(id, activation);
+	// A plugin mark's toggle runs at the block, as Mod+B does, though its plugin lists it.
+	const globalRun = !marksHere(id, activation) && getCommand(id, activation);
 	if (globalRun) return { tier: 'global', run: globalRun };
 	return target ? resolveUnplaced(id, target, activation) : { tier: 'no-surface' };
 }
@@ -468,7 +477,8 @@ function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	if (!gates.ownsRange() || runsOnItsBlock(id, gates.rangeInOneBlock()))
 		return { kind: 'block-local', ranged: false };
 	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
-	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) return { kind: 'block-local', ranged: true };
+	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id) && !marksHere(id, gates.activation))
+		return { kind: 'block-local', ranged: true };
 	const router = gates.crossBlockCommands;
 	return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
 }

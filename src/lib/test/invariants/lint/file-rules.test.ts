@@ -1319,7 +1319,7 @@ const RULES: FileRule[] = [
 			'src/lib/schema/plugin-install.ts':
 				'the function itself, which runs its callback with no plugin installing',
 			'src/lib/components/editor-built-ins.ts':
-				'the editor’s own bootstraps (blocks, code languages), which the reset keeps',
+				'the editor’s own built-in blocks, which the reset keeps',
 			'src/lib/schema/plugin-registry.ts':
 				'`registerCore`, which also flags a key the registry can’t tell is built-in so the reset keeps it',
 			'src/lib/schema/built-in-descriptors.ts':
@@ -1332,7 +1332,7 @@ const RULES: FileRule[] = [
 		reason:
 			'an entry belongs to no plugin only through one of these routes: an editor built-in goes in `registerEditorBuiltIns` or registers as its module loads, a built-in key the reset can’t recognize goes through `registerCore`, and a kind a plugin declared already answers to that plugin',
 		hits: [
-			'registerAsCore(() => registerLanguage(name, grammar));',
+			'registerAsCore(() => registerBlockKind(kind, spec));',
 			"import { registerAsCore as runUnowned } from './plugin-install';"
 		],
 		misses: ['grammars.registerCore(key, language);', 'registerAsCoreLater();']
@@ -1350,22 +1350,39 @@ const RULES: FileRule[] = [
 		misses: ['recordMeasured(id: string, height: number): void;', 'oracle.measured(id);']
 	},
 	{
-		id: 'G4.78 the editor’s built-in bootstraps run only through registerEditorBuiltIns',
-		matches: /\b(?:registerBuiltInBlocks|bootstrapCodeLanguages)\s*\(/,
+		id: 'G4.78 the editor’s built-in blocks register only through registerEditorBuiltIns',
+		matches: /\bregisterBuiltInBlocks\s*\(/,
 		allowed: {
 			'src/lib/components/editor-built-ins.ts':
-				'`registerEditorBuiltIns`, which runs the two bootstraps as no plugin',
-			'src/lib/components/built-in-blocks.ts': 'the definition of `registerBuiltInBlocks`',
-			'src/lib/components/blocks/code/code-bootstrap.ts':
-				'the definition of `bootstrapCodeLanguages`'
+				'`registerEditorBuiltIns`, which runs the bootstrap as no plugin',
+			'src/lib/components/built-in-blocks.ts': 'the definition of `registerBuiltInBlocks`'
 		},
 		reason:
-			'a bootstrap called anywhere else registers the editor’s built-ins as whichever plugin’s setup reached it first, so they resolve only where that plugin is listed and the test reset drops them: call `registerEditorBuiltIns()` instead',
-		hits: ['bootstrapCodeLanguages();', 'registerBuiltInBlocks ();'],
+			'the bootstrap called anywhere else registers the editor’s built-ins as whichever plugin’s setup reached it first, so they resolve only where that plugin is listed and the test reset drops them: call `registerEditorBuiltIns()` instead',
+		hits: ['registerBuiltInBlocks();', 'registerBuiltInBlocks ();'],
 		misses: [
 			'registerEditorBuiltIns();',
 			'registerBuiltInDescriptors();',
-			'import { bootstrapCodeLanguages } from "./code-bootstrap";'
+			'import { registerBuiltInBlocks } from "./built-in-blocks";'
+		]
+	},
+	// Miss-analysis: the core held its own grammars until the highlight package took them, and no
+	// rule kept a core-only editor's first load free of highlight.js.
+	{
+		id: 'G4.373 the core imports no highlight.js',
+		population: under(SOURCE_DIR.library),
+		matches: /\b(?:from|import)\s*\(?\s*['"]highlight\.js(?:\/[^'"]*)?['"]/,
+		reason:
+			'the core paints a fence plain and draws the tokens a plugin’s `code` highlighter answers; highlight.js belongs to the highlight package an editor lists',
+		reaches: [SOURCE.pluginBarrel],
+		hits: [
+			at('src/lib/x.ts', "import hljs from 'highlight.js/lib/core';"),
+			at('src/lib/x.ts', "import type { LanguageFn } from 'highlight.js';"),
+			at('src/lib/x.ts', "const go = await import('highlight.js/lib/languages/go');")
+		],
+		misses: [
+			at('src/lib/x.ts', "import { highlight } from '@voithos-labs/aragonite-highlight';"),
+			at('src/lib/x.ts', "// highlight.js's own scopes, read as the theme's classes")
 		]
 	},
 	// Miss-analysis: `isGridKind` had no scan behind it, so a site holding a descriptor kept

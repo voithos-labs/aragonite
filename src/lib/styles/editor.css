@@ -62,7 +62,7 @@
 	--color-error: var(--md-color-error);
 }
 
-/* Classes applied by code-renderer.ts; an unknown one falls through to --code-tok-unknown
+/* Classes a code highlighter's tokens carry; an unknown one falls through to --code-tok-unknown
  * (inherit), so highlighting never changes the text and never forces a color. */
 :where(.editor) .code-tok-keyword {
 	color: var(--code-tok-keyword);

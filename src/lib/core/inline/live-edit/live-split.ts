@@ -27,7 +27,13 @@ import {
 	reopenAfter,
 	type CutConstruct
 } from './close-reopen';
-import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
+import {
+	getInlineConstructPolicy,
+	markerSideEdge,
+	type SplitBehavior
+} from '../../../schema/inline-construct-policy';
+import type { GrammarView } from '../../../schema/block-openers';
+import { isInlineWidget } from '../inline-widgets';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
@@ -62,7 +68,8 @@ export function rebalanceLiveSplit(
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so closing and
 	// reopening them would move delimiters the user is looking at: the literal cut stands.
 	if (paintsOnlyChrome(inlines, read.raw, { grammar: reading.grammar })) return null;
-	const moved = wholeConstructEdge(inlines, offset);
+	const whole = wholeConstructEdge(inlines, offset, read.raw, reading.grammar);
+	const moved = sideOuterEdge(inlines, whole ?? offset) ?? whole;
 	const at = moved ?? offset;
 	const bytes = moved === null ? read : { ...read, cut: moved };
 	const chain = splittableChainAt(inlines, at);
@@ -92,7 +99,7 @@ export function cutOutsideWhole(node: NodeView, offset: number, reading: Reading
 	if (!isProseKind(node.kind)) return offset;
 	const { start, end } = getContentRange(node);
 	const inlines = readInline(node.raw, start, end, reading.resolver, reading.grammar);
-	return wholeConstructEdge(inlines, offset) ?? offset;
+	return wholeConstructEdge(inlines, offset, node.raw, reading.grammar) ?? offset;
 }
 
 // ── What the caller already decided ──────────────────────────────────────────
@@ -141,17 +148,80 @@ function readSplitBytes(
 
 // ── The chain ────────────────────────────────────────────────────────────────
 
-/** Where a cut inside a construct split whole (a URL, an escape) moves to: the edge the caret was
- *  nearer, so the construct goes whole to one half (`docs/design/live-mode.md` § 4.4). */
-function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): number | null {
+/** What a cut inside `node` does: an `inline()` construct's `split`, else its kind's row, else
+ *  `whole` for a widget, no part of which stands alone. Undefined for a node with no say. */
+export function splitBehaviorOf(
+	node: InlineNode,
+	raw: string,
+	grammar: GrammarView
+): SplitBehavior | undefined {
+	const declared =
+		node.syntaxClaim?.split ??
+		getInlineConstructPolicy(node.kind)?.splitBehavior ??
+		grammar.inlines?.().get(node.kind)?.split;
+	if (declared) return declared;
+	return isInlineWidget(node, raw, grammar) ? 'whole' : undefined;
+}
+
+/** Where a cut inside a construct split whole (a URL, an escape, a widget) moves to: the edge the
+ *  caret was nearer, so the construct goes whole to one half (`docs/design/live-mode.md` § 4.4). */
+function wholeConstructEdge(
+	inlines: readonly InlineNode[],
+	offset: number,
+	raw: string,
+	grammar: GrammarView
+): number | null {
 	let found: number | null = null;
+	let claimed: InlineNode | null = null;
 	for (const node of inlineDescendants(inlines)) {
-		const takesWhole = getInlineConstructPolicy(node.kind)?.splitBehavior === 'whole';
+		const within = claimed !== null && node !== claimed && node.syntaxClaim === claimed.syntaxClaim;
+		if (node.syntaxClaim && !within) claimed = node;
+		const takesWhole = splitBehaviorOf(node, raw, grammar) === 'whole';
 		if (takesWhole && offset > node.start && offset < node.end) {
-			found = offset - node.start <= node.end - offset ? node.start : node.end;
+			// An own-syntax link's text carries its claim's `split`: the text says which side the
+			// caret is nearer, and the cut leaves the claim there, never at the text's own edge.
+			const whole = within && claimed!.syntaxClaim?.split === 'whole' ? claimed! : node;
+			found = offset - node.start <= node.end - offset ? whole.start : whole.end;
 		}
 	}
 	return found;
+}
+
+/** Where a cut that would part a marker side from its text moves to: past every such side, so each
+ *  stays on the half holding its text, as a fresh start lands outside it (`live-mode.md` § 4.2). */
+function sideOuterEdge(inlines: readonly InlineNode[], offset: number): number | null {
+	const sides: { node: InlineNode; textAfter: boolean }[] = [];
+	for (const node of inlineDescendants(inlines)) {
+		const edge = markerSideEdge(node);
+		if (edge) sides.push({ node, textAfter: edge.start === node.end });
+	}
+	if (sides.length === 0) return null;
+	const nodes = [...inlineDescendants(inlines)];
+	let at = offset;
+	for (let hops = 0; hops < sides.length; hops++) {
+		const { before, after } = halfEdges(nodes, at);
+		const parted = sides.find(({ node, textAfter }) =>
+			textAfter ? node.end === before : node.start === after
+		);
+		if (!parted) break;
+		at = parted.textAfter ? parted.node.start : parted.node.end;
+	}
+	return at === offset ? null : at;
+}
+
+/** Where each half of a cut at `at` really ends and starts: a construct with none of its content
+ *  on one side of the cut goes whole to the other half, its hidden run with it. */
+function halfEdges(nodes: readonly InlineNode[], at: number): { before: number; after: number } {
+	let [before, after] = [at, at];
+	for (let grew = true; grew;) {
+		grew = false;
+		for (const node of nodes) {
+			const content = constructContentRange(node);
+			if (content?.start === before && node.start < before) [before, grew] = [node.start, true];
+			if (content?.end === after && node.end > after) [after, grew] = [node.end, true];
+		}
+	}
+	return { before, after };
 }
 
 /** Every construct holding `offset`, outermost first, or null when one cannot be cut open, since

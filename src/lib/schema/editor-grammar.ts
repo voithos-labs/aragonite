@@ -4,7 +4,7 @@
  * its own list names and the block types those plugins contribute. A `parse()` with no editor
  * reads `defaultGrammarView`, the same table over every installed plugin.
  */
-import type { AnyBlockKind } from '../core/nodes';
+import type { AnyBlockKind, AnyInlineKind } from '../core/nodes';
 import type { BlockView } from './block-view';
 import {
 	blockViewFor,
@@ -24,6 +24,9 @@ import { pluginInstallGeneration } from './plugin-install';
 import type { InstalledBlock } from './block-type';
 import type { BlockCompleter } from './block-completions';
 import type { MarkedLines } from '../core/strip-lines';
+import type { InstalledInline } from './inline-type';
+
+const NO_INLINES: ReadonlyMap<AnyInlineKind, InstalledInline> = new Map();
 
 /** GFM syntaxes a host can switch off for one editor (the `syntax` prop); each is on by default. */
 export interface SyntaxOptions {
@@ -48,6 +51,8 @@ export function createEditorGrammar(
 		syntax?: SyntaxOptions;
 		/** The block types this editor's plugins contribute; a new list after `use`. */
 		blocks?: () => readonly InstalledBlock[];
+		/** The inline constructs this editor's plugins contribute; a new map after `use`. */
+		inlines?: () => ReadonlyMap<AnyInlineKind, InstalledInline>;
 	} = {}
 ): EditorGrammar {
 	const activation = options.plugins ?? everyInstalledPlugin;
@@ -109,6 +114,7 @@ export function createEditorGrammar(
 			refresh();
 			return marked;
 		},
+		inlines: () => options.inlines?.() ?? NO_INLINES,
 		blockView(kind) {
 			refresh();
 			return ownViews.get(kind) ?? blockViewFor(kind, activation);

@@ -131,6 +131,36 @@ export const noteNumbers = definePlugin({
 
 A paint is asked only for blocks on screen, and kept while a block's bytes and the answers stand. When an answer changes or moves (a reference added above, a new line typed above one), the blocks on screen paint again; a key that changes no answer paints only the block it was typed in.
 
+An inline widget reads it the same way: `depends` beside its `draw` in `inline()`, and the answers in `props.depends`. Draw the reference as its number instead of painting a mark over it:
+
+```ts
+const ref = inline({
+	name: 'ref',
+	label: 'Footnote reference',
+	prefix: '[^',
+	// Past the `]` that ends the label, and a `:` after it.
+	match: (text, at, end) => {
+		let i = at + 2;
+		while (i < end && text[i] !== ']' && !/\s/.test(text[i])) i++;
+		if (i === at + 2 || i >= end || text[i] !== ']') return -1;
+		return text[i + 1] === ':' && i + 1 < end ? i + 2 : i + 1;
+	},
+	// A note's own `[^a]:` is no reference: null leaves it to the editor.
+	read: (claim) => (claim.endsWith(':') ? null : { label: claim.slice(2, claim.indexOf(']')) }),
+	sample: 'a note[^a] here',
+	widget: { delete: 'whole', arrows: 'over', click: 'none' },
+	depends: referencesIn,
+	draw(target, props) {
+		const show = (p: typeof props) =>
+			(target.textContent = String(numbering(p.depends).get(p.data.label)));
+		show(props);
+		return { update: show };
+	}
+});
+```
+
+A widget is drawn again when an answer changes or moves, and a key that changes none asks one block.
+
 ## In React or Vue
 
 `depends` sits on the block type there too: `lineBlock({ ..., depends: headingsIn, draw: reactBlock(Toc) })`, and the component reads `ctx.depends`. Since an array handed over never changes, it keys a memo: `useMemo(() => outline(ctx.depends), [ctx.depends])` in React, a `computed` over `props.ctx.depends` in Vue.

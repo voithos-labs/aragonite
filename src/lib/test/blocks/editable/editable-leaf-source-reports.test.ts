@@ -69,7 +69,7 @@ describe('a shown painted source', () => {
 		await settleEditor();
 
 		expect(mounted!.reports.mock.calls).toEqual([[COMMITTED]]);
-		expect(mounted!.paint.mock.calls).toEqual([[COMMITTED]]);
+		expect(mounted!.paint.mock.calls.map(([text]) => [text])).toEqual([[COMMITTED]]);
 		expect(el.querySelector('span')?.textContent).toBe(COMMITTED);
 	});
 
@@ -83,7 +83,7 @@ describe('a shown painted source', () => {
 		await settleEditor();
 
 		expect(mounted!.reports.mock.calls).toEqual([[COMMITTED]]);
-		expect(mounted!.paint.mock.calls).toEqual([[COMMITTED]]);
+		expect(mounted!.paint.mock.calls.map(([text]) => [text])).toEqual([[COMMITTED]]);
 	});
 
 	it('repaints and reports once after a native input outside a composition', async () => {
@@ -93,7 +93,7 @@ describe('a shown painted source', () => {
 		await settleEditor();
 
 		expect(mounted!.reports.mock.calls).toEqual([[`${SOURCE}!`]]);
-		expect(mounted!.paint.mock.calls).toEqual([[`${SOURCE}!`]]);
+		expect(mounted!.paint.mock.calls.map(([text]) => [text])).toEqual([[`${SOURCE}!`]]);
 	});
 
 	it('reports an edit the leaf applies itself once', async () => {

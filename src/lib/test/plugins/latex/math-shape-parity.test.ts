@@ -28,7 +28,7 @@ import {
 	readMathSource,
 	type MathSource
 } from '#packages/latex/src/math-shape.js';
-import { paintedSplit } from './painted-split';
+import { paintedSplit, plainPainter } from './painted-split';
 import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => registerMathBlock(testView()));
@@ -186,7 +186,7 @@ const ROUTES: Route[] = [
 	[
 		'the painter',
 		({ text, split }) => {
-			expect(renderMathSource(text).textContent).toBe(text);
+			expect(renderMathSource(text, plainPainter).textContent).toBe(text);
 			expect(paintedSplit(text)).toEqual(split && { ...split, body: fenceBodyAsDrawn(split) });
 		},
 		EOL_BLIND_FORMS

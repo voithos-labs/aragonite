@@ -423,6 +423,10 @@
 		getContentVersion,
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),
 		activationClick,
+		ownWidgets: wiring.ownWidgets(
+			() => node,
+			() => myPath
+		),
 		get islands() {
 			return decorationEngine ? decorationEngine.paintOf(node, myPath).islands : NO_ISLANDS;
 		},

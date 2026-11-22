@@ -42,6 +42,8 @@ const CALLERS: readonly string[] = [
 	'src/lib/schema/command-id.ts',
 	'src/lib/schema/commands.ts',
 	'src/lib/schema/inline-construct-policy.ts',
+	// A plugin mark's policy row names its toggle as the built-in marks' rows name theirs.
+	'src/lib/schema/inline-type.ts',
 	'src/lib/schema/keybinding-overrides.ts',
 	'src/lib/schema/keybindings.ts',
 	'src/lib/schema/range-indent-forms.ts',

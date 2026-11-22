@@ -1,9 +1,9 @@
 // One forward pass over `[start, end)`: handlers first at each position, then the built-in reading
 // of the character there. Brackets and delimiter runs are resolved as in commonmark.js; the result
-// is a flat token list the tree is built from.
+// is a flat token list the tree is built from. A handler's claim at `[` or `![` stands only where
+// a probe, a second pass from that bracket, finds no built-in link or image closing inside it.
 import type { InlineNode } from '../../nodes';
 import type { GrammarView } from '../../../schema/block-openers';
-import { resolvesIn } from '../../../schema/plugin-activation';
 import { recordInlineScan } from '../../../perf/instruments';
 import {
 	emailEnd,
@@ -26,12 +26,8 @@ import { DelimiterStack, type Delimiter } from './emphasis';
 import { matchCharRef } from './entities';
 import { labelEnd, labelKey, readInlineTail, STILL_OPEN } from './link-grammar';
 import { rawHtmlReader } from './raw-html';
-import {
-	handlersFor,
-	registeredTriggers,
-	registryVersion,
-	type InlineHandler
-} from './plugin-syntax';
+import { inlineTable, type InlineTable } from './inline-table';
+import type { InlineHandler } from './plugin-syntax';
 import { readSizeHint } from './size-hint';
 import { closeWrapper, openWrapper, token, type Token } from './token';
 
@@ -73,25 +69,14 @@ interface Target {
 	end: number;
 }
 
-const BUILT_IN_SPECIALS = /[\\`&\n*_~[\]!<@]|[wW]{3}\.|[hH][tT]{2}[pP][sS]?:\/\//g;
-let specials = { version: -1, pattern: BUILT_IN_SPECIALS };
-
-/** Every position the parse may read: the built-in characters, bare url starts, and triggers. */
-function specialPattern(): RegExp {
-	if (specials.version !== registryVersion()) {
-		const triggers = [...registeredTriggers()].map((c) => c.replace(/[\\\]^-]/, '\\$&')).join('');
-		const source = triggers
-			? `${BUILT_IN_SPECIALS.source}|[${triggers}]`
-			: BUILT_IN_SPECIALS.source;
-		specials = { version: registryVersion(), pattern: new RegExp(source, 'g') };
-	}
-	return specials.pattern;
-}
-
 /** The next position at or after `from` the parse may read, or -1. The search stops at `end`, so
  *  a short range of a long block costs the range, not the rest of the block. */
-export function specialFinder(raw: string, end: number): (from: number) => number {
-	const pattern = specialPattern();
+export function specialFinder(
+	raw: string,
+	end: number,
+	table: InlineTable
+): (from: number) => number {
+	const pattern = table.specials;
 	const searched = end < raw.length ? raw.slice(0, end) : raw;
 	return (from) => {
 		pattern.lastIndex = from;
@@ -99,14 +84,56 @@ export function specialFinder(raw: string, end: number): (from: number) => numbe
 	};
 }
 
+/** What a scan and the probes it runs share: one reader per range, built once from its start. */
+interface Readers {
+	start: number;
+	table: InlineTable;
+	next: (from: number) => number;
+	rawHtml: (pos: number) => number;
+	closers?: (from: number, length: number) => number;
+	/** The one probe the range's brackets are asked through; probes never nest. */
+	probe?: Scan;
+	/** The last question a probe answered, which a bare url and the claim after it both ask. */
+	askedAt: number;
+	askedUntil: number;
+	answer: boolean;
+}
+
+function readersFor(raw: string, start: number, end: number, table: InlineTable): Readers {
+	return {
+		start,
+		table,
+		next: specialFinder(raw, end, table),
+		rawHtml: rawHtmlReader(raw, end),
+		askedAt: -1,
+		askedUntil: -1,
+		answer: false
+	};
+}
+
+/** Whether a `](` or a `][` starts in `[from, until)`: where a bracket whose text opens with
+ *  another can close as a link, since it can be no shortcut reference. */
+function holdsLinkTail(raw: string, from: number, until: number): boolean {
+	for (let i = from; i < until; i++) {
+		if (raw[i] === ']' && (raw[i + 1] === '(' || raw[i + 1] === '[')) return true;
+	}
+	return false;
+}
+
+/** Whether a plugin prefix opens the same bracket a built-in link or image opens. */
+const opensBuiltinBracket = (prefix: string) => prefix[0] === '[' || prefix.startsWith('![');
+
 export class Scan {
 	readonly tokens: Token[] = [];
 	readonly shapes: Shape[] = [];
 	private readonly delimiters = new DelimiterStack();
 	private readonly brackets: Bracket[] = [];
 	private readonly bareEmails = new Set<Token>();
-	private readonly rawHtml: (pos: number) => number;
-	private closers?: (from: number, length: number) => number;
+	private readonly readers: Readers;
+	/** On a probe, where the claim it asks about ends; -1 on a scan. */
+	private until: number;
+	/** Set on a probe: the answer once the bracket it opened at `start` resolves. */
+	private probed?: boolean;
 	/** Where the literal text not yet in a token starts. */
 	private pending: number;
 	/** An email's local part reaches back no further than this. */
@@ -118,22 +145,54 @@ export class Scan {
 
 	constructor(
 		private readonly raw: string,
-		private readonly start: number,
+		private start: number,
 		private readonly end: number,
 		private readonly resolver: LinkReferenceResolver | undefined,
-		private readonly grammar: GrammarView
+		private readonly grammar: GrammarView,
+		/** Set on a probe: its parent's readers, and where the claim it asks about ends. */
+		probe?: { readers: Readers; until: number }
 	) {
-		recordInlineScan();
 		this.pending = this.emailFloor = start;
-		this.rawHtml = rawHtmlReader(raw, end);
+		this.until = probe?.until ?? -1;
+		if (!probe) recordInlineScan();
+		this.readers = probe?.readers ?? readersFor(raw, start, end, inlineTable(grammar));
+	}
+
+	private get isProbe(): boolean {
+		return this.until >= 0;
 	}
 
 	run(): this {
-		const next = specialFinder(this.raw, this.end);
+		const { next } = this.readers;
 		for (let at = next(this.start); at >= 0;) at = next(this.claim(at) || this.read(at));
 		if (this.pending < this.end) this.tokens.push(token(this.pending, this.end));
 		this.delimiters.process(null);
 		return this;
+	}
+
+	/** Points a probe at the bracket at `start`, its state as a new scan's. */
+	private restart(start: number, until: number): this {
+		this.tokens.length = this.shapes.length = this.brackets.length = 0;
+		this.delimiters.top = null;
+		this.awaitingLabel = this.probed = undefined;
+		this.bareEmails.clear();
+		this.start = this.pending = this.emailFloor = start;
+		this.until = until;
+		this.bracketIds = this.linksBefore = 0;
+		return this;
+	}
+
+	/** Whether the bracket a built-in link or image opens at `start` closes as one before `until`. */
+	private completes(): boolean {
+		const { next } = this.readers;
+		for (let at = this.start; at >= 0 && at < this.until && this.probed === undefined;) {
+			at = next(this.claim(at) || this.read(at));
+		}
+		return this.probed === true;
+	}
+
+	private get rawHtml() {
+		return this.readers.rawHtml;
 	}
 
 	private push(t: Token, crossable = false): void {
@@ -158,19 +217,38 @@ export class Scan {
 	}
 
 	private handlerClaim(pos: number): { node: InlineNode; handler: InlineHandler } | null {
-		for (const handler of handlersFor(this.raw[pos])) {
+		for (const handler of this.readers.table.handlers(this.raw[pos])) {
 			const { prefix } = handler;
+			const bracket = opensBuiltinBracket(prefix);
+			// A probe reads a bracket claim as the brackets it spells, so probes never nest.
+			if (bracket && this.isProbe) continue;
 			if (pos + prefix.length > this.end || !this.raw.startsWith(prefix, pos)) continue;
-			if (!this.reads(handler)) continue;
 			const node = handler.recognizer(this.raw, pos, this.end, this.grammar);
-			if (node) return { node, handler };
+			if (!node) continue;
+			// The editor declines for the plugin where a built-in link or image closes in its claim.
+			if (bracket && this.builtinCompletes(pos, node.end)) return null;
+			return { node, handler };
 		}
 		return null;
 	}
 
-	/** Whether this editor reads the handler's plugin. */
-	private reads(handler: InlineHandler): boolean {
-		return resolvesIn(this.grammar.activation, handler.owner);
+	private builtinCompletes(pos: number, until: number): boolean {
+		const { readers, raw } = this;
+		if (readers.askedAt === pos && readers.askedUntil === until) return readers.answer;
+		const text = pos + (raw[pos] === '!' ? 2 : 1);
+		const tail = holdsLinkTail(raw, pos, until);
+		if (raw[text] === '[' && !tail) return false;
+		// Its one `]` ending the claim, the bracket closes there with no tail only as a reference.
+		const oneClose = raw[until - 1] === ']' && raw.indexOf(']', text) === until - 1;
+		if (oneClose && !tail && !this.resolver?.(raw.slice(text, until - 1))) return false;
+		readers.probe ??= new Scan(raw, pos, this.end, this.resolver, this.grammar, {
+			readers,
+			until
+		});
+		readers.answer = readers.probe.restart(pos, until).completes();
+		readers.askedAt = pos;
+		readers.askedUntil = until;
+		return readers.answer;
 	}
 
 	private read(pos: number): number {
@@ -212,7 +290,7 @@ export class Scan {
 			case 'H':
 				return this.bareUrl(pos);
 			default:
-				return pos + 1;
+				return this.readers.table.mark(raw[pos]) ? this.delimiterRun(pos) : pos + 1;
 		}
 	}
 
@@ -231,8 +309,9 @@ export class Scan {
 	private backtickRun(pos: number): [after: number, close: number] {
 		let after = pos;
 		while (after < this.end && this.raw[after] === '`') after++;
-		this.closers ??= backtickRuns(this.raw, this.start, this.end);
-		return [after, this.closers(after, after - pos)];
+		const { readers } = this;
+		const closers = (readers.closers ??= backtickRuns(this.raw, readers.start, this.end));
+		return [after, closers(after, after - pos)];
 	}
 
 	private backticks(pos: number): number {
@@ -249,6 +328,9 @@ export class Scan {
 		while (after < this.end && raw[after] === char) after++;
 		const length = after - pos;
 		if (char === '~' && length > 2) return after;
+		// A plugin mark's run pairs only at its own length, flanking as `*` does.
+		const mark = this.readers.table.mark(char);
+		if (mark && length !== mark.length) return after;
 		const before = codePointBefore(raw, pos);
 		const next = codePointAt(raw, after);
 		const [spaceBefore, spaceAfter] = [isUnicodeWhitespace(before), isUnicodeWhitespace(next)];
@@ -260,7 +342,15 @@ export class Scan {
 		if (!canOpen && !canClose) return after;
 		const t = token(pos, after);
 		this.push(t, char === '_');
-		this.delimiters.push({ token: t, char, length, count: length, canOpen, canClose });
+		this.delimiters.push({
+			token: t,
+			char,
+			length,
+			count: length,
+			canOpen,
+			canClose,
+			...(mark && { kind: mark.kind })
+		});
 		return after;
 	}
 
@@ -301,6 +391,10 @@ export class Scan {
 		const target = active
 			? (readInlineTail(this.raw, pos + 1, this.end) ?? this.resolve(reference))
 			: null;
+		if (this.isProbe && opener.start === this.start) {
+			this.probed = target !== null;
+			return pos + 1;
+		}
 		const closing = token(pos, target ? target.end : pos + 1);
 		if (!target) {
 			this.push(closing);

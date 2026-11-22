@@ -254,9 +254,13 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
+| G4.365 | Inside the library, every parse names the grammar it reads | L |
+| G4.366 | Which marker sides pair is read in the live join alone | L |
 | G4.367 | A plugin's read of the document walks no block it wasn't asked for | L |
 | G4.368 | Reading a block, held or at the caret, walks nothing and costs as much at 2,000 blocks as at 400 | harness |
 | G4.369 | The process-wide block-command and paste-transform names gain no caller | L |
+| G4.372 | A core-only editor's production page carries no highlight.js | harness |
+| G4.373 | The core imports no highlight.js | L |
 
 ### The entries
 
@@ -417,7 +421,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.77 · One way to belong to no plugin.** `registerAsCore` (`schema/plugin-install.ts`) runs registrations as if no plugin were installing. Its callers are the editor's bootstrap (`registerEditorBuiltIns`) and a registry's `registerCore` for a key it can't recognize itself, both kept by the test reset; `activateDirectives`, which the reset drops; and `registerBuiltInDescriptors` with the modules that register at load. The scan matches the bare name, so an aliased import is caught at its import line. `lint/file-rules.test.ts`.
 
-**G4.78 · The editor's built-ins come in one way.** `registerBuiltInBlocks` and `bootstrapCodeLanguages` are called only from `src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, which runs them as no plugin (G4.77). Called anywhere else, whichever plugin's setup gets there first owns the paragraph component or the code languages. Shipped source only; unit tests may call the bootstraps directly. `lint/file-rules.test.ts`.
+**G4.78 · The editor's built-ins come in one way.** `registerBuiltInBlocks` is called only from `src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, which runs it as no plugin (G4.77). Called anywhere else, whichever plugin's setup gets there first owns the paragraph component. Shipped source only; unit tests may call the bootstrap directly. `lint/file-rules.test.ts`.
 
 **G4.79 · One way to ask whether it's a grid.** Ask through `src/lib/schema/block-kind-descriptor.ts` :: `isGridKind` (or `isGridDescriptor` with a descriptor in hand). Any other file with a `'grid'` string in its code fails, a list check like `['strip', 'grid'].includes(contract)` included; declaring the contract, naming it in the type, `role="grid"`, and the insert menu's search keyword are left alone. `lint/file-rules.test.ts`.
 
@@ -571,7 +575,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.209 · The list item's marker stays in its cell.** A prefix handed to a child block paints only on text, so an item that opened with a code block, a table or another list once drew no marker and hid its bytes. `ambientPrefixForFirst` is named only where a plugin container offers its prefix and where `BlockList` hands it on. `lint/file-rules.test.ts`.
 
-**G4.211 · Every source-showing kind gets the caret rows.** `widget-reveal-caret.spec.ts` types each kind's opening byte before a body that completes it, in source and live mode, and expects the caret one past the byte with the source shown (G1.115 is the runtime half). The scan fails a file registering `revealSource: true` with no row there, or, for a kind with a content span (inline math), a row whose spec is gone. `e2e/lint/reveal-kinds-covered.test.ts`.
+**G4.211 · Every source-showing kind gets the caret rows.** `widget-reveal-caret.spec.ts` types each kind's opening byte before a body that completes it, in source and live mode, and expects the caret one past the byte with the source shown (G1.115 is the runtime half). The scan fails a file whose widget shows its source (`revealSource: true`, or an `inline()` widget's `arrows: 'into'` or `click: 'source'`) with no row there, or, for a kind with a content span (inline math), a row whose spec is gone. `e2e/lint/reveal-kinds-covered.test.ts`.
 
 **G4.212 · The shared clipboard helper.** A spec that calls `navigator.clipboard` or presses the paste chord itself only works where the real clipboard answers the page, which WebKit's doesn't, so both fail the scan outside `e2e/clipboard-arm.ts`. The helper is where each engine's clipboard lives: the system clipboard in Chromium, an in-page store the `page` fixture installs in WebKit. `e2e/lint/e2e-drivers.test.ts`.
 
@@ -743,8 +747,16 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
 
+**G4.365 · A parse names its grammar.** Inside `src/lib`, every call of `parse`, `parseInline` or `blockquoteExtent` passes a grammar. Without one they read every installed plugin's syntax and none of an editor's own `inline()` constructs, so a construct would read as text on that path. The published kits and the three entry points are excluded. `lint/call-site-rules.test.ts`; the runtime half is the `everyPluginTableReads` counter row in `test/plugins/inline/inline-widget.svelte.test.ts`.
+
+**G4.366 · Marker sides pair in one place.** Which side of a `markerPair()` opens or closes which pair, by its `key` or by nesting order, decides what a live removal puts back and what a range carries off. Only `core/inline/live-edit/live-join.ts` reads a side's `pair` from its policy row, so the removal and the clipboard can't disagree. `lint/marker-pair-home.test.ts`; the behaviour rows are `test/plugins/inline/marker-pair-removal.svelte.test.ts`.
+
 **G4.367 · A read walks nothing.** `schema/doc-view.ts` and `editor-actions/commit/document-read.ts` name no `walkBlocks` or `pathOfNode`: a held block finds its node through the runs each write reports (G4.371), and a lost one reads -1. `lint/file-rules.test.ts`.
 
 **G4.368 · A block read costs its block.** A plugin reading the block at the caret, a block by index and a block it holds, on every edit, walks no document and builds and measures as many blocks at 2,000 as at 400. A key no plugin reads logs no runs and builds no block. `test/plugins/read/held-block.svelte.test.ts` on `documentWalks`, `blocksBuilt`, `hintRunsLogged`.
 
 **G4.369 · Retiring plugin names, frozen.** `registerBlockCommand`, the `BlockCommand*` types, `CommandRun`, `PluginCommandId`, `AnyCommandId`, `registerPasteTransform`, `PasteTransform` and `applyPasteTransforms` are named only in the production files that name them today, and no file registers through them more often than it does today. A new command goes on a block type's `chords` or `actions`, or in `commands`, and a new paste rewrite in `rewrites`. `lint/retiring-plugin-names.test.ts`.
+
+**G4.372 · A core-only page carries no highlight.js.** A core-only editor paints code plain, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name a highlight.js module, through either build. The core's prebuilt inlines what it imports, which the maps can't see, so on that route G4.373 is the guard. Highlighting is the highlight package's, which an editor lists.
+
+**G4.373 · The core imports no highlight.js.** No module under `src/lib/` imports it, so the page G4.372 builds can't start carrying it again; the highlight package and the tests may. `lint/file-rules.test.ts`.

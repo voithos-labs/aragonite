@@ -6,7 +6,7 @@ import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { constructContentRange, inlineDescendants, readInline } from '#lib/core/inline/index.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { getInlineConstructPolicy } from '#lib/schema/inline-construct-policy.js';
+import { splitBehaviorOf } from '#lib/core/inline/live-edit/live-split.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import type { Reading } from '#lib/schema/reading.js';
@@ -66,7 +66,7 @@ export function checkHost(reading: Reading = testReading()): CheckHost {
 	const liveCut = (text: string, offset: number) => {
 		let cut: 'whole' | 'literal' | null = null;
 		for (const node of holding(text, offset)) {
-			const split = getInlineConstructPolicy(node.kind)?.splitBehavior;
+			const split = splitBehaviorOf(node, text, reading.grammar);
 			const besideTick = /`/.test(text.slice(offset - 1, offset + 1));
 			if (split === 'whole') return 'whole';
 			if (split === 'plain' && constructContentRange(node)) cut = 'literal';

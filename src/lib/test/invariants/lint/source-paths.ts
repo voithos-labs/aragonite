@@ -22,6 +22,8 @@ export const SOURCE = {
 	// ── Parsing and the inline pipeline ─────────────────────────────────────
 	cstNodes: 'src/lib/core/nodes.ts',
 	parser: 'src/lib/core/parser.ts',
+	inlineEntry: 'src/lib/core/inline/index.ts',
+	quoteExtent: 'src/lib/core/parsers/blockquote.ts',
 	lineSplitter: 'src/lib/core/lines.ts',
 	inlineRender: 'src/lib/core/inline-render.ts',
 	directiveGrammar: 'src/lib/core/directive/grammar.ts',
@@ -184,7 +186,7 @@ export const SOURCE = {
 export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	// ── Published entry points and root modules ─────────────────────────────
 	publicBarrel: 'export { createEditor',
-	pluginBarrel: 'export function highlightCode',
+	pluginBarrel: 'export { definePlugin, isPluginInstalled }',
 	svelteBarrel: 'export { default as Editor }',
 	testingBarrel: 'export function applyPasteTransforms',
 	editorProps: 'export interface EditorOptions',
@@ -197,6 +199,8 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	// ── Parsing and the inline pipeline ─────────────────────────────────────
 	cstNodes: 'export type LeafBlockKind',
 	parser: 'export function parse(',
+	inlineEntry: 'export function parseInline(',
+	quoteExtent: 'export function blockquoteExtent(',
 	lineSplitter: 'export function displayLines',
 	inlineRender: 'function renderNode(',
 	directiveGrammar: 'export type DirectiveTier',

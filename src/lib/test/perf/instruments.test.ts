@@ -67,6 +67,8 @@ const EMPTY: PerfSnapshot = {
 	parseBytes: 0,
 	inlineComputeCount: 0,
 	inlineScanCount: 0,
+	everyPluginTableReads: 0,
+	inlineTableBuilds: 0,
 	formatCoverageReads: 0,
 	screenReads: 0,
 	markerRunReads: 0,

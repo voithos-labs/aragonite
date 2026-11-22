@@ -13,8 +13,7 @@ How each tier reads it:
 | Plugin instance logic | `editor.presentationMode` on your `EditorContext` (a live getter); subscribe to the `presentationModeChange` event for flips |
 | Editable leaf | `leaf.getPresentationMode()` on the `createEditableLeaf` surface |
 | Container block (factory) | `container.getPresentationMode()` on the `createContainerBlock` surface |
-| Inline widget (rendering) | The `getPresentationMode` prop your view is mounted with, a **live getter** beside `{ inline, source }` |
-| Inline widget (editing) | `ctx.presentationMode` on the `InlineWidgetEditingContext` your `onSelectedKey` handler receives ([Inline kinds](inline-kinds.md#inline-kinds)) |
+| Inline widget | `mode` on the `WidgetProps` your `draw` gets, a `Mode` whose `name` is the mode, which gets an update when the mode flips; `key(event, props)` gets the same props ([Inline kinds](inline-kinds.md#rendering-it-as-a-widget)) |
 | Block component (DOM tier) | The `data-presentation` attribute on the editor root (`el.closest('[data-presentation]')`); **absent means `'source'`**. The fallback for a component holding only a DOM handle, and the one read that isn't live ([What is live, what is point-in-time](#what-is-live-what-is-point-in-time)) |
 
 ```ts
@@ -36,8 +35,9 @@ You read the mode yourself in two cases: when your component owns an edit afford
 
 `preview-inline` narrows the reveal to the construct under the caret, inside the focused block. For plugin inline kinds nothing changes at the API level:
 
-- **A registered inline widget** keeps its editing policy exactly as in every other live mode (`revealSource` still opens the source on caret entry).
-- **A recognized but unwidgeted inline kind** renders as its raw source text, the same as in source mode. If you want rendered-until-touched behavior, register it as a widget with `revealSource`.
+- **An inline widget** keeps its editing policy exactly as in every other live mode (`arrows: 'into'` still shows its bytes on caret entry).
+- **A construct drawn as its bytes** (the `class` arm) shows them, the same as in source mode. If you want rendered-until-touched behavior, make it a widget with `arrows: 'into'`.
+- **A marker pair's side** shows its bytes once the caret is beside it, as a built-in marker does.
 
 `live` asks nothing new of you: render for it as you render for `preview-block` (hide your own source chrome) and edit in it as you edit in source.
 

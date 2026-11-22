@@ -22,9 +22,12 @@ import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,
 	isCharacterLikeWidget,
+	revealsOnArrow,
+	revealsOnClick,
 	widgetActivates,
 	widgetElByStart
 } from '../../../core/inline/inline-widgets';
+import { keyOwnWidget } from '../widget-portal';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { widgetSourceRange } from '../../../core/inline/widget-shell';
 import { asRawOffset } from '../../../core/coordinate-spaces';
@@ -390,7 +393,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const start = widgetSourceRange(island)?.start;
 		if (start === undefined) return null;
 		const inline = widgetsOf().find(
-			(n) => n.start === start && widgetEditing(n.kind)?.revealSource
+			(n) => n.start === start && revealsOnClick(widgetEditing(n.kind))
 		);
 		return inline ? { inline } : null;
 	}
@@ -422,7 +425,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (painted) return painted;
 		// The box test, for a point the DOM cannot answer, such as a synthetic call.
 		for (const inline of widgetsOf()) {
-			if (!widgetEditing(inline.kind)?.revealSource) continue;
+			if (!revealsOnClick(widgetEditing(inline.kind))) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();
@@ -611,28 +614,32 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const widget = widgetNodeIn(node, selectedWidget.sourceStart, deps.reading);
 		if (widget === null) return false;
 
-		// The kind's editing policy takes its own keys first.
-		const consumed = widgetEditing(widget.kind)?.onSelectedKey?.(e, {
-			node,
-			inline: widget,
-			widgetStart: widget.start,
-			widgetEnd: widget.end,
-			index: deps.index,
-			preSelectOffset: selectedWidget.preSelectOffset,
-			editorContentWidth: deps.getEditorContentWidth(),
-			presentationMode: deps.reading.mode(),
-			// The widget stays selected through its own key, so the write leaves the caret alone.
-			updateContent: (newRaw, caretBefore, caretAfter) =>
-				void deps.writeText({
-					...rangeWrite(node, { raw: newRaw, caret: caretAfter }),
-					intent: 'typed',
-					history: 'join-typing',
-					mode: 'authored',
-					source: 'widget-key',
-					sessionAnchor: caretBefore,
-					leavesCaret: true
-				})
-		});
+		// The kind's editing policy takes its own keys first; an `inline()` widget's `key` gets the
+		// props its drawing holds.
+		const shell = deps.getEl() && widgetElByStart(deps.getEl()!, widget.start);
+		const consumed =
+			(shell && keyOwnWidget(shell, e)) ??
+			widgetEditing(widget.kind)?.onSelectedKey?.(e, {
+				node,
+				inline: widget,
+				widgetStart: widget.start,
+				widgetEnd: widget.end,
+				index: deps.index,
+				preSelectOffset: selectedWidget.preSelectOffset,
+				editorContentWidth: deps.getEditorContentWidth(),
+				presentationMode: deps.reading.mode(),
+				// The widget stays selected through its own key, so the write leaves the caret alone.
+				updateContent: (newRaw, caretBefore, caretAfter) =>
+					void deps.writeText({
+						...rangeWrite(node, { raw: newRaw, caret: caretAfter }),
+						intent: 'typed',
+						history: 'join-typing',
+						mode: 'authored',
+						source: 'widget-key',
+						sessionAnchor: caretBefore,
+						leavesCaret: true
+					})
+			});
 		// Prevented here, so no step after the block's keydown writes the key again.
 		if (consumed) {
 			e.preventDefault();
@@ -701,7 +708,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		fromTrailingEdge: boolean
 	): void {
 		const enteredOffset = fromTrailingEdge ? widget.end : widget.start;
-		if (widgetEditing(widget.kind)?.revealSource) {
+		if (revealsOnArrow(widgetEditing(widget.kind))) {
 			void startReveal(widget, fromTrailingEdge ? widget.end - widget.start : 0);
 		} else {
 			const target = {

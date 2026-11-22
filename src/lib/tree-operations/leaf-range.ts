@@ -27,6 +27,7 @@ import {
 } from '../core/lines';
 import {
 	cleanLiveJoinSeam,
+	withoutKeptSides,
 	type CleanedJoin,
 	type JoinEndpoint,
 	type JoinSeam
@@ -184,13 +185,18 @@ function spliceInLeaf(
 	};
 }
 
-/** The bytes `[start, end)` of `node` carry out of it: the leaf cut down to the range by two in-leaf
- *  cuts, so a format run the range cuts through leaves closed at its edges, as the kept half does. */
+/** The bytes `[start, end)` of `node` carry out of it, cut down by two in-leaf cuts so a run they
+ *  cut through closes at their edges; `alone` unless they are one end of a range across blocks. */
 export function bytesLeavingLeaf(
-	node: NodeView,
-	range: { start: number; end: number },
-	store: StoredAs
+	whole: NodeView,
+	drawn: { start: number; end: number },
+	store: StoredAs,
+	alone: boolean
 ): string {
+	// A cut of the block's whole text takes every marker side in it, so the piece carries them all.
+	const { node, range } = wholeTextInside(whole, drawn, store)
+		? { node: whole, range: drawn }
+		: withoutKeptSides(whole, drawn, store.reading, alone);
 	// Cut inside the text: the cleanup reads no side that starts in a heading's marker.
 	const content = getContentRange(node);
 	const tail = replaceRangeInLeaf(
@@ -287,6 +293,7 @@ function landRuns(
 		start: { node: leaf, offset: at },
 		end: { node: textLeaf, offset: 0 },
 		typed: '',
+		removes: false,
 		store
 	});
 	const textEnd = first.map(at + text.length);
@@ -296,6 +303,7 @@ function landRuns(
 		start: { node: { ...leaf, raw: first.raw }, offset: textEnd },
 		end: { node: leaf, offset: at },
 		typed: '',
+		removes: false,
 		store
 	});
 	if (!readsInParts(second.raw, parts, store)) return null;
@@ -343,6 +351,7 @@ function cleanJoin(
 		start: { node: head.node, offset: merged.start },
 		end: { node: tail.node, offset: merged.end },
 		typed,
+		removes: true,
 		store
 	});
 	return { joined, cleaned: joined.raw !== merged.raw || joined.seam !== merged.start };

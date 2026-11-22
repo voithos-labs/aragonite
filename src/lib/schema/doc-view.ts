@@ -401,7 +401,9 @@ function piecesOf(
 	const out: Piece[] = [];
 	for (const node of nodes) {
 		if (node.kind !== 'text') {
-			out.push(pieceOf(node.kind, raw, node.start, node.end, place, node.children ?? []));
+			out.push(
+				pieceOf(node.kind, raw, node.start, node.end, place, node.children ?? [], node.data)
+			);
 			continue;
 		}
 		let start = node.start;
@@ -421,14 +423,15 @@ function pieceOf(
 	start: number,
 	end: number,
 	place: (offset: number) => number | null,
-	children: readonly InlineNode[]
+	children: readonly InlineNode[],
+	data?: unknown
 ): Piece {
 	let read: readonly Piece[] | undefined;
 	return {
 		kind,
 		...spanOf(place, start, end),
 		text: raw.slice(start, end),
-		data: undefined,
+		data,
 		get children() {
 			return (read ??= piecesOf(raw, children, place));
 		},

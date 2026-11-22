@@ -12,10 +12,8 @@ import {
 	type DirectiveViews
 } from './kinds';
 import { declaredPluginInlineKind, isInlineKindDeclared } from '../../schema/plugin-kind';
-import { registerInlineSyntax } from '../inline/scan/plugin-syntax';
+import { addCoreInlineHandler } from '../inline/scan/inline-table';
 import { recognizeTextDirective } from './text-recognizer';
-import { type GrammarView } from '../../schema/block-openers';
-import { defaultGrammarView } from '../../schema/editor-grammar';
 
 export function activateDirectiveGrammar(views: DirectiveViews): void {
 	// The inline handler has no registration of its own to check, so it borrows the
@@ -27,8 +25,8 @@ export function activateDirectiveGrammar(views: DirectiveViews): void {
 
 	if (!alreadyActive) {
 		const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
-		registerInlineSyntax(':', (raw, pos, end, grammar?: GrammarView) =>
-			recognizeTextDirective(raw, pos, end, kind, grammar ?? defaultGrammarView)
+		addCoreInlineHandler(':', (raw, pos, end, grammar) =>
+			recognizeTextDirective(raw, pos, end, kind, grammar)
 		);
 	}
 }

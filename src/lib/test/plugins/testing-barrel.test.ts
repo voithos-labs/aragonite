@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import python from 'highlight.js/lib/languages/python';
 import {
 	applyPasteTransforms,
 	configureEditorEnv,
@@ -21,11 +20,9 @@ import {
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	registerInsertEntry,
-	registerLanguage,
 	registerPasteTransform,
 	registerDirective,
 	isDirectiveRegistered,
-	listLanguages,
 	definePlugin,
 	isPluginInstalled,
 	textBlockView,
@@ -128,11 +125,6 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 				markdown: 'probe\n'
 			}),
 		registered: () => insertRows(everyInstalledPlugin).some((e) => e.id === 'probe-entry')
-	},
-	{
-		entry: 'registerLanguage',
-		register: () => registerLanguage('probe-lang', python),
-		registered: () => listLanguages().includes('probe-lang')
 	},
 	{
 		entry: 'registerPasteTransform',

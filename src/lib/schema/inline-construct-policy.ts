@@ -5,11 +5,14 @@
  * functions the component layer registers here.
  */
 
-import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
+import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../core/nodes';
+import type { ContentRange } from '../core/inline';
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
 import { everyInstalledPlugin } from './plugin-activation';
 import { createInlineKindRegistry } from './plugin-kind';
+import { enrollTestReset } from './registry-reset';
+import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
 
@@ -36,8 +39,9 @@ export interface InlineMarkPolicy {
 }
 
 /** How a hidden edge decides where a letter typed at it goes: with the character before the caret,
- *  at one of two drawn stops either side of a painted box, or never inside the construct. */
-export type EdgePolicy = 'left-sticky' | 'boxed' | 'never-extend';
+ *  at one of two drawn stops either side of a painted box, never inside the construct, or always
+ *  on one side of a plugin's marker, the side its pair declares as its text. */
+export type EdgePolicy = 'left-sticky' | 'boxed' | 'never-extend' | 'joins-after' | 'joins-before';
 
 export interface InlineConstructPolicy {
 	edgeAffinity: EdgePolicy;
@@ -54,6 +58,8 @@ export interface InlineConstructPolicy {
 	 * Absent reads as `'all'`, or `'none'` for an inline widget kind.
 	 */
 	prose?: InlineProseExtent;
+	/** A marker side's pair, named by its open side's kind, and whether this side opens it. */
+	pair?: { of: AnyInlineKind; opens: boolean; key?: (data: unknown) => string };
 }
 
 export type InlineProseExtent = 'none' | 'content' | 'all';
@@ -74,7 +80,64 @@ const policies = createInlineKindRegistry<InlineConstructPolicy>({
 	label: 'registerInlineConstructPolicy',
 	isBuiltin: isBuiltinInlineKind
 });
-const policyOf = (kind: AnyInlineKind) => policies.get(kind, everyInstalledPlugin);
+const policyOf = (kind: AnyInlineKind) =>
+	held.get(kind)?.policy ?? policies.get(kind, everyInstalledPlugin);
+
+// A plugin mark's row, page-wide by its qualified name while any editor runs it, so every reader
+// that takes a kind answers for it.
+const held = new Map<AnyInlineKind, { policy: InlineConstructPolicy; editors: number }>();
+// How many held rows are a marker side's, so a page with none answers a side question unread.
+let heldSides = 0;
+const sideRows = (policy: InlineConstructPolicy): number =>
+	policy.edgeAffinity === 'joins-after' || policy.edgeAffinity === 'joins-before' ? 1 : 0;
+enrollTestReset(() => {
+	held.clear();
+	heldSides = 0;
+});
+
+/** Lends a plugin mark's row to the page while one editor runs it; call the result when that
+ *  editor stops. A second editor's differing row is warned of, and the first one's stands. */
+export function holdInlineConstructPolicy(
+	kind: AnyInlineKind,
+	policy: InlineConstructPolicy
+): () => void {
+	const existing = held.get(kind);
+	if (existing) {
+		existing.editors++;
+		if (devChecksOn && JSON.stringify(existing.policy) !== JSON.stringify(policy)) {
+			devWarn(
+				'inline-type-facts',
+				`"${kind}" reads differently in two editors: a mark's row can't depend on its options, so the first editor's stands`
+			);
+		}
+	} else {
+		held.set(kind, { policy, editors: 1 });
+		heldSides += sideRows(policy);
+	}
+	let released = false;
+	return () => {
+		const entry = held.get(kind);
+		if (released || !entry) return;
+		released = true;
+		if (--entry.editors > 0) return;
+		held.delete(kind);
+		heldSides -= sideRows(entry.policy);
+	};
+}
+
+/** Whether a mark an editor runs holds a row for `kind`. */
+export const isHeldInlineKind = (kind: AnyInlineKind): boolean => held.has(kind);
+
+/** Every row: the registered ones, then the held marks'. */
+function allPolicies(): [AnyInlineKind, InlineConstructPolicy][] {
+	const rows = policies.entries(everyInstalledPlugin);
+	return held.size === 0
+		? rows
+		: [
+				...rows,
+				...[...held].map(([k, h]) => [k, h.policy] as [AnyInlineKind, InlineConstructPolicy])
+			];
+}
 
 export function registerInlineConstructPolicy(
 	kind: AnyInlineKind,
@@ -107,6 +170,15 @@ export function isRevealableInlineKind(kind: AnyInlineKind): boolean {
 	return policyOf(kind)?.revealable === true;
 }
 
+/** A marker side's text edge, the empty range where a letter typed at the side lands; null for
+ *  any construct that isn't all marker. */
+export function markerSideEdge(node: InlineNode): ContentRange | null {
+	if (heldSides === 0 || node.kind === 'text') return null;
+	const edge = held.get(node.kind)?.policy.edgeAffinity;
+	if (edge === 'joins-after') return { start: node.end, end: node.end };
+	return edge === 'joins-before' ? { start: node.start, end: node.start } : null;
+}
+
 /** How Edit link edits a construct of this kind a click follows, or undefined for one it doesn't. */
 export function followEditOf(kind: AnyInlineKind): FollowEdit | undefined {
 	return policyOf(kind)?.followEdit;
@@ -115,7 +187,7 @@ export function followEditOf(kind: AnyInlineKind): FollowEdit | undefined {
 export function listInlineConstructPolicies(): readonly (InlineConstructPolicy & {
 	kind: AnyInlineKind;
 })[] {
-	return policies.entries(everyInstalledPlugin).map(([kind, policy]) => ({ kind, ...policy }));
+	return allPolicies().map(([kind, policy]) => ({ kind, ...policy }));
 }
 
 // ── The mark vocabulary ─────────────────────────────────────────────────────
@@ -135,7 +207,7 @@ export interface InlineMark {
  *  second lookup that could miss. */
 export function listInlineMarks(): readonly InlineMark[] {
 	const marks: InlineMark[] = [];
-	for (const [kind, policy] of policies.entries(everyInstalledPlugin)) {
+	for (const [kind, policy] of allPolicies()) {
 		if (policy.mark) marks.push({ kind, mark: policy.mark });
 	}
 	return marks.sort((a, b) => a.mark.nestingRank - b.mark.nestingRank);

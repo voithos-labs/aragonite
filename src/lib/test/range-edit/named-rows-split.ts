@@ -477,6 +477,31 @@ const RUN_ROWS: NamedRow[] = [
 		paste('one\n\ntwo'),
 		'a <http://xy.z>one\n\ntwo w\n'
 	),
+	// Miss-analysis: the move asked about the bytes after the paste, where text that unmakes the
+	// construct around the cut left nothing to move out of.
+	live(
+		'and a paste whose text would unmake the autolink',
+		'a <http://x⟦⟧y.z> w\n',
+		paste('a b\n\nc'),
+		'a <http://xy.z>a b\n\nc w\n'
+	),
+	// Miss-analysis: a plugin's widget had no policy row, so no row asked where a cut inside one goes.
+	live(
+		'inside a plugin’s widget the paste moves to its nearer edge: an emoji',
+		'a :smi⟦⟧le: z\n',
+		paste('one\n\ntwo'),
+		'a :smile:one\n\ntwo z\n'
+	),
+	live('and inline math', 'a $x+⟦⟧y$ z\n', paste('one\n\ntwo'), 'a $x+y$one\n\ntwo z\n'),
+	live('and a footnote reference', 'a [^⟦⟧n] z\n', paste('one\n\ntwo'), 'a one\n\ntwo[^n] z\n'),
+	live('and an entity', 'a &am⟦⟧p; z\n', paste('one\n\ntwo'), 'a &amp;one\n\ntwo z\n'),
+	live('and a line break tag', 'a <b⟦⟧r> z\n', paste('one\n\ntwo'), 'a one\n\ntwo<br> z\n'),
+	{
+		name: 'source mode writes the same paste where the caret is',
+		source: 'a $x+⟦⟧y$ z\n',
+		gesture: paste('one\n\ntwo'),
+		expect: { source: 'a $x+one\n\ntwoy$ z\n' }
+	},
 	live(
 		'a range over the whole autolink leaves none of it',
 		'a ⟦<http://xy.z>⟧ w\n',

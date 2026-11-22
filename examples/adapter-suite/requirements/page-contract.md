@@ -2,8 +2,8 @@
 
 Every app in `examples/` that wraps the editor for a framework renders one page, found by test id:
 the editor (holding a two-line note), a `mirror` of the value the app holds, a `load` button that
-swaps in a second note, a `load-long` button that swaps in 300 paragraphs (`host-fill.md`), a
-`revert` button that goes back to the last loaded note, a `theme` toggle, a `drop-theme` toggle that
+swaps in a second note, a `load-long` button that swaps in 300 paragraphs (`host-fill.md`), in the example apps a
+`load-code` button that swaps in two code fences (`highlight.md`), a `revert` button that goes back to the last loaded note, a `theme` toggle, a `drop-theme` toggle that
 stops passing the theme at all, an `unmount` toggle, a `read` button that copies the editor handle's
 document into `read-out`, the `framework-version` the page runs on, and a `header-input` inside the
 editor's header. `?uncontrolled` renders the editor from `defaultValue` instead of the bound value.

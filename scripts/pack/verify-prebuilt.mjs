@@ -12,15 +12,15 @@ import { prebuiltExternals } from './pack-manifest.mjs';
 const PREBUILT_DIR = 'dist/prebuilt';
 
 // Gzipped bytes per entry, each about 4 KB above what it measured (a small entry a few hundred
-// bytes): a tripwire, not a target. 19,377 of CSS. A group owns the files its entry loads that no
-// earlier group does. Measured: index 578,006, plugin 23,370, plugin/grammar 339, svelte 1,319,
-// runtime/svelte 155, runtime/svelte/internal/client 332, testing 21,840. The plugin packages' budgets are in
+// bytes): a tripwire, not a target. 19,381 of CSS. A group owns the files its entry loads that no
+// earlier group does. Measured: index 585,934, plugin 25,554, plugin/grammar 339, svelte 1,323,
+// runtime/svelte 155, runtime/svelte/internal/client 332, testing 21,773. The plugin packages' budgets are in
 // verify-plugin-package.mjs.
 /** @type {{ js: Record<string, number>, css: number }} */
 const BUDGET = {
 	js: {
-		index: 582_000,
-		plugin: 23_700,
+		index: 590_000,
+		plugin: 26_000,
 		'plugin/grammar': 700,
 		svelte: 1_550,
 		'runtime/svelte': 250,

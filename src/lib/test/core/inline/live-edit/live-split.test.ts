@@ -349,6 +349,12 @@ describe('a construct whose row splits it whole is taken whole', () => {
 		expect(split('a\\*b\n', 2)).toEqual({ firstRaw: 'a\n', secondRaw: '\\*b\n' });
 	});
 
+	// Miss-analysis: an entity and a `<br>` have no row, so the move never asked about them.
+	it('a widget no row covers goes whole to its nearer half: an entity, a line break tag', () => {
+		expect(split('a &amp; z\n', 5)).toEqual({ firstRaw: 'a &amp;\n', secondRaw: ' z\n' });
+		expect(split('a <br> z\n', 4)).toEqual({ firstRaw: 'a \n', secondRaw: '<br> z\n' });
+	});
+
 	// A hard break's own bytes are a line ending, so either moved cut reparses as a shape the
 	// candidate never promised, and the literal cut stands, which is the declared fallback.
 	it('a hard break finds no moved cut that parses back', () => {

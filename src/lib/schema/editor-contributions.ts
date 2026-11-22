@@ -1,8 +1,9 @@
 /**
- * What the plugin values one editor runs contribute: their commands, by value, by `plugin/id` and
- * by chord, their insert rows (their block types' among them), caret menus and paint. Read from each
- * installed list, so `use` rebuilds it, and reached through the editor's activation, which every
- * command lookup already takes, so no route that runs or lists a command can miss a plugin's.
+ * What the plugin values one editor runs contribute: their commands (their marks' toggles among
+ * them), by value, by `plugin/id` and by chord, their insert rows (their block types' among them),
+ * caret menus, paint and code highlighters. Read from each installed list, so `use` rebuilds it,
+ * and reached through the editor's activation, which every command lookup already takes, so no
+ * route that runs or lists a command can miss a plugin's.
  *
  * A block type's keys and menu rows place their commands here too: such a command runs on a block
  * whose type places it, the one handed to it or else the nearest at the caret. The plugins' paste
@@ -19,9 +20,11 @@ import { qualifiedName } from './plugin-name';
 import { nodeOfBlock, type Block } from './doc-view';
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { PasteRewrite } from './paste-rewrite';
+import { togglesOf } from './inline-type';
 import type { ContributedMenu } from './caret-menu';
 import { iconProblem, type Icon } from '../menu-icons';
 import type { ContributedAction } from './selection-action';
+import type { CodeHighlighter, CodeLanguage, CodeToken } from './code-highlighter';
 
 export interface ContributedCommand {
 	readonly plugin: string;
@@ -79,6 +82,8 @@ export interface EditorContributions {
 	/** `entry`'s Markdown for a pasted `block`; null where it keeps the block or throws, which is
 	 *  reported. */
 	answer(entry: ContributedRewrite, block: Block): string | null;
+	/** Each plugin's code highlighter in list order, guarded. */
+	readonly highlighters: readonly ContributedHighlighter[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -90,6 +95,17 @@ export interface EditorContributions {
 	/** Reads a freshly installed list, leaving out and reporting each plugin whose contribution is
 	 *  unusable or claims what one listed before it holds; returns the plugins kept. */
 	read(units: readonly InstalledPlugin[]): InstalledPlugin[];
+}
+
+/** A plugin's code highlighter as the editor asks it: a throw or a rejection paints plain and is
+ *  reported, one rejection reason once. */
+export interface ContributedHighlighter {
+	readonly plugin: string;
+	languages(): readonly CodeLanguage[];
+	highlight(
+		body: string,
+		language: string
+	): readonly CodeToken[] | null | Promise<readonly CodeToken[] | null>;
 }
 
 export function createEditorContributions(deps: {
@@ -111,6 +127,7 @@ export function createEditorContributions(deps: {
 	let selectionActions: readonly ContributedAction[] = [];
 	let paints: EditorContributions['paints'] = [];
 	let rewrites: readonly ContributedRewrite[] = [];
+	let highlighters: readonly ContributedHighlighter[] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
 		try {
@@ -187,6 +204,9 @@ export function createEditorContributions(deps: {
 		);
 		rewrites = kept.flatMap(({ name, contribution }) =>
 			(contribution.rewrites ?? []).map((rewrite) => ({ plugin: name, rewrite }))
+		);
+		highlighters = kept.flatMap(({ name, contribution }) =>
+			contribution.code ? [guardedHighlighter(name, contribution.code, deps.report)] : []
 		);
 		return kept;
 	}
@@ -280,6 +300,9 @@ export function createEditorContributions(deps: {
 		},
 		clipboardBlocks: deps.clipboardBlocks,
 		answer,
+		get highlighters() {
+			return highlighters;
+		},
 		run,
 		can,
 		runAtKey: (entry, block) => run(entry, keyed(entry, block)),
@@ -314,10 +337,12 @@ function placementsOf(unit: InstalledPlugin): Map<Command<unknown>, Set<string>>
 	return placed;
 }
 
-/** A plugin's commands: those it lists, then those only its block types place. */
+/** A plugin's commands: those it lists, those only its block types place, then its marks' toggles,
+ *  whose chords bind, rebind and are claimed as a listed command's are. */
 function commandsOf(unit: InstalledPlugin): Command<unknown>[] {
 	const listed = unit.contribution.commands ?? [];
-	return [...new Set([...listed, ...placementsOf(unit).keys()])];
+	const toggles = togglesOf(unit.contribution.inlines);
+	return [...new Set([...listed, ...placementsOf(unit).keys()]), ...toggles];
 }
 
 /** Why a plugin's commands can't run, qualifying each one's id on the way; null when they can. */
@@ -389,7 +414,44 @@ function entryOf(
 }
 
 function chordsOf(unit: InstalledPlugin): string[] {
-	return (unit.contribution.commands ?? []).flatMap((value) => commandSpec(value)?.chord ?? []);
+	return commandsOf(unit).flatMap((value) => commandSpec(value)?.chord ?? []);
+}
+
+function guardedHighlighter(
+	plugin: string,
+	code: CodeHighlighter,
+	report: (error: PluginError) => void
+): ContributedHighlighter {
+	// Blocks waiting on one failed load share its reason, so the failure is reported once.
+	const heard = new WeakSet<object>();
+	const fail = (cause: unknown) => {
+		if (typeof cause === 'object' && cause !== null) {
+			if (heard.has(cause)) return;
+			heard.add(cause);
+		}
+		report({ plugin, doing: 'highlight', cause });
+	};
+	return {
+		plugin,
+		languages() {
+			try {
+				return code.languages();
+			} catch (cause) {
+				fail(cause);
+				return [];
+			}
+		},
+		highlight(body, language) {
+			try {
+				const answer = code.highlight(body, language);
+				if (!isThenable(answer)) return answer;
+				return Promise.resolve(answer).catch((cause: unknown) => (fail(cause), null));
+			} catch (cause) {
+				fail(cause);
+				return null;
+			}
+		}
+	};
 }
 
 /** The keys a plugin's container types take, or its leaf types'. */

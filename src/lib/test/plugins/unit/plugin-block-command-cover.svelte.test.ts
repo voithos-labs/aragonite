@@ -4,7 +4,15 @@
 // Miss-analysis: the command walked the range with a read of its own, which held a container the
 // range reached only the first byte of, and no row set that read beside Tab's.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { command, definePlugin, lineBlock, type Command } from '#lib/plugin.js';
+import {
+	command,
+	definePlugin,
+	inline,
+	lineBlock,
+	markerPair,
+	type Command,
+	type PluginList
+} from '#lib/plugin.js';
 import { container } from '#lib/components/block-makers/container.js';
 import { nodeOfBlock, type Block } from '#lib/schema/doc-view.js';
 import { qualifiedName } from '#lib/schema/plugin-name.js';
@@ -167,21 +175,90 @@ function tabCovers(doc: Document, { anchor, focus }: EditorSelection): number[][
 	return found;
 }
 
+/** An inline widget (`[[w]]`) and a marker pair (`{>>a}` to `{<<a}`), neither drawing its bytes. */
+const inlines = definePlugin({
+	name: 'hidden',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		inlines: [
+			inline({
+				name: 'ref',
+				label: 'Ref',
+				prefix: '[[',
+				match: /\[\[(\w+)\]\]/,
+				read: (m) => m[1],
+				sample: '[[w]]',
+				widget: { delete: 'whole', arrows: 'over', click: 'none' },
+				draw(target) {
+					target.textContent = '*';
+					return {};
+				}
+			}),
+			markerPair({
+				name: 'anchor',
+				label: 'Anchor',
+				open: { prefix: '{>>', match: /\{>>(\w+)\}/, read: (m) => m[1] },
+				close: { prefix: '{<<', match: /\{<<(\w+)\}/, read: (m) => m[1] },
+				key: (id) => id,
+				sample: '{>>a}x{<<a}'
+			})
+		]
+	})
+});
+
+// A paragraph ending with a widget, an alert opening with a pair's side, an alert opening with a
+// widget and ending with the other side, and a last paragraph.
+const HIDDEN_DOC =
+	'intro [[w]]\n\n%> [!NOTE]\n%> {>>a}one\n\n%> [!TIP]\n%> [[w]] two{<<a}\n\nafter\n';
+
+const HIDDEN_RANGES: [string, SelectionPoint, SelectionPoint, number[][]][] = [
+	['ending before a side opening a container', at([0], 2), at([1, 0], 0), []],
+	['ending just past that side', at([0], 2), at([1, 0], 5), [[1]]],
+	['ending before a widget opening a container', at([1, 0], 6), at([2, 0], 0), [[1]]],
+	['ending just past that widget', at([1, 0], 6), at([2, 0], 5), [[1], [2]]],
+	['starting after a side closing a container', at([2, 0], 14), at([3], 2), [[2]]],
+	['starting just before that side', at([2, 0], 9), at([3], 2), [[2]]],
+	['starting after a widget ending a paragraph', at([0], 11), at([1, 0], 6), [[1]]]
+];
+
+async function ranOver(
+	source: string,
+	plugins: PluginList,
+	anchor: SelectionPoint,
+	focus: SelectionPoint
+) {
+	const { plugin, mark, ran } = makeMarks();
+	const editor = mountEditor({ source, plugins: [plugin, ...plugins] });
+	await editor.settle();
+	await editor.instance.setSelection({ anchor, focus });
+	await editor.settle();
+	const selection = editor.instance.getSelection()!;
+	editor.instance.run(mark);
+	await editor.settle();
+	const doc = documentOf(editor);
+	const paths = pathsIn(doc);
+	// Runs go last block first.
+	const ranOn = ran.map((block) => paths.get(nodeOfBlock(block))).reverse();
+	const sides = [...editor.target.querySelectorAll('.md-marker')].map((m) => m.textContent);
+	return { ranOn, tab: tabCovers(doc, selection), sides, text: editor.target.textContent };
+}
+
 describe('a placed command over a selection across blocks', () => {
 	it.each(RANGES)('runs on the blocks Tab covers, %s', async (_, anchor, focus, covered) => {
-		const { plugin, mark, ran } = makeMarks();
-		const editor = mountEditor({ source: DOC, plugins: [plugin] });
-		await editor.settle();
-		await editor.instance.setSelection({ anchor, focus });
-		await editor.settle();
-		const selection = editor.instance.getSelection()!;
-		editor.instance.run(mark);
-		await editor.settle();
-		const doc = documentOf(editor);
-		const paths = pathsIn(doc);
-		// Runs go last block first.
-		const ranOn = ran.map((block) => paths.get(nodeOfBlock(block))).reverse();
+		const { ranOn, tab } = await ranOver(DOC, [], anchor, focus);
 		expect(ranOn).toEqual(covered);
-		expect(ranOn).toEqual(tabCovers(doc, selection));
+		expect(ranOn).toEqual(tab);
 	});
+
+	it.each(HIDDEN_RANGES)(
+		'runs on the blocks Tab covers beside bytes drawn as nothing, %s',
+		async (_, anchor, focus, covered) => {
+			const { ranOn, tab, sides, text } = await ranOver(HIDDEN_DOC, [inlines], anchor, focus);
+			// Both constructs were read: the widget draws `*` and each side is a marker.
+			expect([sides, text]).toEqual([['{>>a}', '{<<a}'], expect.stringContaining('intro *')]);
+			expect(ranOn).toEqual(covered);
+			expect(ranOn).toEqual(tab);
+		}
+	);
 });

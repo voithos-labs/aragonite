@@ -53,6 +53,7 @@ jobs:
             details,
             emoji,
             footnotes,
+            highlight,
             highlight-occurrences,
             latex,
             mermaid,

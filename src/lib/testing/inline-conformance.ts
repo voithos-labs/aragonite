@@ -23,11 +23,10 @@ import {
 } from '../core/inline/inline-widgets';
 import {
 	INLINE_PRIORITIES,
-	handlersFor,
 	isBuiltInTrigger,
-	isWatchedTrigger,
 	type InlineHandler
 } from '../core/inline/scan/plugin-syntax';
+import { inlineTable } from '../core/inline/scan/inline-table';
 import {
 	assert,
 	assertIs,
@@ -184,8 +183,11 @@ function assertSingleLine(source: string, label: string): void {
 	);
 }
 
+/** The handlers a parse with no editor asks on `trigger`, the core's included. */
+const handlersOn = (trigger: string) => inlineTable(defaultGrammarView).handlers(trigger);
+
 function locateRung(profile: InlineConformanceProfile, prefix: string): InlineHandler {
-	const matches = handlersFor(profile.trigger).filter(
+	const matches = handlersOn(profile.trigger).filter(
 		(r) =>
 			r.prefix === prefix && (profile.priority === undefined || r.priority === profile.priority)
 	);
@@ -357,24 +359,15 @@ function assertScanTiles(raw: string, end: number): void {
 
 // ── overlapDecline ───────────────────────────────────────────────────────────
 
-/** At every position the scan would consult this handler the recognizer returns null, so the
- *  built-in construct sees byte-identical input. */
+/** Every overlap fixture parses to the built-in construct its bytes spell, the handler's claim
+ *  declined, and round-trips. */
 function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineHandler): string {
 	const fixtures = profile.overlapFixtures ?? [];
 	let consulted = 0;
 	for (const source of fixtures) {
 		let positions = 0;
 		for (let pos = 0; pos < source.length; pos++) {
-			if (!source.startsWith(rung.prefix, pos)) continue;
-			positions++;
-			const claimed = rung.recognizer(source, pos, source.length, defaultGrammarView);
-			if (claimed !== null) {
-				fail(
-					`the "${rung.prefix}" rung swallowed the overlap in ${JSON.stringify(source)} at ` +
-						`offset ${pos} — it claimed [${claimed.start}, ${claimed.end}) as "${claimed.kind}", ` +
-						`so the built-in construct those bytes spell never reaches the scanner`
-				);
-			}
+			if (source.startsWith(rung.prefix, pos)) positions++;
 		}
 		assert(
 			positions > 0,
@@ -387,7 +380,8 @@ function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineHand
 		assertIs(
 			minted.length,
 			0,
-			`the parse of ${JSON.stringify(source)} holds no node the "${rung.prefix}" rung claimed`
+			`the parse of ${JSON.stringify(source)} holds no node the "${rung.prefix}" rung claimed ` +
+				`(one that does spells no built-in construct, so it is no overlap)`
 		);
 
 		const withEnding = `${source}\n`;
@@ -581,7 +575,7 @@ function checkRegistrationHygiene(
 	const reserved = isBuiltInTrigger(profile.trigger);
 	// Two handlers may share a prefix at different priorities (emoji and directive text both
 	// live on `:`), but two at the same priority could not be ordered by the dispatch.
-	const sameRung = handlersFor(profile.trigger).filter(
+	const sameRung = handlersOn(profile.trigger).filter(
 		(r) => r.prefix === prefix && r.priority === rung.priority
 	);
 	assertIs(
@@ -600,7 +594,7 @@ function checkRegistrationHygiene(
 	} else {
 		// The parse reads a character in plain prose only while a bare handler is registered on it.
 		assert(
-			isWatchedTrigger(profile.trigger),
+			handlersOn(profile.trigger).some((h) => h.prefix === profile.trigger),
 			`the parse visits ${JSON.stringify(profile.trigger)} in plain text — a trigger it skips ` +
 				`makes the recognizer unreachable there`
 		);

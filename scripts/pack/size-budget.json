@@ -1,12 +1,12 @@
 {
 	"rows": {
 		"minimalAppSvelteFirstLoadGzip": {
-			"baseline": 379502,
+			"baseline": 346003,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppSvelteTotalGzip": {
-			"baseline": 379502,
+			"baseline": 346003,
 			"tolerance": 4000,
 			"unit": "B"
 		},
@@ -16,18 +16,78 @@
 			"unit": "chunks"
 		},
 		"minimalAppPrebuiltFirstLoadGzip": {
-			"baseline": 379633,
+			"baseline": 346571,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppPrebuiltTotalGzip": {
-			"baseline": 379633,
+			"baseline": 346571,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppPrebuiltChunks": {
 			"baseline": 1,
 			"tolerance": 0,
+			"unit": "chunks"
+		},
+		"highlightAppSvelteFirstLoadGzip": {
+			"baseline": 366986,
+			"tolerance": 4000,
+			"unit": "B"
+		},
+		"highlightAppSvelteTotalGzip": {
+			"baseline": 393131,
+			"tolerance": 4000,
+			"unit": "B"
+		},
+		"highlightAppSvelteChunks": {
+			"baseline": 17,
+			"tolerance": 0,
+			"unit": "chunks"
+		},
+		"allLanguagesAppSvelteFirstLoadGzip": {
+			"baseline": 371024,
+			"tolerance": 4000,
+			"unit": "B"
+		},
+		"allLanguagesAppSvelteTotalGzip": {
+			"baseline": 697924,
+			"tolerance": 40000,
+			"unit": "B"
+		},
+		"allLanguagesAppSvelteChunks": {
+			"baseline": 186,
+			"tolerance": 10,
+			"unit": "chunks"
+		},
+		"highlightAppPrebuiltFirstLoadGzip": {
+			"baseline": 367637,
+			"tolerance": 4000,
+			"unit": "B"
+		},
+		"highlightAppPrebuiltTotalGzip": {
+			"baseline": 393782,
+			"tolerance": 4000,
+			"unit": "B"
+		},
+		"highlightAppPrebuiltChunks": {
+			"baseline": 17,
+			"tolerance": 0,
+			"unit": "chunks"
+		},
+		"allLanguagesAppPrebuiltFirstLoadGzip": {
+			"baseline": 371635,
+			"tolerance": 4000,
+			"unit": "B"
+		},
+		"allLanguagesAppPrebuiltTotalGzip": {
+			"baseline": 698535,
+			"tolerance": 40000,
+			"unit": "B"
+		},
+		"allLanguagesAppPrebuiltChunks": {
+			"baseline": 186,
+			"tolerance": 10,
 			"unit": "chunks"
 		}
 	}

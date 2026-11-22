@@ -5,6 +5,7 @@
 		DEMO_DETAILS,
 		DEMO_EMOJI,
 		DEMO_FOOTNOTES,
+		DEMO_HIGHLIGHT,
 		DEMO_HIGHLIGHT_OCCURRENCES,
 		DEMO_LATEX,
 		DEMO_MERMAID,
@@ -24,6 +25,10 @@
 	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
 	import { tagsPlugin } from './tags/tag-plugin';
 	import { wikiLinksPlugin } from './wikilinks/link-plugin';
+	import { inlineLinkPlugin } from './inline-link/link-plugin';
+	import { inlineKeyPlugin } from './inline-key/key-plugin';
+	import { highlightPlugin } from './highlight-mark/mark-plugin';
+	import { anchorPlugin } from './comment-anchor/anchor-plugin';
 	import { chipsPlugin } from './chips/chip-plugin';
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
 	import { docLinkMenu, docLinkMenuPlugin } from './inline-menu/doc-link-menu-plugin';
@@ -31,6 +36,7 @@
 	import { drawnPlugin } from './drawn/drawn-plugin';
 	import { outlinePlugin } from './outline/outline-plugin';
 	import { noteNumbersPlugin } from './note-numbers/note-numbers-plugin';
+	import { noteRefsPlugin } from './note-refs/note-refs-plugin';
 	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
 	import { alertsPlugin } from './alerts/alerts-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
@@ -71,6 +77,14 @@
 		tags: [tagsPlugin()],
 		// `[[` takes `[` ahead of the built-in link in every other seed's prose; kept to its own.
 		wikilinks: [wikiLinksPlugin()],
+		// `[[` again, read as a built-in link in its own syntax; kept to its own seed.
+		'inline-link': [inlineLinkPlugin],
+		// `{{` as a widget that takes a key of its own; kept to its own seed, as `chips` is.
+		'inline-key': [inlineKeyPlugin],
+		// `==` pairs as a mark wherever it's installed; kept to its own seed.
+		'highlight-mark': [highlightPlugin],
+		// `{>>` and `{<<` would take `{` in every other seed's prose; kept to its own.
+		'comment-anchor': [anchorPlugin],
 		// `{{` would take `{` in every other seed's prose; kept to its own.
 		chips: [chipsPlugin()],
 		// The same tags as mark decorations over plain text: no widget, no source to show.
@@ -81,6 +95,9 @@
 		// an interval; kept to its own seed so neither reaches another suite.
 		parrot: [DEMO_PARROT],
 		hloccur: [DEMO_HIGHLIGHT_OCCURRENCES],
+		// The multi-line block math with the highlight package listed, for a grammar that lands while the
+		// source is selected. Kept to its own seed: the package's languages fill every code picker.
+		'mathblock-highlight': [DEMO_HIGHLIGHT],
 		// A counting wrapper around the same shipped createOccurrenceSource, so the suite can
 		// read off `window` how often the index rebuilds.
 		'hloccur-memo': [hloccurScanProbePlugin],
@@ -96,6 +113,8 @@
 		outline: [outlinePlugin],
 		// Footnote numbers as a paint on `paintDepends`; its references paint only in this seed.
 		'note-numbers': [noteNumbersPlugin],
+		// Footnote references as inline widgets on `depends`; they draw only in this seed.
+		'note-refs': [noteRefsPlugin],
 		// A command that writes through `edit()`; the openers suite runs on this seed.
 		math: [draftWriterPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
@@ -197,6 +216,8 @@
 		// the shown source must stay one text node so the offset walk is exact.
 		'mathblock-multiline':
 			'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n',
+		'mathblock-highlight':
+			'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n',
 		// Inline math inside a table cell: the cell's render reuses component widgets, so the
 		// mount id stays the same while typing.
 		mathtable: '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n',
@@ -246,6 +267,9 @@
 			].join('\n\n') + '\n',
 		// References to number: `b` first, then `a`, then `b` again; the last paragraph says none.
 		'note-numbers': 'A first[^b] reference.\n\nA second[^a] and[^b] again.\n\nPlain paragraph.\n',
+		// The same references, drawn as widgets, then a tag that follows a click.
+		'note-refs':
+			'A first[^b] reference.\n\nA second[^a] and[^b] again.\n\nPlain paragraph.\n\nFiled under #work today.\n',
 		// A footnote definition whose body is one editable paragraph: the container's editing,
 		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',
@@ -258,6 +282,16 @@
 		// The handler creates a built-in image; the explicit size makes one resize step visible
 		// in the bytes, with prose either side to click away to and to put the caret in.
 		'wiki-embed': 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n',
+		// A link in its own syntax mid-prose (block 0) and a block to click away to.
+		'inline-link': 'See [[note|Shown]] here\n\nAfter\n',
+		// The widget under a block of its own, so its document bytes aren't its block's.
+		'inline-key': 'Before\n\nan {{chip}} here\n',
+		// A highlight mid-prose (block 0), plain words to toggle one on (block 1).
+		'highlight-mark': 'A ==bright== word\n\nplain words here\n\n| a |\n| - |\n| cell words |\n',
+		// Anchors in one block (0), across two (1 and 2), around a bold (3), at a line's start and
+		// end (4), around nothing (5), and a side with no partner (6).
+		'comment-anchor':
+			'A {>>a}noted{<<a} word\n\nAcross {>>b}two\n\nblocks{<<b} end\n\nSome {>>c}**bold**{<<c} text\n\n{>>d}whole line{<<d}\n\nAn {>>e}{<<e} empty pair\n\nA lone {<<x} side\n',
 		// The caption is the bytes after the marker, so block 0 is the caption to edit and
 		// block 1 is there to click away to.
 		parrot: '%%parrot party responsibly\n\nAfter\n',

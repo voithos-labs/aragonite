@@ -57,7 +57,7 @@ The details:
 
 ## 3. Policy is data
 
-How a construct behaves at its hidden edges is one row in the inline-construct policy table (`schema/inline-construct-policy.ts`). The rewrites read rows, never lists of kinds, so a new markable construct costs a row and not a new case at every toggle surface.
+How a construct behaves at its hidden edges is one row in the inline-construct policy table (`schema/inline-construct-policy.ts`). The rewrites read rows, never lists of kinds, so a new markable construct costs a row and not a new case at every toggle surface. A plugin's `mark()` holds a row of the same shape while an editor runs it, and so does each side of a `markerPair()`.
 
 ```ts
 getInlineConstructPolicy('strong');
@@ -74,7 +74,7 @@ Field by field:
 
 - `edgeAffinity`: which side of the delimiters a typed byte lands on (§ 4.2).
 - `autoUnwrapOnEmpty`: whether emptying the construct takes its delimiters with it (§ 4.4).
-- `splitBehavior`: what a cut inside it does, whether it's Enter (§ 4.4), a pending mark stepping out of it (§ 4.3) or a delete through it (§ 4.5). `close-and-reopen` closes it before the cut and reopens it after, and `plain` leaves the literal cut. `whole` (an autolink, an escape) says no part of the construct stands alone: Enter moves the cut to its nearer edge, and a delete whose every cut unmakes it takes it whole.
+- `splitBehavior`: what a cut inside it does, whether it's Enter (§ 4.4), a pending mark stepping out of it (§ 4.3) or a delete through it (§ 4.5). `close-and-reopen` closes it before the cut and reopens it after, and `plain` leaves the literal cut. `whole` (an autolink, an escape) says no part of the construct stands alone: Enter moves the cut to its nearer edge, and a delete whose every cut unmakes it takes it whole. A widget no row covers (a plugin's emoji or formula, an entity, a `<br>`) moves a cut the same way.
 - `revealable`: whether preview-inline may show its markers when the caret enters.
 - `followEdit`: whether a click follows the construct, and how "Edit link" and Mod+K edit it then. A link and an autolink both say `'card'`, which opens the link card (§ 4.6). The follow path reads this too, so nothing follows that can't be edited.
 - `prose`: how much of the construct is text the author writes, which decides where a trigger like `#` may open the inline menu. All of it (bold), only its content (a link's text, not its URL), or none (a code span, an image). A kind whose row declares no `prose`, or that has no row at all, counts as all of it, unless it's an inline widget (a plugin's formula), which counts as none.
@@ -93,7 +93,7 @@ Two things stay outside the table on purpose, and a lint records both with their
 
 Two prohibitions, and every rule below applies them:
 
-- **No invisible residue.** A delimiter pair enclosing nothing paints as nothing, so live never writes one, and removes one wherever an edit would create it.
+- **No invisible residue.** A delimiter pair enclosing nothing paints as nothing, so live never writes one, and removes one wherever an edit would create it. A plugin's marker pair is the exception: emptying the text between its sides keeps both, and a removal that takes one side and keeps the other puts it back (§ 4.5).
 - **No unverified drop.** Bytes leave the document only when the painter confirms the reader never saw them (§ 2).
 
 A document can already hold such residue when it loads: a `#` typed before its heading has a word, a fence before its first body line, a loaded `[](url)`. There the prohibition falls on the paint rather than the bytes. Chrome may hide only while it stands over content, so a construct with none shows its markers dimmed, exactly as source mode shows them.
@@ -131,6 +131,7 @@ It doesn't matter how the text got there. A hardware key, a soft keyboard, an au
 
 - A `never-extend` kind (link, autolink, image, escape, hard break) takes nothing at its edge, so the byte lands outside its delimiters, whichever side that is. Two halves of a URL are not two URLs, and a byte between an autolink's brackets would rewrite where the link goes.
 - A `left-sticky` kind (emphasis, strong, strike) takes the letter when the character before the caret is its own. Arrows move the caret like anywhere else, with no stop at the edge: the caret's shape is how you tell (`docs/design/selection.md` § The drawn caret).
+- A side of a plugin's marker pair (`joins-after` or `joins-before`) is all marker and draws nothing. A letter typed at it goes to the side its pair calls its text, by default the text between the two, so an empty pair holds the caret between its sides. Backspace beside one takes the character you see, and Enter there leaves it on the half holding its text.
 - A `boxed` kind (inline code) paints a chip, and its border is something you can see, so its edge gets two caret stops: inside the padding and 2px past the border. A plain ArrowLeft or ArrowRight at the edge moves the bar across the border before it moves the caret through the text (`components/blocks/text/edge-step.ts`), a click lands on the side of the border it hit, ArrowLeft into a chip from the text after it stops outside the border first, and End on a line ending in a chip lands outside. Shift, Ctrl, Alt and Meta arrows skip the stop.
 - A record on the caret memory (`caret/caret-memory.ts`) can say otherwise, until the caret moves:
   - a **fresh start**, outside every construct at the caret: Enter's new block (even mid-bold, so `**bo|ld**` then Enter and `X` gives `X**ld**`) and a click in the blank space past a line's end;
@@ -293,6 +294,7 @@ Every destructive join crosses one call, `cleanJoinedRaw` in `tree-operations/le
 
 - closes a format run the cut went through on the half before the cut, and reopens it on the half after, the same close-and-reopen Enter does (`core/inline/live-edit/close-reopen.ts`). A half that keeps none of the run's text takes none of its delimiters, since live never writes a pair around nothing;
 - drops the closer/opener chain a join brings back to back around nothing, which is the split's inverse. Matching runs from the outside in stay one run, so cutting the middle out of one bold word leaves one bold word;
+- puts back a plugin's marker side the cut took when it kept the side's partner, so the half you kept keeps its pair (Marker pairs, below);
 - drops a survivor that's only whitespace, which would reparse as a blank line.
 
 ```ts
@@ -305,6 +307,7 @@ const join = (reading: Reading) => ({
 	start: { node: first, offset: 11 },
 	end: { node: second, offset: 0 },
 	typed: '',
+	removes: true,
 	store: storedAsAt(doc, [0], reading) // where the joined bytes land: the first block's slot
 });
 cleanJoinedRaw(join(liveReading)); // { raw: 'Some **bold** text\n', seam: 9 }: the split's inverse
@@ -319,6 +322,7 @@ const gone = (from: number, to: number, mergedRaw: string) => ({
 	start: { node, offset: from },
 	end: { node, offset: to },
 	typed: '',
+	removes: true,
 	store: storedAsAt(one, [0], liveReading)
 });
 cleanJoinedRaw(gone(9, 18, 'Some **bo\n')); // { raw: 'Some **bo**\n', seam: 9, seamEnd: 11 }: the bold closes where the cut began
@@ -353,6 +357,14 @@ Links:
 - A link's text types the way Google Docs does it (Daniel checked, so this one's his ruling). A selection inside the text that touches neither end, typed over, stays linked, since the cut keeps link text on both sides. One touching either end gives text that isn't linked: replace all of it and the link goes, replace part of it and the rest keeps its destination. With `see [here](u) now`, typing `X` over `he` writes `see X[re](u) now`.
 - A reference whose label is its own text (`[foo]`, `[foo][]`) would lose its definition the moment its text changed, so any live edit of that text spells it in full first: `[foo]` typed into gives `[foZo][foo]`, and the definition stays as written. A keystroke at a caret doesn't come through here, so the block's text write does the same for it (`core/inline/link-source-bytes.ts` :: `spellReferenceLabels`).
 
+Marker pairs (a plugin's `markerPair()`, two hidden sides around ordinary text):
+
+- A cut that takes one side and keeps its partner writes the side back where the cut began: delete `xt{<<c} ` from `a {>>c}text{<<c} z` and you get `a {>>c}te{<<c}z`. A cut that takes both sides takes the pair. Inside one block a side whose partner the block doesn't hold goes back too, since the partner may stand in another block: a word delete across one end of a comment over two paragraphs keeps that end. Sides pair by the pair's `key`, else by nesting order, and nowhere but here (G4.366 in `invariants/scans.md`).
+- A side at the cut's own screen position was never taken, whichever side of its hidden bytes the selection's end fell (§ 4.2), so deleting exactly `text` leaves `{>>c}{<<c}`. A letter typed over a range that crosses a side lands inside the pair, where one typed at the side would; over a range that only stops at a side it stays on the range's side of it, since the text it replaces was outside. A range that takes a block's whole text is the exception (a triple click then a cut, a range across two blocks that starts at one's first byte): it takes the sides at its edges, the way it takes a bold around all of it.
+- A copy, a cut or a drag carries a pair only with both its sides, and never a side the removal writes back, so a cut inside one block, pasted back, never leaves two of a side. An end of a range across two blocks takes the sides at the edge it runs on past, as the join does.
+- Only a removal writes a side. Text that lands with runs of its own (a paste of bold text) moves bytes aside and puts them back, which is why a join says whether its bytes leave the document (`JoinSeam.removes`).
+- The limits: the cleanup sees one block, or the two a range joins, and what a range carries off is read a block at a time. Across two joined blocks a side whose partner is in neither goes with the cut. Inside one block it stays, so a side with no partner anywhere can't be deleted there, and a range into a table (which cuts its paragraph alone) leaves a lone side when the table held the partner. An end of a cut across two blocks carries a side the join put back, so that side is in the document and on the clipboard. Where no reading verifies, the literal join stands and takes the side. `test/plugins/inline/marker-pair-conservation.property.test.ts` holds a cut, a drag and a paste back to the sides there were before, those two shapes aside.
+
 ### 4.6 The link card
 
 Live paints no destination, so the card is the only way to read or rewrite one.
@@ -370,7 +382,7 @@ Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`, and the te
 Like the link card, the rail is a way into something live hides, here the one hidden run a caret can't reach at all. A fence line can't take a caret once the block has content, so the rail is the way into its info string (the text after the opening ` ``` `, usually a language name), and the place for whatever affordances a host earns by installing a hook.
 
 - It sits at the code box's top-right, outside the walk container, shows on hover or while the caret is inside, and in reading mode its language button still renders but opens nothing.
-- The language button opens a picker over every registered grammar; Enter or a pick writes the info span alone through the content write every gesture uses, as one isolated undo entry. Every arrival in a fence with no body line completes it to opener, empty body line and closer. On its first focus a fence with no language and no body opens the picker itself, unless the caret stepped in from a neighbour (edge affinity records the arrival), since a picker taking focus there would trap a keyboard walk, or a removal's landing put the caret there (caret memory records that too), since that is an edit, not someone writing a new fence.
+- The language button opens a picker over the languages the editor's highlighters list; Enter or a pick writes the info span alone through the content write every gesture uses, as one isolated undo entry. Every arrival in a fence with no body line completes it to opener, empty body line and closer. On its first focus a fence with no language and no body opens the picker itself, unless the caret stepped in from a neighbour (edge affinity records the arrival), since a picker taking focus there would trap a keyboard walk, or a removal's landing put the caret there (caret memory records that too), since that is an edit, not someone writing a new fence.
 - Copy writes the fence body to the clipboard; a run button and an overflow menu appear only for a host that installed `onRunCode` or `codeMenuItems`, and neither touches a byte.
 
 Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.

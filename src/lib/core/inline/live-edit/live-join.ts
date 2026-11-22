@@ -13,6 +13,7 @@ import {
 	readInline
 } from '../index';
 import { CONTENT_VISIBILITY, paintsOnlyChrome, renderedText, visibleRuns } from '../visibility';
+import { resolvedInlineContent } from '../inline-cache';
 import { readBack, readSource, shownRunsOf } from './read-back';
 import {
 	chordSpelling,
@@ -27,9 +28,9 @@ import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import type { GrammarView } from '../../../schema/block-openers';
 import type { RenderInlineOptions } from '../../inline-render';
-import type { InlineNode } from '../../nodes';
+import type { AnyInlineKind, InlineNode } from '../../nodes';
 import type { NodeView } from '../../node-views';
-import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
+import { getInlineConstructPolicy, markerSideEdge } from '../../../schema/inline-construct-policy';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
@@ -49,6 +50,9 @@ export interface JoinSeam {
 	/** Text the caller will insert at the join after the cleanup, `''` for a plain delete. The
 	 *  cleanup checks it too, since typed text changes what a surviving delimiter pairs against. */
 	typed: string;
+	/** Whether the bytes the two sides leave out of the join leave the document. Text landing at
+	 *  a caret joins them back in, so its joins take no marker side. */
+	removes: boolean;
 	/** Where the joined bytes will be stored, with the editor's reading: the cleanup reads each
 	 *  candidate back there, a list item's marker line or a cell's text included. */
 	store: StoredAs;
@@ -73,9 +77,10 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 	const left = readSide(join.start, 'before', store.reading);
 	const right = readSide(join.end, 'after', store.reading);
 	if (left === null || right === null) return null;
+	const sides = sidesAtJoin(join, left, right);
 	// Nothing sits at the join, so the plain concatenation is already the answer, and an ordinary
 	// Backspace between two paragraphs pays for no parse.
-	if (!standsOnSeam(left) && !standsOnSeam(right)) return null;
+	if (!standsOnSeam(left) && !standsOnSeam(right) && sides.bytes === '') return null;
 	if (!anchorsOnMerged(join, left, right)) return null;
 
 	// The caller splices `typed` at the join once this returns, so the bytes checked below are the
@@ -85,12 +90,15 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 	// least destructive first, where no reading that keeps them shows what the screen showed.
 	const pairs = abuttingPairSpans(join, left, right);
 	const drops = [pairedPrefix(left, right), 0].map((paired): JoinReading => ({
-		edits: [...strandedSpans(join, left, right, paired), ...pairs].map(dropped),
-		typedAt: 0,
+		edits: [
+			...[...strandedSpans(join, left, right, paired), ...pairs].map(dropped),
+			{ start: join.seam, end: join.seam, insert: sides.bytes }
+		],
+		typedAt: typed === '' ? 0 : sides.typedAt,
 		keeps: false
 	}));
 	const written = distinct(
-		[...keepingReadings(join, left, right), ...drops].map(({ edits, typedAt, keeps }) => {
+		[...keepingReadings(join, left, right, sides), ...drops].map(({ edits, typedAt, keeps }) => {
 			const { raw, map } = withEdits(join.mergedRaw, edits);
 			const at = map(join.seam);
 			const atJoin = edits.find((edit) => edit.start === join.seam && edit.end === join.seam);
@@ -167,6 +175,8 @@ interface Side {
 	/** Constructs whose delimiter run touches the cut from inside the surviving bytes: the
 	 *  trailing closers of the block above, the leading openers of the block below. */
 	touching: CutConstruct[];
+	/** The block's marker sides, in order. */
+	sides: InlineNode[];
 }
 
 /** The bytes a side's constructs index into, all a spelling reads. */
@@ -190,7 +200,7 @@ function readSide(endpoint: JoinEndpoint, keep: 'before' | 'after', reading: Rea
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so a run that survives
 	// this cut is bytes the user saw, not a stranded one: the plain concatenation stands.
 	if (paintsOnlyChrome(inlines, node.raw, { grammar: reading.grammar })) return null;
-	const { ranged, atomic } = classifyConstructs(inlines);
+	const { ranged, atomic, sides } = classifyConstructs(inlines);
 	// Neither an atomic construct's interior nor the middle of a delimiter run leaves halves any
 	// reading can repair. A live-mode caret cannot land there; a plugin's can.
 	if (atomic.some((span) => offset > span.start && offset < span.end)) return null;
@@ -211,7 +221,8 @@ function readSide(endpoint: JoinEndpoint, keep: 'before' | 'after', reading: Rea
 		cut: offset,
 		inlines,
 		dangling,
-		touching: touchingChain(ranged, offset, keep)
+		touching: touchingChain(ranged, offset, keep),
+		sides
 	};
 }
 
@@ -224,14 +235,17 @@ const isConstruct = (node: InlineNode): boolean => node.kind !== 'text';
 function classifyConstructs(inlines: readonly InlineNode[]): {
 	ranged: CutConstruct[];
 	atomic: Span[];
+	sides: InlineNode[];
 } {
 	const ranged: CutConstruct[] = [];
 	const atomic: Span[] = [];
+	const sides: InlineNode[] = [];
 	for (const node of inlineDescendants(inlines, isConstruct)) {
 		if (node.kind === 'text') continue;
 		const content = constructContentRange(node);
 		if (!content) {
 			atomic.push({ start: node.start, end: node.end });
+			if (markerSideEdge(node)) sides.push(node);
 			continue;
 		}
 		ranged.push({
@@ -242,7 +256,7 @@ function classifyConstructs(inlines: readonly InlineNode[]): {
 			contentEnd: content.end
 		});
 	}
-	return { ranged, atomic };
+	return { ranged, atomic, sides };
 }
 
 const splitsARun = (c: CutConstruct, at: number): boolean =>
@@ -346,6 +360,122 @@ function abuttingPairSpans(join: { seam: number }, left: Side, right: Side): Spa
 
 const dropped = (span: Span): Edit => ({ ...span, insert: '' });
 
+/** The marker sides a join writes back (`live-mode.md` § 4.5), and where in them typed text goes. */
+interface JoinSides {
+	bytes: string;
+	typedAt: number;
+}
+
+const NO_SIDES: JoinSides = { bytes: '', typedAt: 0 };
+
+/** The sides the cut took whose partner it kept, or inside one block can't see, go back at the join
+ *  in order. A side at the cut's own screen position was never taken (§ 4.2: the screen decides). */
+function sidesAtJoin(join: JoinSeam, left: Side, right: Side): JoinSides {
+	if (!join.removes || left.sides.length + right.sides.length === 0) return NO_SIDES;
+	const sameLeaf = join.start.node === join.end.node;
+	// A block whose whole text a range across two takes gives up the sides at its edges too.
+	const wholeHead = !sameLeaf && left.cut <= left.content.start;
+	const wholeTail = !sameLeaf && right.cut >= right.content.end;
+	const from = wholeHead
+		? left.cut
+		: Math.min(pastSides(left.sides, left.cut, 'before'), sameLeaf ? right.cut : Infinity);
+	const to = wholeTail
+		? right.cut
+		: Math.max(pastSides(right.sides, right.cut, 'after'), sameLeaf ? from : 0);
+	const all = pairSides([
+		...left.sides.map((s) =>
+			readSideAt(s, left.raw, s.start >= from && (!sameLeaf || s.end <= to))
+		),
+		...(sameLeaf ? [] : right.sides.map((s) => readSideAt(s, right.raw, s.end <= to)))
+	]);
+	const back = all.filter((s) => s.taken && (s.partner ? !s.partner.taken : sameLeaf));
+	const held = left.raw.slice(left.cut, from);
+	// A letter at a side joins its text (§ 4.2): past the sides whose text follows them.
+	let typedAt = held.length;
+	for (const { node, bytes } of back) {
+		if (markerSideEdge(node)?.start !== node.end) break;
+		typedAt += bytes.length;
+	}
+	return {
+		bytes: held + back.map((s) => s.bytes).join('') + right.raw.slice(to, right.cut),
+		typedAt
+	};
+}
+
+/** `node` and `range` as a live piece carries them off, each side the removal puts back cut out of
+ *  both (§ 4.5); `alone` where the piece is the whole removal, inside one block. */
+export function withoutKeptSides(
+	node: NodeView,
+	range: Span,
+	reading: Reading,
+	alone: boolean
+): { node: NodeView; range: Span } {
+	if (!reading.hidesDelimitersAtCaret()) return { node, range };
+	const { sides } = classifyConstructs(resolvedInlineContent(node, reading));
+	if (sides.length === 0) return { node, range };
+	// One end of a range across blocks runs on past its block's text, so a side at that edge goes.
+	const text = alone ? null : getContentRange(node);
+	const head = text && range.start <= text.start ? range.start : null;
+	const tail = text && range.end >= text.end ? range.end : null;
+	const from = Math.min(head ?? pastSides(sides, range.start, 'before'), range.end);
+	const to = Math.max(tail ?? pastSides(sides, range.end, 'after'), from);
+	let { raw } = node;
+	let { start, end } = range;
+	const read = pairSides(sides.map((s) => readSideAt(s, raw, s.start >= from && s.end <= to)));
+	// Last side first, so the offsets before each cut still stand.
+	for (const { node: side, taken, partner } of read.reverse()) {
+		if (taken && (partner ? partner.taken : !alone)) continue;
+		raw = raw.slice(0, side.start) + raw.slice(side.end);
+		if (side.end <= start) start -= side.end - side.start;
+		if (side.end <= end) end -= side.end - side.start;
+	}
+	return { node: { ...node, raw }, range: { start, end } };
+}
+
+/** A marker side as a removal reads it: whether it went, and its partner once paired. */
+interface ReadSide {
+	node: InlineNode;
+	bytes: string;
+	taken: boolean;
+	of?: AnyInlineKind;
+	opens?: boolean;
+	key?: string;
+	partner?: ReadSide;
+}
+
+function readSideAt(node: InlineNode, raw: string, taken: boolean): ReadSide {
+	const pair = getInlineConstructPolicy(node.kind)?.pair;
+	return {
+		node,
+		bytes: raw.slice(node.start, node.end),
+		taken,
+		...pair,
+		key: pair?.key?.(node.data)
+	};
+}
+
+/** `sides`, in order, each given its partner: by the pair's `key` where it has one, else by
+ *  nesting order. */
+function pairSides(sides: ReadSide[]): ReadSide[] {
+	const opens: ReadSide[] = [];
+	for (const side of sides) {
+		const at = side.opens ? -1 : opens.findLastIndex((o) => o.of === side.of && o.key === side.key);
+		const open = at < 0 ? undefined : opens.splice(at, 1)[0];
+		if (open) [side.partner, open.partner] = [open, side];
+		if (side.opens) opens.push(side);
+	}
+	return sides;
+}
+
+/** Where `at` moves past the sides standing at it on the half the cut removes. */
+function pastSides(sides: readonly InlineNode[], at: number, keep: 'before' | 'after'): number {
+	for (const s of keep === 'before' ? sides : [...sides].reverse()) {
+		if (keep === 'before' && s.start === at) at = s.end;
+		if (keep === 'after' && s.end === at) at = s.start;
+	}
+	return at;
+}
+
 /** `raw` with `edits` applied, and where each of its offsets lands in the result. */
 function withEdits(
 	raw: string,
@@ -400,17 +530,17 @@ const asRow: Spelling = (side, c) => chordSpelling(side.raw, c);
 
 /** The cut's own bytes first, the boundary space moved outside the runs next, then the runs in
  *  their rows' own markers, for a spelling that cannot close mid-word. */
-function keepingReadings(join: JoinSeam, left: Side, right: Side): JoinReading[] {
+function keepingReadings(join: JoinSeam, left: Side, right: Side, sides: JoinSides): JoinReading[] {
 	const readings = [
-		keepingReading(join, left, right, asCut, false),
-		keepingReading(join, left, right, asCut, true)
+		keepingReading(join, left, right, sides, asCut, false),
+		keepingReading(join, left, right, sides, asCut, true)
 	];
 	const open = [
 		...left.dangling.map((c) => [left, c] as const),
 		...right.dangling.map((c) => [right, c] as const)
 	];
 	if (open.some(([side, c]) => asRow(side, c).opener !== asCut(side, c).opener)) {
-		readings.push(keepingReading(join, left, right, asRow, false));
+		readings.push(keepingReading(join, left, right, sides, asRow, false));
 	}
 	return readings.filter((reading): reading is JoinReading => reading !== null);
 }
@@ -421,6 +551,7 @@ function keepingReading(
 	join: JoinSeam,
 	left: Side,
 	right: Side,
+	sides: JoinSides,
 	spell: Spelling,
 	spaced: boolean
 ): JoinReading | null {
@@ -484,10 +615,15 @@ function keepingReading(
 		space = (before ? ' ' : '') + (after ? ' ' : '');
 	}
 
-	const edits: Edit[] = [{ start: join.seam, end: join.seam, insert: closers + space + openers }];
+	// A run opens before a letter, so the sides the kept half starts with go before it, unless a
+	// space follows them, where it can only open against the side.
+	const past = openers === '' ? rightStart : pastSides(right.sides, rightStart, 'before');
+	const lead = /\S/.test(right.raw[past] ?? '') ? past : rightStart;
+	const written = closers + space + sides.bytes + right.raw.slice(rightStart, lead) + openers;
+	const edits: Edit[] = [{ start: join.seam, end: join.seam, insert: written }];
 	if (leftEnd < left.cut) edits.push(dropped({ start: leftEnd, end: left.cut }));
-	if (rightStart > right.cut) {
-		edits.push(dropped(rightSpan(join, right, { start: right.cut, end: rightStart })));
+	if (lead > right.cut) {
+		edits.push(dropped(rightSpan(join, right, { start: right.cut, end: lead })));
 	}
 	const leftMerged = closing.slice(0, merged).filter((c) => leftTouching.includes(c));
 	const rightMerged = opening.slice(0, merged).filter((c) => rightTouching.includes(c));
@@ -512,7 +648,8 @@ function keepingReading(
 		}
 	}
 	// The caret stays where the cut began, so it goes past a space that stepped outside the run.
-	const typedAt = before ? closers.length + 1 : typed === '' ? 0 : innerClosers.length;
+	const atText = closers + space === '' ? sides.typedAt : innerClosers.length;
+	const typedAt = before ? closers.length + 1 : typed === '' ? 0 : atText;
 	return { edits, typedAt, keeps: true };
 }
 

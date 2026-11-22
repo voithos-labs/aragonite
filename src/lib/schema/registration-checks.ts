@@ -27,7 +27,7 @@ import {
 	type MergeRoleEntry,
 	type PresentationFactEntry
 } from '../invariants/registry';
-import { listInlineConstructPolicies } from './inline-construct-policy';
+import { isHeldInlineKind, listInlineConstructPolicies } from './inline-construct-policy';
 import { isInlineKindDeclared } from './plugin-kind';
 import {
 	tryGetBlockKindDescriptor,
@@ -120,7 +120,7 @@ export function flushPendingRegistrationChecks(
 }
 
 const isKnownInlineKind = (kind: AnyInlineKind): boolean =>
-	isBuiltinInlineKind(kind) || isInlineKindDeclared(kind);
+	isBuiltinInlineKind(kind) || isInlineKindDeclared(kind) || isHeldInlineKind(kind);
 
 /**
  * Mount-only, since the policy's functions come from the component layer, which a parse-only test

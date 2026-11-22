@@ -5,7 +5,7 @@ Typing a widget's opening byte in front of text that completes it (`#` before `f
 with the caret where it was, one past the typed byte, instead of being pushed past the new widget.
 Keys typed in a shown source are written as they land, so a key that stops the bytes reading as
 the widget (the Space after `#`) re-parses the block at once. The kinds here are every one
-registered with `revealSource` and no content span: the harness tag (limestone's registration,
+that shows its source with no content span: the harness tag (limestone's registration,
 value for value), the footnote reference, the harness wikilink and the inline directive.
 
 ## Happy paths

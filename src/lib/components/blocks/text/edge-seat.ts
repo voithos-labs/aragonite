@@ -2,7 +2,8 @@
  * Where a byte typed at a construct's hidden edge goes: a marker run drawn at zero width leaves one
  * screen position standing for several raw offsets. The letter joins what the visible character
  * before the position is in (at a line start, the one after) unless the caret memory's record says
- * otherwise; a `never-extend` kind takes nothing at its edge, and the render has the last word
+ * otherwise; a `never-extend` kind takes nothing at its edge, a plugin's marker side gives every
+ * letter to the side its pair calls its text, and the render has the last word
  * (live-mode.md § 2), since a position that reads right can parse wrong.
  */
 
@@ -18,7 +19,8 @@ import {
 import type { ContentRange } from '../../../core/inline';
 import {
 	getInlineConstructPolicy,
-	getInlineMarkPolicy
+	getInlineMarkPolicy,
+	markerSideEdge
 } from '../../../schema/inline-construct-policy';
 import type { GrammarView } from '../../../schema/block-openers';
 import type { Reading } from '../../../schema/reading';
@@ -296,6 +298,8 @@ interface MarkerRun {
 	span: ContentRange;
 	/** What the construct shows; a letter typed from its start to its end joins it. */
 	content: ContentRange;
+	/** A plugin's marker side: all marker, its content the edge where a typed letter always goes. */
+	marker: boolean;
 }
 
 /** One screen position: its boundary offsets ascending, and the runs that meet there. */
@@ -330,8 +334,8 @@ function candidateOffsets(
 	);
 }
 
-/** The offset where a letter joins exactly the constructs, of those meeting here, that the visible
- *  character beside the position is in: the one before it, or at a line start the one after. */
+/** The offset where a letter joins exactly what the visible character beside the position is in
+ *  (before it, or after it at a line start), and the text of every marker side meeting here. */
 function neighbourOffset(
 	position: ScreenPosition,
 	raw: string,
@@ -348,7 +352,7 @@ function neighbourOffset(
 	);
 	const order = lineStart ? [...offsets].reverse() : offsets;
 	const found = order.find((offset) =>
-		position.runs.every((run) => joins(run, offset) === wanted.has(run.node))
+		position.runs.every((run) => joins(run, offset) === (run.marker || wanted.has(run.node)))
 	);
 	return found ?? (lineStart ? hi : lo);
 }
@@ -360,9 +364,12 @@ function outsideOffset(position: ScreenPosition): number {
 	return position.offsets.reduce((best, offset) => (depth(offset) < depth(best) ? offset : best));
 }
 
-/** Whether a letter typed at `offset` lands in `run`'s construct. */
-const joins = (run: MarkerRun, offset: number): boolean =>
-	run.content.start <= offset && offset <= run.content.end;
+/** Whether a letter typed at `offset` lands in `run`'s construct: for a marker side, anywhere on
+ *  its text's side of it, so sides stacked at one position share an offset. */
+const joins = (run: MarkerRun, offset: number): boolean => {
+	if (run.marker) return run.leading ? offset >= run.content.start : offset <= run.content.end;
+	return run.content.start <= offset && offset <= run.content.end;
+};
 
 /** Whether `offset` lies outside every never-extend construct meeting at the position, which is all
  *  such a row allows: half a URL is not a URL, and half an escape is a literal backslash. */
@@ -413,9 +420,12 @@ function markerRuns(
 	recordMarkerRunRead();
 	const runs: MarkerRun[] = [];
 	for (const node of inlineDescendants(inlines)) {
-		const content = constructContentRange(node) ?? paintedRange(node, raw, screen, grammar);
+		const own = constructContentRange(node);
+		const side = own ? null : markerSideEdge(node);
+		const content = own ?? side ?? paintedRange(node, raw, screen, grammar);
 		if (!content) continue;
-		const run = { kind: node.kind, node, span: { start: node.start, end: node.end }, content };
+		const span = { start: node.start, end: node.end };
+		const run = { kind: node.kind, node, span, content, marker: side !== null };
 		if (node.start < content.start) {
 			runs.push({ ...run, start: node.start, end: content.start, leading: true });
 		}

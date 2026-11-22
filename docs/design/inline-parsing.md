@@ -118,31 +118,35 @@ A construct's syntax is read in one place, and the code that writes it back sits
 
 ### The plugin tier
 
-A plugin owns a **single trigger character** and supplies a recognizer: given `raw` and a position, claim a range and return a node, or decline and leave the character as literal text. Registrations form a priority order, the inline mirror of the block layer's `OPENER_PRIORITIES`. Handlers on one trigger are consulted lowest-priority-first, so two plugins on the same character dispatch deterministically regardless of registration order.
+A plugin value lists its inline constructs, and its editor builds them into that editor's inline table (`core/inline/scan/inline-table.ts`), named `plugin/local`, so another editor on the page reads the same bytes without them. An `inline()` construct (`src/lib/schema/inline-maker.ts`) is a prefix, a matcher (a sticky regex, or a function for a match a regex would make slow) and a drawing. At a character the table holds, the scan asks the editor's own constructs first, longer prefix first, then by name, then behind whatever their `after` names; then the core's handlers and the `setup` registrar's records for the plugins the editor runs; then its own reading of the character. A construct that declines (no match, or `read` returning null) leaves the character to the next, and in the end to literal text.
 
 ```ts
-INLINE_PRIORITIES; // { prefixOverride: 40, builtin: 50, plugin: 100 }
-
-registerInlineSyntax('%', (raw, pos, end) => {
-	const close = raw.indexOf('%', pos + 1);
-	if (close === -1 || close >= end) return null; // decline: the `%` stays literal text
-	return { kind: 'percent', start: pos, end: close + 1 };
+const percent = inline({
+	name: 'percent',
+	label: 'Percent',
+	prefix: '%',
+	match: /%[^%\n]+%/,
+	read: () => ({}),
+	sample: 'a %x% b',
+	class: 'percent'
 });
-parseInline('a %x% b', 0, 7);
-// [
+// read in an editor whose `calc` plugin lists `percent`:
+// 'a %x% b' → [
 //   { kind: 'text', start: 0, end: 2, text: 'a ' },
-//   { kind: 'percent', start: 2, end: 5 },
+//   { kind: 'calc/percent', start: 2, end: 5, data: {} },
 //   { kind: 'text', start: 5, end: 7, text: ' b' }
 // ]
 ```
 
-Whether a trigger can outrank a built-in depends on whether the parse reads that character itself (`BUILT_IN_TRIGGERS`, above):
+A `mark()` reads as a delimiter run instead: the scan takes its character as it takes `~`, pairs it at its own length and names the node by the mark (`emphasis.ts`). A `markerPair()` is two `inline()` constructs, its sides, which the scan claims one at a time and never pairs.
 
-- Any other character is free. A bare handler on it is asked wherever it appears, and the search above starts stopping on it the moment it's registered. That's the `%` above, and inline math, emoji shortcodes, and the inline `:name:` directive all ship this way.
-- A **built-in** trigger (``\ ` & * _ ~ [ ] ! <`` and the newline) is reachable only through a multi-character **prefix handler** registered at a priority below the built-in boundary, which the parse asks _ahead_ of its own reading and only when the prefix matches at that position. Footnotes' `[^` beats `[` this way while a plain `[` still opens a link, and `![[…]]` outranks the image case the same way.
-- A bare registration on a built-in trigger throws, rather than accepting a recognizer that could never fire. So does a prefix handler at a priority at or above the boundary, and any handler on `]`, which the parse only ever meets closing a `[`.
+Whether a prefix can outrank a built-in depends on whether the parse reads its first character itself (`BUILT_IN_TRIGGERS`, above):
 
-What those throws look like, so you recognize them when you meet one:
+- Any other character is free. A construct on it is asked wherever it appears, and the search above starts stopping on it the moment an editor lists it. That's the `%` above, and inline math, emoji shortcodes, and the inline `:name:` directive all ship this way.
+- A **built-in** character (``\ ` & * _ ~ [ ] ! <`` and the newline) is reachable only through a prefix of two or more characters, which the parse asks _ahead_ of its own reading and only where the prefix matches at that position. Footnotes' `[^` beats `[` this way while a plain `[` still opens a link, and `![[…]]` outranks the image case the same way. On `[` and `![` a claim gives way where the built-in reading of that bracket closes it as a link or image before the claim ends: `scan.ts :: handlerClaim` asks a probe, a second scan from the bracket that stops at the claim's end, so `[^1](x)` stays a link.
+- `inline()` refuses a one-character prefix on a built-in character, and any prefix on `]`, which the parse only ever meets closing a `[`.
+
+The `setup` registrar (`registerInlineSyntax`) answers the same rules with a priority number instead of `after`, and throws where `inline()` refuses:
 
 ```ts
 const recognizer = () => null;

@@ -62,7 +62,11 @@
 	import { createEdgeStep } from '../text/edge-step';
 	import { createTypedPlacement } from '../text/edge-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-	import { getInlineWidgetEditing, widgetElByStart } from '../../../core/inline/inline-widgets';
+	import {
+		getInlineWidgetEditing,
+		revealsOnArrow,
+		widgetElByStart
+	} from '../../../core/inline/inline-widgets';
 	import { readClipboard } from '../../../browser/clipboard';
 
 	type ExitDirection = 'up' | 'down';
@@ -285,7 +289,7 @@
 		// An arrow steps over a widget that cannot show its source, since in a cell that is the `<br>`
 		// line break or a construct the cell draws as plain source (an image).
 		enterWidget: (widget, fromTrailingEdge) => {
-			if (widgetEditing(widget.kind)?.revealSource) {
+			if (revealsOnArrow(widgetEditing(widget.kind))) {
 				widgetInteraction.enterWidget(widget, fromTrailingEdge);
 			} else {
 				cursor.setRaw(asRawOffset(fromTrailingEdge ? widget.start : widget.end), {
@@ -461,6 +465,10 @@
 		getContentVersion,
 		navigateTo: (path) => rects.navigateTo(path),
 		activationClick,
+		ownWidgets: wiring.ownWidgets(
+			() => node,
+			() => myPath
+		),
 		get islands() {
 			return decorationEngine ? decorationEngine.paintOf(node, myPath).islands : NO_ISLANDS;
 		},
