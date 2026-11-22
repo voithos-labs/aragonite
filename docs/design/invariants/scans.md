@@ -262,6 +262,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.372 | A core-only editor's production page carries no highlight.js | harness |
 | G4.373 | The core imports no highlight.js | L |
 | G4.374 | A conformance cell reads through its context | L |
+| G4.375 | A host importing from `/testing` ships none of its checks | harness |
 
 ### The entries
 
@@ -763,3 +764,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.373 · The core imports no highlight.js.** No module under `src/lib/` imports it, so the page G4.372 builds can't start carrying it again; the highlight package and the tests may. `lint/file-rules.test.ts`.
 
 **G4.374 · A conformance cell reads through its context.** No file under `src/lib/testing/` names a parse, a descriptor lookup or the default grammar of its own: each read goes through the `CheckContext` it was handed (`testing/check-context.ts`), so a plugin value is checked as its own editor reads it. A short list may, each with why: the context, the legacy runner, the helpers whose default it replaces, the menu cell. A round trip stays green under the wrong grammar, hence a scan. `lint/kit-cells-read-context.test.ts`; behaviour: `check-context.test.ts`.
+
+**G4.375 · A host importing from `/testing` ships none of its checks.** The minimal page imports `configureEditorEnv` from `/testing`, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name any of that entry's own code, through either build. A check table built by a call at load time ships this way, since a bundler can't prove the call does nothing; work a module does when loaded goes inside a function, or its call is marked pure.

@@ -1,7 +1,8 @@
 // A host's production build carries none of the editor's dev checks (G4.247), no dev-only module
-// (G4.265) and no highlight.js (G4.372). Vite builds a page that imports the editor, through the
-// Svelte build and the prebuilt one, in development and in production: every check tag the
-// development build carries must be gone from the production one. A second page lists the highlight
+// (G4.265), no highlight.js (G4.372) and none of `/testing`'s own code (G4.375). Vite builds a
+// page that imports the editor, through the Svelte build and the prebuilt one, in development and
+// in production: every check tag the development build carries must be gone from the production
+// one. A second page lists the highlight
 // package as installed, which loads exactly its sixteen default grammars on demand and no others; a
 // third opts into every grammar, and at least 150 of them must load outside its first load. Each
 // production page's first-load and total JS and its chunk count are budget rows in
@@ -90,6 +91,7 @@ export async function verifyDevStrip(root = '.') {
 			// The prebuilt page's maps name the prebuilt chunks, not the editor's modules.
 			if (route === 'svelte') failures.push(...devOnlyModules(production.outDir));
 			failures.push(...highlightJs(production.outDir, route));
+			failures.push(...testingCode(production.outDir, route));
 		}
 		writePage(highlightPage, path.resolve(root), HIGHLIGHT_MAIN);
 		writePage(allLanguagesPage, path.resolve(root), ALL_LANGUAGES_MAIN);
@@ -170,6 +172,29 @@ function highlightJs(outDir, route) {
 		? []
 		: [
 				`the ${route} production page carries ${bytes} B of highlight.js: a core-only editor paints code plain, and highlighting is the highlight package's`
+			];
+}
+
+// ── The test entry ───────────────────────────────────────────────────────────
+
+/** A module of the `/testing` entry, as a source map spells its path on either route. */
+const TESTING = /(^|[\\/])dist[\\/](prebuilt[\\/])?testing(\.js$|[\\/])/;
+
+/**
+ * A failure when the production page carries code of `/testing` itself (G4.375): the page imports
+ * only `configureEditorEnv`, which is the dev-checks entry's, so a check's module-level work that
+ * a bundler can't drop would ship to every host that configures the editor that way.
+ * @param {string} outDir
+ * @param {'svelte' | 'prebuilt'} route
+ */
+function testingCode(outDir, route) {
+	const bytes = [...bytesBySource(outDir)]
+		.filter(([source]) => TESTING.test(source))
+		.reduce((sum, [, owned]) => sum + owned, 0);
+	return bytes === 0
+		? []
+		: [
+				`the ${route} production page carries ${bytes} B of /testing's own code: work a module of it does when loaded ships to every host importing configureEditorEnv; do it inside a function, or mark the call pure`
 			];
 }
 

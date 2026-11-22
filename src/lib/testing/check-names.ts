@@ -49,9 +49,15 @@ interface CheckSpec<C extends CheckName> {
 }
 
 const promise = (text: string): CellContract => ({ promise: text, anchor: ANCHOR });
-const kind = (cell: keyof typeof KIND_CELL_CONTRACTS) => promise(KIND_CELL_CONTRACTS[cell].promise);
+
+// Marked pure: a host importing `configureEditorEnv` from `/testing` would otherwise ship the table.
+/* @__NO_SIDE_EFFECTS__ */
+function kitPromise<C extends string>(table: Record<C, CellContract>, cell: C): CellContract {
+	return promise(table[cell].promise);
+}
+const kind = (cell: keyof typeof KIND_CELL_CONTRACTS) => kitPromise(KIND_CELL_CONTRACTS, cell);
 const box = (cell: keyof typeof CONTAINER_CELL_CONTRACTS) =>
-	promise(CONTAINER_CELL_CONTRACTS[cell].promise);
+	kitPromise(CONTAINER_CELL_CONTRACTS, cell);
 
 export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 	install: {
