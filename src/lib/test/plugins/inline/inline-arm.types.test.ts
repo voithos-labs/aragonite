@@ -33,7 +33,13 @@ function mistakes() {
 	// prettier-ignore
 	// @ts-expect-error nor a follow
 	const h = inline({ ...common, name: 'h', read, as: 'image', ...image, follow: () => {} });
-	return [tag, b, c, d, e, f, g, h];
+	// prettier-ignore
+	// @ts-expect-error a claim is styled text or a link: the maker would draw one and drop the other
+	const i = inline({ ...common, name: 'i', read, as: 'link', ...link, class: 'tag' });
+	// prettier-ignore
+	// @ts-expect-error nor styled text and an image
+	const j = inline({ ...common, name: 'j', read, as: 'image', ...image, class: 'tag' });
+	return [tag, b, c, d, e, f, g, h, i, j];
 }
 
 it('compiles the pins above', () => {

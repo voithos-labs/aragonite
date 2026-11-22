@@ -89,8 +89,7 @@ export type InlineArm<D> =
 			/** The claim's bytes holding `image`, or null for an edit the syntax can't hold. Without
 			 *  it every edit of the image is refused. */
 			write?(image: ImagePiece, data: D): string | null;
-			follow?: never;
-	  } & DrawsNothing)
+	  } & DrawnBuiltIn)
 	| ({
 			as: 'link';
 			/** `text` is a run of the claim's bytes, at `at` or its one run after the prefix: the link
@@ -98,8 +97,7 @@ export type InlineArm<D> =
 			link(data: D): LinkPiece;
 			/** The claim's bytes holding `link`, or null; without it the link card's edits are refused. */
 			write?(link: LinkPiece, data: D): string | null;
-			follow?: never;
-	  } & DrawsNothing)
+	  } & DrawnBuiltIn)
 	| ({
 			class: string;
 			/** Runs on the click the host picked for links, as a widget's does; the text stays
@@ -109,6 +107,9 @@ export type InlineArm<D> =
 
 /** What only a widget's drawing uses, refused on the arms that draw nothing of their own. */
 type DrawsNothing = { draw?: never; key?: never; depends?: never };
+
+/** A built-in image or link follows and is styled as one, so the claim's own are refused too. */
+type DrawnBuiltIn = DrawsNothing & { follow?: never; class?: never };
 
 export type InlineSpec<D> = InlineCommon<D> & (RegexMatcher<D> | FunctionMatcher<D>) & InlineArm<D>;
 
