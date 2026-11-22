@@ -40,12 +40,12 @@ describe('indentItem writes the moved item under the item above', () => {
 		},
 		{
 			into: 'an ordered sublist it already holds',
-			source: '1. a\n   1. x\n2. b\n',
+			source: '1. a\n   1. x\n5. b\n',
 			bytes: '1. a\n   1. x\n   2. b\n'
 		},
 		{
 			into: 'one of another delimiter it already holds',
-			source: '1. a\n   1) x\n2. b\n',
+			source: '1. a\n   1) x\n5. b\n',
 			bytes: '1. a\n   1) x\n   2) b\n'
 		},
 		{
@@ -97,18 +97,18 @@ describe('a list move keeps the item’s own wider spacing', () => {
 	});
 });
 
-// Miss-analysis: the one adoption row kept its sublist's delimiter, where restyling a taken sibling
-// and renumbering it write the same marker in either order.
+// Miss-analysis: the one adoption row kept its sublist's delimiter and numbers, where a taken
+// sibling left unstyled or unnumbered writes the bytes it read.
 describe('Shift+Tab hands the siblings after the item to the sublist it holds', () => {
 	it.each([
 		{
 			into: 'an ordered sublist',
-			source: '1. a\n   1. x\n      1. q\n   2. y\n   3. z\n',
+			source: '1. a\n   1. x\n      1. q\n   7. y\n   9. z\n',
 			bytes: '1. a\n2. x\n   1. q\n   2. y\n   3. z\n'
 		},
 		{
 			into: 'one of another delimiter, wider spaced',
-			source: '1. a\n   1. x\n      1) q\n   2.  y\n   3. z\n',
+			source: '1. a\n   1. x\n      1) q\n   7.  y\n   9. z\n',
 			bytes: '1. a\n2. x\n   1) q\n   2)  y\n   3) z\n'
 		},
 		{
