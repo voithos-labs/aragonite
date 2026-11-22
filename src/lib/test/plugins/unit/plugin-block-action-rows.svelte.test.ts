@@ -109,7 +109,8 @@ describe("a block type's menu row", () => {
 			'no label'
 		],
 		['answers something not text', () => 42 as unknown as string, 'a number, not text'],
-		// A blank row has no name for a screen reader to read, nor any for the eye.
+		// Miss-analysis: the failure rows threw or answered a number, and none answered blank text,
+		// which drew a menu item with no name to read.
 		['answers blank text', () => ' ', 'blank']
 	])('shows the command title where its label %s, and is reported once', async (_, label, said) => {
 		const plugin = alertsWith((cycle) => [

@@ -318,7 +318,7 @@ describe('a container whose data is not an object', () => {
 		const m = mountEditor({ source: '[^a]: first\n', plugins: [boxes({ lines: NOTE_LINES })] });
 		await m.settle();
 		const [box] = m.instance.doc.blocks;
-		await m.instance
+		const result = await m.instance
 			.edit()
 			.data(box, 'b' as never)
 			.commit();
@@ -326,6 +326,11 @@ describe('a container whose data is not an object', () => {
 		expect([...new Set(takeDevWarnsOf('container-data').map((w) => w.message))]).toEqual(
 			warned('a string')
 		);
+		// The string spreads under the data its first line reads, which writes the same bytes back.
+		expect({ result, source: m.instance.getSource() }).toEqual({
+			result: { ok: false, reason: 'empty', message: 'it writes only the bytes already there' },
+			source: '[^a]: first\n'
+		});
 	});
 });
 
