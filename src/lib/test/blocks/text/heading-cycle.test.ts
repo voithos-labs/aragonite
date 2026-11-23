@@ -1,6 +1,7 @@
 // `cycleHeading` re-marks a block by its kind's content range, and declines the raw-editable kinds
 // that bind the same keymap.
 // Miss-analysis: every fixture's marker was one a `^#` regex reaches, never indented or setext.
+// Miss-analysis: no prior fixture had a closing ATX run, so dropping that suffix went unnoticed.
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { getContentRange, isProseKind } from '#lib/core/inline/index.js';
@@ -28,6 +29,10 @@ describe('cycleHeading: prose shapes', () => {
 	it('replaces an existing level, and re-asking for the same one is a no-op edit', () => {
 		expect(block('# Hello\n').cycle(2, 4)).toEqual({ newRaw: '## Hello\n', caretOffset: 5 });
 		expect(block('# Hello\n').cycle(1, 4)).toEqual({ newRaw: '# Hello\n', caretOffset: 4 });
+	});
+
+	it('preserves a closing ATX run when changing heading levels', () => {
+		expect(block('## a ##').cycle(3, 4)).toEqual({ newRaw: '### a ##', caretOffset: 5 });
 	});
 
 	it('strips at level 0, and declines a paragraph that has nothing to strip', () => {
