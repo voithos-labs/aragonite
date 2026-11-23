@@ -726,6 +726,44 @@ export function checkLeafRawWrite(
 	}
 }
 
+/** For a type whose block may sit on one line: a line break typed into a one-line fixture's text
+ *  writes the block on lines of its own, keeping every byte typed and leaving the next block. */
+export function checkOneLineBreak(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	fixture: string
+): void {
+	const descriptor = context.descriptor(kind);
+	const rule = descriptor.rawWrite;
+	if (!rule) fail(`"${kind}" declares no rawWrite to drive`);
+	const { ending } = fixtureLines(fixture);
+	const doc = context.parse(fixture + ending + RAW_WRITE_SENTINEL);
+	const node = subjectNode(doc, kind, [0], 'the one-line fixture');
+	const line = trimTrailingLineEnding(node.raw);
+	const text = descriptor.getContentRange?.(node) ?? { start: 0, end: line.length };
+	const at = text.start + Math.ceil((text.end - text.start) / 2);
+	const written = line.slice(0, at) + ending + line.slice(at) + ownTrailingLineEnding(node.raw);
+	const ctx = { node, mode: 'authored', lineEnding: documentLineEnding(doc) } as const;
+	const legal = rule.normalize(written, ctx);
+	const label = `a line break typed into its one line (${show(written)} to ${show(legal)})`;
+	assertIs(rule.normalize(legal, ctx), legal, `"${kind}" rule is idempotent on ${label}`);
+	const deleted = checkWriteRuleKeepsBytes(node, written, legal);
+	assert(deleted === null, `"${kind}" after ${label}: ${deleted?.message}`);
+	checkCaretMap(`"${kind}" caret map on ${label}`, written, legal, (offset) =>
+		rule.mapOffset(written, offset, ctx)
+	);
+	const read = context.parse(legal + ending + RAW_WRITE_SENTINEL).children;
+	assert(
+		read.length === 2 && read[0].kind === kind && read[0].raw === legal,
+		`"${kind}" after ${label} reads back as one block of its type`
+	);
+	assertIs(
+		splitLines(legal).length,
+		splitLines(written).length + 2,
+		`"${kind}" after ${label} puts its opener and its closer on lines of their own`
+	);
+}
+
 /** A caret map agrees with its rule when offsets stay ordered and in range, one before every
  *  change stays, and one after every change moves by the length the rule added or dropped. */
 function checkCaretMap(

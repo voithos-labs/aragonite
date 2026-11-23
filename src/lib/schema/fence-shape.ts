@@ -13,6 +13,7 @@ import {
 	splitLines,
 	trailingLineEnding,
 	trimTrailingLineEnding,
+	type DisplayLine,
 	type ParsedLine
 } from '../core/lines';
 import { joinRaw } from '../core/parser';
@@ -64,6 +65,9 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 	return {
 		range: (node: NodeView) => range(node.raw),
 		multiLine: true,
+		oneLine: fixed.some((f) => f.oneLine)
+			? (line: string) => openFixed(fixed, line)?.oneLine === true
+			: undefined,
 		writes: {
 			normalize(raw, ctx) {
 				if (opensInfo(raw)) return infoRule.normalize(raw, ctx);
@@ -83,8 +87,8 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 		/** Lines a completion wrote: an opener on the first, its closer on the last, as the parser
 		 *  would read them. */
 		claims(lines: readonly string[]): boolean {
-			if (lines.length < 2) return false;
-			if (infoOpen(lines[0])) return true;
+			if (lines.length === 0) return false;
+			if (lines.length > 1 && infoOpen(lines[0])) return true;
 			const read = readFixed(
 				fixed,
 				lines.map((text) => ({ text })),
@@ -135,46 +139,73 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 interface FixedFence {
 	/** Its closer when it's one fixed line, which a candidate line can be compared with. */
 	fixedCloser: string | null;
-	matches(text: string): RegExpExecArray | null;
+	/** `open` matched at the start of a line, wherever the match ends. */
+	openAt(text: string): RegExpExecArray | null;
 	closer(open: RegExpExecArray): string;
+	oneLine: boolean;
 	escape?(bodyLine: string): string;
 }
 
 function fixedFence(fence: Extract<Fence, { open: RegExp }>): FixedFence {
-	const pattern = new RegExp(fence.open.source, fence.open.flags.replace(/[gy]/g, ''));
+	if (fence.oneLine && endsInAnchor(fence.open.source)) {
+		throw new Error(
+			`fencedBlock: a oneLine fence's open ${fence.open} ends in a $ anchor, so it can't match ` +
+				'the start of a one-line block: drop the $'
+		);
+	}
+	// Sticky, so a line is matched at its start and the rest of it is never scanned.
+	const pattern = new RegExp(fence.open.source, fence.open.flags.replace(/[gy]/g, '') + 'y');
 	return {
-		matches(text) {
-			const match = pattern.exec(text);
-			return match && match.index === 0 && match[0].length === text.length ? match : null;
+		openAt(text) {
+			pattern.lastIndex = 0;
+			return pattern.exec(text);
 		},
 		fixedCloser: typeof fence.close === 'string' ? fence.close : null,
 		closer: (open) => (typeof fence.close === 'string' ? fence.close : fence.close(open)),
+		oneLine: fence.oneLine ?? false,
 		escape: fence.escape
 	};
 }
 
-/** The fixed fence a line opens, and the closing line its opener names. */
-function openFixed(
-	fixed: readonly FixedFence[],
-	text: string
-): { fence: FixedFence; closer: string } | null {
+// A `$` last in the source, unless an odd run of backslashes escapes it.
+function endsInAnchor(source: string): boolean {
+	let slashes = 0;
+	for (let at = source.length - 2; at >= 0 && source[at] === '\\'; at--) slashes++;
+	return source.endsWith('$') && slashes % 2 === 0;
+}
+
+/** How a line opens a fixed fence: the fence, the closer its opener names, where the opener's match
+ *  ends (`openEnd`), and whether the line is the whole block, closer and all. */
+interface FixedOpen {
+	fence: FixedFence;
+	closer: string;
+	openEnd: number;
+	oneLine: boolean;
+}
+
+// The one-line form is tried first: its closer ends the line, at or past the opener's end.
+function openFixed(fixed: readonly FixedFence[], text: string): FixedOpen | null {
 	for (const fence of fixed) {
-		const match = fence.matches(text);
-		if (match) return { fence, closer: fence.closer(match) };
+		const match = fence.openAt(text);
+		if (!match) continue;
+		const closer = fence.closer(match);
+		const openEnd = match[0].length;
+		const oneLine =
+			fence.oneLine &&
+			closer !== '' &&
+			text.length - closer.length >= openEnd &&
+			text.endsWith(closer);
+		if (oneLine || openEnd === text.length) return { fence, closer, openEnd, oneLine };
 	}
 	return null;
 }
 
-/** A fixed fence read off lines: the fence and closer its first line opens, and the index of the
- *  line closing it, -1 while none does. */
-interface FixedRead {
-	fence: FixedFence;
-	closer: string;
+/** A fixed fence read off lines: how its first line opens it, and the index of the line closing
+ *  it, -1 while none does. */
+interface FixedRead extends FixedOpen {
 	closing: number;
 }
 
-// The first line spelling the closer closes the fence; text a block holds (`held`) closes at the
-// last one where the fence has an `escape`, since its write escapes the ones above.
 function readFixed(
 	fixed: readonly FixedFence[],
 	lines: readonly { text: string }[],
@@ -183,7 +214,19 @@ function readFixed(
 	end = lines.length
 ): FixedRead | null {
 	const open = openFixed(fixed, lines[from].text);
-	if (!open) return null;
+	return open && { ...open, closing: closingLine(open, lines, held, from, end) };
+}
+
+// A one-line block closes on its own line, else the first line below spelling the closer; held text
+// closes at the last such line where the fence has an `escape`, as its write escapes the rest.
+function closingLine(
+	open: FixedOpen,
+	lines: readonly { text: string }[],
+	held: boolean,
+	from: number,
+	end: number
+): number {
+	if (open.oneLine) return from;
 	const last = held && open.fence.escape !== undefined;
 	let closing = -1;
 	for (let at = from + 1; at < end; at++) {
@@ -191,11 +234,11 @@ function readFixed(
 		closing = at;
 		if (!last) break;
 	}
-	return { ...open, closing };
+	return closing;
 }
 
-/** A text read whole as a fixed fence: its body from `bodyStart`, its closing line from
- *  `closerStart` to `closerEnd`, and what follows from there; an unclosed one's body runs to the end. */
+/** A text read whole as a fixed fence: its body from `bodyStart`, its closer from `closerStart` to
+ *  `closerEnd`, and what follows from there; an unclosed one's body runs to the end. */
 interface FixedSplit extends FixedRead {
 	lines: ParsedLine[];
 	bodyStart: number;
@@ -204,16 +247,24 @@ interface FixedSplit extends FixedRead {
 }
 
 function splitFixed(fixed: readonly FixedFence[], text: string, held: boolean): FixedSplit | null {
-	const lines = splitLines(text);
-	const read = lines.length > 0 ? readFixed(fixed, lines, held) : null;
-	if (!read) return null;
-	const closing = read.closing === -1 ? null : lines[read.closing];
+	// Line 0 first, so a block no fixed fence opens is never split whole.
+	const open = openFixed(fixed, firstDisplayLine(text).text);
+	const lines = open ? splitLines(text) : [];
+	if (!open || lines.length === 0) return null;
+	const closing = closingLine(open, lines, held, 0, lines.length);
+	if (open.oneLine) {
+		const closerEnd = lines[0].text.length;
+		const closerStart = closerEnd - open.closer.length;
+		return { ...open, closing, lines, bodyStart: open.openEnd, closerStart, closerEnd };
+	}
+	const closer = closing === -1 ? null : lines[closing];
 	return {
-		...read,
+		...open,
+		closing,
 		lines,
 		bodyStart: lines[0].end,
-		closerStart: closing?.start ?? text.length,
-		closerEnd: closing ? closing.start + closing.text.length : text.length
+		closerStart: closer?.start ?? text.length,
+		closerEnd: closer ? closer.start + closer.text.length : text.length
 	};
 }
 
@@ -240,12 +291,14 @@ function fixedWrite(
 	offset: number,
 	ctx: WriteContext
 ): { raw: string; offset: number; escaped: boolean } {
-	const display = trimTrailingLineEnding(raw);
+	const trimmed = trimTrailingLineEnding(raw);
+	const mended = mendOneLine(fixed, trimmed, Math.min(offset, trimmed.length), ctx.mode);
+	const display = mended?.text ?? trimmed;
 	const split = splitFixed(fixed, display, true);
 	if (!split) return { raw, offset, escaped: false };
 	const tail = ownTrailingLineEnding(raw);
-	const caret = Math.min(offset, display.length);
-	const intoTail = Math.min(Math.max(offset - display.length, 0), tail.length);
+	const caret = mended?.caret ?? Math.min(offset, display.length);
+	const intoTail = Math.min(Math.max(offset - trimmed.length, 0), tail.length);
 	if (split.closing === -1) {
 		// The closer goes in after every written byte, so no offset moves.
 		const closer = trailingLineEnding(ctx.node.raw, ctx.lineEnding) + split.closer;
@@ -253,6 +306,65 @@ function fixedWrite(
 	}
 	const written = escapedBody(split, display, caret);
 	return { raw: written.text + tail, offset: written.caret + intoTail, escaped: written.escaped };
+}
+
+/** A text whose first line starts with a `oneLine` fence's opener but reads as neither form, as a
+ *  write that broke a one-line block leaves it; `closed` when the text still ends with the closer. */
+interface BrokenOneLine {
+	first: DisplayLine;
+	openEnd: number;
+	closer: string;
+	closed: boolean;
+}
+
+function brokenOneLine(fixed: readonly FixedFence[], text: string): BrokenOneLine | null {
+	const first = firstDisplayLine(text);
+	if (openFixed(fixed, first.text)) return null;
+	for (const fence of fixed) {
+		const match = fence.oneLine ? fence.openAt(first.text) : null;
+		if (!match) continue;
+		const closer = fence.closer(match);
+		const openEnd = match[0].length;
+		const closed = text.length - closer.length >= openEnd && text.endsWith(closer);
+		return { first, openEnd, closer, closed };
+	}
+	return null;
+}
+
+/** A broken one-line block made to read: a cut closer comes back on its line, a typed line break
+ *  splits it onto its own lines, and pasted lines close line 0 unless the last line is the closer. */
+function mendOneLine(
+	fixed: readonly FixedFence[],
+	text: string,
+	caret: number,
+	mode: WriteContext['mode']
+): { text: string; caret: number } | null {
+	const broken = brokenOneLine(fixed, text);
+	if (!broken) return null;
+	const { first, closer } = broken;
+	if (first.ending === '') return { text: text + closer, caret };
+	const lastLine = text.slice(text.lastIndexOf('\n') + 1);
+	if (mode === 'literal' && lastLine !== closer) {
+		const lineEnd = first.text.length;
+		return {
+			text: text.slice(0, lineEnd) + closer + text.slice(lineEnd),
+			caret: caret > lineEnd ? caret + closer.length : caret
+		};
+	}
+	return onOwnLines(text, broken, caret);
+}
+
+// Each line takes the first line's ending, and the caret moves past each ending put in before it.
+function onOwnLines(
+	text: string,
+	{ first, openEnd, closer, closed }: BrokenOneLine,
+	caret: number
+): { text: string; caret: number } {
+	const body = text.slice(openEnd, closed ? text.length - closer.length : text.length);
+	const bodyEnd = openEnd + body.length;
+	const { ending } = first;
+	const shift = caret < openEnd ? 0 : caret <= bodyEnd ? ending.length : 2 * ending.length;
+	return { text: text.slice(0, openEnd) + ending + body + ending + closer, caret: caret + shift };
 }
 
 /** The held text with each body line spelling the closer escaped, the caret moved by what each

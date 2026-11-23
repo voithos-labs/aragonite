@@ -30,6 +30,8 @@ export interface BlockMaking<D = unknown> {
 	readonly insert: BlockInsert;
 	/** Where a leaf's text sits in its bytes, read for `Block.body` however the leaf edits. */
 	readonly bodyRange?: ((node: NodeView) => { start: number; end: number }) | null;
+	/** For a fenced type that may sit on one line: whether `line` is a whole block of it. */
+	readonly oneLine?: (line: string) => boolean;
 	/** The block's bytes with `data` written into them; null where the type has no writer for it. */
 	readonly writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
 	readonly chords?: BlockCommon<unknown>['chords'];

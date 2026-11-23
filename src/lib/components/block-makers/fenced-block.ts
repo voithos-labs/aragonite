@@ -40,7 +40,8 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		view: drawing ? drawnView(drawing) : textBlockView(),
 		openers: shape.openers,
 		completer: completerOf(spec.complete, shape.claims),
-		bodyRange: shape.range
+		bodyRange: shape.range,
+		oneLine: shape.oneLine
 	});
 	return type;
 }

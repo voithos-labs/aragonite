@@ -97,13 +97,13 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 
 | Check | Runs for | What it holds you to | Excuse |
 | --- | --- | --- | --- |
-| `sample` | every type | It has a sample, and each sample reads as the type first. A failing `sample` stops the type's other rows | no |
+| `sample` | every type | It has a sample, and each sample reads as the type first. A fence with `oneLine` needs a sample on one line too. A failing `sample` stops the type's other rows | no |
 | `roundTrip` | every type | Each sample serializes back to its exact bytes | no |
 | `mergeBackspace` | every type | Backspace merges into your block only as its `role` says | yes |
 | `undo` | every type | One edit to your block is one undo step | yes |
 | `clipboard` | every type | Copying your block copies its bytes and nothing else | yes |
 | `search` | a type search skips | Search finds nothing in a block it skips | no |
-| `rawWrite` | every type | Any bytes written into your block leave the blocks around it alone. Cutting your closing line can't swallow the block below | no |
+| `rawWrite` | every type | Any bytes written into your block leave the blocks around it alone. Cutting your closing line can't swallow the block below. A line break typed into a one-line sample puts its opener and closer on lines of their own | no |
 | `unfinishedReading` | a type whose opener waits on a closer | An opener still waiting for its closer gives the document back when it closes | no |
 | `completion` | a type with `complete` | Some prefix of a sample's first line completes into lines that read as your type, the caret inside them | yes |
 | `dataWriteback` | a type with a `write` for its data | The data read from a block writes back to the same bytes | no |

@@ -66,6 +66,29 @@ describe('check over a fixed fence', () => {
 		expect(new Set(warnings.map((w) => w.tag))).toEqual(new Set(['fence-escape']));
 	});
 
+	const oneLine = { open: /\$\$/, close: '$$', oneLine: true } as const;
+
+	it('fails sample on a fence that may sit on one line with no one-line sample', async () => {
+		const report = await reportOf(fixedPlugin(oneLine, '$$\nx\n$$'));
+		expect(rowOf(report, 'sample')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/one line, but no sample is/)
+		});
+	});
+
+	it('reads and writes a one-line sample, a line break typed into it splitting its lines', async () => {
+		// One-line first: a passed row carries its first sample's detail.
+		const report = await reportOf(fixedPlugin(oneLine, ['$$x^2$$', '$$\nx\n$$']));
+		expect(report.rows.filter((r) => r.status === 'failed')).toEqual([]);
+		for (const name of ['roundTrip', 'docPositions']) {
+			expect(rowOf(report, name)).toMatchObject({ status: 'passed' });
+		}
+		expect(rowOf(report, 'rawWrite')).toMatchObject({
+			status: 'passed',
+			detail: expect.stringMatching(/a line break typed into its one line/)
+		});
+	});
+
 	it('passes unfinishedReading on each sample of a type listing a fixed fence and a code fence', async () => {
 		const fences = [{ open: /^\$\$$/, close: '$$' }, { info: 'math' }] as const;
 		const report = await reportOf(fixedPlugin(fences, ['$$\nx^2\n$$', '```math\nx^2\n```']));

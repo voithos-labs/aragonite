@@ -8,6 +8,8 @@
 
 import { devChecksOn, setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
 import type { AnyBlockKind } from '../core/nodes';
+import { splitLines } from '../core/lines';
+import { makingOf } from '../schema/block-type';
 import { isPluginValue, THIS_COPY, type Plugin, type PluginError } from '../schema/plugin-unit';
 import { qualifiedName } from '../schema/plugin-name';
 import { pluginCheckContext, type CheckContext, type PluginCheckRun } from './check-context';
@@ -39,7 +41,7 @@ import { CONTAINER_DECLARED, derivedProfile } from './container-shape';
 import { inlineOutcomes, inlineSubjects, type Outcome } from './inline-check';
 import { paintOutcomes } from './paint-check';
 import { rewriteOutcome, rewriteSubjects } from './rewrite-check';
-import { settleKindCells, type KindCell } from './kind-conformance';
+import { checkOneLineBreak, settleKindCells, type KindCell } from './kind-conformance';
 
 /* -------------------------------------------------------------------------- */
 /*                                 Public API                                 */
@@ -192,7 +194,8 @@ async function rowsOf(
 		// A type the install left out is in `install`'s row, and nowhere else.
 		const kinds = run.kinds.filter((kind) => kind.startsWith(`${plugin.name}/`));
 		for (const kind of kinds) {
-			const kindRows = await blockRows(run.context, kind);
+			const type = own?.blocks?.find((each) => each.name === kind);
+			const kindRows = await blockRows(run.context, kind, type && makingOf(type)?.oneLine);
 			for (const row of kindRows) rows.push(row);
 			if (kindRows[0].status === 'failed') continue;
 			const samples = run.context.descriptor(kind).samples ?? [];
@@ -289,17 +292,27 @@ function install(
 const messageOf = (error: unknown) => (error as Error)?.message ?? String(error);
 
 /** `sample`, then every block and container check over each sample that reads as the type, one row
- *  per check across the samples. */
-async function blockRows(context: CheckContext, kind: AnyBlockKind): Promise<CheckRow[]> {
+ *  per check across the samples; `oneLine` says which lines are a whole one-line block. */
+async function blockRows(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	oneLine?: (line: string) => boolean
+): Promise<CheckRow[]> {
 	const descriptor = context.descriptor(kind);
 	const samples = descriptor.samples ?? [];
 	const problems = samples.map((sample) => sampleProblem(context, kind, sample));
+	const onOneLine = samples.map((sample) => oneLine?.(splitLines(sample)[0].text) ?? false);
 	const sampleRow: Outcome =
 		samples.length === 0
 			? { status: 'failed', detail: 'lists no sample: give `sample` the Markdown the checks drive' }
 			: problems.some((problem) => problem !== null)
 				? { status: 'failed', detail: problems.filter((p) => p !== null).join('; ') }
-				: { status: 'passed', detail: `${samples.length} sample(s) read as the type` };
+				: oneLine && !onOneLine.includes(true)
+					? {
+							status: 'failed',
+							detail: 'its block may sit on one line, but no sample is one line: add one that is'
+						}
+					: { status: 'passed', detail: `${samples.length} sample(s) read as the type` };
 	const outcomes = new Map<CheckName, Outcome[]>();
 	const note = (check: CheckName, outcome: Outcome, at: number) => {
 		const named = samples.length > 1 && outcome.status === 'failed';
@@ -311,7 +324,10 @@ async function blockRows(context: CheckContext, kind: AnyBlockKind): Promise<Che
 	for (const [at, sample] of samples.entries()) {
 		if (problems[at] !== null) continue;
 		for (const cell of await settleKindCells(context, kind, sample)) {
-			for (const [check, outcome] of blockOutcomes(cell)) note(check, outcome, at);
+			for (const [check, outcome] of blockOutcomes(cell)) {
+				const breaks = check === 'rawWrite' && onOneLine[at];
+				note(check, breaks ? withOneLineBreak(context, kind, sample, outcome) : outcome, at);
+			}
 		}
 		if (!descriptor.isContainer) continue;
 		for (const cell of await containerCells(context, kind, sample)) {
@@ -328,6 +344,25 @@ async function blockRows(context: CheckContext, kind: AnyBlockKind): Promise<Che
 		asRow('sample', sampleRow),
 		...[...outcomes].map(([check, list]) => asRow(check, worst(list)))
 	];
+}
+
+// A one-line sample's `rawWrite` drives one write more: a line break typed into its text.
+function withOneLineBreak(
+	context: CheckContext,
+	kind: AnyBlockKind,
+	sample: string,
+	outcome: Outcome
+): Outcome {
+	if (outcome.status !== 'passed') return outcome;
+	try {
+		checkOneLineBreak(context, kind, sample);
+	} catch (error) {
+		return { status: 'failed', detail: messageOf(error) };
+	}
+	return {
+		...outcome,
+		detail: `${outcome.detail}; a line break typed into its one line splits it`
+	};
 }
 
 function sampleProblem(context: CheckContext, kind: AnyBlockKind, sample: string): string | null {

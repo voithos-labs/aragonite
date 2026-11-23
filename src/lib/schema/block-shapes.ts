@@ -165,6 +165,9 @@ export type Fence =
 			open: RegExp;
 			close: string | ((open: RegExpExecArray) => string);
 			escape?(bodyLine: string): string;
+			/** The block may also be one line: `open` matched at the line's start, its text, then the
+			 *  closer ending the line. A line break typed into the text splits the three. */
+			oneLine?: boolean;
 	  };
 
 // ── Derived facts ────────────────────────────────────────────────────────────
