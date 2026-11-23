@@ -143,9 +143,19 @@ describe('runPluginConformance', () => {
 
 	it('fails on a dev warning raised while the plugin installs', async () => {
 		const noisy = plugin('noisy', () => devWarn('noisy-tag', 'something the author should see'));
-		await expect(runPluginConformance({ plugins: [noisy] })).rejects.toThrow(
-			'dev warning [noisy-tag]: something the author should see'
-		);
+		const failure = (await runPluginConformance({ plugins: [noisy] }).catch(
+			(error: unknown) => error
+		)) as Error & { rows: LegacyRow[] };
+		expect(failure.message).toContain('dev warning [noisy-tag]: something the author should see');
+		expect(failure.rows).toEqual([
+			{
+				of: 'plugin',
+				subject: 'noisy',
+				check: 'install',
+				status: 'failed',
+				detail: 'raised a dev warning while installing'
+			}
+		]);
 	});
 
 	it('refuses to run with dev checks off, since a warning would pass unseen', async () => {

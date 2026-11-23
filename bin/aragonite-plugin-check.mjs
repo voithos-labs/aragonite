@@ -29,10 +29,11 @@ import {
 export function suiteProblem(value) {
 	if (typeof value !== 'object' || value === null) return 'its default export is not an object';
 	if ('plugin' in value) {
-		const { plugin } = /** @type {{ plugin?: { name?: unknown, version?: unknown } }} */ (value);
+		const { plugin } = /** @type {{ plugin?: { name?: unknown } }} */ (value);
 		// Every function has a name; only a plugin value carries its version beside it.
 		return typeof plugin === 'function' &&
 			typeof plugin.name === 'string' &&
+			'version' in plugin &&
 			typeof plugin.version === 'string'
 			? null
 			: 'its default export holds no plugin value';

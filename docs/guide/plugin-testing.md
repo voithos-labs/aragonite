@@ -217,7 +217,7 @@ expect(readingTabOrderProblem(target.querySelector('.editor')!)).toBeNull();
 
 **`check(plugin, { options?, excuse?, warningsFail? })`**
 
-For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of every block type it lists, read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and no DOM.
+For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of every block type it lists, read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and needs no DOM; with one, your `setup` runs too.
 
 ```ts
 import { check } from '@voithos-labs/aragonite/testing';
