@@ -39,6 +39,11 @@ The widget edits the way a decoded entity does: `deleteGranularity: 'atomic'`,
 - Click on a glyph in reading mode: the click moves focus to the block and leaves a collapsed
   caret, exactly as a click beside a widget already did, and writes nothing.
 
+- Outline label: with a `[[toc]]` above `# Mood :smile: today`, the outline lists the heading as
+  `Mood 😄 today`, the glyph a reader sees, not its shortcode.
+  Miss-analysis: the glyph in a label was pinned only on the outline's own projection, with the
+  plugin installed for the whole process, never in an editor drawing both.
+
 ## Error cases
 
 - What happens with the plugin not installed is a unit concern (`recognizer.test.ts`): without
