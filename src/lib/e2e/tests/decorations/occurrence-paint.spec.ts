@@ -52,10 +52,7 @@ test.describe('highlight-occurrences, painted where the words are', () => {
 		await editor.gotoPlugins('hloccur');
 	});
 
-	// A known gap below the plugin, on 0.11.5 too: a mark with no handlers on a block windowed in
-	// is asked and measured but draws no overlay. Expected to fail until the overlay layer does.
 	test('a scroll paints the blocks it brings in, an overlay over each word', async ({ page }) => {
-		test.fail();
 		const lines = Array.from({ length: 400 }, (_, i) =>
 			i % 25 === 0 ? `target at line ${i}` : `filler line ${i}`
 		);
@@ -65,12 +62,18 @@ test.describe('highlight-occurrences, painted where the words are', () => {
 			const { words, aligned, overlays } = await coverage(page, 'target');
 			return words > 0 && aligned === words && overlays === words;
 		};
-		await editor.clickBlockAtPath([0], 2);
+		// Mid-document, so the short scroll below keeps the caret's block, and its word, mounted.
+		await page.evaluate(() => (window as any).__test.rects.scrollTo([200], { block: 'start' }));
+		await editor.waitForRenderFlush();
+		await editor.clickBlockAtPath([200], 2);
 		await expect.poll(everyWordCovered).toBe(true);
+		const below = "[data-block-path='[250]']";
+		expect(await page.locator(below).count()).toBe(0);
 
-		await editor.scrollEditorTo(1_000_000);
+		const top = await page.evaluate(() => document.querySelector('.editor')!.scrollTop);
+		await editor.scrollEditorTo(top + 600);
+		await expect(page.locator(`${below} ${OCCURRENCE}`)).toHaveCount(1);
 		await expect.poll(everyWordCovered).toBe(true);
-		expect(await page.locator("[data-block-path='[375]']").count()).toBe(1);
 	});
 
 	test('a caret in a paragraph marks the word in a table cell, and one in the cell marks the paragraph', async ({
