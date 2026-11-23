@@ -82,18 +82,19 @@ function paintRanges(
 			blockOf: stage.blockOf,
 			blockAt: () => null,
 			rectsOf: () => [],
-			keys: (depends, report) => {
+			keys: (depends) => {
 				const answers = stage.editor.doc.blocks.map((block) => {
 					try {
 						return depends(block);
-					} catch (cause) {
-						report(cause);
+					} catch (error) {
+						threw.push(`paintDepends threw over ${show(block.text)}: ${messageOf(error)}`);
 						return '';
 					}
 				});
 				return { version: () => 0, keys: () => answers };
 			},
-			settled: () => {},
+			// The editor settles the answers before a block's first paint; so does the row.
+			settled: () => void source.settle(),
 			report: () => {}
 		});
 		walkBlocks(stage.document(), (node, path) => void source.decorationsOf(node, path));

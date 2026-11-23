@@ -59,6 +59,36 @@ describe('paintRanges', () => {
 		);
 	});
 
+	// Miss: no fixture listed `paintDepends`, so the row never asked it and handed paint no answers.
+	describe('with paintDepends', () => {
+		const depending = (name: string, depends: (block: Block) => string) =>
+			definePlugin({
+				name,
+				version: '1.0.0',
+				editor: '*',
+				contributes: () => ({
+					paintDepends: depends,
+					paint: (block: Block, ctx: { depends: readonly string[] }) =>
+						ctx.depends.includes(block.text.slice(0, 3)) ? [mark(block.from, block.to - 1)] : []
+				})
+			});
+
+		it('hands paint what paintDepends answered for the sample’s blocks', async () => {
+			const numbered = depending('numbered', (block) => block.text.slice(0, 3));
+			expect((await rowOf(check(numbered), 'paintRanges'))?.status).toBe('passed');
+		});
+
+		it('fails a paintDepends that throws, naming the block', async () => {
+			const throws = depending('depends-throws', () => {
+				throw new Error('no answer for you');
+			});
+			expect(await rowOf(check(throws), 'paintRanges')).toMatchObject({
+				status: 'failed',
+				detail: expect.stringMatching(/paintDepends threw over .*no answer/)
+			});
+		});
+	});
+
 	it('reads not-applicable for a paint that paints nothing on any sample', async () => {
 		expect((await rowOf(check(painting('none', () => [])), 'paintRanges'))?.status).toBe(
 			'not-applicable'
