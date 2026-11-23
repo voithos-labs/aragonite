@@ -29,17 +29,23 @@ Btw, the plugin's version should match the editor's version.
 ## Use it
 
 ```ts
-import { latexPlugin } from '@voithos-labs/aragonite-latex';
+import { latex } from '@voithos-labs/aragonite-latex';
 import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
 
-const plugins = [latexPlugin({ renderer: katexRenderer })];
+const plugins = [latex({ renderer: katexRenderer })];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. A few things worth knowing:
+Hand `plugins` to the editor. Each editor keeps its own renderings, so two editors can draw math with two engines. A few things worth knowing:
 
 - On React, Vue or plain JS, the formulas bring a stylesheet of their own: import `@voithos-labs/aragonite-latex/style.css` beside the editor's. The renderer brings KaTeX's stylesheet with it.
-- `blockLayout` is how a math block opens while you edit it: `'split'` (the preview beside the source, the default), `'stacked'` (below it, nicer for long equations) or `'source'` (no preview at all). The block's own toggle cycles through them, and `{ plugin, options: { blockLayout } }` picks one per editor.
+- `blockLayout` is how a math block opens while you edit it: `'split'` (the preview beside the source, the default), `'stacked'` (below it, nicer for long equations) or `'source'` (no preview at all). The block's own toggle cycles through them, and `latex({ blockLayout: 'stacked' })` picks one per editor.
 - Rather not use KaTeX? `renderer` is any function from `(source, { display, theme })` to `{ dom, error? }`, so MathJax or your own thing fits.
+- The formula's source is colored when the editor also lists the highlight package (`@voithos-labs/aragonite-highlight`); without it the source shows plain.
+- With latex listed, the code block's language picker offers `math`, which turns the block into a math block.
+
+## Upgrading from 0.11.5
+
+`latexPlugin(options)` is `latex(options)` now, and a bare `latex` works too. Both block forms are one block type, `latex/block`, and inline math is `latex/math`; the insert row's id is `latex/block`. `MATH_INLINE`, `MATH_BLOCK` and `MATH_FENCE` are gone: compare against `'latex/math'` and `'latex/block'` if you need to.
 
 ## More
 

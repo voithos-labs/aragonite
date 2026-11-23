@@ -31,6 +31,7 @@ export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 	'data-table-row-idx',
 	'data-task-checked',
 	'data-view-text',
+	'data-view-text-host',
 	'data-whole-block-input'
 ]);
 

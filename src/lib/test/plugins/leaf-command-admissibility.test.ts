@@ -9,7 +9,7 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
@@ -26,7 +26,7 @@ describe('the admissibility read on a focused editable leaf', () => {
 	it('admits the moves and declines the text commands', async () => {
 		const mounted = mountEditor<{
 			getBlockComponent(path: number[]): { parkCaret?(offset: number): void } | null;
-		}>({ source: '$$\nx\n$$\n\npara\n', plugins: [latexPlugin({ renderer: stubRenderer })] });
+		}>({ source: '$$\nx\n$$\n\npara\n', plugins: [latex({ renderer: stubRenderer })] });
 		mounted.instance.__test.getBlockComponent([0])!.parkCaret!(0);
 		await mounted.settle();
 		mounted.target.querySelector<HTMLElement>('.math-block-source')!.focus();

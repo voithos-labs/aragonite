@@ -3,7 +3,7 @@ import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * GitHub's third math form: a ```math fence parsed as its own `mathFence` kind. It shares the
+ * GitHub's third math form: a ```math fence parsed as the same `latex/block` type as `$$`. It shares the
  * BlockMath component with `$$…$$` (latex-block.spec.ts), so this covers only the kind, a KaTeX
  * render, and an open, edit and commit round trip that keeps the kind. Seed `mathfence`: the fence
  * is block 1.
@@ -21,11 +21,11 @@ test.describe('plugin math fence: distinct kind, shared render', () => {
 		await expect(editor.renderedKatex).toHaveCount(1);
 		await expect(editor.source).toHaveCount(0);
 		// The fence is its own kind, never rewritten to `$$` and never left as fencedCode.
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		expect(await editor.bridge.getSource()).toContain('```math\nx^2\n```');
 	});
 
-	test('reveal → edit the body → commit re-renders and keeps the fence a mathFence', async ({
+	test('reveal → edit the body → commit re-renders and keeps the fence a math block', async ({
 		page
 	}) => {
 		await editor.revealFromBefore();
@@ -41,7 +41,7 @@ test.describe('plugin math fence: distinct kind, shared render', () => {
 		await editor.bridge.waitForSourceContains('```math\nax^2\n```');
 		await expect(editor.renderedKatex).toHaveCount(1);
 		await expect(editor.source).toHaveCount(0);
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
@@ -56,19 +56,19 @@ test.describe('plugin math fence: distinct kind, shared render', () => {
 		await page.keyboard.press('Enter');
 
 		await editor.bridge.waitForSourceEquals('para\n\n```math\n\n```\n\nafter\n');
-		await expect.poll(() => editor.bridge.getBlockKind(1)).toBe('mathFence');
+		await expect.poll(() => editor.bridge.getBlockKind(1)).toBe('latex/block');
 	});
 
 	test('stands off its neighbours by the same padding as a $$ block', async ({ page }) => {
 		await editor.loadContent('para\n\n$$\nx\n$$\n\npara\n\n```math\nx\n```\n\npara\n');
-		const padding = (kind: string) =>
+		const padding = (index: number) =>
 			page
-				.locator(`.block-host[data-block-kind='${kind}']`)
+				.locator(`[data-block-path='[${index}]']`)
 				.evaluate(
 					(el) => `${getComputedStyle(el).paddingTop} ${getComputedStyle(el).paddingBottom}`
 				);
 
-		expect(await padding('mathBlock')).toBe('6px 6px');
-		expect(await padding('mathFence')).toBe(await padding('mathBlock'));
+		expect(await padding(1)).toBe('6px 6px');
+		expect(await padding(3)).toBe(await padding(1));
 	});
 });

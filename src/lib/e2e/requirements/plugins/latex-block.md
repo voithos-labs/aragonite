@@ -1,6 +1,6 @@
 # Feature: Block `$$…$$` display math, render-primary, source-on-focus
 
-A `mathBlock` leaf renders its KaTeX display by default and shows the raw `$$…$$` source in a
+A `latex/block` leaf renders its KaTeX display by default and shows the raw `$$…$$` source in a
 contenteditable on focus or click, re-rendering on blur. That source is painted like a code
 block's, with fence lines the marker-hiding modes collapse (and LaTeX tokens where the highlight
 package is listed; these pages list latex alone, so the body is plain), and its

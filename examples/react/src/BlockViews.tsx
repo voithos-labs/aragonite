@@ -55,7 +55,7 @@ function Memo({ Slot }: BlockProps<never, TextDrawContext>) {
 // While open, a preview beside the text follows it as it's typed, block math's side-by-side shape.
 // A click in the caption opens the text at that letter.
 function Label({ block, ctx, Slot }: BlockProps<never, TextDrawContext>) {
-	const caption = (ctx.typed ?? block.text).slice('@@ '.length).trim();
+	const caption = (ctx.typed ?? block.body).trim();
 	const shown = useRef<HTMLSpanElement | null>(null);
 	useDrawn(() => ({ caret: shown.current ?? undefined }));
 	return (

@@ -105,7 +105,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `ContainerDrawContext` | Adds `children`, the editor's element holding the block's children, for you to place, and `title`, its title row's element, or null |
 | `BoxDrawContext` | Adds `leave(edge, x?)`, which hands the caret to the neighbour past `edge` from an editing surface of your own, and `focusWhole()`, which gives the box whole-block focus back from a surface of your own. An Escape in a field of yours does that too, unless your handler calls `preventDefault` |
 | `BoxFocus` | `Drawn.focus` for a box with an editing surface of its own: `enter` takes the caret at an edge (with the column an up or down arrow keeps) or back at an offset, and `offset()` says where its caret is |
-| `svelteBlock`, `SvelteBlockProps`, `reactBlock`, `vueBlock`, `BlockProps`, `ReactBlockOptions`, `VueBlockOptions`, `useDrawn` | _(`svelteBlock` from `/svelte`, the others from `@voithos-labs/aragonite-react` and `-vue`, and each has its own `useDrawn`)_ A `draw` from your component. It gets `{ block, ctx, Slot }`, and `<Slot of="source" />` (or `"children"`, `"title"`) is where the editor's element goes. `className` lands on the block's element; React's `wrap` adds your providers, Vue's `app` renders in your app's context. Your component adds a `focus`, `keep` or `caret` with `useDrawn(() => ({ focus }))`, and the editor calls that function each time it needs one, so a ref's element is there by then |
+| `svelteBlock`, `SvelteBlockProps`, `SvelteBlockOptions`, `reactBlock`, `vueBlock`, `BlockProps`, `ReactBlockOptions`, `VueBlockOptions`, `useDrawn` | _(`svelteBlock` from `/svelte`, the others from `@voithos-labs/aragonite-react` and `-vue`, and each has its own `useDrawn`)_ A `draw` from your component. It gets `{ block, ctx, Slot }`, and `<Slot of="source" />` (or `"children"`, `"title"`) is where the editor's element goes. `className` lands on the block's element; React's `wrap` adds your providers, Vue's `app` renders in your app's context, and Svelte's `context` is the map `getContext` reads (state your `contributes` made for one editor, say). Your component adds a `focus`, `keep` or `caret` with `useDrawn(() => ({ focus }))`, and the editor calls that function each time it needs one, so a ref's element is there by then |
 | `Doc` | The document at one version: its `text`, its `eol`, its top-level `blocks`, `blockAt(at)` and `walk()` (every block, depth first). Each block is built only when you reach it. `current` turns false once a write replaces it; its `text` stays that version's, but its blocks read the document as it stands, so read `editor.doc` again after an `await` |
 | `grammar`, `Grammar` | `grammar(plugins).parse(text)` reads text into a `Doc` the way an editor running those plugins would, with no editor mounted: a build step, a test, a server |
 | `Block` | A block as your code reads it: its `type`, `data`, `text`, `body` (its markers left out; a container's is what its children hold, and a table keeps its bytes), `textContent` (its text as a reader reads it: an entity as its character, an image as its alt, a widget as its type's `textContent`, a container's children a line each and a table row's cells joined by a tab) and `children` (a title row is its `title`, not a child), its `parent` and `index`, whether its text is `prose`, `from` and `to` (its bytes in the document, read when you ask, so a box writes itself with `edit().replace({ from: block.from, to: block.to }, text)`; both -1 where it isn't placed, which a key typed in it can make it, so ask the document again or take the block `update` hands you), `walk()` over it and every block inside it (a title row right after its container), and `is(type)` to narrow its data. A node reads as one `Block` while the document holds it. On a title row the pair spans what the row itself holds: the whole `:::note Title` line, or just the title inside `<summary>` tags, which are the container's. That title's pair holds no line ending (nor does a table cell's), so write none over it. `rowContentRange` says where the title sits on either. Its `pieces` are its inline content in document bytes, and `byteAt(i)` and `offsetAt(byte)` turn an offset into `text` into a document byte and back (in a quote, its lines' markers sit between) |
@@ -451,7 +451,7 @@ _(`svelteBlock` and its `useDrawn` from `/svelte`; the others from `@voithos-lab
 ```ts
 function reactBlock(Component, options?: { className?; wrap? }): (block, ctx) => Drawn;
 function vueBlock(component, options?: { className?; app? }): (block, ctx) => Drawn;
-function svelteBlock(Component): (block, ctx) => Drawn;
+function svelteBlock(Component, options?: { context? }): (block, ctx) => Drawn;
 function useDrawn(parts: () => { focus?; keep?; caret? }): void;
 ```
 
@@ -737,10 +737,6 @@ _(pre-freeze / unstable)_ What highlights fenced code. The editor ships no gramm
 | `CodeHighlighter` | What `contributes(...).code` answers: `highlight(body, language)` gives the body's tokens, `null` for plain, or a promise of either, and `languages()` lists what it answers, in the order the picker shows them. Several plugins may contribute one; the picker lists each plugin's rows after the ones before it, and for each spelling the first plugin listing it is asked. The `highlight` package is one |
 | `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap, and of two over one range the first listed is outside); a language is `{ name, aliases? }`, one picker row with its search keys |
 | `CodePainter` | `renderSource`'s second argument: `code(body, language)` paints a body through the editor's highlighters, plain where none answers, and repaints when a late answer arrives |
-| `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence |
-| `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`paint.code`, say). Text-preserving, and it keeps a line for the caret under an empty last body line. A `fencedBlock` gets this drawing without asking |
-| `fenceBodyAsDrawn` | The body as `renderFencedSource` draws it: the line break before the closer belongs to the closer's line, unless the body is blank or nothing closes the fence |
-| `fencedBodyRange` | Where the body sits in a fenced source, its line ending left out, or null while the fence has no body line yet. It's what a fenced kind returns from its descriptor's `bodyRange` |
 
 A grammar the package doesn't highlight (one you wrote, say) goes on its engine, loaded the first time a fence names it:
 
@@ -1217,37 +1213,12 @@ await editor.rects.navigateTo([4], 12); // true once block 4 is on screen with t
 
 ### Caret geometry
 
-_(pre-freeze / unstable)_ What a kind fills its descriptor's `caretTargetAtPoint` with. The rendered view and the source are different strings, so only your kind knows how a press on one lines up with the other; these three are the pieces that don't depend on your grammar. The worked example is the quickstart's parrot: [The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes).
+_(pre-freeze / unstable)_ What a kind fills its descriptor's `caretTargetAtPoint` with. The rendered view and the source are different strings, so only your kind knows how a press on one lines up with the other; these two are the pieces that don't depend on your grammar. A block type's `draw` gets a point that turns itself into an offset instead (`CaretPoint.offsetIn`). The worked example is the quickstart's parrot: [The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes).
 
 | Export | Role |
 | --- | --- |
-| [`caretOffsetAtPoint`](#caretoffsetatpoint) | The character offset in one of your own elements nearest a viewport point |
 | `CaretTarget` | What the hook answers: the child path to the leaf (empty when your block is the leaf) and the offset inside it |
 | `CURSOR_END`, `CursorEnd` | The offset meaning "wherever that leaf ends", and its type; a plain `0` is the other end, since that one is a real offset |
-
-#### `caretOffsetAtPoint`
-
-```ts
-function caretOffsetAtPoint(el: HTMLElement, clientX: number, clientY: number): number | null;
-```
-
-The character offset in one of your own elements nearest a viewport point.
-
-- The point clamps into that element's box first, so a press on your chrome still names one.
-- A press in its top or bottom padding takes the column under it on the nearest line.
-- Null means the element holds no position at all.
-
-```ts
-function parrotCaretAtPoint(blockEl: HTMLElement, clientX: number, clientY: number): CaretTarget | null {
-	const caption = blockEl.querySelector<HTMLElement>('.parrot-caption');
-	if (!caption) return null;
-	const offset = caretOffsetAtPoint(caption, clientX, clientY) ?? 0;
-	// The caption starts after `%%parrot ` in the source, so its offsets shift by that much.
-	return { path: [], offset: offset + Number(caption.dataset.captionStart) };
-}
-```
-
-The quickstart's full version also handles a click while the source is showing ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)).
 
 ### Pointer gestures
 
@@ -1363,7 +1334,6 @@ _(pre-freeze / unstable)_ The built-in rules for three grammars a plugin commonl
 | `matchFenceInfo` | Build an opener matcher that claims only fences whose info string's first word is your token: `matchFenceInfo('mermaid')` is how the bundled diagram kind takes ` ```mermaid ` from the code block |
 | `findFenceCloser`, `FenceRun` | The index of the first line in a range that closes a fence of that marker and run length (the closer the parser would pick), or -1 |
 | `scanFence`, `FenceScan` | A fence's extent from its opener line, as an opener's `tryOpen` needs it: the closer's index (-1 when nothing closes it), the lines consumed, the exact bytes, and the body between the fence lines |
-| `fenceAnatomy`, `FenceAnatomy` | Where a fenced block's parts sit in its bytes: the opener's indent, marker run and info string, the body, and the closer line; null when the first line opens no fence |
 | [`fenceRawWrite`, `fenceShapeOfRaw`, `FenceShape`](#fencerawwrite-fenceshapeofraw-fenceshape) | The code block's write rule, for any kind that holds its own fence |
 | `fenceReading` | The fence's `readingNotFinal`: declare it on an opener that claims a fence, and an edit that moves where your fence closes re-pairs every fence below it the way a reload does |
 | `htmlBlockTagLineMatcher` | Build a recognizer answering `'open'`, `'close'`, or null for one tag name's HTML block line, in every spelling the spec passes through (indented, upper-cased, trailing space), not just the canonical one |

@@ -156,7 +156,7 @@ test.describe('a range out of the body keeps the block (live)', () => {
 		await page.keyboard.press('Backspace');
 
 		await editor.bridge.waitForSourceEquals('Before\n\n$$\n$$\n\nAfter\n');
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 

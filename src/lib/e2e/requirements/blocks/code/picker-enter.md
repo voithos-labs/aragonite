@@ -21,6 +21,12 @@ stay listed, for an arrow key or a click. Each row runs by default and with ever
 - by default `x` and `math` start no row and are written as typed; opted in, `x` marks axapta
   (its alias `x++`) and `math` marks mathematica, and Enter takes them
 
+## With latex listed
+
+- latex owns the `math` fence, so the picker lists a `math` row: `math` marks it and Enter writes
+  a `math` fence, which is a math block, with the highlight package's full set listed too (where
+  `math` would otherwise mark mathematica) and without the package
+
 ## User interactions
 
 - typing `script` marks nothing though javascript and typescript are listed, and Enter writes
@@ -28,6 +34,9 @@ stay listed, for an arrow key or a click. Each row runs by default and with ever
 - typing `script` and clicking typescript writes `typescript`
 
 ## Miss-analysis
+
+- The `math` row: every install the picker was driven in listed no plugin that owns a fence
+  language, so `math` taking mathematica with latex listed went unseen.
 
 - Every Enter row typed a name the picker listed, or a prefix of one, so the first row taking
   Enter for text it merely contained (`asm` writing armasm in a 194-row list) went unseen.

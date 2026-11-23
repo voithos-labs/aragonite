@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import {
 	destroyMountedEditors,
@@ -22,7 +22,7 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 // One definition for both runs of a row: installing a second is refused with a warning.
-const math = latexPlugin({ renderer: stubRenderer });
+const math = latex({ renderer: stubRenderer });
 
 beforeAll(() => {
 	installLayoutStubs();

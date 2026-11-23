@@ -7,7 +7,7 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import { highlight } from '#packages/highlight/src/index.js';
 import { highlightJs } from '#packages/highlight/src/renderer.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
@@ -27,10 +27,10 @@ afterEach(async () => {
 type Seam = { getBlockComponent(path: number[]): { focus?(offset: number): void } };
 
 async function enterMathSource(withPackage: boolean) {
-	const latex = latexPlugin({ renderer: stubRenderer });
+	const math = latex({ renderer: stubRenderer });
 	const mounted = mountEditor<Seam>({
 		source: SOURCE,
-		plugins: withPackage ? [latex, highlight({ renderer: highlightJs() })] : [latex]
+		plugins: withPackage ? [math, highlight({ renderer: highlightJs() })] : [math]
 	});
 	await mounted.settle();
 	mounted.instance.__test.getBlockComponent([0]).focus?.(3);

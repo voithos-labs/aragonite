@@ -5,123 +5,91 @@
 </script>
 
 <script lang="ts">
-	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
-	// this component owns only how the render and the source are laid out.
-	import { type NodeView } from '@voithos-labs/aragonite/plugin';
-	import { createEditableLeaf } from '@voithos-labs/aragonite/svelte';
-	// The layout toggle cycles through these, and its label names the layout it switches to.
-	type MathLayout = MathBlockLayout;
-	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
+	// How a display formula lays out: the picture alone until the caret comes in, then its source
+	// card and, in two of the three layouts, the live preview beside or below it.
+	import { getContext } from 'svelte';
+	import { trimWhitespace, type TextDrawContext } from '@voithos-labs/aragonite/plugin';
+	import { useDrawn, type SvelteBlockProps } from '@voithos-labs/aragonite/svelte';
+	import { MATH_EDITOR, type MathEditor } from './math-renders';
+	import { glyphOffset } from './math-inline';
+	import type { MathBlockLayout } from './math-layout';
+
+	// The toggle cycles through these, and its label names the layout it switches to.
+	const LAYOUT_NEXT: Record<MathBlockLayout, MathBlockLayout> = {
 		split: 'stacked',
 		stacked: 'source',
 		source: 'split'
 	};
-	const LAYOUT_TITLE: Record<MathLayout, string> = {
+	const LAYOUT_TITLE: Record<MathBlockLayout, string> = {
 		split: 'Preview beside the source',
 		stacked: 'Preview below the source',
 		source: 'Source only'
 	};
-	import { mathSlot } from './math-renderer';
-	import {
-		mathBodySpan,
-		mathDisplaySource,
-		renderMathSource,
-		reshapeMathEdit
-	} from './math-source';
-	import type { MathBlockLayout } from './math-layout';
-	import type { LatexEditorOptions } from './register';
 
-	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
+	let { block, ctx, Slot }: SvelteBlockProps<never, TextDrawContext> = $props();
+	const { renders, layout: opening } = getContext<MathEditor>(MATH_EDITOR);
 
 	// eslint-disable-next-line no-useless-assignment -- <script module> counter read by the next instance mount
 	const mountId = nextMountId++;
 	let renderCount = 0;
-
-	let sourceEl: HTMLDivElement | undefined = $state();
 	let renderEl: HTMLDivElement | undefined = $state();
-	let revealed = $state(false);
-	// The source being edited: a render-primary edit reaches the CST only on blur, so the live
-	// preview reads the editable element, not the node. Null when no edit is in progress.
-	let draft = $state<string | null>(null);
 
-	const leaf = createEditableLeaf({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getEl: () => sourceEl ?? null,
-		mode: 'render-primary',
-		isRevealed: () => revealed,
-		setRevealed: (value) => {
-			revealed = value;
-			draft = null;
-		},
-		renderSource: renderMathSource,
-		reshapeSource: reshapeMathEdit,
-		onSourceEdit: (text) => {
-			draft = text;
-		}
+	// Per block and per session, starting from this editor's options.
+	let layout = $state<MathBlockLayout>(opening);
+	const revealed = $derived(ctx.focused);
+	const previewOpen = $derived(layout !== 'source');
+	// The formula as typed while the source is open, so the preview follows the keys.
+	const formula = $derived(trimWhitespace(ctx.typed ?? block.body));
+	const theme = $derived(ctx.theme);
+
+	// The editor's element for the source wears the source card's look only while it shows, as
+	// the card it replaces did.
+	$effect(() => {
+		const shown = revealed;
+		ctx.source.classList.toggle('math-block-source', shown);
+		ctx.source.classList.toggle('md-source-surface', shown);
+		ctx.source.setAttribute('aria-label', 'Math source');
 	});
+
+	$effect(() => {
+		if (!renderEl) return;
+		renderEl.replaceChildren(renders.render(formula, true, theme).dom);
+		// An empty equation renders nothing, which would leave an invisible block the user cannot
+		// find to delete; it keeps the card's fill instead, like an empty code fence.
+		renderEl.toggleAttribute('data-empty', formula === '');
+		renderCount += 1;
+		renderEl.dataset.renderCount = String(renderCount);
+	});
+
+	// The fence lines paint no glyphs, so a point the glyphs can't answer for goes to the body's end.
+	useDrawn(() => ({
+		caret: (point) => {
+			const end = block.body.length;
+			return (renderEl && glyphOffset(renderEl, point, { start: 0, end })) ?? end;
+		}
+	}));
 
 	// A press on the preview's scrollbar while editing must not take focus from the source,
 	// because losing focus closes the source.
 	function keepSourceFocus(e: MouseEvent): void {
 		if (revealed) e.preventDefault();
 	}
-
-	// Per block and per session, starting from this editor's options.
-	let layout = $state<MathLayout>(leaf.getOptions<LatexEditorOptions>().blockLayout);
-	const previewOpen = $derived(layout !== 'source');
-
-	// ── View rendering ──────────────────────────────────────────────────────────
-
-	// Re-runs on a remount of the render div, a source change and a theme switch; the
-	// document-wide cache clones a stored node, so a repeated formula is cheap.
-	$effect(() => {
-		if (!renderEl) return;
-		// Runs while the source is showing too: the side-by-side layout keeps a live preview, so
-		// the equation re-renders as it is typed rather than only when the source closes.
-		const text = draft ?? leaf.sourceText;
-		const source = mathDisplaySource(text);
-		const theme = leaf.getTheme();
-		renderEl.replaceChildren(mathSlot.render({ source, display: true }, { theme }).dom);
-		// Where a click on the glyphs puts the caret: `caretTargetAtPoint` on the kind descriptor
-		// sees only the rendered element and has no other route to the bytes behind it.
-		const body = mathBodySpan(text);
-		renderEl.dataset.bodyStart = String(body.start);
-		renderEl.dataset.bodyEnd = String(body.end);
-		// An empty equation renders nothing, which would leave an invisible block the user cannot
-		// find to delete; it keeps the card's fill instead, like an empty code fence.
-		renderEl.toggleAttribute('data-empty', source.trim() === '');
-		renderCount += 1;
-		renderEl.dataset.renderCount = String(renderCount);
-	});
-
-	export const blockApi = leaf.blockApi;
 </script>
 
-<!-- While editing, the source and the live preview are two cards; the toggle sits in the
-	top-right of whichever card is showing. -->
+<!-- Editing, the source and the preview are two cards, the toggle top-right of the one showing;
+	the source's card stays mounted, so the editor's element is there when the caret comes in. -->
 <div
 	class="math-block"
 	class:math-block-editing={revealed}
 	class:math-block-split={revealed && layout === 'split'}
 	class:math-block-stacked={revealed && layout === 'stacked'}
 >
-	{#if revealed}
-		<div class="math-block-card">
-			<div
-				bind:this={sourceEl}
-				{...leaf.surfaceProps}
-				class="math-block-source md-source-surface"
-				aria-label="Math source"
-			></div>
-			<!-- The toggle always sits in the top-right card. Side by side that is the preview;
-				stacked or source-only it is this card. -->
-			{#if layout !== 'split'}
-				{@render layoutToggle()}
-			{/if}
-		</div>
-	{/if}
+	<div class="math-block-card math-block-source-card">
+		<Slot of="source" />
+		{#if revealed && layout !== 'split'}
+			{@render layoutToggle()}
+		{/if}
+	</div>
 	{#if !revealed || previewOpen}
 		<div class="math-block-card">
 			<div
@@ -131,7 +99,6 @@
 				role="button"
 				tabindex="-1"
 				aria-label="Math (click to edit)"
-				{...leaf.renderProps}
 				onmousedown={keepSourceFocus}
 			></div>
 			{#if revealed && layout === 'split'}
@@ -197,7 +164,7 @@
 
 	/* The equation's cards keep a code block's distance from their neighbours (editor.css);
 	   padding, not margin, because block heights are measured from the host's box. */
-	:global(.block-host):has(> .math-block) {
+	:global(.block-host[data-block-kind='latex/block']) {
 		padding-block: 6px;
 	}
 
@@ -206,6 +173,11 @@
 		position: relative;
 		min-width: 0;
 		border-radius: 8px;
+	}
+
+	/* Folded, the source's card holds nothing to show, so it takes no room. */
+	.math-block-source-card:has(:global([data-view-text][hidden])) {
+		display: none;
 	}
 
 	/* Keyed on editing, not on the side-by-side layout: hiding the preview leaves one card, and
@@ -218,7 +190,7 @@
 
 	/* Only the differences from the shared .md-source-surface (editor.css), including dropping
 	   its accent border: the card's own fill already shows that state. */
-	.math-block-source {
+	.math-block :global(.math-block-source) {
 		outline: none;
 		padding: 10px 12px;
 		/* Wraps rather than scrolling sideways, so the half-width card never hides the text
@@ -232,9 +204,14 @@
 		border-radius: 8px;
 	}
 
+	/* The fence lines read at the formula's own weight, as the source has always drawn them. */
+	.math-block :global(.math-block-source .md-marker) {
+		opacity: 1;
+	}
+
 	/* The card stretches the source so its box fills the column; without it a short formula's
 	   editable box shrink-wraps and the caret only lands where the text is. */
-	.math-block-editing .math-block-card > .math-block-source {
+	.math-block-editing .math-block-card :global(.math-block-source) {
 		flex: 1;
 		min-width: 0;
 	}
@@ -251,7 +228,7 @@
 	}
 
 	/* Empty and not being edited: the fill stays, so there is a box to see and click into. */
-	.math-block:not(.math-block-editing) .math-block-render[data-empty] {
+	.math-block:not(.math-block-editing) .math-block-render:global([data-empty]) {
 		background: var(--color-bg-secondary);
 		/* Exactly the editing card's height (one source line at its size, plus its padding and
 		   hairline border), so opening and closing an empty equation moves nothing. */

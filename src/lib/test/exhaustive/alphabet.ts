@@ -5,7 +5,7 @@
 import type { EditorPlugin } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 
 export const EXHAUSTIVE_ALPHABET = [
 	'#',
@@ -39,7 +39,9 @@ export const EDIT_LENGTH = Number(process.env.EXHAUSTIVE_EDIT_LENGTH ?? (FULL ? 
 export const ALPHABET_PLUGINS = (): EditorPlugin[] => [
 	admonitionsPlugin(),
 	footnotesPlugin(),
-	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) })
+	// The latex package is a plugin value, which only an editor reads; the same `$` syntax
+	// registered page-wide keeps it in the alphabet's parses.
+	registeredMath()
 ];
 
 /** Failures past this many are counted, not listed. */

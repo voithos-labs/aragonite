@@ -4,7 +4,7 @@
 // Miss-analysis: Chromium ends a commit on a composing input, and no row composed in a shown math source.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { headless } from '#lib/testing.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import {
 	destroyMountedEditors,
@@ -22,7 +22,7 @@ const preview = (editor: MountedEditor) =>
 	editor.target.querySelector<HTMLElement>('.math-block-render')?.textContent;
 
 async function openSource(): Promise<{ editor: MountedEditor; el: HTMLElement }> {
-	const editor = mountEditor({ source: '$$\nx\n$$\n', plugins: [latexPlugin({ renderer })] });
+	const editor = mountEditor({ source: '$$\nx\n$$\n', plugins: [latex({ renderer })] });
 	await editor.settle();
 	return reveal(editor);
 }

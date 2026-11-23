@@ -15,13 +15,20 @@ export interface SvelteBlockProps<D = never, C extends DrawContext = DrawContext
 	Slot: typeof DrawnSlot;
 }
 
+export interface SvelteBlockOptions {
+	/** Context the component reads with `getContext`, as `mount` takes it: state made in
+	 *  `contributes`, say, which is one editor's. */
+	context?: Map<unknown, unknown>;
+}
+
 /** What a component adds to its block's drawing, read each time the editor needs it. */
 type DrawnParts = Pick<Drawn<never>, 'focus' | 'keep' | 'caret'>;
 
 const DRAWN_CONTEXT = Symbol('drawn-parts');
 
 export function svelteBlock<D = never, C extends DrawContext = DrawContext>(
-	Component: Component<SvelteBlockProps<D, C>>
+	Component: Component<SvelteBlockProps<D, C>>,
+	options: SvelteBlockOptions = {}
 ): (block: Block<D>, ctx: C) => Drawn<D, C> {
 	return (block, ctx) => {
 		const dom = document.createElement('div');
@@ -39,7 +46,8 @@ export function svelteBlock<D = never, C extends DrawContext = DrawContext>(
 				},
 				Slot: DrawnSlot
 			},
-			context: new Map<symbol, unknown>([
+			context: new Map<unknown, unknown>([
+				...(options.context ?? []),
 				[SLOT_CONTEXT, () => current.ctx],
 				[DRAWN_CONTEXT, declared]
 			])

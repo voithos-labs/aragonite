@@ -15,7 +15,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { insertBy } from '#lib/test/harness/insertion-routes.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { EditorProps } from '#lib/components/editor-component-props.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
 
@@ -51,7 +51,7 @@ describe('a character typed over a range across blocks', () => {
 			'$abc\n\ndef\n',
 			{ anchor: point(0, 1), focus: point(1, 3) },
 			'$',
-			{ plugins: [latexPlugin()] }
+			{ plugins: [latex] }
 		);
 
 		expect(editor.source()).toBe('$$\n\n$$\n');

@@ -53,7 +53,8 @@ const shapes: {
 	{
 		name: 'a fenced block',
 		source: '```demo\nfirst\nsecond\n```\n',
-		body: 'first\nsecond\n',
+		// The line break before the closer is the closer's, as in a code block's body.
+		body: 'first\nsecond',
 		make: (edit) =>
 			fencedBlock({
 				...common,

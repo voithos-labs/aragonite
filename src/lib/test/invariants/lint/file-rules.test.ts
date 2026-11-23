@@ -1197,8 +1197,6 @@ const RULES: FileRule[] = [
 			'src/lib/components/link-card/LinkCard.svelte': 'a URL typed into the link card',
 			'src/lib/components/link-card/LinkCardHost.svelte': 'a URL typed into the link card',
 			'src/lib/core/inline/link-source-bytes.ts': 'the URL the link command was given',
-			'packages/latex/src/BlockMath.svelte':
-				'whether the render shows ink, not whether the Markdown is blank',
 			'packages/mermaid/src/MermaidBlock.svelte':
 				'whether the render shows ink, not whether the Markdown is blank'
 		},
@@ -1226,7 +1224,6 @@ const RULES: FileRule[] = [
 		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
 		allowed: {
 			'packages/latex/src/renderer.ts': 'the text of a KaTeX error message',
-			'packages/latex/src/BlockMath.svelte': SHOWS_INK,
 			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
 			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed',
 			'packages/spellcheck/src/english/hunspell.ts':
@@ -1245,7 +1242,7 @@ const RULES: FileRule[] = [
 			at(PARSER_PROBE, 'const tail = text.trimEnd();'),
 			at(SOURCE.autolinkGrammar, 'const m = s.match(/^(\\S+)/);'),
 			at(
-				`${SOURCE_DIR.latexPlugin}latex-kind.ts`,
+				`${SOURCE_DIR.latexPlugin}math-inline.ts`,
 				'const isSpace = (ch: string) => /\\s/.test(ch);'
 			),
 			at(SOURCE.directiveGrammar, 'const title = info.trim();')
@@ -2520,7 +2517,6 @@ const REVEAL_IN_SVELTE: FileRule = {
 	population: under(SOURCE_DIR.plugins),
 	matches: /\bmode:\s*['"]render-primary['"]/,
 	allowed: {
-		[SOURCE.latexBlockMath]: `block math, with its layout toggle and live preview; ${MOVES_TO_BLOCK_VIEW}`,
 		'packages/toc/src/TocBlock.svelte': `the outline, whose list follows the headings; ${MOVES_TO_BLOCK_VIEW}`
 	},
 	reason:
@@ -2782,8 +2778,8 @@ const ROGUE_MATH_READER = `${SOURCE_DIR.latexPlugin}rogue.ts`;
 const DOLLAR_FENCE = String.raw`\b(?:BLOCK_FENCE|FENCE)\b|['"\x60]\$\$|\$\$['"\x60]`;
 // A regex for the fence spells it escaped: `\$\$` in a literal, `\\$\\$` in a string.
 const ESCAPED_FENCE = String.raw`\\\$\\\$|\\\\\$\\\\\$`;
-// A source split into lines, or a fence test handed a line read off one: a closer search by hand.
-const MATH_LINE_SEARCH = String.raw`\b(?:displayLines|firstDisplayLine|splitLines)\s*\(|\b(?:isMathFenceLine|opensMathBlock)\s*\(\s*[\w$.[\]]*\.text\s*\)`;
+// A source split into lines: a closer search by hand, which the editor's own reading does.
+const MATH_LINE_SEARCH = String.raw`\b(?:displayLines|firstDisplayLine|splitLines)\s*\(`;
 
 const TABLE_LINE_HOME = SOURCE.tableLine;
 const ROGUE_TABLE_WRITER = `${SOURCE_DIR.schema}rogue.ts`;
@@ -2802,16 +2798,16 @@ const DELIMITER_CELL = String.raw`(?<!(?:[=!]==?|(?:startsWith|endsWith|includes
 /** One row per block syntax: the module its bytes are read and written in, and what a copy looks like. */
 const SYNTAX_MODULES: FileRule[] = [
 	{
-		id: 'G4.131 a `$$` block’s opener, body and closer are read and written in `math-shape.ts` only',
+		id: 'G4.131 a `$$` block’s fence is spelled in `math-shape.ts` only',
 		population: under(SOURCE_DIR.latexPlugin),
 		matches: new RegExp(`${DOLLAR_FENCE}|${ESCAPED_FENCE}|${MATH_LINE_SEARCH}`),
 		allowed: {
 			[MATH_SHAPE_HOME]:
-				'the closer search, the split and the block lines the parser, the write rule, the painter and the completer all ask'
+				'the fence the block type declares, the line its completion takes, and the lines every new block is written with'
 		},
 		reaches: [MATH_SHAPE_HOME],
 		reason:
-			'a second copy of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: ask `readMathSource`, `mathCloserLine` over a line array, or `mathBlockLines` to write a block',
+			'a second spelling of the `$$` fence drifts from the first, so the block type, its completion and its insert row stop agreeing, and the editor reads the fence itself: use `DOLLAR_FENCE`, `LONE_FENCE` or `mathBlockLines`',
 		hits: [
 			at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
 			at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
@@ -2821,8 +2817,6 @@ const SYNTAX_MODULES: FileRule[] = [
 			at(ROGUE_MATH_READER, 'if (line.includes(BLOCK_FENCE)) return null;'),
 			at(ROGUE_MATH_READER, 'if (/^\\$\\$/.test(text)) return null;'),
 			at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');"),
-			at(ROGUE_MATH_READER, 'while (i < ctx.end && !isMathFenceLine(ctx.lines[i].text)) i++;'),
-			at(ROGUE_MATH_READER, 'return rest.some((line) => isMathFenceLine(line.text));'),
 			at(ROGUE_MATH_READER, 'const [openerLine] = displayLines(opener);'),
 			at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
 			at(ROGUE_MATH_READER, "registerInsertEntry({ markdown: '$$\\n\\n$$\\n' });"),
@@ -2834,8 +2828,8 @@ const SYNTAX_MODULES: FileRule[] = [
 				ROGUE_MATH_READER,
 				"registerInsertEntry({ markdown: `${mathBlockLines('').join('\\n')}\\n` });"
 			),
-			at(ROGUE_MATH_READER, 'if (!isMathFenceLine(trimWhitespace(line))) return null;'),
-			at(ROGUE_MATH_READER, 'const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);'),
+			at(ROGUE_MATH_READER, "fence: [DOLLAR_FENCE, { info: 'math' }],"),
+			at(ROGUE_MATH_READER, 'complete: { on: "both", line: LONE_FENCE, complete },'),
 			at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
 			at(ROGUE_MATH_READER, "const price = '$' + amount;"),
 			at('packages/mermaid/src/x.ts', "if (text.startsWith('$$')) return null;")

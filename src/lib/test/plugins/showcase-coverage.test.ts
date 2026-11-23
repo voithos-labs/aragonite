@@ -16,7 +16,6 @@ import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { DETAILS } from '#packages/details/src/index.js';
 import { EMOJI_KIND } from '#packages/emoji/src/index.js';
 import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
-import { MATH_BLOCK, MATH_INLINE } from '#packages/latex/src/index.js';
 import { MERMAID } from '#packages/mermaid/src/index.js';
 import { TOC_BLOCK } from '#packages/toc/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
@@ -32,7 +31,6 @@ import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md
  *  whose kind is demonstrated, or names nothing expected, fails. */
 const NOT_YET_DEMONSTRATED: Record<string, string> = {
 	// Gaps the owner can close by editing the document.
-	mathFence: 'GAP: block math is written as `$$…$$` only; the ```math fence form is unshown',
 	setextHeading: 'GAP: every heading is ATX; the underlined form is unshown',
 	indentedCode: 'GAP: code is fenced throughout; the four-space form is unshown',
 	linkReferenceDefinition: 'GAP: every link is inline; the reference form is unshown',
@@ -52,10 +50,10 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	details: [DETAILS],
 	emoji: [EMOJI_KIND],
 	footnotes: [FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND],
-	latex: [MATH_BLOCK, MATH_INLINE],
 	mermaid: [MERMAID],
-	// A block type, read only by an editor running the plugin, so no page-wide parse holds it;
-	// `plugins/showcase-route.spec.ts` sees the bird on the page.
+	// Plugin values, read only by an editor running them, so no page-wide parse holds them;
+	// `plugins/showcase-route.spec.ts` sees the math and the bird on the page.
+	latex: [],
 	parrot: [],
 	toc: [TOC_BLOCK],
 	// Declares no kind at all: its demonstration is a paragraph repeating a word, asserted
@@ -71,7 +69,7 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 
 /** The inline kinds the bundled plugins add. No registry lists them, so the plugin
  *  packages' own exported constants stand in. */
-const PLUGIN_INLINE_KINDS = [EMOJI_KIND, FOOTNOTE_REF_KIND, MATH_INLINE];
+const PLUGIN_INLINE_KINDS = [EMOJI_KIND, FOOTNOTE_REF_KIND];
 
 function kindsIn(document: Document): Set<string> {
 	const found = new Set<string>();

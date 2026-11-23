@@ -46,7 +46,7 @@ test.describe('block math: typed formation', () => {
 		await editor.typeSlowly('$$');
 
 		await editor.bridge.waitForSourceContains(COMPLETED);
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 
 		await page.keyboard.type('x^2');
 		await editor.getBlock(0).click();
@@ -76,7 +76,7 @@ test.describe('block math: typed formation', () => {
 		await page.keyboard.press('Enter');
 
 		await editor.bridge.waitForSourceEquals(COMPLETED);
-		expect(await editor.bridge.getBlockKind(0)).toBe('mathBlock');
+		expect(await editor.bridge.getBlockKind(0)).toBe('latex/block');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
 
@@ -167,7 +167,7 @@ test.describe('block math: typed formation', () => {
 
 // A ```math fence typed key by key into `start\n\n|\n\nafter`, read after every key: block 1's
 // type, the bytes, the caret (`path:offset`) and the shown source. Pinned from 0.11.5.
-const MATH = 'mathFence';
+const MATH = 'latex/block';
 const CODE = 'fencedCode';
 type Step = [key: string, kind: string, source: string, caret: string | null, shown: string | null];
 const doc = (block: string) => `start\n\n${block}\n\nafter\n`;

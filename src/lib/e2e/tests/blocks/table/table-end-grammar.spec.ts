@@ -16,7 +16,7 @@ test.describe('a `$$` block right under a table', () => {
 		await editor.loadContent(TABLE + MATH);
 
 		expect(await editor.bridge.getBlockCount()).toBe(2);
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 
 		await page.locator('.table-cell').nth(3).click();
 		await page.keyboard.press(edgeKey('lineEnd'));

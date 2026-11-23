@@ -221,15 +221,6 @@ export type {
 	CodePainter,
 	CodeToken
 } from './schema/code-highlighter';
-// The code block's own drawing of a fenced source, for a kind a Svelte component draws: split with
-// `sliceFencedSource`, draw with `renderFencedSource` and your body painter.
-export {
-	sliceFencedSource,
-	renderFencedSource,
-	fenceBodyAsDrawn,
-	fencedBodyRange
-} from './components/blocks/code/code-renderer';
-export type { FencedSource } from './components/blocks/code/code-renderer';
 
 // ── Command vocabulary + keybindings (pre-freeze) ────────────────────────────
 // The built-in half; a plugin's own commands are created in the section below.
@@ -289,11 +280,10 @@ export {
 	matchFenceClose,
 	escalatedFenceLength,
 	findFenceCloser,
-	fenceAnatomy,
 	fenceReading,
 	matchFenceInfo
 } from './core/parsers/fence-syntax';
-export type { FenceOpen, FenceRun, FenceAnatomy } from './core/parsers/fence-syntax';
+export type { FenceOpen, FenceRun } from './core/parsers/fence-syntax';
 export { scanFence } from './core/parsers/fenced-code';
 export type { FenceScan } from './core/parsers/fenced-code';
 export { fenceRawWrite, fenceShapeOfRaw } from './schema/fenced-code-raw';
@@ -485,9 +475,8 @@ export type { MenuIconName } from './menu-icons';
 export type { EditorRects } from './editor-rects';
 
 // ── Caret geometry (pre-freeze) ──────────────────────────────────────────────
-// What a kind answers `caretTargetAtPoint` with, the helper that turns a point in your element
-// into the nearest offset, and the value for wherever the leaf ends.
-export { caretOffsetAtPoint } from './browser/point';
+// What a kind answers `caretTargetAtPoint` with, and the value for wherever the leaf ends. A
+// drawing turns a point into an offset with the point's own `offsetIn`.
 export type { CaretTarget } from './schema/block-kind-descriptor';
 export { CURSOR_END } from './block-component';
 export type { CursorEnd } from './block-component';

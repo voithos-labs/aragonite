@@ -1,34 +1,78 @@
 // @vitest-environment jsdom
 // After one edit to a `$$` source, the painted source, the bytes its blur writes and a reload
 // agree on the block and its body, and the blocks below read as before unless a `$$` line was
-// left to pair with one of theirs.
+// left to pair with one of theirs. All three go through the block type an editor running latex
+// installs: its drawing's reshape and paint, the editor's write and the editor's reading.
 // Miss-analysis: the painter, the write rule and the parser each had their own fixtures.
-import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '#lib';
-import { ownTrailingLineEnding, trimTrailingLineEnding, type LineEnding } from '#lib/plugin.js';
+import {
+	ownTrailingLineEnding,
+	trimTrailingLineEnding,
+	type CodePainter,
+	type LineEnding
+} from '#lib/plugin.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
-import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
-import { reshapeMathEdit } from '#packages/latex/src/math-source.js';
+import { listGrammar } from '#lib/schema/own-syntax.js';
+import { makingOf } from '#lib/schema/block-type.js';
+import { drawingOf } from '#lib/schema/drawing.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/property-seed.js';
-import { paintedSplit } from './painted-split';
-import { testView } from '#lib/test/harness/test-view.js';
+import { latex } from '#packages/latex/src/index.js';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(688) } as const;
 
 // A paragraph, then a multi-line equation whose opener a stray `$$` above would pair with.
 const BELOW = 'after\n\n$$\ny\n$$\n';
 
-beforeEach(() => {
-	registerMathBlock(testView());
-});
+const MATH = 'latex/block';
+
+/** The editor's reading and the block type's drawing, made per row: the suite's reset after
+ *  each row drops what an install held. */
+function installed() {
+	const { units, grammar } = listGrammar([latex], ({ cause }) => {
+		throw cause;
+	});
+	return { grammar, drawing: drawingOf(makingOf(units[0].contribution.blocks![0])!.view) };
+}
+
+let math: ReturnType<typeof installed>;
+
+/** Paints a body as its text, as an editor with no highlighter does. */
+const plainPainter: CodePainter = { code: (body) => document.createTextNode(body) };
 
 type Edit = { kind: 'break'; at: number } | { kind: 'delete'; at: number };
 
 /** The text the leaf paints after an edit: the edit, then the kind's own reshape. */
 const painted = (text: string, caret: number, eol: LineEnding) =>
-	reshapeMathEdit(text, caret, eol)?.text ?? text;
+	math.drawing.reshapeSource!(text, caret, eol)?.text ?? text;
+
+/** Opener and closer read off the fence-line markers, the body and the text past the closer as
+ *  painted; null when the painter draws no fence line. */
+function paintedSplit(text: string) {
+	const nodes = Array.from(math.drawing.renderSource!(text, plainPainter).childNodes);
+	const fences = nodes.flatMap((node, i) =>
+		node instanceof Element && node.classList.contains('md-fence-line') ? [i] : []
+	);
+	if (fences.length === 0) return null;
+	const [openerAt, closerAt] = fences;
+	const textOf = (from: number, to?: number) =>
+		nodes
+			.slice(from, to)
+			.map((node) => node.textContent ?? '')
+			.join('');
+	const markers = closerAt === undefined ? [] : [...nodes[closerAt].childNodes];
+	const closerMarker = markers.filter((node) => node instanceof Element).pop();
+	return {
+		opener: textOf(openerAt, openerAt + 1),
+		body: textOf(openerAt + 1, closerAt),
+		closer: closerMarker?.textContent ?? '',
+		after: closerAt === undefined ? '' : textOf(closerAt + 1)
+	};
+}
+
+const read = (source: string) => parse(source, { grammar: math.grammar as GrammarView });
 
 /** Code-point and line-ending boundaries: where a caret can sit and what one delete removes. */
 function units(text: string): string[] {
@@ -49,13 +93,13 @@ function applyEdit(text: string, edit: Edit, eol: LineEnding): { text: string; c
 }
 
 const blocksOf = (source: string) =>
-	parse(source).children.map((c) => ({ kind: c.kind, raw: c.raw }));
+	read(source).children.map((c) => ({ kind: c.kind, raw: c.raw }));
 
 /** Whether `bytes` hold a `$$` fence line that no math block of their own reading holds. */
 function strandsFence(bytes: string): boolean {
 	const fenceLines = (raw: string) => raw.split(/\r?\n/).filter((line) => line === '$$').length;
-	const held = parse(bytes)
-		.children.filter((c) => c.kind === 'mathBlock')
+	const held = read(bytes)
+		.children.filter((c) => c.kind === MATH)
 		.reduce((sum, c) => sum + fenceLines(c.raw), 0);
 	return fenceLines(bytes) > held;
 }
@@ -64,7 +108,7 @@ function strandsFence(bytes: string): boolean {
  *  returns which shape the edit made, for the generator's coverage check. */
 function checkEdit(block: string, eol: LineEnding, edit: Edit): string {
 	const source = block + eol + eol + BELOW.replace(/\n/g, eol);
-	const doc = parse(source);
+	const doc = read(source);
 	const node = doc.children[0];
 	const edited = applyEdit(painted(block, 0, eol), edit, eol);
 	const text = painted(edited.text, edited.caret, eol);
@@ -73,7 +117,7 @@ function checkEdit(block: string, eol: LineEnding, edit: Edit): string {
 		0,
 		text + ownTrailingLineEnding(node.raw),
 		'authored',
-		fixtureGrammar
+		math.grammar
 	).text;
 	const reload = written + source.slice(node.raw.length);
 	const label = `${JSON.stringify(block)} ${edit.kind}@${edit.at} -> ${JSON.stringify(text)}`;
@@ -90,7 +134,7 @@ function checkEdit(block: string, eol: LineEnding, edit: Edit): string {
 		0,
 		text + ownTrailingLineEnding(node.raw),
 		'literal',
-		fixtureGrammar
+		math.grammar
 	).text;
 	const pasted = blocksOf(literal + source.slice(node.raw.length));
 	if (!strandsFence(literal)) {
@@ -103,7 +147,7 @@ function checkEdit(block: string, eol: LineEnding, edit: Edit): string {
 	// A break before the opener moves the whole block down a line, which no painter reads.
 	if (text.startsWith(eol)) return 'moved down';
 	const shown = paintedSplit(text);
-	const reloaded = now[0].kind === 'mathBlock';
+	const reloaded = now[0].kind === MATH;
 	expect(reloaded, `${label}: painted and reloaded disagree on the block`).toBe(shown !== null);
 	if (!shown) return 'not math';
 	const kept = paintedSplit(trimTrailingLineEnding(now[0].raw));
@@ -134,8 +178,8 @@ const arbCase = fc
 	.tuple(fc.constantFrom<LineEnding>('\n', '\r\n'), fc.boolean())
 	.chain(([eol, oneLine]) => fc.tuple(fc.constant(eol), oneLine ? arbOneLine : arbMultiLine(eol)))
 	.filter(([eol, block]) => {
-		const children = parse(block + eol).children;
-		return children.length === 1 && children[0].kind === 'mathBlock';
+		const children = read(block + eol).children;
+		return children.length === 1 && children[0].kind === MATH;
 	})
 	.chain(([eol, block]) => {
 		const shown = units(painted(block, 0, eol)).length;
@@ -159,10 +203,14 @@ describe('one edit to a $$ source reads the same painted, written and reloaded',
 		['a break inside the multi-line opener', '$$\nx^2\n$$', { kind: 'break', at: 1 }]
 	];
 	for (const [label, block, edit] of pinned) {
-		it(label, () => checkEdit(block, '\n', edit));
+		it(label, () => {
+			math = installed();
+			checkEdit(block, '\n', edit);
+		});
 	}
 
 	it('for any one-line or multi-line source and any one edit', () => {
+		math = installed();
 		const shapes = new Set<string>();
 		fc.assert(
 			fc.property(arbCase, ([eol, block, edit]) => {

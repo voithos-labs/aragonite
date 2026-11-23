@@ -5,12 +5,14 @@
 import { createHash } from 'node:crypto';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { EditorPlugin } from '#lib/plugin.js';
+import { svelteBlockView } from '#lib/svelte.js';
 import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
+import RevealLeafBlock from '../blocks/fixtures/RevealLeafBlock.svelte';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { MULTI_SEEDS } from '#lib/e2e/simulation/multi-seeds.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
@@ -24,7 +26,9 @@ export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
 	tocPlugin(),
 	footnotesPlugin(),
 	emojiPlugin(),
-	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) })
+	// The latex package is a plugin value, which only an editor reads; the same syntax registered
+	// page-wide, its blocks drawn as a picture that opens its source, as a math block is.
+	registeredMath(svelteBlockView(RevealLeafBlock))
 ];
 
 /** One document per block kind, container and inline construct, short enough that every offset

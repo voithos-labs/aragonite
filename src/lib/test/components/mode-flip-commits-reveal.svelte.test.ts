@@ -8,7 +8,7 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
@@ -30,7 +30,7 @@ afterEach(async () => {
 async function flipWithOpenDraft(to: PresentationMode): Promise<string> {
 	const mounted = mountEditor<{
 		getBlockComponent(path: number[]): { parkCaret?(offset: number): void } | null;
-	}>({ source: OPENED, plugins: [latexPlugin({ renderer: stubRenderer })] });
+	}>({ source: OPENED, plugins: [latex({ renderer: stubRenderer })] });
 	mounted.instance.__test.getBlockComponent([0])!.parkCaret!(0);
 	await mounted.settle();
 	const source = mounted.target.querySelector<HTMLElement>('.math-block-source');

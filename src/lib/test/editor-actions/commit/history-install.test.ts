@@ -13,7 +13,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { endTypingBatchesForTests } from '#lib/editor-actions/commit/text-batch.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 
 beforeAll(installLayoutStubs);
@@ -62,7 +62,7 @@ describe('an undo with a draft open', () => {
 		}>({
 			source: 'a\n\n$$\nold\n$$\n',
 			presentationMode: 'live',
-			plugins: [latexPlugin({ renderer: stubRenderer })]
+			plugins: [latex({ renderer: stubRenderer })]
 		});
 		await editor.settle();
 		await type(editor, [0], 1, 'b');

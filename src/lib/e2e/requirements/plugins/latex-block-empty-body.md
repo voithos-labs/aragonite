@@ -18,7 +18,7 @@ Fixture: `Before` / `$$x^2$$` / `After` (`?seed=mathblock`), in `live`.
 
 ## Edge cases
 
-- the blur after emptying commits `$$\n\n$$`, keeps the kind `mathBlock`, and round-trips
+- the blur after emptying commits `$$\n\n$$`, keeps the kind `latex/block`, and round-trips
 - a second Backspace on the emptied block deletes it, the way an emptied code fence goes
 - undo while the source is still open takes the completion back along with the delete that
   caused it

@@ -19,7 +19,7 @@ import { makeSurface } from '#lib/test/harness/editable-surface.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import type { EditorOptions, PlaceholderBlock } from '#lib/editor-props.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 
 installLayoutStubs();
@@ -27,7 +27,7 @@ afterEach(destroyMountedEditors);
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 // One definition for every row: installing a second is refused with a warning.
-const math = latexPlugin({ renderer: stubRenderer });
+const math = latex({ renderer: stubRenderer });
 
 /** The hint the block at `path` paints, checked equal to what it announces. */
 function hintAt(editor: MountedEditor, path: number[]): string | null {
@@ -161,7 +161,7 @@ describe('placeholder: fenced blocks count their body', () => {
 		});
 		editor.instance.__test.getBlockComponent([0]).focus?.(3);
 		await editor.settle();
-		expect(hintAt(editor, [0])).toBe('mathBlock');
+		expect(hintAt(editor, [0])).toBe('latex/block');
 
 		const el = surfaceAt(editor, [0]);
 		const at = asDomTextOffset(3);

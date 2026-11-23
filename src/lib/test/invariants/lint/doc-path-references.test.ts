@@ -116,7 +116,7 @@ describe('path and symbol references: written short', () => {
 				{ file: 'docs/design/x.md', path: 'remeasure.test.ts' },
 				{ file: 'docs/contributing/x.md', path: '../design/editor.md' },
 				{ file: 'docs/contributing/x.md', path: 'test/blocks/list/<name>.test.ts' },
-				{ file: 'x.md', path: 'math-source.ts', symbol: 'sliceMathSource' }
+				{ file: 'x.md', path: 'math-renders.ts', symbol: 'mathRenders' }
 			])
 		).toEqual([]);
 	});
@@ -127,13 +127,13 @@ describe('path and symbol references: written short', () => {
 				{ file: 'x.md', path: 'test/caret/caret-writer-request.test.ts' },
 				{ file: 'x.md', path: 'overlay-remeasure.test.ts' },
 				{ file: 'docs/design/x.md', path: '../guide/nope.md' },
-				{ file: 'x.md', path: 'math-source.ts', symbol: 'NotAThing' }
+				{ file: 'x.md', path: 'math-renders.ts', symbol: 'NotAThing' }
 			])
 		).toEqual([
 			'x.md: test/caret/caret-writer-request.test.ts — no file in the tree ends with that path',
 			'x.md: overlay-remeasure.test.ts — no file in the tree ends with that path',
 			'docs/design/x.md: ../guide/nope.md — no file in the tree ends with that path',
-			'x.md: math-source.ts :: NotAThing — symbol not found in any file that path names'
+			'x.md: math-renders.ts :: NotAThing — symbol not found in any file that path names'
 		]);
 	});
 

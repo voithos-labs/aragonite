@@ -39,7 +39,7 @@ test.describe('math fence editing edges (live)', () => {
 
 		await editor.getBlock(2).click();
 		await editor.bridge.waitForSourceEquals('Before\n\n```math\n\n```\n\nAfter\n');
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
@@ -52,7 +52,7 @@ test.describe('math fence editing edges (live)', () => {
 		await page.keyboard.press('Backspace');
 
 		await editor.bridge.waitForSourceEquals('Before\n\n```math\n\n```\n\nAfter\n');
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 });

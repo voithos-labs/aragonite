@@ -30,7 +30,7 @@ import { ADMONITION } from '#packages/admonitions/src/kinds.js';
 import { detailsPlugin, DETAILS_SUMMARY } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
@@ -45,12 +45,6 @@ const BUNDLED_PLUGINS = [
 	detailsPlugin(),
 	emojiPlugin(),
 	footnotesPlugin(),
-	// The sweep reads keymaps only, so no formula is ever rendered.
-	latexPlugin({
-		renderer: () => {
-			throw new Error('the chord sweep renders no math');
-		}
-	}),
 	mermaidPlugin(),
 	tocPlugin()
 ];
@@ -73,7 +67,7 @@ const contributions = createEditorContributions({
 	}
 });
 contributions.read(
-	installPluginList([slashCommands, parrotPlugin()], ({ cause }) => {
+	installPluginList([slashCommands, parrotPlugin(), latex], ({ cause }) => {
 		throw cause;
 	})
 );

@@ -2,7 +2,7 @@
 	import { calloutPlugin } from '../../plugins/callout/register';
 	import { detailsPlugin } from '@voithos-labs/aragonite-details';
 	import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
-	import { latexPlugin } from '@voithos-labs/aragonite-latex';
+	import { latex } from '@voithos-labs/aragonite-latex';
 	import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
 	import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
 	import { tocPlugin } from '@voithos-labs/aragonite-toc';
@@ -18,7 +18,7 @@
 		calloutPlugin(),
 		detailsPlugin(),
 		admonitionsPlugin(),
-		latexPlugin({ renderer: katexRenderer }),
+		latex({ renderer: katexRenderer }),
 		// No renderer: the consumer wires no mermaid engine, so this exercises the packaged
 		// plugin's no-engine fallback from outside the repo.
 		mermaidPlugin(),

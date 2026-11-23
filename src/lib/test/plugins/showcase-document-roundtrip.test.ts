@@ -8,7 +8,6 @@ import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
-import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
@@ -26,7 +25,6 @@ beforeEach(() => {
 		tocPlugin(),
 		footnotesPlugin(),
 		emojiPlugin(),
-		latexPlugin(),
 		mermaidPlugin()
 	]);
 });
@@ -35,7 +33,7 @@ describe('showcase document', () => {
 	// Without this the round trip below would pass with every install having silently failed:
 	// the plain grammar round-trips most of these bytes as prose.
 	it('installed the plugin grammar the document is written against', () => {
-		for (const kind of [FOOTNOTE_DEF_KIND, MATH_BLOCK, DETAILS, 'admonition', 'githubAlert']) {
+		for (const kind of [FOOTNOTE_DEF_KIND, DETAILS, 'admonition', 'githubAlert']) {
 			expect(isBlockKindRegistered(kind), `plugin kind not registered: ${kind}`).toBe(true);
 		}
 	});

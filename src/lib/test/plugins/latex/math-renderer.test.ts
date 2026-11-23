@@ -1,19 +1,17 @@
 /**
  * @vitest-environment jsdom
  *
- * The math renderer slot as `latexPlugin` wires it: the display flag and theme reaching the
+ * One editor's math renderings as `latex` wires them: the display flag and theme reaching the
  * injected renderer, per-formula caching, and a throw painted as the formula's source. The KaTeX
  * adapter itself is proven in `renderer.test.ts`.
  */
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { installPlugins } from '#lib';
-import { latexPlugin } from '#packages/latex/src/index.js';
-import { mathSlot, type MathRenderer } from '#packages/latex/src/math-renderer.js';
+import { mathRenders, type MathRenders } from '#packages/latex/src/math-renders.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 
-const DARK = { theme: 'dark' };
-
-function install(renderer: MathRenderer): void {
-	installPlugins([latexPlugin({ renderer })]);
+let mathSlot: MathRenders;
+function install(renderer: MathRenderer | undefined): void {
+	mathSlot = mathRenders(renderer);
 }
 
 const echo = vi.fn<MathRenderer>((source, opts) => ({
@@ -26,17 +24,13 @@ beforeEach(() => {
 	echo.mockClear();
 });
 
-describe('the math renderer slot', () => {
+describe('an editor’s math renderings', () => {
 	// The display flag is part of the cache key, so one formula at both sizes is two renders.
 	it('hands the renderer its display flag and the theme', () => {
 		install(echo);
 
-		expect(mathSlot.render({ source: 'x^2', display: false }, DARK).dom.textContent).toBe(
-			'x^2:false:dark'
-		);
-		expect(mathSlot.render({ source: 'x^2', display: true }, DARK).dom.textContent).toBe(
-			'x^2:true:dark'
-		);
+		expect(mathSlot.render('x^2', false, 'dark').dom.textContent).toBe('x^2:false:dark');
+		expect(mathSlot.render('x^2', true, 'dark').dom.textContent).toBe('x^2:true:dark');
 		expect(echo).toHaveBeenNthCalledWith(1, 'x^2', { display: false, theme: 'dark' });
 		expect(echo).toHaveBeenNthCalledWith(2, 'x^2', { display: true, theme: 'dark' });
 	});
@@ -44,8 +38,8 @@ describe('the math renderer slot', () => {
 	it('renders a formula once and hands every caller its own node', () => {
 		install(echo);
 
-		const first = mathSlot.render({ source: 'x^2', display: false }, DARK);
-		const second = mathSlot.render({ source: 'x^2', display: false }, DARK);
+		const first = mathSlot.render('x^2', false, 'dark');
+		const second = mathSlot.render('x^2', false, 'dark');
 
 		expect(echo).toHaveBeenCalledTimes(1);
 		// A live node can't sit in two places: repeats must clone, not alias the cache.
@@ -57,7 +51,7 @@ describe('the math renderer slot', () => {
 	// untouched equation again and fail the last assertion.
 	it('re-renders only the edited equation; untouched ones stay cache hits (A2)', () => {
 		install(echo);
-		const render = (source: string) => mathSlot.render({ source, display: false }, DARK);
+		const render = (source: string) => mathSlot.render(source, false, 'dark');
 
 		for (const eq of ['a^2', 'b^2', 'c^2']) render(eq);
 		expect(echo).toHaveBeenCalledTimes(3);
@@ -74,7 +68,7 @@ describe('the math renderer slot', () => {
 			throw new Error('Undefined control sequence');
 		});
 
-		const { dom, error } = mathSlot.render({ source: '\\nope', display: false }, DARK);
+		const { dom, error } = mathSlot.render('\\nope', false, 'dark');
 		expect(error).toBe('Undefined control sequence');
 		expect(dom.className).toBe('math-error');
 		expect(dom.style.color).toContain('--color-error');
@@ -83,9 +77,9 @@ describe('the math renderer slot', () => {
 	});
 
 	it('shows the source with no error color while no renderer is set', () => {
-		installPlugins([latexPlugin()]);
+		install(undefined);
 
-		const { dom, error } = mathSlot.render({ source: 'x^2', display: false }, DARK);
+		const { dom, error } = mathSlot.render('x^2', false, 'dark');
 		expect(error).toBeUndefined();
 		expect(dom.className).toBe('');
 		expect(dom.style.color).toBe('');

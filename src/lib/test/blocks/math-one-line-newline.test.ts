@@ -4,8 +4,8 @@
 // Miss-analysis: every Enter row opened a multi-line source, so none read a one-line `$$` with a
 // line break in it, the shape the painter, the write rule and the parser each read differently.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { parse } from '#lib';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { grammar } from '#lib/plugin.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
@@ -26,7 +26,12 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 // One definition for every row: installing a second is refused with a warning.
-const math = latexPlugin({ renderer: stubRenderer });
+const math = latex({ renderer: stubRenderer });
+// The kinds an editor running the plugin reads the bytes as.
+const kindsOf = (text: string) =>
+	grammar([math])
+		.parse(text)
+		.blocks.map((b) => b.type.name);
 
 beforeAll(() => {
 	installLayoutStubs();
@@ -121,7 +126,7 @@ describe('a line break at the end of a one-line math body', () => {
 			await blur(el);
 			expect(editor.source()).toBe(expected);
 			const live = editor.instance.__test.getDocument().children.map((c) => c.kind);
-			expect(live).toEqual(parse(expected).children.map((c) => c.kind));
+			expect(live).toEqual(kindsOf(expected));
 		});
 	}
 });
@@ -222,7 +227,7 @@ describe('Backspace up into a one-line math block, then Enter', () => {
 
 		expect(editor.source()).toBe('$$\nx^2\n\n$$\n\n\n');
 		const live = editor.instance.__test.getDocument().children.map((c) => c.kind);
-		expect(live).toEqual(parse(editor.source()).children.map((c) => c.kind));
+		expect(live).toEqual(kindsOf(editor.source()));
 	});
 });
 
@@ -248,7 +253,7 @@ describe('a range delete from a one-line formula into the prose below', () => {
 		// A formula's literal text takes no joined text, so the line after it stays its own.
 		expect(editor.source()).toBe('$$x$$\noo\nprice 10$$\n');
 		const live = editor.instance.__test.getDocument().children.map((c) => c.kind);
-		expect(live).toEqual(parse(editor.source()).children.map((c) => c.kind));
+		expect(live).toEqual(kindsOf(editor.source()));
 	});
 });
 

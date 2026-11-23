@@ -9,7 +9,7 @@ import { SHOWCASE_MD, scanShowcase } from '../../showcase-document';
 // e2e/requirements/plugins/showcase-route.md.
 
 const scan = scanShowcase();
-const MATH_HOST = '[data-block-kind="mathBlock"], [data-block-kind="mathFence"]';
+const MATH_HOST = '[data-block-kind="latex/block"]';
 const MERMAID_HOST = '[data-block-kind="mermaid"]';
 
 /** What one pass down the document saw. A block that scrolls away is unmounted, so no single

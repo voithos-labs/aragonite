@@ -495,7 +495,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.131 · A block syntax's bytes are read and written in its own module.** Two routes that each read a block's syntax drift apart, so each syntax gets one module, and `lint/file-rules.test.ts` keeps a row per syntax (`SYNTAX_MODULES`) that fails a copy elsewhere:
 
-- **`$$` math.** `packages/latex/src/math-shape.ts` (`readMathSource`, `mathCloserLine`, `mathBlockLines`); `math-source.ts` :: `sliceMathSource` picks between it and the ` ```math ` fence form. The row fails `$$` spellings (strings, regexes, the fence constant, line splits) under `packages/latex/src/` outside that module. `test/plugins/latex/math-shape-parity.test.ts`, `math-block-writers.test.ts`.
+- **`$$` math.** `packages/latex/src/math-shape.ts` spells the fence once (`DOLLAR_FENCE`, `LONE_FENCE`, `mathBlockLines`); the editor reads and writes it from the block type. The row fails `$$` spellings (strings, regexes, the fence constant, line splits) under `packages/latex/src/` outside that module. `test/plugins/latex/read-table.test.ts`, `math-block-writers.test.ts`.
 - **Table rows.** `src/lib/core/parsers/table-line.ts` reads rows (`rowCellSpans`, `opensOnPipe`, `wrappedInPipes`, `boundaryPipeAt`) and writes them (`tableRowLine`, `tableDelimiterLine`, `newTableLines`, `spliceCells`). The row fails a row's edge pipe or a delimiter cell spelled by hand anywhere else in `src/lib/`. `test/core/parsers/table-row-writers.test.ts` pins the bytes, LF and CRLF.
 - **Table opening.** `src/lib/core/parsers/table.ts` :: `matchTableOpening`, asked by the parser and the grid paste; a header's cell count compared with a delimiter's `columnCount` elsewhere fails.
 
@@ -637,7 +637,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.249 · One way into the height table.** A block's measured height is written to the list's height table and the estimator only by `windowing/list-windowing.svelte.ts :: applyMeasured`, which holds a height within a pixel of its record as that record, so a block remounting a fraction of a pixel off moves no scroll. `lint/file-rules.test.ts`.
 
-**G4.251 · No bundled block builds its rendered view in Svelte.** A bundled plugin's block that shows a rendered view until clicked draws it with a block type's `draw` and `edit: 'source'`, the way a plugin author would, never with a Svelte component's own `mode: 'render-primary'`. Block math and the outline are allowed until they move onto `draw` with the plugin interface redesign, before 0.12.0. `lint/file-rules.test.ts`.
+**G4.251 · No bundled block builds its rendered view in Svelte.** A bundled plugin's block that shows a rendered view until clicked draws it with a block type's `draw` and `edit: 'source'`, the way a plugin author would, never with a Svelte component's own `mode: 'render-primary'`. The outline is allowed until it moves onto `draw` with the plugin interface redesign, before 0.12.0. `lint/file-rules.test.ts`.
 
 **G4.252 · A press is read at the press.** The prose blocks' point readers (the widget hit, the source offset it names, the click side, the nearest widget edge, the shown-source test) are called only in `widget-interaction.ts` :: `readPress` and `islandDragAnchor`, which a press runs at pointer-down (`readPress` also serves `placeCaretAtPoint` and the keyboard menu, where no press moves anything). By the click, the press may have closed a shown source and moved the line under the point. `lint/call-site-rules.test.ts`.
 

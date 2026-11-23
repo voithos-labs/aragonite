@@ -53,7 +53,7 @@ after every move, with a fixed seed so runs repeat.
 ## Math-fence session: structural moves over an opaque leaf
 
 - Alt+Arrow moving the prose above a ` ```math ` fence down past it and back leaves the
-  fence's raw bytes and `mathFence` kind untouched at both positions, its render
+  fence's raw bytes and `latex/block` kind untouched at both positions, its render
   mounted, and the document byte-identical after the round trip. A reorder that
   rebuilt the fence as a plain `fencedCode`, or dropped a byte of the info string or
   body, fails loudly

@@ -6,7 +6,7 @@ import { useDrawn, type BlockProps } from '@voithos-labs/aragonite-vue';
 import type { TextDrawContext } from '@voithos-labs/aragonite/plugin';
 
 const props = defineProps<BlockProps<never, TextDrawContext>>();
-const caption = computed(() => (props.ctx.typed ?? props.block.text).slice('@@ '.length).trim());
+const caption = computed(() => (props.ctx.typed ?? props.block.body).trim());
 const shown = ref<HTMLElement | null>(null);
 useDrawn(() => ({ caret: shown.value ?? undefined }));
 </script>

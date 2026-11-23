@@ -329,7 +329,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 
 	// ── Bundled plugins and styles ──────────────────────────────────────────
 	latexBlockMath: 'function keepSourceFocus(',
-	mathShape: 'export function readMathSource(',
+	mathShape: 'export const DOLLAR_FENCE',
 	mermaidBlock: 'function focusSurfaceEl(',
 	footnoteReference: 'function jumpToDefinition(',
 	editorCss: '.code-tok-keyword {',

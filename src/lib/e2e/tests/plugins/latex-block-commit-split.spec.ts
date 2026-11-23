@@ -30,7 +30,7 @@ test.describe('block math commit core: multi-block source re-splits', () => {
 		await editor.getBlock(0).click();
 
 		const doc = await waitForDoc(page, (s) => s.rootCount === 4);
-		expect(doc.kinds).toEqual(['paragraph', 'mathBlock', 'paragraph', 'paragraph']);
+		expect(doc.kinds).toEqual(['paragraph', 'latex/block', 'paragraph', 'paragraph']);
 		expect(doc.texts[1]).toBe('$$x^2$$');
 		expect(doc.texts[2]).toBe('hello');
 		// The math went back to a clean render, so the stuck state is gone.
@@ -83,7 +83,7 @@ test.describe('block math commit core: multi-block source re-splits', () => {
 
 		await editor.undo();
 		const doc = await waitForDoc(page, (s) => s.rootCount === 3);
-		expect(doc.kinds).toEqual(['paragraph', 'mathBlock', 'paragraph']);
+		expect(doc.kinds).toEqual(['paragraph', 'latex/block', 'paragraph']);
 		expect(doc.texts[1]).toBe('$$x^2$$');
 	});
 });

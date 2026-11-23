@@ -1,19 +1,32 @@
 // @vitest-environment jsdom
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { computeInlineContent } from '#lib/plugin.js';
+import { computeInlineContent } from '#lib/core/inline/index.js';
+import { listGrammar } from '#lib/schema/own-syntax.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { buildCoreInlineWidget, getInlineWidgetEditing } from '#lib/core/inline/inline-widgets.js';
-import { registerMathInline, MATH_INLINE } from '#packages/latex/src/latex-kind.js';
+import { latex } from '#packages/latex/src/index.js';
 
-const isMath = (n: InlineNode) => n.kind === MATH_INLINE;
-const mathNodesIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isMath);
+const MATH = 'latex/math';
+const isMath = (n: InlineNode) => n.kind === MATH;
+
+/** An editor running latex reads with this; made per row, since the suite's reset after each row
+ *  drops what an install held. */
+let math: GrammarView;
+beforeEach(() => {
+	math = listGrammar([latex], ({ cause }) => {
+		throw cause;
+	}).grammar as GrammarView;
+});
+
+const mathNodesIn = (raw: string) =>
+	parseInline(raw, 0, raw.length, undefined, math).filter(isMath);
 
 // Recognition starts only once the plugin registers the `$` trigger: without it the scanner
 // leaves `$` as literal text, exactly as plain GFM does.
-describe('inline math is dormant until registered', () => {
-	it('leaves $x$ as plain text with nothing registered', () => {
+describe('inline math is dormant where latex is not listed', () => {
+	it('leaves $x$ as plain text in an editor without it', () => {
 		expect(parseInline('$x$', 0, 3)).toEqual([{ kind: 'text', start: 0, end: 3, text: '$x$' }]);
 	});
 });
@@ -21,8 +34,6 @@ describe('inline math is dormant until registered', () => {
 // `$` flanking: no whitespace inside either delimiter, no digit after the closer, no pure number.
 // Miss-analysis: no case paired a digit opener with a valid closer or held a non-breaking space.
 describe('$ flanking recognition', () => {
-	beforeEach(() => registerMathInline());
-
 	const cases: Array<[string, boolean]> = [
 		['$x$', true],
 		['$x^2$', true],
@@ -78,8 +89,6 @@ describe('$ flanking recognition', () => {
  * Miss-analysis: no case put two `$` runs in one line with prose between them.
  */
 describe('a claim ends at the first later $, or not at all', () => {
-	beforeEach(() => registerMathInline());
-
 	const spansOf = (raw: string) => mathNodesIn(raw).map((n) => [n.start, n.end]);
 
 	const claims: Array<[string, number[][]]> = [
@@ -104,17 +113,15 @@ describe('a claim ends at the first later $, or not at all', () => {
 });
 
 describe('inline math round-trip', () => {
-	beforeEach(() => registerMathInline());
-
 	it('serializes $x$ byte-for-byte', () => {
 		expect(serialize(parse('$x$'))).toBe('$x$');
 	});
 
 	it('recognizes $x$ through the real parse path', () => {
-		const paragraph = parse('$x$').children[0];
-		const math = computeInlineContent(paragraph).filter(isMath);
-		expect(math).toHaveLength(1);
-		expect(math[0]).toMatchObject({ start: 0, end: 3 });
+		const paragraph = parse('$x$', { grammar: math }).children[0];
+		const claims = computeInlineContent(paragraph, undefined, math).filter(isMath);
+		expect(claims).toHaveLength(1);
+		expect(claims[0]).toMatchObject({ start: 0, end: 3 });
 	});
 });
 
@@ -122,17 +129,16 @@ describe('inline math round-trip', () => {
 describe('a directive container reaches the same recognizer', () => {
 	beforeEach(() => {
 		installPlugins([admonitionsPlugin()]);
-		registerMathInline();
 	});
 
 	const PROSE = 'One part in $10^5$ here.\n';
-	const mathIn = (node: CstNode) => computeInlineContent(node).filter(isMath);
+	const mathIn = (node: CstNode) => computeInlineContent(node, undefined, math).filter(isMath);
 
 	it('answers for a `:::tip` body exactly as for a top-level paragraph', () => {
 		const body = parse(`:::tip Measure\n${PROSE}:::\n`).children[0].children?.[1];
 		expect(body?.kind).toBe('paragraph');
 		const inDirective = mathIn(body!);
-		expect(inDirective).toEqual(mathIn(parse(PROSE).children[0]));
+		expect(inDirective).toEqual(mathIn(parse(PROSE, { grammar: math }).children[0]));
 		expect(inDirective).toHaveLength(1);
 	});
 });
@@ -140,17 +146,15 @@ describe('a directive container reaches the same recognizer', () => {
 // Math renders through a view, so the render layer builds the shell (asserted in the e2e); a
 // unit test can still pin the reveal-source policy and the dispatch.
 describe('math widget dispatch', () => {
-	beforeEach(() => registerMathInline());
-
 	it('a view kind builds nothing without the widget pool, and takes its shell verbatim', () => {
-		const node = { kind: MATH_INLINE, start: 0, end: 3 } as InlineNode;
+		const node = { kind: MATH, start: 0, end: 3 } as InlineNode;
 		// No pool → null (the render layer falls back to the raw span).
-		expect(buildCoreInlineWidget(node, '$x$', { grammar: defaultGrammarView })).toBeNull();
+		expect(buildCoreInlineWidget(node, '$x$', { grammar: math })).toBeNull();
 		const portal = document.createElement('span');
 		expect(
 			buildCoreInlineWidget(node, '$x$', {
 				acquireViewWidget: () => portal,
-				grammar: defaultGrammarView
+				grammar: math
 			})
 		).toBe(portal);
 	});
@@ -158,22 +162,20 @@ describe('math widget dispatch', () => {
 	// `revealSource` is what the widget-interaction code reads to swap the rendered math
 	// for its editable source; its exact shape is pinned here.
 	it('registers the reveal-source editing policy', () => {
-		const policy = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'], defaultGrammarView);
-		expect(policy?.revealSource).toBe(true);
-		expect(Object.keys(policy ?? {}).sort()).toEqual([
-			'revealContentSpan',
-			'revealOffsetAtPoint',
-			'revealSource'
-		]);
+		const policy = getInlineWidgetEditing(MATH as InlineNode['kind'], math);
+		expect(policy).toMatchObject({
+			revealSource: true,
+			deleteGranularity: 'select-then-delete',
+			claimsActivationClick: false
+		});
+		expect(policy?.onEdge).toBeUndefined();
+		expect(policy?.revealOn).toBeUndefined();
 	});
 
 	// The span bounds a caret entering the source, and is where a click the glyph measurement
 	// cannot answer for goes; either way the caret stays inside the `$` delimiters.
 	it('reports its content span inside the `$` delimiters', () => {
-		const span = getInlineWidgetEditing(
-			MATH_INLINE as InlineNode['kind'],
-			defaultGrammarView
-		)?.revealContentSpan;
+		const span = getInlineWidgetEditing(MATH as InlineNode['kind'], math)?.revealContentSpan;
 		expect(span?.('$x^2$')).toEqual({ start: 1, end: 4 });
 		expect(span?.('$a$')).toEqual({ start: 1, end: 2 });
 		// Too short to hold delimiters plus content: no span rather than a nonsense one.

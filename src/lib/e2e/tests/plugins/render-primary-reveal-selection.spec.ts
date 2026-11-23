@@ -20,7 +20,7 @@ test.describe('render-primary reveal click vs a live cross-block range', () => {
 		await editor.waitForCrossBlock(true);
 	});
 
-	const math = () => editor.page.locator('[data-block-kind="mathBlock"]').first();
+	const math = () => editor.page.locator('[data-block-kind="latex/block"]').first();
 
 	test('the click ends the range, so Backspace edits the source instead of the document', async () => {
 		await clickWidgetCenter(math());

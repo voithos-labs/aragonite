@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { PluginsPage } from '../../plugins/helpers';
 
 // What the language picker's Enter writes: the row it visibly marks, else the text as typed.
 // Requirements: `e2e/requirements/blocks/code/picker-enter.md`.
@@ -96,5 +97,27 @@ for (const install of INSTALLS) {
 			await closed(page);
 			expect(await opener(page)).toBe('```typescript');
 		});
+	});
+}
+
+// latex owns the `math` fence, so its row is listed, marked by `math`, and taken by Enter, with
+// the full highlight set listed (where `math` would otherwise start mathematica) and without it.
+for (const seed of ['mathblock', 'math-picker-all']) {
+	test(`with latex listed, math marks its own row and writes a math block (${seed})`, async ({
+		page
+	}) => {
+		const editor = new PluginsPage(page);
+		await editor.gotoPlugins(seed);
+		await editor.loadContent('```\nx\n```\n');
+		await editor.setPresentationMode('live');
+		await editor.getBlock(0).hover();
+		await page.locator('.code-lang-button').click();
+		await expect(page.locator('.code-lang-picker input')).toBeVisible();
+		await page.keyboard.type('math');
+		await expect(marked(page)).toHaveText('math');
+		await page.keyboard.press('Enter');
+		await closed(page);
+		expect(await opener(page)).toBe('```math');
+		expect(await editor.bridge.getBlockKind(0)).toBe('latex/block');
 	});
 }

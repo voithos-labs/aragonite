@@ -260,10 +260,10 @@ export async function reorderPastMathFence(
 
 	const movedRaw = await blockRaw(ctx, proseIndex);
 	const movedKind = await editor.bridge.getBlockKind(proseIndex);
-	if (movedRaw !== fenceRaw || movedKind !== 'mathFence') {
+	if (movedRaw !== fenceRaw || movedKind !== 'latex/block') {
 		throw new Error(
 			`[${ctx.label}] the sibling reorder corrupted the math fence it moved past.\n` +
-				`EXPECTED: mathFence ${JSON.stringify(fenceRaw)}\n` +
+				`EXPECTED: latex/block ${JSON.stringify(fenceRaw)}\n` +
 				`ACTUAL:   ${movedKind} ${JSON.stringify(movedRaw)}`
 		);
 	}

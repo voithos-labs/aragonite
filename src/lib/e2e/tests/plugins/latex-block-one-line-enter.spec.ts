@@ -34,7 +34,7 @@ test.describe('Enter in a one-line math block', () => {
 			await expect.poll(() => editor.sourceText()).toBe('$$\nx^2\ny\n$$');
 			await editor.getBlock(2).click();
 			await editor.bridge.waitForSourceEquals('Before\n\n$$\nx^2\ny\n$$\n\nAfter\n');
-			expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+			expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 			expect(await roundTripStable(page)).toBe(true);
 		});
 	}
@@ -59,7 +59,7 @@ test.describe('Enter in a one-line math block', () => {
 
 		await editor.getBlock(0).click();
 		await editor.bridge.waitForSourceEquals('Before\n\n$$\nx^2\ny\n$$\n\n\n');
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 

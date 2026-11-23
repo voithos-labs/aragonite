@@ -40,10 +40,10 @@ test.describe('search: folded render-primary leaf widget', () => {
 		page
 	}) => {
 		await editor.loadContent('prose filler here\n\n$$x^2 + ZZNEEDLE$$\n\nmore filler\n');
-		await expect(hostFor(page, 'mathBlock')).toHaveCount(1);
+		await expect(hostFor(page, 'latex/block')).toHaveCount(1);
 
 		await search(editor, 'ZZNEEDLE');
-		await expectFoundAndPainted(page, 'mathBlock');
+		await expectFoundAndPainted(page, 'latex/block');
 	});
 
 	test('a match inside a folded toc outline paints via the same leaf fallback', async ({

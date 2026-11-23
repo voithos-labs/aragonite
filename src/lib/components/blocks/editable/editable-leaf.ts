@@ -49,6 +49,7 @@ import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 import { placeCaret } from '../../../selection/place-caret';
 import { createSourceReveal } from '../../../caret/reveal-source';
+import { VIEW_TEXT_HOST_ATTR } from '../../../caret/block-content-selector';
 import { traceRevealOpen, traceRevealFold } from '../../../debug/interaction-trace';
 import { isBlankText, trimTrailingLineEnding, type LineEnding } from '../../../core/lines';
 import type { PresentationMode } from '../../../presentation-mode';
@@ -336,11 +337,17 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 			pendingReveal = atSourceOffset;
 			return;
 		}
-		const reshaped = reshapeSource(el.textContent ?? '', atSourceOffset);
+		const shown = el.textContent ?? '';
+		// An offset in the bytes lands where the reshape put that byte, on a second open too (a
+		// click's own landing after the one that opened it).
+		const reopened = openedAs !== null && shown === openedAs;
+		const reshaped = reshapeSource(reopened ? sourceText() : shown, atSourceOffset);
 		if (!reshaped) return;
-		paintSource(el, reshaped.text);
-		openedAs = reshaped.text;
-		reportSourceEdit(reshaped.text);
+		if (reshaped.text !== shown) {
+			paintSource(el, reshaped.text);
+			openedAs = reshaped.text;
+			reportSourceEdit(reshaped.text);
+		}
 		setCaret(reshaped.caret);
 	}
 
@@ -889,9 +896,11 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 		caretBounds: surface.caretBounds,
 		measurePartialRects: (startOffset, endOffset) => {
 			if (isRevealed()) return surface.measurePartialRects(startOffset, endOffset);
-			// A hidden source has no text to measure, so any non-empty range covers the rendered box.
+			// A hidden source has no text to measure, so any non-empty range covers the rendered box:
+			// a drawn block's, round its hidden text element.
 			if (endOffset <= startOffset) return [];
-			const box = getBlockElByPath(deps.getPath());
+			const el = getBlockElByPath(deps.getPath());
+			const box = el?.closest(`[${VIEW_TEXT_HOST_ATTR}]`) ?? el;
 			return box ? [box.getBoundingClientRect()] : [];
 		},
 		preparePaste: clipboard.preparePaste,

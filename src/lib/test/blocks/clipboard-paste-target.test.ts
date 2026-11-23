@@ -19,7 +19,7 @@ import { definePlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import PlainLeafBlock from '../plugins/fixtures/PlainLeafBlock.svelte';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 
@@ -109,7 +109,7 @@ describe.each(['live', 'source'] as const)(
 				const editor: Editor = mountEditor({
 					source,
 					presentationMode: mode,
-					plugins: [latexPlugin({ renderer: stubRenderer })]
+					plugins: [latex({ renderer: stubRenderer })]
 				});
 				await editor.settle();
 				const el = await show(editor);

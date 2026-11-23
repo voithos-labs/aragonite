@@ -1,14 +1,30 @@
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import { parse, serialize } from '#lib';
 import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';
 import { completeTypedLine } from '#lib/schema/block-completions.js';
-import { registerMathBlock, MATH_BLOCK } from '#packages/latex/src/latex-kind.js';
-import { tryCompleteMathBlock } from '#packages/latex/src/math-completion.js';
-import { testView } from '#lib/test/harness/test-view.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { listGrammar } from '#lib/schema/own-syntax.js';
+import { makingOf } from '#lib/schema/block-type.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { latex } from '#packages/latex/src/index.js';
 
 // The `$$` completer's line test, the bytes it answers with, and what the editor does with them;
 // the registry is tested in test/schema, the checks around it in test/editor-actions.
+
+const MATH = 'latex/block';
+
+/** An editor running latex: its reading, and the block type's completer. Made per row, since the
+ *  suite's reset after each row drops what an install held. */
+function installed() {
+	const { units, grammar } = listGrammar([latex], ({ cause }) => {
+		throw cause;
+	});
+	const completer = makingOf(units[0].contribution.blocks![0])!.completer!;
+	return {
+		grammar: grammar as GrammarView,
+		complete: (line: string) => completer.tryComplete(line)
+	};
+}
 
 describe('block math Enter completer: which lines it claims', () => {
 	it.each([
@@ -16,7 +32,7 @@ describe('block math Enter completer: which lines it claims', () => {
 		['  $$  ', 'surrounding whitespace, which the typed line may carry'],
 		['\t$$\t', 'tabs, which are Markdown whitespace too']
 	])('claims %j (%s)', (line) => {
-		expect(tryCompleteMathBlock(line)).not.toBeNull();
+		expect(installed().complete(line)).not.toBeNull();
 	});
 
 	it.each([
@@ -28,13 +44,13 @@ describe('block math Enter completer: which lines it claims', () => {
 		// Miss-analysis: the whitespace case used ASCII spaces only, never a non-breaking space.
 		['$$\u00a0', 'a non-breaking space, which is text rather than whitespace']
 	])('declines %j (%s)', (line) => {
-		expect(tryCompleteMathBlock(line)).toBeNull();
+		expect(installed().complete(line)).toBeNull();
 	});
 });
 
 describe('block math Enter completer: the bytes it answers', () => {
 	it('answers the fence pair around one empty body line, caret on the body', () => {
-		const claim = tryCompleteMathBlock('$$')!;
+		const claim = installed().complete('$$')!;
 		expect(claim.lines).toEqual(['$$', '', '$$']);
 		expect(claim.caret).toEqual({ path: [], line: 1, column: 0 });
 	});
@@ -42,12 +58,13 @@ describe('block math Enter completer: the bytes it answers', () => {
 	// The answer is only worth anything if the bytes parse back as the block it describes:
 	// the round-trip invariant, on the completer's own output.
 	it('answers bytes that parse to one math block and serialize back unchanged', () => {
-		registerMathBlock(testView());
-		const source = tryCompleteMathBlock('$$')!
+		const math = installed();
+		const source = math
+			.complete('$$')!
 			.lines.map((l) => l + '\n')
 			.join('');
-		const doc = parse(source);
-		expect(doc.children.map((c) => c.kind)).toEqual([MATH_BLOCK]);
+		const doc = parse(source, { grammar: math.grammar });
+		expect(doc.children.map((c) => c.kind)).toEqual([MATH]);
 		expect(doc.children[0].raw).toBe('$$\n\n$$\n');
 		expect(serialize(doc)).toBe(source);
 	});
@@ -56,10 +73,9 @@ describe('block math Enter completer: the bytes it answers', () => {
 describe('block math Enter completer: registration', () => {
 	// The plain-GFM guarantee reaches completion too: with nothing installed, `$$` plus Enter
 	// is an ordinary split.
-	it('claims nothing until the kind is registered', () => {
+	it('claims nothing where latex is not listed', () => {
 		expect(completeTypedLine('$$', defaultGrammarView)).toBeNull();
-		registerMathBlock(testView());
-		expect(completeTypedLine('$$', defaultGrammarView)?.lines).toEqual(['$$', '', '$$']);
+		expect(completeTypedLine('$$', installed().grammar)?.lines).toEqual(['$$', '', '$$']);
 	});
 });
 
@@ -70,9 +86,9 @@ describe('block math Enter completion: what the join plans', () => {
 		['$$\n', '$$\n\n$$\n', 3],
 		['$$\r\n', '$$\r\n\r\n$$\r\n', 4]
 	])('mints %j as %j with the caret at %i', (typed, minted, offset) => {
-		registerMathBlock(testView());
-		const plan = planEnterCompletion(parse(typed).children[0], 2, defaultGrammarView, '\n')!;
-		expect(plan.replacement.map((c) => c.kind)).toEqual([MATH_BLOCK]);
+		const { grammar } = installed();
+		const plan = planEnterCompletion(parse(typed, { grammar }).children[0], 2, grammar, '\n')!;
+		expect(plan.replacement.map((c) => c.kind)).toEqual([MATH]);
 		expect(plan.replacement[0].raw).toBe(minted);
 		expect(plan.caret).toEqual({ path: [], offset });
 	});
@@ -80,7 +96,9 @@ describe('block math Enter completion: what the join plans', () => {
 	// The check belongs to the editor, not the completer: a caret short of the line's end
 	// is a split.
 	it('declines a caret that is not at the end of the typed fence', () => {
-		registerMathBlock(testView());
-		expect(planEnterCompletion(parse('$$\n').children[0], 1, defaultGrammarView, '\n')).toBeNull();
+		const { grammar } = installed();
+		expect(
+			planEnterCompletion(parse('$$\n', { grammar }).children[0], 1, grammar, '\n')
+		).toBeNull();
 	});
 });

@@ -11,7 +11,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { revealLeafPlugin } from './fixtures/reveal-leaf';
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
@@ -54,14 +54,14 @@ describe('a move from a plugin leaf showing its source', () => {
 		chord: 'Alt+ArrowDown',
 		command: 'block.moveDown',
 		// The latex plugin declares the kind when the editor mounts, so the override names its string.
-		kind: MATH_BLOCK as AnyBlockKind
+		kind: 'latex/block' as AnyBlockKind
 	};
 
 	/** Show the `$$` block's source and edit `old` to `new` in the DOM, where the edit lives until blur. */
 	async function mountWithEditedMath(keybindings: KeybindingOverride[] = []) {
 		const mounted = mountEditor<Seam>({
 			source: '$$\nold\n$$\n\nnext\n',
-			plugins: [latexPlugin({ renderer: stubRenderer })],
+			plugins: [latex({ renderer: stubRenderer })],
 			keybindings
 		});
 		await mounted.settle();
@@ -125,12 +125,20 @@ describe('a move from a plugin leaf showing its source', () => {
 	}
 
 	it('keeps the edit when the kind binds no move key', async () => {
-		const { mounted, source } = await mountWithEditedMath();
+		const mounted = mountEditor<Seam>({
+			source: '@@ old\n\nnext\n',
+			plugins: [revealLeafPlugin('move-leaf')]
+		});
+		await mounted.settle();
+		mounted.instance.__test.getBlockComponent([0]).focus?.(3);
+		await mounted.settle();
+		const source = mounted.target.querySelector<HTMLElement>('.reveal-leaf-source')!;
+		source.textContent = '@@ new';
 
 		await pressKey(source, { key: 'ArrowDown', altKey: true });
-		expect(mounted.source()).toBe('$$\nold\n$$\n\nnext\n');
+		expect(mounted.source()).toBe('@@ old\n\nnext\n');
 		source.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
 		await mounted.settle();
-		expect(mounted.source()).toBe('$$\nnew\n$$\n\nnext\n');
+		expect(mounted.source()).toBe('@@ new\n\nnext\n');
 	});
 });

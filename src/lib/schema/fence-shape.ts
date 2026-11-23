@@ -8,6 +8,7 @@ import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import type { CstNode, PluginBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import {
+	displayLength,
 	firstDisplayLine,
 	ownTrailingLineEnding,
 	splitLines,
@@ -57,7 +58,7 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 	const range = (raw: string): { start: number; end: number } => {
 		const anatomy = opensInfo(raw) && fenceAnatomy(raw);
 		if (anatomy) return { start: anatomy.bodyStart, end: anatomy.closerStart };
-		const split = splitFixed(fixed, raw, false);
+		const split = splitFixed(fixed, raw, false) ?? brokenSplit(fixed, raw);
 		return split
 			? { start: split.bodyStart, end: split.closerStart }
 			: { start: 0, end: raw.length };
@@ -71,7 +72,7 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 			const [opener, body] = [text.slice(0, bodyStart), text.slice(bodyStart, closerStart)];
 			return { opener, body, closer: text.slice(closerStart), after: '' };
 		}
-		const fixedSplit = splitFixed(fixed, text, true);
+		const fixedSplit = splitFixed(fixed, text, true) ?? brokenSplit(fixed, text);
 		if (!fixedSplit) return null;
 		const { bodyStart, closerStart, closerEnd } = fixedSplit;
 		return {
@@ -82,8 +83,21 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 		};
 	};
 
+	// The body as a code block's reads: the line ending before the closer is the closer's, and a
+	// block with no body line has none.
+	const bodyOf = (text: string): { start: number; end: number } | null => {
+		const { start, end } = range(text);
+		return start === end ? null : { start, end: start + displayLength(text.slice(start, end)) };
+	};
+
 	return {
 		range: (node: NodeView) => range(node.raw),
+		body: (node: NodeView) => bodyOf(node.raw),
+		/** A shown text's body, read as `body` reads a block's bytes. */
+		bodyText(shown: string): string {
+			const at = bodyOf(shown);
+			return at ? shown.slice(at.start, at.end) : '';
+		},
 		multiLine: true,
 		split,
 		/** The shown text in the shape the block keeps while it's edited: a one-line block a line
@@ -384,24 +398,43 @@ interface BrokenOneLine {
 	openEnd: number;
 	closer: string;
 	closed: boolean;
+	/** Line 0 is the opener alone, as a line break right after the opener leaves it. */
+	openerLine: boolean;
 }
 
 function brokenOneLine(fixed: readonly FixedFence[], text: string): BrokenOneLine | null {
 	const first = firstDisplayLine(text);
-	if (openFixed(fixed, first.text)) return null;
+	const open = openFixed(fixed, first.text);
+	// A line spelling the opener alone is the fence-line form, unless nothing below closes it and
+	// the text still ends with the one-line form's closer.
+	const openerLine = open !== null && !open.oneLine && open.fence.oneLine;
+	if (open && !openerLine) return null;
 	for (const fence of fixed) {
 		const match = fence.oneLine ? fence.openAt(first.text) : null;
 		if (!match) continue;
 		const closer = fence.closer(match);
 		const openEnd = match[0].length;
 		const closed = text.length - closer.length >= openEnd && text.endsWith(closer);
-		return { first, openEnd, closer, closed };
+		if (openerLine && (!closed || splitFixed(fixed, text, false)?.closing !== -1)) return null;
+		return { first, openEnd, closer, closed, openerLine };
 	}
 	return null;
 }
 
-/** A broken one-line block made to read: a cut closer comes back on its line, a typed line break
- *  splits it onto its own lines, and pasted lines close line 0 unless the last line is the closer. */
+/** A broken one-line block read as the write will shape it: its opener, the text after it, and
+ *  the closer where the text still ends with one. */
+function brokenSplit(
+	fixed: readonly FixedFence[],
+	text: string
+): { bodyStart: number; closerStart: number; closerEnd: number } | null {
+	const broken = brokenOneLine(fixed, text);
+	if (!broken) return null;
+	const closerStart = broken.closed ? text.length - broken.closer.length : text.length;
+	return { bodyStart: broken.openEnd, closerStart, closerEnd: text.length };
+}
+
+/** A broken one-line block made to read: a cut closer comes back, a typed line break splits it
+ *  onto its own lines, and pasted lines close a line 0 with text unless the last is the closer. */
 function mendOneLine(
 	fixed: readonly FixedFence[],
 	text: string,
@@ -413,7 +446,7 @@ function mendOneLine(
 	const { first, closer } = broken;
 	if (first.ending === '') return { text: text + closer, caret };
 	const lastLine = text.slice(text.lastIndexOf('\n') + 1);
-	if (mode === 'literal' && lastLine !== closer) {
+	if (mode === 'literal' && !broken.openerLine && lastLine !== closer) {
 		const lineEnd = first.text.length;
 		return {
 			text: text.slice(0, lineEnd) + closer + text.slice(lineEnd),

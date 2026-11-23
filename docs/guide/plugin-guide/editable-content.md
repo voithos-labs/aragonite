@@ -73,7 +73,7 @@ const label = lineBlock({
 		const dom = document.createElement('div');
 		const shown = document.createElement('strong');
 		const show = (next: Block<never>, now: TextDrawContext) => {
-			shown.textContent = now.typed ?? next.text;
+			shown.textContent = now.typed ?? next.body;
 			shown.hidden = now.focused;
 		};
 		show(block, ctx);
@@ -94,7 +94,7 @@ $$x^|2$$   with Enter at the caret, is shown as $$\nx^\n2\n$$
 
 A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint. With a `renderSource`, undo inside the open text walks those edits back before it reaches the document's history, whether you pressed the undo key or picked Undo from the browser's menu. An edit the browser makes itself (an IME commit) gets repainted too. Two more pieces go with a painter:
 
-- **`ctx.typed`** is the shown text as typed and not yet written (null while the picture shows), and `update` runs after every change to it (yours, the browser's, an undo's), so a live preview can follow the text before it's committed. It stays quiet mid-composition.
+- **`ctx.typed`** is the text as typed and not yet written, inside the marker or fence lines as `block.body` reads it (null while the picture shows), and `update` runs after every change to it (yours, the browser's, an undo's), so a live preview can follow the text before it's committed. It stays quiet mid-composition.
 - **`reshapeSource(text, caret, lineEnding)`**, next to `renderSource` on the spec, lets your block put an edited text back in a shape of its own. It's handed the whole shown text as it's shown and again after every edit, the browser's included, with `caret` where the caret sits in `text` right then, and runs before the fence's own shapes above. Answer the new text and the caret's place in it, or null to leave both alone. Keep it in step with the rule every write of your bytes goes through (the commit on leaving included), so what the user sees while typing is what lands. A line you add with no ending to copy takes the `lineEnding` you're handed, the block's own or else the document's, so a CRLF file stays CRLF.
 
 A `lineBlock` is one line, so Enter ends the block, as the quickstart showed. A `fencedBlock`'s text spans lines, so there Enter types a newline in the block's own line ending.
@@ -142,8 +142,8 @@ What `ctx.source` comes with in a `draw`, a component wires up itself:
 - **`white-space: pre-wrap` (or `pre`) on that element** is on you here, for any leaf whose bytes can span lines. Without it the browser collapses the line breaks on screen while the byte count goes on counting them, and the caret sits nowhere near where it looks.
 - **`renderProps`** goes on the folded view of a render-primary block. Put it on a wrapper the reveal never unmounts and the whole folded surface, chrome included, is one click target.
 - `mode` picks plain or render-primary (`edit: 'text'` and `'source'` above), and you own the swap flag (`isRevealed` / `setRevealed`) a `draw` reads as `ctx.focused`.
-- `renderSource`, `reshapeSource` and `onSourceEdit(text)` (what a `draw` sees as `ctx.typed`) are deps.
+- `renderSource`, `reshapeSource` and `onSourceEdit(text)` (the shown text, whose body a `draw` sees as `ctx.typed`) are deps.
 - `leaf.getOptions<MyOptions>()` returns this editor's options typed as you name them, and just your `defaults` with no editor around (a component mounted bare in a unit test), once your plugin is installed.
-- A kind that draws its own fence lines never has an empty content range (the fences are bytes too), so the empty-block hint needs `bodyRange` on its registration: the body a user types into, or null while there's no body line yet. `fencedBodyRange` does the work from a `sliceFencedSource` split, as in `bodyRange: (node) => fencedBodyRange(sliceFencedSource(node.raw))`.
+- A kind that draws its own fence lines never has an empty content range (the fences are bytes too), so the empty-block hint needs `bodyRange` on its registration: the body a user types into, or null while there's no body line yet. A `fencedBlock` declares its own.
 
-Block math (`$$…$$` in the bundled `@voithos-labs/aragonite-latex` plugin) is the worked example, and it's smaller than you'd expect: the factory call with a painted source, one render effect (KaTeX), the spread, and the `blockApi` export. Registration is the ordinary leaf recipe plus an on-type completer for a lone `$$`. Its `caretTargetAtPoint` is worth a look too: KaTeX paints glyphs no offset maps back to, so the render effect stamps the formula's span on the rendered element and the hook walks that span in proportion to how far along the click fell.
+Block math (`$$…$$` in the bundled `@voithos-labs/aragonite-latex` plugin) is a `fencedBlock` with a `draw` now, so it shows what the editor does for you rather than this factory.

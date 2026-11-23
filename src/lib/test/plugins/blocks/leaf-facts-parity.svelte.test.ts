@@ -15,13 +15,13 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 
 beforeAll(() => installLayoutStubs());
 // Each test starts with the registries reset, so the hand-registered kinds go in again.
-beforeEach(() => installPlugins([latexPlugin(), mermaidPlugin(), tocPlugin()]));
+beforeEach(() => installPlugins([registeredMath(), mermaidPlugin(), tocPlugin()]));
 afterEach(destroyMountedEditors);
 
 const picture = () => ({ dom: document.createElement('div') });

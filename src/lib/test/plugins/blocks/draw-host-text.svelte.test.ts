@@ -433,7 +433,7 @@ describe('a drawn picture that opens its text (edit: source)', () => {
 		await pressKey(el, { key: 'z', ctrlKey: true });
 
 		expect(shownSource(editor)?.textContent).toBe('@@ abcdX');
-		expect(typedSeen(seen)).toEqual(['@@ abcdXY', '@@ abcdX']);
+		expect(typedSeen(seen)).toEqual(['abcdXY', 'abcdX']);
 	});
 
 	it('hands update no typed text for an opening after an undo changed it while folded', async () => {

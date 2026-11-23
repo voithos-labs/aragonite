@@ -17,7 +17,9 @@ export function checkReadingTabStops(root: HTMLElement | null): InvariantViolati
 		(el) =>
 			(!el.hasAttribute('tabindex') || el.tabIndex >= 0) &&
 			!el.matches(CONTROL) &&
-			!el.closest('[data-host-content]')
+			!el.closest('[data-host-content]') &&
+			// A hidden element takes no focus: a drawn block's text element while its picture shows.
+			!el.closest('[hidden]')
 	);
 	if (stops.length <= 1) return null;
 	const named = stops.map((el) => {

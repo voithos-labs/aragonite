@@ -202,57 +202,59 @@ const ALLOWLIST: Record<string, Exemption> = {
 		reason:
 			'the perf instruments are unpublished, and they are what counts the blocks a paint was asked for'
 	},
-	'src/lib/test/plugins/latex/block.test.ts': {
-		specifiers: ['#lib/core/inline/scan/plugin-syntax.js'],
-		reason:
-			'no registry read-back: an inline syntax handler registers on a trigger but is never listed back'
-	},
-	'src/lib/test/plugins/latex/inline.test.ts': {
-		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/editor-grammar.js'],
-		reason:
-			'no registry read-back for a widget kind, no published core widget shell builder, and ' +
-			'no published grammar for either read'
-	},
-	'src/lib/test/plugins/latex/raw-write-rule.test.ts': {
-		specifiers: ['#lib/tree-operations/node-primitives.js', '#lib/schema/block-kind-descriptor.js'],
-		reason:
-			'a kind declares rawWrite but nothing published applies one, so an author cannot ' +
-			'check what their rule makes of bytes a tree operation wrote, nor read the rule back'
-	},
-	'src/lib/test/plugins/latex/math-shape.property.test.ts': {
+	'src/lib/test/plugins/latex/block-edit.property.test.ts': {
 		specifiers: [
 			'#lib/tree-operations/content-write.js',
+			'#lib/schema/own-syntax.js',
+			'#lib/schema/block-type.js',
+			'#lib/schema/drawing.js',
+			'#lib/schema/block-openers.js',
 			'#lib/test/invariants/arbitraries/property-seed.js'
 		],
 		reason:
-			'nothing published applies a rawWrite the way a leaf commit does (an authored write), and ' +
-			'the fixed property seed is the suite’s own helper, with no published counterpart'
+			'nothing published applies a write the way a leaf commit does, nor hands back a block ' +
+			'type’s reshape and paint, and an editor running the plugin reads through a grammar the published `grammar()` keeps to itself; the fixed property seed is the suite’s own helper'
+	},
+	'src/lib/test/plugins/latex/inline-bounds.test.ts': {
+		specifiers: ['#lib/schema/own-syntax.js', '#lib/schema/block-openers.js'],
+		reason:
+			'a claim inside a range that starts past the block start: an editor running the plugin reads through a grammar the published `grammar()` keeps to itself'
+	},
+	'src/lib/test/plugins/latex/inline.test.ts': {
+		specifiers: [
+			'#lib/core/inline/index.js',
+			'#lib/core/inline/inline-widgets.js',
+			'#lib/schema/own-syntax.js',
+			'#lib/schema/block-openers.js'
+		],
+		reason:
+			'no registry read-back for a widget kind, no published core widget shell builder, and ' +
+			'an editor running the plugin reads through a grammar the published `grammar()` keeps to itself'
 	},
 	'src/lib/test/plugins/latex/math-block-writers.test.ts': {
-		specifiers: ['#lib/schema/block-kind-descriptor.js', '#lib/schema/insert-catalogue.js'],
+		specifiers: ['#lib/schema/block-type.js', '#lib/schema/plugin-unit.js'],
 		reason:
-			'no registry read-back: an insert entry and a kind’s conformance fixture are registered ' +
-			'but never read back, so an author cannot check the bytes they carry'
+			'no read-back: a block type’s insert row and sample are made but never read back, so an ' +
+			'author cannot check the bytes they carry'
 	},
-	'src/lib/test/plugins/latex/math-shape-parity.test.ts': {
-		specifiers: ['#lib/tree-operations/content-write.js', '#lib/schema/block-kind-descriptor.js'],
+	'src/lib/test/plugins/latex/read-table.test.ts': {
+		specifiers: ['#lib/schema/block-type.js', '#lib/schema/plugin-unit.js'],
 		reason:
-			'nothing published applies a rawWrite the way a leaf commit does (an authored write), nor ' +
-			'reads a kind’s rule back to ask it for the block’s text'
-	},
-	'src/lib/test/plugins/latex/offset-audit.test.ts': {
-		specifiers: ['#lib/browser/block-text.js'],
-		reason: "no published read of an inline node's raw text out of its parent's bytes"
+			'nothing published applies a block type’s write rule, so the bytes it makes of a write ' +
+			'cannot be pinned'
 	},
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {
 		specifiers: [
 			'#lib/editor-actions/enter-completion.js',
 			'#lib/schema/block-completions.js',
-			'#lib/schema/editor-grammar.js'
+			'#lib/schema/editor-grammar.js',
+			'#lib/schema/own-syntax.js',
+			'#lib/schema/block-type.js',
+			'#lib/schema/block-openers.js'
 		],
 		reason:
-			'a completer registers but nothing published runs one, and the Enter handler that consults ' +
-			'it has no headless entry, nor a published grammar to run it under'
+			'a completion is made but nothing published runs one, the Enter handler that consults it ' +
+			'has no headless entry, and an editor running the plugin reads through a grammar the published `grammar()` keeps to itself'
 	},
 	'src/lib/test/plugins/mermaid/fence-escalation.test.ts': {
 		specifiers: ['#lib/testing/parse-convergence.js'],

@@ -2,14 +2,15 @@
 import { describe, it, expect } from 'vitest';
 import * as pluginBarrel from '#lib/plugin.js';
 import { CURSOR_END } from '#lib/block-component.js';
-import { caretOffsetAtPoint } from '#lib/browser/point.js';
 import type { CaretTarget } from '#lib/plugin.js';
 
 // The pieces a kind answers `caretTargetAtPoint` with. A field the platform reads but a plugin
-// cannot honestly fill looks supported and is not, so all three are pinned to where they live.
+// cannot honestly fill looks supported and is not, so each is pinned to where it lives.
 describe('caret-geometry barrel surface', () => {
-	it('re-exports the point probe from its home in browser/', () => {
-		expect(pluginBarrel.caretOffsetAtPoint).toBe(caretOffsetAtPoint);
+	// A drawing's point turns itself into an offset (`CaretPoint.offsetIn`), so the free probe is
+	// the editor's own.
+	it('publishes no free point probe', () => {
+		expect('caretOffsetAtPoint' in pluginBarrel).toBe(false);
 	});
 
 	it('re-exports CURSOR_END from block-component', () => {

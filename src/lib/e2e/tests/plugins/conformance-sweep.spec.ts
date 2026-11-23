@@ -31,7 +31,7 @@ const ENROLLMENT_FLOOR = [
 	'table',
 	'blockquote',
 	'mermaid',
-	'mathBlock',
+	'latex/block',
 	'toc',
 	'callout',
 	'admonition'

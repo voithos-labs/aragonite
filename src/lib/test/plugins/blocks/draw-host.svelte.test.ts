@@ -243,7 +243,7 @@ describe('ctx.render', () => {
 		shown.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
 		await editor.settle();
 		expect(editor.source()).toBe(SOURCE);
-		expect(host.querySelector('output')?.textContent).toBe('%%note abcdX');
+		expect(host.querySelector('output')?.textContent).toBe('abcdX');
 	});
 
 	it('shows the source and the error when the renderer throws', async () => {

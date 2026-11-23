@@ -17,6 +17,8 @@ type CaretText = { text: string; caret: number };
  *  painting of the text inside them, and the shape the text keeps while it's edited. */
 export interface SourceFrame {
 	wrap(text: string, paintText: (inner: string) => Node): DocumentFragment;
+	/** The shown text inside the editor's markers, as `block.body` reads the block's bytes. */
+	text(shown: string): string;
 	reshape?(text: string, caret: number, lineEnding: LineEnding): CaretText | null;
 }
 
@@ -36,6 +38,7 @@ export function framedDrawing(
 	return {
 		...drawing,
 		renderSource: (text, paint) => frame.wrap(text, paintText(paint)),
+		textOf: frame.text,
 		reshapeSource: reshapes(spec.reshapeSource, frame.reshape),
 		paintsText: own !== undefined
 	};

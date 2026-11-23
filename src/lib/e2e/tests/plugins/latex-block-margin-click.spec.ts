@@ -28,7 +28,7 @@ test.describe('block math: clicks beside the equation', () => {
 	});
 
 	test('a click in the editor padding level with the block opens nothing', async ({ page }) => {
-		const block = page.locator('[data-block-kind="mathBlock"]');
+		const block = page.locator('[data-block-kind="latex/block"]');
 		const host = await block.boundingBox();
 		if (!host) throw new Error('no block box');
 		const y = host.y + host.height / 2;

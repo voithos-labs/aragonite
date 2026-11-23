@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { headless } from '#lib/testing.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
 
@@ -36,7 +36,7 @@ describe('an injected math renderer on a theme switch', () => {
 	it('redraws block and inline math for the new theme (#243)', async () => {
 		const mounted = mountEditor({
 			source: '$$\nx\n$$\n\nSee $y$ here\n',
-			plugins: [latexPlugin({ renderer: themedRenderer })],
+			plugins: [latex({ renderer: themedRenderer })],
 			theme: 'dark',
 			scrollMode: 'host'
 		});

@@ -130,7 +130,7 @@ test.describe('math-ops simulation', () => {
 		await editor.loadContent(MATH_FENCE_DOC);
 		await editor.waitForRenderFlush();
 		await expect(page.locator('.math-block-render')).toHaveCount(1);
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 
 		const ctx = await makeSimContext(page, editor, 'math-fence', { errors });
 		const g = new Gestures(ctx, makeRng(1));
@@ -140,13 +140,13 @@ test.describe('math-ops simulation', () => {
 		// Moves the prose above the fence down past it and back; the fence never takes focus, and its
 		// raw text and kind must come back untouched, which the gesture checks halfway through.
 		await g.reorderPastMathFence(0, 1);
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		await assertCheckpoint(ctx, 'reordered-past');
 
 		// Delete a range covering the whole fence, then undo. The gesture checks that no byte of
 		// the fence survived and that the undo restored the document exactly.
 		await g.deleteAcrossMathFence(1);
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		await assertCheckpoint(ctx, 'deleted-across-undone');
 	});
 });

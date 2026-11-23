@@ -1,4 +1,7 @@
 <script module lang="ts">
+	import { highlight } from '@voithos-labs/aragonite-highlight';
+	import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
+	import { allLanguages } from '@voithos-labs/aragonite-highlight/languages';
 	import { calloutPlugin } from './callout/register';
 	import {
 		DEMO_ADMONITIONS,
@@ -100,6 +103,8 @@
 		// The multi-line block math with the highlight package listed, for a grammar that lands while the
 		// source is selected. Kept to its own seed: the package's languages fill every code picker.
 		'mathblock-highlight': [DEMO_HIGHLIGHT],
+		// Every highlight.js grammar beside latex, for the picker's `math` row; kept to its own seed.
+		'math-picker-all': [highlight({ renderer: highlightJs({ languages: allLanguages }) })],
 		// The same plugin over a document with a table cell and a code block.
 		'hloccur-memo': [DEMO_HIGHLIGHT_OCCURRENCES],
 		ghost: [ghostTextPlugin],
@@ -213,8 +218,7 @@
 		'math-multiline': '$x^2$ first line padding\nsecond visual line here\n\nNext\n',
 		// Paragraphs either side, so the block-math e2e can drive arrow nav in and out.
 		mathblock: 'Before\n\n$$x^2$$\n\nAfter\n',
-		// GitHub's third math form: a distinct `mathFence` kind that still renders through the
-		// shared BlockMath component.
+		// GitHub's third math form, the same block type as `$$`.
 		mathfence: 'Before\n\n```math\nx^2\n```\n\nAfter\n',
 		// A multi-line `aligned` fence: the render must survive the `\n`s inside it (A7), and
 		// the shown source must stay one text node so the offset walk is exact.

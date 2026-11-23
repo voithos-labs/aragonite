@@ -18,7 +18,7 @@ import { pressKey, settleEditor } from '../../harness/settle';
 import { mountBlock } from '../../harness/mount-block';
 import { leafDocument, registerRevealLeafKind } from '../fixtures/reveal-leaf';
 import PlainOneLineLeafBlock from '../fixtures/PlainOneLineLeafBlock.svelte';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import type { EditorProps } from '#lib/components/editor-component-props.js';
 
@@ -78,7 +78,7 @@ interface OwnTextRoute {
 
 const withMath = (props: EditorProps): EditorProps => ({
 	...props,
-	plugins: [latexPlugin({ renderer: stubRenderer })]
+	plugins: [latex({ renderer: stubRenderer })]
 });
 
 // Each route writes the block's own text without going through the typed-input write.

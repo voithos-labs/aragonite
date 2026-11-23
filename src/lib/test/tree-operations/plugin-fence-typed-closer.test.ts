@@ -9,7 +9,7 @@ import {
 	registerMathFence,
 	MATH_BLOCK,
 	MATH_FENCE
-} from '#packages/latex/src/latex-kind.js';
+} from '#lib/test/harness/registered-math.js';
 import { makeContainerHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { testView } from '#lib/test/harness/test-view.js';
 

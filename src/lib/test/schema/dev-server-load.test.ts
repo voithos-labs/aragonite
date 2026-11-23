@@ -24,7 +24,7 @@ it(
 			import('#packages/emoji/src/index.js').then((m) => m.emojiPlugin()),
 			import('#packages/footnotes/src/index.js').then((m) => m.footnotesPlugin()),
 			import('#packages/highlight-occurrences/src/index.js').then((m) => m.highlightOccurrences),
-			import('#packages/latex/src/index.js').then((m) => m.latexPlugin()),
+			import('#packages/latex/src/index.js').then((m) => m.latex),
 			import('#packages/mermaid/src/index.js').then((m) => m.mermaidPlugin()),
 			import('#packages/parrot/src/index.js').then((m) => m.parrotPlugin()),
 			import('#packages/slash-commands/src/index.js').then((m) => m.slashCommands),

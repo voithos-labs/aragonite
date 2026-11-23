@@ -24,7 +24,7 @@ for (const mode of ['source', 'live'] as const) {
 
 			await editor.getBlock(2).click();
 			await editor.bridge.waitForSourceEquals('Before\n\n````math\nx^2\n```\n````\n\nAfter\n');
-			expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+			expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 			expect(await roundTripStable(page)).toBe(true);
 		});
 	});

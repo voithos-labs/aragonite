@@ -11,7 +11,8 @@ import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
+import { grammar } from '#lib/plugin.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
@@ -23,7 +24,6 @@ const consumerRouteSet = () => [
 	calloutPlugin(),
 	detailsPlugin(),
 	admonitionsPlugin(),
-	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
 	mermaidPlugin(),
 	tocPlugin(),
 	emojiPlugin(),
@@ -42,7 +42,8 @@ describe('the consumer example route parses its seed as the kinds its suite asse
 			'callout',
 			'details',
 			'paragraph',
-			'mathBlock',
+			// A plugin value's block, which only the route's editor reads (below).
+			'paragraph',
 			'admonition',
 			'mermaid',
 			'directiveContainer',
@@ -50,5 +51,8 @@ describe('the consumer example route parses its seed as the kinds its suite asse
 			'paragraph',
 			'footnote-def'
 		]);
+		const { blocks } = grammar([latex]).parse(PLUGINS_SEED);
+		const math = blocks.filter((b) => b.type.name === 'latex/block').map((b) => b.text);
+		expect(math).toEqual(['$$e^{i\\pi} + 1 = 0$$\n']);
 	});
 });

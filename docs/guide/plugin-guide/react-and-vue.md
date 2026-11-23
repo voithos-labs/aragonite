@@ -66,7 +66,7 @@ On a memo every keystroke commits, so `block.text` changes, and the memo renders
 | The block | `ctx` has |
 | --- | --- |
 | any | `ctx.editor` (your plugin's `EditorContext` in the editor drawing the block, the same object the [per-editor recipes](per-editor.md#one-process-many-editors) use), `ctx.mode`, `ctx.theme`, `ctx.focused` (the caret is in the block) |
-| a line or fence with text | `ctx.source`, the element `<Slot of="source" />` places, and `ctx.typed`, the text as typed and not yet written, while a click-to-edit block is open |
+| a line or fence with text | `ctx.source`, the element `<Slot of="source" />` places, and `ctx.typed`, the text inside its marker as typed and not yet written, while a click-to-edit block is open |
 | a container | `ctx.children`, the element `<Slot of="children" />` places |
 | a box (`edit: 'box'`) | `ctx.leave(edge, x?)`, to hand the caret to the block above or below, and `ctx.focusWhole()`, to focus the box whole again from a field of your own |
 
@@ -99,11 +99,11 @@ export const label = lineBlock({
 
 A click anywhere in the block puts the caret in its text, the editor shows the text, and `ctx.focused` turns true, so the caption steps aside. Typing edits the text without committing anything. Moving the caret out of the block commits the whole edit as one undo step and hides the text again. So click, type, click away, Ctrl+Z, and the old label is back in one go.
 
-Want a live preview while the text is open (block math's side-by-side layout)? That's `ctx.typed`: the line as it's typed, before anything commits, and your component renders again with it on every key. It's null while the block is closed, so fall back to the block:
+Want a live preview while the text is open (block math's side-by-side layout)? That's `ctx.typed`: the text as it's typed, its marker left out, before anything commits, and your component renders again with it on every key. It's null while the block is closed, so fall back to the block's `body`:
 
 ```tsx
 function Label({ block, ctx, Slot }: BlockProps<never, TextDrawContext>) {
-	const caption = (ctx.typed ?? block.text).slice('@@ '.length).trim();
+	const caption = (ctx.typed ?? block.body).trim();
 	return (
 		<>
 			{!ctx.focused && <strong>{caption}</strong>}

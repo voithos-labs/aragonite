@@ -14,7 +14,7 @@ const REGISTRATIONS: Record<string, { kind: string } | { coveredBy: string }> = 
 	'packages/footnotes/src/footnote-reference.ts': { kind: 'footnote-ref' },
 	'src/routes/test/plugins/tags/tag-plugin.ts': { kind: 'harness-tag' },
 	'src/routes/test/plugins/wikilinks/link-plugin.ts': { kind: 'harness-wikilinks/wikilink' },
-	'packages/latex/src/latex-kind.ts': {
+	'packages/latex/src/math-inline.ts': {
 		coveredBy: 'src/lib/e2e/tests/plugins/inline-delimiter-autopair.spec.ts'
 	}
 };

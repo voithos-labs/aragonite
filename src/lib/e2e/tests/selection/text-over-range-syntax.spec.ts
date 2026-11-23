@@ -69,7 +69,7 @@ const ROWS: Row[] = [
 	below('an HTML block', '<div>\nhi\n</div>', 'htmlBlock'),
 	below('an indented code block', '    code', 'indentedCode'),
 	below('a rule', '---', 'thematicBreak'),
-	below('a math block', '$$x^2$$', 'mathBlock', 'latex'),
+	below('a math block', '$$x^2$$', 'latex/block', 'latex'),
 	below('a diagram', '```mermaid\ngraph TD\n```', 'mermaid', 'mermaid'),
 	{
 		name: 'a code block opening a list item below',

@@ -23,6 +23,10 @@ function lineMarker(shape: ReturnType<typeof lineShape>): SourceFrame {
 			frag.append(paintText(text.slice(start, end)));
 			if (end < text.length) frag.append(markerSpan(text.slice(end)));
 			return frag;
+		},
+		text(shown) {
+			const { start, end } = shape.textIn(shown);
+			return shown.slice(start, end);
 		}
 	};
 }

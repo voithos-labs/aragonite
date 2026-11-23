@@ -94,6 +94,8 @@
 	let revealed = $state(false);
 	let focusedWithin = $state(false);
 	let typed: string | null = $state(null);
+	// What `ctx.typed` hands the drawing: the typed text inside the editor's markers.
+	let typedText: string | null = null;
 	let generation = $state(0);
 	let drawn: Drawn<unknown> | null = null;
 	// The block type's answers, one watch for all its drawings, so a mount asks nothing it holds.
@@ -114,7 +116,10 @@
 		getEl: leafEl,
 		singleLine: view.singleLine,
 		renderSource: view.renderSource,
-		onSourceEdit: (text: string) => (typed = text)
+		onSourceEdit: (text: string) => {
+			typedText = view.textOf ? view.textOf(text) : text;
+			typed = text;
+		}
 	};
 	const kindPaints = view.paintsText ?? view.renderSource !== undefined;
 	const leaf =
@@ -211,7 +216,7 @@
 		},
 		source,
 		get typed() {
-			return typed;
+			return typed === null ? null : typedText;
 		},
 		render,
 		keepScroll,

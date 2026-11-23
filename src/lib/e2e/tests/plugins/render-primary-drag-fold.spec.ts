@@ -14,7 +14,7 @@ test.describe('a drag out of a shown render-primary source', () => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('latex');
 		await editor.loadContent(DOC);
-		await clickWidgetCenter(editor.page.locator('[data-block-kind="mathBlock"]').first());
+		await clickWidgetCenter(editor.page.locator('[data-block-kind="latex/block"]').first());
 		await expect(page.locator('.math-block-source')).toBeVisible();
 	});
 

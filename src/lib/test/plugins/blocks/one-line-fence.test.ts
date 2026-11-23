@@ -61,8 +61,9 @@ describe('a one-line fence reads', () => {
 		expect(read(source)).toEqual(blocks);
 	});
 
+	// Its body leaves out the line break before the closer, as a code block's does.
 	it('reads its fence-line form as before', () => {
-		expect(read('$$\nx\n$$')).toEqual([['fences/math', '$$\nx\n$$', 'x\n']]);
+		expect(read('$$\nx\n$$')).toEqual([['fences/math', '$$\nx\n$$', 'x']]);
 	});
 });
 
@@ -78,6 +79,10 @@ describe('a one-line fence written', () => {
 		['a line break typed into its text', '$$x\ny$$\n', 'authored', '$$\nx\ny\n$$\n', 10],
 		['the same bytes pasted, its first line closed', '$$x\ny$$\n', 'literal', '$$x$$\ny$$\n', 10],
 		['Enter typed mid-text', '$$x^\n2$$', 'authored', '$$\nx^\n2\n$$', 10],
+		// Miss-analysis: every break fell past the opener, never right after it, where the first
+		// line reads as the fence-line form with no line below to close it.
+		['Enter typed at the start of its text', '$$\nx^2$$', 'authored', '$$\n\nx^2\n$$', 10],
+		['the same bytes pasted', '$$\nx^2$$', 'literal', '$$\n\nx^2\n$$', 10],
 		['its closer cut', '$$x\n', 'authored', '$$x$$\n', 4],
 		['its closer cut, pasted', '$$x\n', 'literal', '$$x$$\n', 4],
 		['an opener holding text over a second line', '$$ a\nb\n', 'authored', '$$\n a\nb\n$$\n', 8],

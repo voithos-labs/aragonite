@@ -1,21 +1,23 @@
 // The writers of a new `$$` block outside the Enter completer (`typed-completion.test.ts` pins
 // that one): each builds its bytes from `mathBlockLines` and writes what it always has.
 import { describe, expect, it } from 'vitest';
-import { installPlugins, parse } from '#lib';
-import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { insertRows, rowMarkdown } from '#lib/schema/insert-catalogue.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { makingOf } from '#lib/schema/block-type.js';
+import { installPluginList } from '#lib/schema/plugin-unit.js';
+import { latex } from '#packages/latex/src/index.js';
+
+const making = () => {
+	const [unit] = installPluginList([latex], ({ cause }) => {
+		throw cause;
+	});
+	return makingOf(unit.contribution.blocks![0])!;
+};
 
 describe('a new $$ block is written as it always was', () => {
 	it('by the insert menu', () => {
-		installPlugins([latexPlugin()]);
-		const entry = insertRows({ isActive: () => true }).find((e) => e.id === 'math');
-		expect(entry && rowMarkdown(entry)).toBe('$$\n\n$$\n');
+		expect(making().insert).toMatchObject({ label: 'Math block', insert: '$$\n\n$$\n' });
 	});
 
-	it('by the kind conformance kit’s fixture', () => {
-		installPlugins([latexPlugin()]);
-		const [node] = parse('$$\nx\n$$\n').children;
-		expect(tryGetBlockKindDescriptor(node.kind)?.samples?.[0]).toBe('$$\nx^2\n$$\n');
+	it('by the published checks’ sample', () => {
+		expect(making().registration.samples?.[0]).toBe('$$\nx^2\n$$\n');
 	});
 });

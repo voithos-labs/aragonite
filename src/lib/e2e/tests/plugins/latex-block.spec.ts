@@ -80,7 +80,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 	test('renders the KaTeX display by default without exposing the source', async () => {
 		await expect(editor.renderedKatex).toHaveCount(1);
 		await expect(editor.source).toHaveCount(0);
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		expect(await editor.bridge.getSource()).toContain('$$x^2$$');
 	});
 

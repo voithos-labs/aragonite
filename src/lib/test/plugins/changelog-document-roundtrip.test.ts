@@ -7,7 +7,6 @@ import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
 import { tocPlugin, TOC_BLOCK } from '#packages/toc/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 
@@ -25,7 +24,6 @@ beforeEach(() => {
 		tocPlugin({ maxDepth: 3 }),
 		footnotesPlugin(),
 		emojiPlugin(),
-		latexPlugin(),
 		mermaidPlugin()
 	]);
 });

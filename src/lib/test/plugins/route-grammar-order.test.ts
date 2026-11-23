@@ -8,7 +8,6 @@ import { detailsPlugin } from '#packages/details/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrot, parrotPlugin } from '#packages/parrot/src/index.js';
 import {
@@ -33,10 +32,8 @@ afterEach(() => allowDevWarns(['plugin-install']));
  * route's grammar, and its SSR markup can describe different kinds than the hydrating client.
  */
 
-// The parser never renders, so stub renderers stand in for the routes' real ones; only which
-// plugins install, and in what order, can change a parse.
-const stubLatex = (): EditorPlugin =>
-	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) });
+// The parser never renders, so a stub renderer stands in; only which `setup` plugins install, and
+// in what order, can change a parse (a plugin value is each editor's own).
 const stubMermaid = (): EditorPlugin => mermaidPlugin({ renderer: async () => '<svg />' });
 
 // The `plugins` props of `/` and `/changelog` (same names, same order) and of `/test/plugins`.
@@ -46,14 +43,12 @@ const demoRouteSet = (): EditorPlugin[] => [
 	tocPlugin(),
 	footnotesPlugin(),
 	emojiPlugin(),
-	stubLatex(),
 	stubMermaid()
 ];
 
 const harnessSet = (): EditorPlugin[] => [
 	calloutPlugin(),
 	detailsPlugin(),
-	stubLatex(),
 	admonitionsPlugin(),
 	stubMermaid(),
 	memoPlugin(),

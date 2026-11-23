@@ -15,8 +15,6 @@ import { emojiPlugin } from '#packages/emoji/src/index.js';
 import emojiSuite from '#packages/emoji/src/conformance.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import footnotesSuite from '#packages/footnotes/src/conformance.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
-import latexSuite from '#packages/latex/src/conformance.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 const MINTS_ONLY_ITS_OWN_KIND =
@@ -36,7 +34,6 @@ function publishedRung(suite: PluginConformanceSuite): InlineConformanceProfile 
 
 const footnoteRung = publishedRung(footnotesSuite);
 const emojiRung = publishedRung(emojiSuite);
-const mathRung = publishedRung(latexSuite);
 
 const directiveTextRung: InlineConformanceProfile = {
 	trigger: ':',
@@ -56,15 +53,14 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 	beforeEach(() => {
 		// Emoji before the directive activation on purpose: that order is what leaves the
 		// directive recognizer unregistered, making its `registration` cell a live check.
-		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin()]);
+		installPlugins([emojiPlugin(), footnotesPlugin()]);
 		activateDirectiveGrammar(testDirectiveViews());
 	});
 
 	it.each([
 		['footnote reference', footnoteRung],
 		['emoji', emojiRung],
-		['directive text', directiveTextRung],
-		['inline math', mathRung]
+		['directive text', directiveTextRung]
 	])('%s', async (_name, profile) => {
 		const report = await runInlineKindConformance(profile);
 		expect(report.cells.map((c) => c.cell)).toEqual([
@@ -83,7 +79,7 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 // otherwise pass as a quiet `boundary`.
 describe('the enrolled inline syntax handlers execute the cells their shape owns', () => {
 	beforeEach(() => {
-		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin()]);
+		installPlugins([emojiPlugin(), footnotesPlugin()]);
 		activateDirectiveGrammar(testDirectiveViews());
 	});
 
@@ -106,6 +102,6 @@ describe('the enrolled inline syntax handlers execute the cells their shape owns
 	});
 
 	it('excuses imageClaim only where no fixture creates a built-in', async () => {
-		expect((await cellOf(mathRung, 'imageClaim')).status).toBe('exempt');
+		expect((await cellOf(directiveTextRung, 'imageClaim')).status).toBe('exempt');
 	});
 });

@@ -19,12 +19,12 @@ import { definePlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import PlainLeafBlock from '../plugins/fixtures/PlainLeafBlock.svelte';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
-const plugins = [latexPlugin({ renderer: stubRenderer })];
+const plugins = [latex({ renderer: stubRenderer })];
 
 beforeEach(() => {
 	installLayoutStubs();

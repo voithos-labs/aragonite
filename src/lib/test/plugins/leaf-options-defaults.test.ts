@@ -5,17 +5,11 @@
 // guarded an `undefined` that a typed read would have ruled out.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { resolveBlockSurface } from '#lib/block-component.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountBlock, type MountedBlock } from '../harness/mount-block';
-import { latexPlugin } from '#packages/latex/src/index.js';
-import BlockMath from '#packages/latex/src/BlockMath.svelte';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import TocBlock from '#packages/toc/src/TocBlock.svelte';
-import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
-
-const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 let mounted: MountedBlock<unknown> | null = null;
 
@@ -30,19 +24,6 @@ afterEach(async () => {
 });
 
 describe('a leaf mounted with no editor reads its plugin defaults', () => {
-	it("opens a math block in the latex plugin's default layout", async () => {
-		installPlugins([latexPlugin({ renderer: stubRenderer, blockLayout: 'stacked' })]);
-		const block = mountBlock(BlockMath, { source: '$$\nx\n$$\n' });
-		mounted = block;
-
-		resolveBlockSurface(block.instance)?.focus(3);
-		await settleEditor();
-
-		const root = block.target.querySelector('.math-block');
-		expect(root?.classList.contains('math-block-editing')).toBe(true);
-		expect(root?.classList.contains('math-block-stacked')).toBe(true);
-	});
-
 	it("lists headings down to the toc plugin's default depth", async () => {
 		installPlugins([tocPlugin({ maxDepth: 2 })]);
 		const doc = parse('# a\n\n## b\n\n### c\n\n[[toc]]\n');

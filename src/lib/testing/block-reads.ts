@@ -165,8 +165,9 @@ function placeProblem(text: string, block: Block): string | null {
 /** Why the type's text range doesn't sit inside its line, in order. */
 function bodyProblem(block: Block, making: BlockMaking): string | null {
 	const node = nodeOfBlock(block);
-	if (!node || !making.bodyRange) return null;
-	const { start, end } = making.bodyRange(node);
+	const range = node && making.bodyRange?.(node);
+	if (!node || !range) return null;
+	const { start, end } = range;
 	const line = trimTrailingLineEnding(node.raw).length;
 	if (start > end) return `its text range ${start}..${end} runs backwards`;
 	if (start < 0 || end > line)

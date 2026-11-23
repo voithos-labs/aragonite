@@ -36,11 +36,15 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		chords: spec.chords,
 		actions: spec.actions,
 		priority,
-		registration: leafRegistration(spec as LeafCommon<unknown>, shape),
+		// The body on the descriptor too, which the range core and the empty-block hint read.
+		registration: {
+			...leafRegistration(spec as LeafCommon<unknown>, shape),
+			bodyRange: shape.body
+		},
 		view: drawnView(drawing),
 		openers: shape.openers,
 		completer: completerOf(spec.complete, shape.claims),
-		bodyRange: shape.range,
+		bodyRange: shape.body,
 		oneLine: shape.oneLine
 	});
 	return type;
@@ -56,6 +60,7 @@ function fenceLines(shape: ReturnType<typeof fenceShape>): SourceFrame {
 			if (shown.after) frag.append(shown.after);
 			return frag;
 		},
+		text: shape.bodyText,
 		reshape: shape.reshape
 	};
 }

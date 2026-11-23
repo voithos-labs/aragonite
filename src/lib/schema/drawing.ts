@@ -35,7 +35,8 @@ export interface DrawContext {
  *  drawing (the editor fills it, so put nothing inside). */
 export interface TextDrawContext extends DrawContext {
 	readonly source: HTMLElement;
-	/** The source as typed and not yet written, while an `edit: 'source'` block is open; else null. */
+	/** The text as typed and not yet written, its marker or fence lines left out as in `block.body`,
+	 *  while an `edit: 'source'` block is open; else null. */
 	readonly typed: string | null;
 }
 
@@ -102,6 +103,8 @@ export interface Drawing {
 	depends?(block: Block): string;
 	/** Paints the shown text: the editor's markers around the block type's painting of its text. */
 	renderSource?(text: string, paint: CodePainter): DocumentFragment;
+	/** The shown text inside those markers, which `ctx.typed` hands the drawing. */
+	textOf?(shown: string): string;
 	/** The block type paints its text itself, so a shown source keeps its own undo steps. */
 	paintsText?: boolean;
 	reshapeSource?(

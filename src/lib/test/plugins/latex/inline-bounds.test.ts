@@ -1,14 +1,25 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { parseInline } from '#lib';
-import { registerMathInline, MATH_INLINE } from '#packages/latex/src/latex-kind.js';
+import { parseInline, type InlineNode } from '#lib';
+import { listGrammar } from '#lib/schema/own-syntax.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { latex } from '#packages/latex/src/index.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
+const MATH_INLINE = 'latex/math';
+
+// An editor running latex reads with this; made per row, since the suite's reset after each row
+// drops what an install held.
+let math: GrammarView;
 beforeEach(() => {
-	registerMathInline();
+	math = listGrammar([latex], ({ cause }) => {
+		throw cause;
+	}).grammar as GrammarView;
 });
 
-const scan = (raw: string) => parseInline(raw, 0, raw.length);
-const mathIn = (raw: string) => scan(raw).filter((n) => n.kind === MATH_INLINE);
+const scan = (raw: string) => parseInline(raw, 0, raw.length, undefined, math);
+const spans = (nodes: InlineNode[]) =>
+	nodes.filter((n) => n.kind === MATH_INLINE).map(({ kind, start, end }) => ({ kind, start, end }));
+const mathIn = (raw: string) => spans(scan(raw));
 
 // Every `$` in shell prose declines, and a decline that searched to the block's end would cost
 // a full block scan per `$`, seconds per keystroke on a large paragraph.
@@ -35,14 +46,18 @@ describe('inline math decline bounds', () => {
 	// The scan range, not the whole block, is what bounds a match: a closer past `end`
 	// must stay invisible, or a heading's trailing bytes would be swallowed.
 	it('ignores a closer beyond the scan range', () => {
-		expect(parseInline('$a$', 0, 2).some((n) => n.kind === MATH_INLINE)).toBe(false);
-		expect(parseInline('$a$', 0, 3).some((n) => n.kind === MATH_INLINE)).toBe(true);
+		expect(parseInline('$a$', 0, 2, undefined, math).some((n) => n.kind === MATH_INLINE)).toBe(
+			false
+		);
+		expect(parseInline('$a$', 0, 3, undefined, math).some((n) => n.kind === MATH_INLINE)).toBe(
+			true
+		);
 	});
 
 	// The other side of the same bound: a heading or list item scans from past its marker,
-	// so the index has to answer for a range that does not start at 0.
+	// so the search has to answer for a range that does not start at 0.
 	it('claims inside a content range that starts past the block start', () => {
-		expect(parseInline('## $x$', 3, 6).filter((n) => n.kind === MATH_INLINE)).toEqual([
+		expect(spans(parseInline('## $x$', 3, 6, undefined, math))).toEqual([
 			{ kind: MATH_INLINE, start: 3, end: 6 }
 		]);
 	});

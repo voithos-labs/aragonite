@@ -119,7 +119,7 @@ describe('a fenced block’s fence lines', () => {
 		const host = editor.target.querySelector<HTMLElement>('[data-block-path="[0]"]')!;
 		const text = host.querySelector<HTMLElement>(`[${VIEW_TEXT_ATTR}]`)!;
 		const picture = text.previousElementSibling as HTMLElement;
-		expect([text.hidden, picture.hidden, picture.textContent]).toEqual([true, false, 'body\n']);
+		expect([text.hidden, picture.hidden, picture.textContent]).toEqual([true, false, 'body']);
 		type Seam = { __test: { getBlockComponent(path: number[]): { focus(at: number): void } } };
 		(editor.instance as unknown as Seam).__test.getBlockComponent([0]).focus(4);
 		await editor.settle();

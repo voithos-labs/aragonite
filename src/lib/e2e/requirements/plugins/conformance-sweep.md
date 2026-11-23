@@ -23,13 +23,13 @@ time. It is not a behavioral suite: the per-kind specs still own the depth.
 ## Search paint
 
 - searchable, measurable text: searching for a token drawn from the block paints at least one match overlay inside the block's subtree.
-- searchable, a render-primary leaf showing its rendered form (`mathBlock`, `toc`): the source renders through a component with no measurable text node, so `createEditableLeaf` covers the rendered block box while the source stays hidden; the token is found and paints a cover overlay through the same path as a kind with measurable text.
+- searchable, a render-primary leaf showing its rendered form (`latex/block`, `toc`): the source renders through a component with no measurable text node, so `createEditableLeaf` covers the rendered block box while the source stays hidden; the token is found and paints a cover overlay through the same path as a kind with measurable text.
 - not searchable, since it isn't editable (`thematicBreak`): a token shared by the two neighbor paragraphs paints on them but never inside the block, and Enter navigation cycles between the neighbors without the active match landing on the block, so it is skipped and traps nothing.
 
 ## Enrolment and reachability
 
 - Every registered kind with a sample is swept.
-- Enrollment covers a floor of known kinds (paragraph, heading, table, blockquote, mermaid, mathBlock, toc, callout, admonition): a kind quietly dropped from the bridge fails the floor instead of disappearing from the column tests. The floor is a subset assertion, so new kinds can enroll without touching it.
+- Enrollment covers a floor of known kinds (paragraph, heading, table, blockquote, mermaid, latex/block, toc, callout, admonition): a kind quietly dropped from the bridge fails the floor instead of disappearing from the column tests. The floor is a subset assertion, so new kinds can enroll without touching it.
 - Loading each kind's document waits for exact source equality rather than checking for a substring, because every sweep document carries both filler paragraphs and the previous kind's stale document can satisfy a substring wait.
 - Every enrolled kind mounts a node from its own fixture. No kind may be unreachable: a fixture nothing claims means a lost registrar, or a directive name a second plugin took, and both are regressions.
 - Each load clears the document to empty first, so a kind whose fixture is byte-identical to the previous kind's (`list`/`listItem`, `table`/`tableRow`) still gets a real reload rather than inheriting the typed change from the previous round. The document every kind is measured in is exactly three blocks, neighbor and fixture and neighbor, with nothing left over from an earlier load, so the cost of the walk and the index of the located block are the same for the first swept kind and the last, whether the file runs whole or filtered.

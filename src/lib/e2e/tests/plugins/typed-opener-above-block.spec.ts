@@ -8,7 +8,7 @@ import { PluginsPage } from './helpers';
 // e2e/requirements/plugins/typed-opener-above-block.md.
 
 const BELOW = {
-	'a math block': { raw: '$$\nx\n$$\n', kind: 'mathBlock' },
+	'a math block': { raw: '$$\nx\n$$\n', kind: 'latex/block' },
 	'a directive block': { raw: ':::tip\nbody\n:::\n', kind: 'admonition' }
 } as const;
 

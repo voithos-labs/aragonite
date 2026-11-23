@@ -105,6 +105,6 @@ test.describe('inline delimiter auto-pair', () => {
 		await editor.focusBlock(1, 0);
 		await page.keyboard.type('$$');
 		await editor.bridge.waitForSourceContains('$$\n\n$$');
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 	});
 });

@@ -67,7 +67,7 @@ A few things in the above example snippet are decently important; you might want
 
 Two more that aren't in the snippet but bite early: plugins install once, app-wide, but each editor only runs the ones its own `plugins` prop lists ([Plugins](#plugins)); and `editor.__test.*` is internal and will move, so don't build on it.
 
-One more if you're upgrading: code blocks paint plain until an editor lists the highlight package. 0.11.5 highlighted them out of the box, so run `npm install @voithos-labs/aragonite-highlight highlight.js` and add `highlight({ renderer: highlightJs() })` to `plugins` to keep them colored ([Bundled plugins](#bundled-plugins)). That highlights the same 24 languages 0.11.5 did, under the same spellings, and the picker lists the same rows. A math block's source under latex shows plain without it too.
+One more if you're upgrading: code blocks paint plain until an editor lists the highlight package. 0.11.5 highlighted them out of the box, so run `npm install @voithos-labs/aragonite-highlight highlight.js` and add `highlight({ renderer: highlightJs() })` to `plugins` to keep them colored ([Bundled plugins](#bundled-plugins)). That highlights the same 24 languages 0.11.5 did, under the same spellings, and the picker lists the same rows. A math block's source under latex shows plain without it too. And `latexPlugin(options)` is `latex(options)` now: the math kinds are `latex/math` and `latex/block` (one type for both fences), the insert row is `latex/block`, and `MATH_INLINE`, `MATH_BLOCK` and `MATH_FENCE` are gone.
 
 ## What your build needs
 
@@ -835,7 +835,7 @@ import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
 import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
 import { highlight } from '@voithos-labs/aragonite-highlight';
 import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
-import { latexPlugin } from '@voithos-labs/aragonite-latex';
+import { latex } from '@voithos-labs/aragonite-latex';
 import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
 import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
@@ -851,7 +851,7 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 | `emojiPlugin()` | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph, with the literal `:name:` still in the source |
 | `highlight({ renderer? })` | Fenced code highlights in its language: 24 common ones, eight with the page and each other one the first time a fence names it, or every highlight.js grammar if you opt in (**Code highlighting**, below). The code block's picker offers the ones it highlights. Without a renderer, code stays plain, which is also what an editor without this plugin shows |
 | `highlightOccurrences` | Every occurrence of the word under the caret, the one you're on included, is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change. The plugin picks no color: style `.decoration-overlay.hl-occurrence` to see it |
-| `latexPlugin({ renderer?, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; without an engine each formula shows its source. `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing; an editor's `{ plugin, options: { blockLayout } }` entry overrides it per instance |
+| `latex` or `latex({ renderer?, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; without an engine each formula shows its source. `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing, and each editor keeps its own renderings. With latex listed, the code block's picker offers `math` |
 | `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled) |
 | `parrotPlugin()` | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption |
 | `slashCommands` or `slashCommands({ entries?, exclude? })` | `/` at the start of a line or after a space opens a list of blocks to insert and headings to turn the line into |
@@ -899,7 +899,7 @@ It highlights 24 common languages, the ones the code block's picker lists. Eight
 import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer'; // imports katex + its CSS
 import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer'; // dynamic-imports mermaid
 
-latexPlugin({ renderer: katexRenderer });
+latex({ renderer: katexRenderer });
 mermaidPlugin({ renderer: mermaidRenderer });
 ```
 

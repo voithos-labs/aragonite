@@ -18,7 +18,7 @@ import { detailsPlugin } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
@@ -34,7 +34,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	emoji: emojiPlugin,
 	footnotes: footnotesPlugin,
 	'highlight-occurrences': () => highlightOccurrences,
-	latex: latexPlugin,
+	latex: () => latex,
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
 	'slash-commands': () => slashCommands,
@@ -53,8 +53,7 @@ const EMPTY_FIXTURES: Record<string, { source: string; path: number[]; openAt?: 
 		source: '<details>\n<summary></summary>\n\nbody\n\n</details>\n',
 		path: [0, 0]
 	},
-	mathBlock: { source: '$$\n\n$$\n', path: [0], openAt: 3 },
-	mathFence: { source: '```math\n\n```\n', path: [0], openAt: 8 },
+	'latex/block': { source: '$$\n\n$$\n', path: [0], openAt: 3 },
 	'parrot/parrot': { source: '%%parrot\n', path: [0], openAt: 8 }
 };
 

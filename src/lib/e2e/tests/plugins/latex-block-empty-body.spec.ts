@@ -57,7 +57,7 @@ test.describe('one-line block math emptied (live)', () => {
 		await editor.getBlock(2).click();
 
 		await editor.bridge.waitForSourceEquals(`Before\n\n${EMPTIED}\n\nAfter\n`);
-		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 

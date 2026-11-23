@@ -22,7 +22,7 @@ interface Opener {
 }
 
 const OPENERS: Opener[] = [
-	{ opener: '$$', below: { raw: '$$\nx\n$$\n', kind: 'mathBlock' }, written: '$$\n$$', cut: 1 },
+	{ opener: '$$', below: { raw: '$$\nx\n$$\n', kind: 'latex/block' }, written: '$$\n$$', cut: 1 },
 	{
 		opener: ':::note',
 		below: { raw: ':::tip\nbody\n:::\n', kind: 'admonition' },
