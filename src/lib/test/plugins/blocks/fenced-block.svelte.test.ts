@@ -93,6 +93,16 @@ describe('a fenced block on its own lines', () => {
 		expect([kindAt(m, 0), kindAt(m, 1)]).toEqual(['fences/demo', 'paragraph']);
 	});
 
+	// The write keeps no fence it can't read, so a broken opener leaves the bytes as typed.
+	it('reads as plain text once a write breaks its opening line', async () => {
+		const m = mountEditor({ source: '%%begin\nx\n%%end\n\nafter\n', plugins: [own()] });
+		await m.settle();
+		typeInto(surfaceAt(m, [0]), '%%begi\nx\n%%end');
+		await m.settle();
+		expect(m.instance.getSource()).toBe('%%begi\nx\n%%end\n\nafter\n');
+		expect([kindAt(m, 0), kindAt(m, 1)]).toEqual(['paragraph', 'paragraph']);
+	});
+
 	it('escapes a body line that would close it early', async () => {
 		const m = mountEditor({ source: '%%begin\nx\n%%end\n', plugins: [own((line) => ` ${line}`)] });
 		await m.settle();
