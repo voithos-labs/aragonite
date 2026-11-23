@@ -28,7 +28,7 @@ import { declaredPluginKind } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { ADMONITION } from '#packages/admonitions/src/kinds.js';
 import { detailsPlugin, DETAILS_SUMMARY } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
@@ -43,7 +43,6 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 const BUNDLED_PLUGINS = [
 	admonitionsPlugin(),
 	detailsPlugin(),
-	emojiPlugin(),
 	footnotesPlugin(),
 	// The sweep reads keymaps only, so no formula is ever rendered.
 	latexPlugin({
@@ -72,7 +71,7 @@ const contributions = createEditorContributions({
 	}
 });
 contributions.read(
-	installPluginList([slashCommands, parrotPlugin(), toc], ({ cause }) => {
+	installPluginList([slashCommands, parrotPlugin(), toc, emoji], ({ cause }) => {
 		throw cause;
 	})
 );

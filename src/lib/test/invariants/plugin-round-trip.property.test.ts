@@ -5,7 +5,6 @@ import { serialize } from '../../core/serializer';
 import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
@@ -25,13 +24,7 @@ function roundTrips(source: string): boolean {
 }
 
 beforeEach(() => {
-	installPlugins([
-		footnotesPlugin(),
-		emojiPlugin(),
-		latexPlugin(),
-		admonitionsPlugin(),
-		detailsPlugin()
-	]);
+	installPlugins([footnotesPlugin(), latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
 });
 
 describe('G2.1 round-trip with the bundled plugins installed', () => {

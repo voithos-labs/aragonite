@@ -198,7 +198,7 @@ const RUNG_ROWS: RungRow[] = [
 	},
 	{
 		// Prose with no trigger character at all: the fast bail skips `:` by default, so
-		// registering emoji turns on a map lookup for every character before the quick exit.
+		// listing emoji turns on a map lookup for every character before the quick exit.
 		row: 'plain-prose-bail-emoji',
 		fixture: 'flat-prose',
 		seed: 'emoji',

@@ -48,8 +48,8 @@ export async function typeEmojiShortcode(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/** `onEdge: 'step-over'` crosses the whole widget in one keypress each way, so a caret inside
- *  it throws. */
+/** `arrows: 'over'` crosses the whole widget in one keypress each way, so a caret inside it
+ *  throws. */
 export async function stepOverEmoji(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { start, end } = await emojiSpan(ctx, blockIndex);
@@ -70,8 +70,8 @@ export async function stepOverEmoji(ctx: SimContext, blockIndex: number): Promis
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/** `deleteGranularity: 'atomic'` removes the whole shortcode in one keypress and one undo entry;
- *  the caret reaches its trailing edge by arrow keys, the path a user takes. */
+/** `delete: 'whole'` removes the whole shortcode in one keypress and one undo entry; the caret
+ *  reaches its trailing edge by arrow keys, the path a user takes. */
 export async function atomicDeleteEmoji(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { end } = await emojiSpan(ctx, blockIndex);

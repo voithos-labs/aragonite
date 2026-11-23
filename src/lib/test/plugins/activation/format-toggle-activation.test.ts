@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Miss-analysis: no toggle test ran over latex or emoji syntax in an editor drawing it as text.
+// Miss-analysis: no toggle test ran over latex or footnote syntax in an editor drawing it as text.
 import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { EMOJI_KIND, emojiPlugin } from '#packages/emoji/src/index.js';
+import { FOOTNOTE_REF_KIND, footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { MATH_INLINE, latexPlugin } from '#packages/latex/src/index.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { toggleInlineFormat } from '#lib/core/inline/format-toggle.js';
@@ -13,11 +13,11 @@ import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 beforeEach(() => {
 	installPlugins([
 		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		emojiPlugin()
+		footnotesPlugin()
 	]);
 });
 
-/** The bytes a toggle writes in an editor that lists neither latex nor emoji. */
+/** The bytes a toggle writes in an editor that lists neither latex nor footnotes. */
 function toggledWithoutEither(
 	display: string,
 	selection: { start: number; end: number },
@@ -32,11 +32,11 @@ function toggledWithoutEither(
 	);
 }
 
-// Without the installs every editor draws `$x$` and `:smile:` as text, and the cases below pass.
+// Without the installs every editor draws `$x$` and `[^note]` as text, and the cases below pass.
 describe('the installed plugins read their syntax', () => {
-	it('parses `$x$` and `:smile:` as their constructs where every plugin is listed', () => {
-		const kinds = parseInline('a $x$ :smile:', 0, 13).map((node) => node.kind);
-		expect(kinds).toEqual(expect.arrayContaining([MATH_INLINE, EMOJI_KIND]));
+	it('parses `$x$` and `[^note]` as their constructs where every plugin is listed', () => {
+		const kinds = parseInline('a $x$ [^note]', 0, 13).map((node) => node.kind);
+		expect(kinds).toEqual(expect.arrayContaining([MATH_INLINE, FOOTNOTE_REF_KIND]));
 	});
 });
 
@@ -45,15 +45,15 @@ describe('bold and italic read the syntax the editor draws', () => {
 		expect(toggledWithoutEither('a $x$ b', { start: 0, end: 4 }, 'strong')).toBe('**a $x**$ b');
 	});
 
-	it('bolds a range ending inside `:smile:`, which the editor draws as text', () => {
-		expect(toggledWithoutEither('a :smile: b', { start: 0, end: 5 }, 'strong')).toBe(
-			'**a :sm**ile: b'
+	it('bolds a range ending inside `[^note]`, which the editor draws as text', () => {
+		expect(toggledWithoutEither('a [^note] b', { start: 0, end: 6 }, 'strong')).toBe(
+			'**a [^no**te] b'
 		);
 	});
 
-	it('takes the italic off the letter inside `:sm*i*le:`', () => {
-		expect(toggledWithoutEither('a :sm*i*le: b', { start: 6, end: 7 }, 'emphasis')).toBe(
-			'a :smile: b'
+	it('takes the italic off the letter inside `[^no*t*e]`', () => {
+		expect(toggledWithoutEither('a [^no*t*e] b', { start: 7, end: 8 }, 'emphasis')).toBe(
+			'a [^note] b'
 		);
 	});
 

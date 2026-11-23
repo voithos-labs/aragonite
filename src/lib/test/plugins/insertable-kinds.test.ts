@@ -17,7 +17,7 @@ import { pluginKindOwner } from '#lib/schema/plugin-kind.js';
 import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
@@ -30,7 +30,7 @@ import { toc } from '#packages/toc/src/index.js';
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: detailsPlugin,
-	emoji: emojiPlugin,
+	emoji: () => emoji,
 	footnotes: footnotesPlugin,
 	'highlight-occurrences': () => highlightOccurrences,
 	latex: latexPlugin,

@@ -9,7 +9,7 @@ import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { toc } from '#packages/toc/src/index.js';
@@ -23,12 +23,12 @@ export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
 	admonitionsPlugin(),
 	detailsPlugin(),
 	footnotesPlugin(),
-	emojiPlugin(),
 	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) })
 ];
 
-/** The bundled plugin values that add syntax, which an editor installs for itself: `[[toc]]`. */
-export const SYNTAX_PLUGIN_VALUES = [toc];
+/** The bundled plugin values that add syntax, which an editor installs for itself: `[[toc]]` and
+ *  `:smile:`. */
+export const SYNTAX_PLUGIN_VALUES = [toc, emoji];
 
 /** Both, as an editor's `plugins` lists them. */
 export const EDITOR_SYNTAX_PLUGINS: PluginsProp = [...SYNTAX_PLUGINS, ...SYNTAX_PLUGIN_VALUES];

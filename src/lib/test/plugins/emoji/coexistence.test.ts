@@ -1,65 +1,50 @@
+// Emoji and the directive text level both read at `:`, each in its own reading: emoji only in a
+// grammar that lists it, directive text wherever directives are on.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parseInline, type InlineNode } from '#lib';
-import { activateDirectives } from '#lib/plugin.js';
-import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { activateDirectives, grammar, type Piece } from '#lib/plugin.js';
 import { DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
-import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 
-const scan = (raw: string) => parseInline(raw, 0, raw.length);
-const kindsIn = (raw: string) => scan(raw).map((n: InlineNode) => n.kind);
+const EMOJI = 'emoji/emoji';
 
-// Both grammars use the bare `:` trigger and one (trigger, prefix, priority) registers once, so
-// emoji's `plugin + 10` priority lets them coexist; the order only decides which is asked first.
+const piecesOf = (source: string): readonly Piece[] =>
+	grammar([emoji]).parse(`${source}\n`).blocks[0].pieces;
+const kindsIn = (source: string) => piecesOf(source).map((piece) => piece.kind);
+
 describe('emoji and the directive text level coexist on `:`', () => {
-	beforeEach(() => {
-		activateDirectives();
-		installPlugins([emojiPlugin()]);
-	});
+	beforeEach(() => activateDirectives());
 
 	it('a bare :smile: is an emoji; the directive inline syntax handler declined it', () => {
-		const emoji = scan(':smile:').find((n) => n.kind === EMOJI_KIND);
-		expect(emoji).toMatchObject({ start: 0, end: 7, decoded: '😄' });
+		const glyph = piecesOf(':smile:').find((piece) => piece.kind === EMOJI);
+		expect(glyph).toMatchObject({ from: 0, to: 7, data: '😄' });
 	});
 
 	it(':name[label]{.cls} stays a directive; emoji never sees a closing colon', () => {
-		const nodes = scan(':name[label]{.cls}');
-		expect(nodes[0].kind).toBe(DIRECTIVE_TEXT);
-		expect(kindsIn(':name[label]{.cls}')).not.toContain(EMOJI_KIND);
+		expect(kindsIn(':name[label]{.cls}')[0]).toBe(DIRECTIVE_TEXT);
+		expect(kindsIn(':name[label]{.cls}')).not.toContain(EMOJI);
 	});
 
 	it('a bare :name is literal; neither inline syntax handler claims it', () => {
 		expect(kindsIn(':name')).toEqual(['text']);
 	});
 
-	// A shortcode not in the table falls through rather than being taken by the `+10`
-	// handler: the directive handler was asked first, so a miss leaves ordinary prose.
 	it('an unknown :notaname: stays literal after both inline syntax handlers decline', () => {
 		expect(kindsIn(':notaname:')).toEqual(['text']);
 	});
 });
 
-// Emoji takes `:` first here, so an activation asking "does anyone own `:`" instead of "have I
-// registered" would skip the directive recognizer, which a byte round trip would not notice.
-describe('the directive text level survives a plugin that took `:` first', () => {
-	beforeEach(() => {
-		installPlugins([emojiPlugin()]);
-		activateDirectives();
-	});
+// A grammar read before the activation still meets the directive level, so the order an app
+// lists emoji and turns directives on in decides nothing.
+describe('the directive text level reads in a grammar made before it was on', () => {
+	const listed = grammar([emoji]);
+	beforeEach(() => activateDirectives());
 
-	it('recognizes :name[label] with emoji already on the trigger', () => {
-		expect(scan(':name[label]')[0].kind).toBe(DIRECTIVE_TEXT);
+	it('recognizes :name[label] with emoji listed first', () => {
+		expect(listed.parse(':name[label]\n').blocks[0].pieces[0].kind).toBe(DIRECTIVE_TEXT);
 	});
 
 	it('leaves emoji claiming its own shortcodes', () => {
-		expect(scan(':smile:').find((n) => n.kind === EMOJI_KIND)).toBeDefined();
-	});
-});
-
-describe('resetPluginPlatformForTests reaches the emoji registration', () => {
-	it('clears the `:` inline syntax handler so a re-install does not throw on a duplicate', () => {
-		installPlugins([emojiPlugin()]);
-		resetPluginPlatformForTests();
-		expect(() => installPlugins([emojiPlugin()])).not.toThrow();
-		expect(scan(':smile:').find((n) => n.kind === EMOJI_KIND)).toBeDefined();
+		const kinds = listed.parse(':smile:\n').blocks[0].pieces.map((piece) => piece.kind);
+		expect(kinds).toEqual([EMOJI]);
 	});
 });

@@ -21,7 +21,7 @@ it(
 		const plugins = await Promise.all([
 			import('#packages/admonitions/src/index.js').then((m) => m.admonitionsPlugin()),
 			import('#packages/details/src/index.js').then((m) => m.detailsPlugin()),
-			import('#packages/emoji/src/index.js').then((m) => m.emojiPlugin()),
+			import('#packages/emoji/src/index.js').then((m) => m.emoji),
 			import('#packages/footnotes/src/index.js').then((m) => m.footnotesPlugin()),
 			import('#packages/highlight-occurrences/src/index.js').then((m) => m.highlightOccurrences),
 			import('#packages/latex/src/index.js').then((m) => m.latexPlugin()),

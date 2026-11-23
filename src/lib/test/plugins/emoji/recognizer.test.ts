@@ -1,50 +1,34 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { parseInline, type InlineNode } from '#lib';
-import { resetPluginPlatformForTests } from '#lib/testing.js';
-import { registerEmoji, EMOJI_KIND } from '#packages/emoji/src/emoji-recognizer.js';
+import { describe, expect, it } from 'vitest';
+import { grammar, type Piece } from '#lib/plugin.js';
+import { emoji } from '#packages/emoji/src/index.js';
 
-const isEmoji = (n: InlineNode) => n.kind === EMOJI_KIND;
-const scan = (raw: string) => parseInline(raw, 0, raw.length);
-const emojiIn = (raw: string) => scan(raw).filter(isEmoji);
+const EMOJI = 'emoji/emoji';
 
-// With the plugin absent, `:smile:` is ordinary prose: a document authored with shortcodes
-// opens byte-identically in an editor that never installed emoji.
-describe('emoji shortcode is dormant until the plugin registers', () => {
-	it('leaves :smile: to literal text with nothing registered', () => {
-		const clean = scan('a :smile: b');
-		registerEmoji();
-		resetPluginPlatformForTests();
-		expect(scan('a :smile: b')).toEqual(clean);
-		expect(clean.some(isEmoji)).toBe(false);
+const piecesIn = (source: string, plugins = [emoji]): readonly Piece[] =>
+	grammar(plugins).parse(`${source}\n`).blocks[0].pieces;
+const glyphsIn = (source: string) => piecesIn(source).filter((piece) => piece.kind === EMOJI);
+const shapeOf = (pieces: readonly Piece[]) =>
+	pieces.map(({ kind, from, to }) => ({ kind, from, to }));
+
+// Where no editor lists emoji, `:smile:` is ordinary prose: a document authored with shortcodes
+// opens byte-identically in an editor without the plugin.
+describe('an emoji shortcode is dormant where emoji is not listed', () => {
+	it('leaves :smile: to literal text, after another grammar listed emoji', () => {
+		expect(glyphsIn('a :smile: b')).toHaveLength(1);
+		expect(piecesIn('a :smile: b', []).map((piece) => piece.kind)).toEqual(['text']);
 	});
 });
 
-// The emoji recognizer on its own makes `:` a character the scanner stops on, with no
-// directive handler present.
-describe('the emoji inline syntax handler alone makes `:` scan-visible', () => {
-	beforeEach(() => registerEmoji());
-
-	it('claims :smile: with only the emoji plugin installed', () => {
-		const [node] = emojiIn('say :smile: now');
-		expect(node).toMatchObject({ kind: EMOJI_KIND, start: 4, end: 11, decoded: '😄' });
-	});
-});
-
-describe('recognizer grammar', () => {
-	beforeEach(() => registerEmoji());
-
+describe('the shortcode reading', () => {
 	const claims: Array<[string, string, string]> = [
 		['a plain shortcode', ':smile:', '😄'],
 		['a `+`-bearing shortcode', ':+1:', '👍'],
 		['an alias form', ':thumbsup:', '👍'],
 		['an underscore shortcode', ':heart_eyes:', '😍']
 	];
-	for (const [name, raw, glyph] of claims) {
-		it(`claims ${name} (${raw}) carrying its glyph`, () => {
-			const [node] = emojiIn(raw);
-			expect(node).toMatchObject({ kind: EMOJI_KIND, start: 0, end: raw.length, decoded: glyph });
-		});
-	}
+	it.each(claims)('claims %s (%s) carrying its glyph', (_name, source, glyph) => {
+		expect(glyphsIn(source)).toMatchObject([{ from: 0, to: source.length, data: glyph }]);
+	});
 
 	const declines: Array<[string, string]> = [
 		['an unknown name', ':notaname:'],
@@ -52,21 +36,15 @@ describe('recognizer grammar', () => {
 		['an unterminated shortcode', ':smile'],
 		['an empty pair', '::']
 	];
-	for (const [name, raw] of declines) {
-		it(`declines ${name} (${JSON.stringify(raw)}) and stays byte-identical`, () => {
-			resetPluginPlatformForTests();
-			const clean = scan(raw);
-			registerEmoji();
-			expect(scan(raw)).toEqual(clean);
-			expect(emojiIn(raw)).toHaveLength(0);
-		});
-	}
+	it.each(declines)('declines %s (%j) as an editor without emoji reads it', (_name, source) => {
+		expect(shapeOf(piecesIn(source))).toEqual(shapeOf(piecesIn(source, [])));
+		expect(glyphsIn(source)).toHaveLength(0);
+	});
 
-	// The match is atomic and closes at its own `:`; the trailing bytes rescan as
-	// ordinary inline content and are never swallowed into it.
+	// The claim closes at its own `:`; the bytes after it read as ordinary inline content.
 	it('claims only through the closing colon, leaving a trailing colon literal', () => {
-		const nodes = scan(':smile::');
-		expect(nodes[0]).toMatchObject({ kind: EMOJI_KIND, start: 0, end: 7 });
-		expect(nodes[nodes.length - 1]).toMatchObject({ kind: 'text', text: ':' });
+		const pieces = piecesIn(':smile::');
+		expect(pieces[0]).toMatchObject({ kind: EMOJI, from: 0, to: 7 });
+		expect(pieces.at(-1)).toMatchObject({ kind: 'text', text: ':' });
 	});
 });

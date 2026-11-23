@@ -81,6 +81,8 @@ A drawing gets an update when its bytes, its place, the mode, the theme or its `
 
 **A throw costs only the widget.** A throw while it mounts, updates or goes away is caught: the claim shows its bytes and the `error` event gets one report. A runtime error after that is yours, so draw bad input as an error instead of throwing.
 
+**Say how it reads.** Beside `draw`, `textContent(data)` is what a reader reads the widget as: `block.textContent`, an outline's label. The emoji plugin answers the glyph, so a heading's `:tada:` lists as 🎉. Without it, the widget reads as its bytes.
+
 ### In React and Vue
 
 A chip for every `{{name}}`, drawn by a React component:

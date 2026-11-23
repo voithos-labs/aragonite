@@ -24,9 +24,9 @@ Btw, the plugin's version should match the editor's version.
 ## Use it
 
 ```ts
-import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+import { emoji } from '@voithos-labs/aragonite-emoji';
 
-const plugins = [emojiPlugin()];
+const plugins = [emoji];
 ```
 
 Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. No options and no stylesheet. Two small things:
@@ -36,7 +36,7 @@ Hand `plugins` to the editor, and build the array once for the whole app, not on
 
 ## More
 
-The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the plugin guide's [inline kinds](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/inline-kinds.md) page walks through this one's recipe, for syntax of your own that lives mid-sentence.
+The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the plugin guide's [inline kinds](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/inline-kinds.md) page builds a widget like this one, for syntax of your own that lives mid-sentence.
 
 ## License
 

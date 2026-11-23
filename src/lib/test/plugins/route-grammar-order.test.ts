@@ -6,7 +6,6 @@ import { resetPluginPlatformForTests } from '#lib/testing.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrot, parrotPlugin } from '#packages/parrot/src/index.js';
@@ -38,12 +37,12 @@ const stubLatex = (): EditorPlugin =>
 	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) });
 const stubMermaid = (): EditorPlugin => mermaidPlugin({ renderer: async () => '<svg />' });
 
-// The `plugins` props of `/` and `/changelog` (same names, same order) and of `/test/plugins`.
+// The setup plugins in the `plugins` props of `/` and `/changelog` (same names, same order) and of
+// `/test/plugins`; a plugin value installs nothing process-wide, so it can't change the order.
 const demoRouteSet = (): EditorPlugin[] => [
 	admonitionsPlugin(),
 	detailsPlugin(),
 	footnotesPlugin(),
-	emojiPlugin(),
 	stubLatex(),
 	stubMermaid()
 ];

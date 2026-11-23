@@ -68,8 +68,8 @@
 		// suite, leaving the other seeds to parse as they did.
 		footnotes: [DEMO_FOOTNOTES],
 		'footnotes-ref': [DEMO_FOOTNOTES],
-		// Emoji takes the bare `:` trigger process-wide once installed, so it is kept to its own
-		// seed and never disturbs prose containing a `:` in another suite.
+		// Emoji takes `:smile:` in whatever editor lists it, so it is kept to its own seed and never
+		// disturbs prose holding a shortcode in another suite.
 		emoji: [DEMO_EMOJI],
 		// The `![[…]]` handler creates a built-in `image`, so once installed it would take `!`
 		// in every other seed's prose; kept to its own.

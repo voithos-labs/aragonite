@@ -1,43 +1,25 @@
 // @vitest-environment jsdom
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { beforeEach, describe, expect, it } from 'vitest';
-import type { InlineNode } from '#lib';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { emoji } from '#packages/emoji/src/index.js';
 import {
-	getInlineWidgetEditing,
-	type InlineWidgetComponentProps
-} from '#lib/core/inline/inline-widgets.js';
-import { mintWidgetShell } from '#lib/core/inline/widget-shell.js';
-import { registerEmoji, drawEmoji, EMOJI_KIND } from '#packages/emoji/src/emoji-recognizer.js';
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 
-// The glyph is what the widget shows; the shell the editor hands it keeps the source bytes on
-// `data-source-*`, so the DOM-to-offset traversal reads `:smile:` back while the DOM shows 😄.
-describe('drawEmoji: the glyph in its shell', () => {
-	it('draws the glyph, unselectable, without touching the source range', () => {
-		const node: InlineNode = {
-			kind: EMOJI_KIND as InlineNode['kind'],
-			start: 2,
-			end: 9,
-			decoded: '😄'
-		};
-		const shell = mintWidgetShell(node);
-		drawEmoji(shell, { inline: node } as InlineWidgetComponentProps);
-		expect(shell.textContent).toBe('😄');
-		expect(shell.classList.contains('md-emoji-widget')).toBe(true);
-		expect(shell.style.userSelect).toBe('none');
-		expect(shell.dataset.sourceStart).toBe('2');
-		expect(shell.dataset.sourceEnd).toBe('9');
-	});
-});
+beforeAll(() => installLayoutStubs());
+afterEach(destroyMountedEditors);
 
-describe('emoji widget registration', () => {
-	beforeEach(() => registerEmoji());
-
-	// Atomic delete plus step-over is what makes a Backspace beside it remove the whole
-	// shortcode at once and a plain arrow move across it as if it were one character.
-	it('registers the atomic, step-over editing policy', () => {
-		expect(getInlineWidgetEditing(EMOJI_KIND as InlineNode['kind'], defaultGrammarView)).toEqual({
-			deleteGranularity: 'atomic',
-			onEdge: 'step-over'
-		});
+// The glyph is what the widget shows; the element the editor hands it keeps the source bytes on
+// `data-source-*`, so the walk from the page back to bytes reads `:smile:` while the page shows 😄.
+describe('the emoji drawing', () => {
+	it('draws the glyph, unselectable, on an element holding the source range', async () => {
+		const m = mountEditor({ source: 'a :smile: b\n', plugins: [emoji] });
+		await m.settle();
+		const [glyph] = m.target.querySelectorAll<HTMLElement>('.md-emoji-widget');
+		expect(glyph.textContent).toBe('😄');
+		expect(glyph.style.userSelect).toBe('none');
+		expect(glyph.dataset.sourceStart).toBe('2');
+		expect(glyph.dataset.sourceEnd).toBe('9');
 	});
 });

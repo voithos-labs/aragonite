@@ -12,7 +12,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
@@ -29,7 +29,7 @@ const consumerRouteSet = () => [
 	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
 	mermaidPlugin(),
 	toc,
-	emojiPlugin(),
+	emoji,
 	footnotesPlugin()
 ];
 
