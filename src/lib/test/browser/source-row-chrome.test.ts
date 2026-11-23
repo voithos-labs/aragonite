@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // When a row that shows its source at the caret (a `:::` opener line) paints its markers: a titled
-// row with its host's `data-focused`, an untitled one with focus inside, as `styles/editor.css` has it.
+// row with its host's `data-focused` or focus and no held press, an untitled one with focus inside.
 // Miss-analysis: the row's paint was read off focus alone, so no test could tell a held press from
 // a caret already in the row, and a click was hit-tested after the text had moved.
 import { describe, it, expect, afterEach } from 'vitest';

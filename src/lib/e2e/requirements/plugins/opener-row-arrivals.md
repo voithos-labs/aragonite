@@ -79,6 +79,7 @@ A row with a title shows its `:::tip` when the press that focused it ends, so th
 - The button held down on a title letter: the marker paints nothing; released, it paints.
 - ArrowUp onto the row: the marker paints at once.
 - A press on an untitled row: the marker paints while the button is down. When End and ` T` give the row a title before the release, it paints nothing until the release, as a titled row does.
+- A press from the body into a titled `:::foo Title` row: its drawn copy shows and its name does not until the release. A press from that row into the body: its name stays until the release, then the copy. Never both.
 - An untitled `:::tip` or `:::foo` row reached by ArrowUp, then the button held down on the body: the row's marker paints nothing at once, as before, and nothing after the release.
 - The button held down on a `:::tip T` row, then End and two Backspaces: the marker paints nothing until the title is gone, then paints, through the release.
 - An untitled row reached by ArrowUp, then ` T`, then two Backspaces: the marker stays painted as the title gains its first letter and loses its last.

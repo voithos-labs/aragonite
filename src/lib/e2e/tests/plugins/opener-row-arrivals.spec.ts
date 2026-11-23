@@ -674,6 +674,33 @@ test.describe('a press on a :::tip row not showing its name', () => {
 		await expect.poll(() => markerDisplay(page)).toBe('inline');
 	});
 
+	test('a titled generic row shows its name or its drawn copy, never both', async ({ page }) => {
+		const shown = () =>
+			page.evaluate(() => {
+				const row = document.querySelector<HTMLElement>('[data-source-at-caret]')!;
+				const copy = getComputedStyle(row, '::before').content;
+				const name = getComputedStyle(row.querySelector('.md-marker')!).display;
+				return `${name === 'inline' ? 'name' : ''}${copy.startsWith('"') ? 'copy' : ''}`;
+			});
+		await loadWithCaretInBody(page, ':::foo Title\nbody\n:::\n', [0, 1]);
+		const at = await before(page, 'itle');
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:8');
+		expect(await shown()).toBe('copy');
+		await page.mouse.up();
+		await expect.poll(shown).toBe('name');
+		const body = (await page
+			.locator('[data-block-path="[0,1]"] [contenteditable="true"]')
+			.boundingBox())!;
+		await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toMatch(/^\[0,1\]:/);
+		expect(await shown()).toBe('name');
+		await page.mouse.up();
+		await expect.poll(shown).toBe('copy');
+	});
+
 	for (const source of [U, ':::foo\nbody\n:::\n']) {
 		test(`a press that leaves an untitled row hides its name at once (${source.split('\n')[0]})`, async ({
 			page
