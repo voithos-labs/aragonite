@@ -42,6 +42,13 @@ const CASES: ProbeCase[] = /* @__PURE__ */ FAMILIES.flatMap((family) => [
 		focusedHost: true,
 		sourceAtCaret: true
 	},
+	{
+		name: `${family} (focused untitled source-at-caret row)`,
+		family,
+		focusedHost: true,
+		sourceAtCaret: true,
+		contentEmpty: true
+	},
 	...(family === 'md-marker'
 		? [
 				{

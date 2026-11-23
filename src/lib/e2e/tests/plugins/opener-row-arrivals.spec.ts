@@ -671,6 +671,25 @@ test.describe('a press on a :::tip row not showing its name', () => {
 		await expect.poll(() => markerDisplay(page)).toBe('inline');
 	});
 
+	for (const source of [U, ':::foo\nbody\n:::\n']) {
+		test(`a press that leaves an untitled row hides its name at once (${source.split('\n')[0]})`, async ({
+			page
+		}) => {
+			await loadWithCaretInBody(page, source, [0, 1]);
+			await page.keyboard.press('ArrowUp');
+			await expect.poll(() => markerDisplay(page)).toBe('inline');
+			const body = (await page
+				.locator('[data-block-path="[0,1]"] [contenteditable="true"]')
+				.boundingBox())!;
+			await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
+			await page.mouse.down();
+			await expect.poll(() => caretText(page)).toMatch(/^\[0,1\]:/);
+			expect(await markerDisplay(page)).toBe('none');
+			await page.mouse.up();
+			expect(await markerDisplay(page)).toBe('none');
+		});
+	}
+
 	test('a held press on a titled row shows its name once the title is gone', async ({ page }) => {
 		await loadWithCaretInBody(page, ':::tip T\nbody\n:::\n', [0, 1]);
 		const at = await before(page, 'T');

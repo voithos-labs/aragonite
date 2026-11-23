@@ -791,14 +791,14 @@
 	display: none;
 }
 
-/* A focused construct whose only bytes are its markers shows them, having nothing else to show,
-   and so does a source-at-caret row (a `:::` opener line); mirrored in `browser/painted.ts`. */
+/* A focused construct of bare markers shows them, having nothing else to show, and so does a titled
+   `:::` opener line under its host's `data-focused`; mirrored in `browser/painted.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
 	[contenteditable][data-content-empty]:focus-within
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line),
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
 	.block-host[data-focused]
-	[contenteditable][data-source-at-caret]
+	[contenteditable][data-source-at-caret]:not([data-content-empty])
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
 	display: inline;
 }
