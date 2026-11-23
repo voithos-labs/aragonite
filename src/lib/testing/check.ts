@@ -8,13 +8,7 @@
 
 import { devChecksOn, setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
 import type { AnyBlockKind } from '../core/nodes';
-import {
-	THIS_COPY,
-	type Contribution,
-	type Editor,
-	type Plugin,
-	type PluginError
-} from '../schema/plugin-unit';
+import { THIS_COPY, type Plugin, type PluginError } from '../schema/plugin-unit';
 import { qualifiedName } from '../schema/plugin-name';
 import { pluginCheckContext, type CheckContext, type PluginCheckRun } from './check-context';
 import {
@@ -32,7 +26,13 @@ import {
 	type RewriteCheck
 } from './check-names';
 import { blockReadOutcomes } from './block-reads';
-import { commandOutcomes, commandSubjects, menuOutcome, menuSubjects } from './command-check';
+import {
+	commandOutcomes,
+	commandSubjects,
+	menuOutcome,
+	menuSubjects,
+	mount
+} from './command-check';
 import { assertReasonDocumented, settleCells, show, type SettledCell } from './conformance-core';
 import { CONTAINER_CONFORMANCE_CELLS } from './container-conformance';
 import { CONTAINER_DECLARED, derivedProfile } from './container-shape';
@@ -182,31 +182,33 @@ async function rowsOf(
 				rows.push({ of: 'inline', subject: subject.name, check, ...outcome });
 			}
 		}
-		for (const entry of commandSubjects(run, plugin.name, own)) {
-			for (const [check, outcome] of await commandOutcomes(run, entry, own?.setup)) {
-				rows.push({ of: 'command', subject: entry.id, check, ...outcome });
-			}
-		}
-		for (const [trigger, menus] of menuSubjects(run, plugin.name)) {
-			const outcome = await menuOutcome(run, trigger, menus, own?.setup);
-			rows.push({ of: 'menu', subject: trigger, check: 'waitingWrite', ...outcome });
-		}
-		for (const [from, entries] of rewriteSubjects(run, plugin.name)) {
-			const outcome = rewriteOutcome(run, from, entries);
-			rows.push({ of: 'rewrite', subject: from, check: 'rewriteLands', ...outcome });
-		}
-		const warningsFail = options.warningsFail !== false;
-		for (const [check, outcome] of await paintOutcomes(
-			run,
-			plugin.name,
-			own,
-			warnings,
-			warningsFail
-		)) {
-			rows.push({ of: 'plugin', subject: plugin.name, check, ...outcome });
-		}
 		const samples = kinds.flatMap((kind) => run.context.descriptor(kind).samples ?? []);
-		rows.push(setupRow(plugin.name, own?.setup, () => run.editor(samples.join('\n'))));
+		// One editor for the rest, as a mounted editor is: `setup` runs on it once, before them.
+		const mounted = mount(run, own?.setup, samples.join('\n'));
+		let setup: Outcome;
+		try {
+			for (const entry of commandSubjects(run, plugin.name, own)) {
+				for (const [check, outcome] of await commandOutcomes(run, entry, mounted)) {
+					rows.push({ of: 'command', subject: entry.id, check, ...outcome });
+				}
+			}
+			for (const [trigger, menus] of menuSubjects(run, plugin.name)) {
+				const outcome = await menuOutcome(trigger, menus, mounted);
+				rows.push({ of: 'menu', subject: trigger, check: 'waitingWrite', ...outcome });
+			}
+			for (const [from, entries] of rewriteSubjects(run, plugin.name)) {
+				const outcome = rewriteOutcome(run, from, entries);
+				rows.push({ of: 'rewrite', subject: from, check: 'rewriteLands', ...outcome });
+			}
+			const warningsFail = options.warningsFail !== false;
+			const painted = await paintOutcomes(run, plugin.name, own, warnings, warningsFail);
+			for (const [check, outcome] of painted) {
+				rows.push({ of: 'plugin', subject: plugin.name, check, ...outcome });
+			}
+		} finally {
+			setup = mounted.end();
+		}
+		rows.push({ of: 'plugin', subject: plugin.name, check: 'setup', ...setup });
 		return rows.map(advisory);
 	} finally {
 		run.release();
@@ -242,32 +244,6 @@ function install(
 	const detail = problems.length > 0 ? problems.join('; ') : passed;
 	const status = problems.length > 0 ? 'failed' : 'passed';
 	return { row: { of: 'plugin', subject: plugin.name, check: 'install', status, detail }, run };
-}
-
-/** `setup` with its disposer, against the editor a check hands a plugin; a run with no DOM can't
- *  give it the mounted editor it was promised. */
-function setupRow(subject: string, setup: Contribution['setup'], editor: () => Editor): CheckRow {
-	const answer = (status: CheckStatus, detail: string): CheckRow => ({
-		of: 'plugin',
-		subject,
-		check: 'setup',
-		status,
-		detail
-	});
-	if (!setup) return answer('not-applicable', 'lists no setup');
-	if (typeof document === 'undefined') {
-		return answer(
-			'unchecked',
-			'needs a DOM: setup runs once an editor is mounted, so it may use one'
-		);
-	}
-	try {
-		const dispose = setup(editor());
-		if (typeof dispose === 'function') dispose();
-		return answer('passed', 'ran, and so did the function it returned');
-	} catch (error) {
-		return answer('failed', `threw: ${messageOf(error)}`);
-	}
 }
 
 const messageOf = (error: unknown) => (error as Error)?.message ?? String(error);

@@ -6,6 +6,7 @@ import {
 	definePlugin,
 	lineBlock,
 	menu,
+	type Block,
 	type Editor,
 	type MenuPick,
 	type MenuRow
@@ -111,5 +112,44 @@ describe('the rows that drive a plugin, with a DOM', () => {
 	it('passes the same pick writing through the pick', async () => {
 		const good = keeping('good', (pick) => pick.write('@Ada'));
 		expect(waiting(await check(good))?.status).toBe('passed');
+	});
+
+	it('runs setup once around every driven row and the paint, its disposer once after', async () => {
+		let setups = 0;
+		let disposals = 0;
+		let live = false;
+		const once = definePlugin({
+			name: 'once',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				setup: () => {
+					setups++;
+					live = true;
+					return () => void (disposals++, (live = false));
+				},
+				menus: [
+					menu<MenuRow>({
+						label: 'Mention',
+						trigger: '@',
+						rows: () => [{ label: 'Ada' }],
+						async pick(_row, pick) {
+							await Promise.resolve();
+							await pick.write('@Ada');
+						}
+					})
+				],
+				paint: (block: Block) =>
+					live ? [{ type: 'mark' as const, from: block.from, to: block.to - 1, class: 'x' }] : []
+			})
+		});
+		const report = await check(once);
+		expect([setups, disposals]).toEqual([1, 1]);
+		const status = (name: string) => report.rows.find((row) => row.check === name)?.status;
+		expect([status('waitingWrite'), status('paintRanges'), status('setup')]).toEqual([
+			'passed',
+			'passed',
+			'passed'
+		]);
 	});
 });

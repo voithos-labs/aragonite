@@ -43,6 +43,7 @@ import { startsAlone } from '../editor-actions/commit/reading-write-gate';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
 import {
 	createHeadlessActions,
+	stubBlockComponent,
 	type HeadlessActions,
 	type HeadlessActionsOptions
 } from './headless-actions';
@@ -132,6 +133,8 @@ export interface Stage {
 	caret(at: number): void;
 	/** Loads `text` as a host's `load` does: every draft opened before it is refused. */
 	swap(text: string): void;
+	/** `swap`, and a fresh record of writes and screen asks, for the next row. */
+	load(text: string): void;
 	source(): string;
 	/** The document as the editor holds it now. */
 	document(): DocumentView;
@@ -280,6 +283,7 @@ function standIn(
 	const asked = <A extends unknown[], R>(member: string, answer: (...args: A) => R) =>
 		screened(screen, member, answer);
 	let caret: number | null = null;
+	let swaps = 0;
 	const entryOf = (command: Command<unknown> | string) => contributions.command(command);
 	const editor: Editor = {
 		plugins: units.map((unit) => unit.name),
@@ -352,7 +356,16 @@ function standIn(
 				deps.setDoc(next);
 				return { touched: null };
 			});
+			// Every block of the new note is mounted under an id no block had, as a swap's list is.
+			swaps++;
+			deps.setBlockIds(next.children.map((_, i) => `note-${swaps}-${i}`));
+			deps.setBlockRefs(next.children.map(() => stubBlockComponent()));
 			caret = null;
+		},
+		load(text) {
+			this.swap(text);
+			writes.length = 0;
+			screen.length = 0;
 		},
 		source: () => deps.bytes.source(),
 		document: () => deps.doc,

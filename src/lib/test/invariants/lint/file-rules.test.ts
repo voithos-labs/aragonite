@@ -3121,15 +3121,10 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		branches: 1,
 		reason: 'with no media queries (jsdom) a recording names its pointer `none`'
 	},
-	'src/lib/testing/check.ts :: setupRow': {
+	'src/lib/testing/command-check.ts :: mount': {
 		branches: 1,
 		reason:
-			'with no DOM a plugin’s setup may not get the mounted editor it was promised, so its row reads unchecked'
-	},
-	'src/lib/testing/command-check.ts :: withSetup': {
-		branches: 1,
-		reason:
-			'with no DOM a plugin’s setup can’t run ahead of the rows that drive its code, so they read unchecked'
+			'with no DOM a plugin’s setup may not get the mounted editor it was promised, so it and the rows that drive its code read unchecked'
 	},
 	'src/lib/testing/mount-dom-stubs.ts :: headless': {
 		branches: 2,

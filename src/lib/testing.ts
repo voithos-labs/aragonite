@@ -41,8 +41,8 @@ export { tabOrder } from './testing/reading-tab-order';
 /**
  * `text` as an editor listing `plugins` rewrites a paste from the clipboard that reads as blocks,
  * through the function every such paste runs; undefined lists every installed `setup` plugin. It
- * answers for that paste alone: plain text, the editor's own copy and a program's insert
- * (`Draft.insert`, an insert row, a menu pick) are never rewritten.
+ * answers for that paste alone: plain text and the editor's own copy are never rewritten. A listed
+ * `setup` plugin is installed in the process, as an editor's `plugins` prop installs it.
  */
 export function rewritePaste(text: string, plugins: PluginsProp | undefined): string {
 	const entries = plugins?.length ? normalizePluginEntries(plugins) : undefined;

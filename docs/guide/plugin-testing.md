@@ -150,7 +150,7 @@ One prerequisite: warnings and invariant checks only run while the editor believ
 
 The function every paste that lands as blocks runs, over a string, so a test proves your rewrite is **wired**, not merely that your `into` works. `plugins` is what you'd hand an editor's `plugins` prop: plugin values with their `rewrites`, and `setup` plugins with their paste transforms. `undefined` runs as an editor with no prop does, every installed `setup` plugin's transforms.
 
-It answers for a paste from outside the editor that reads as blocks, and nothing else. Plain text, the editor's own copy and a program's insert (`Draft.insert`, an insert row, a menu pick) are never rewritten, so it's not the route for testing those.
+It answers for a paste from outside the editor that reads as blocks, and nothing else. Plain text and the editor's own copy are never rewritten, so it's not the route for testing those. A `setup` plugin you list is installed for the process, as an editor's prop installs it, so reset between cases as [a blank slate per test](#a-blank-slate-per-test) does.
 
 ```ts
 import { builtin, definePlugin, rewrite } from '@voithos-labs/aragonite/plugin';
@@ -261,7 +261,7 @@ Each command is a subject under `plugin/id`, a block action's command included; 
 - `waitingWrite`, for a command and for a menu's first row picked on an empty query: once the call waits, the host loads another note, and any write after that fails. The `MenuPick` and a draft opened before the wait are refused on their own, so write through those. A call that returns no promise has no wait, so the row is `not-applicable`.
 - `actionTarget`, for a command a block type places: it runs on the second of two sample blocks with the caret in the first, and fails if it writes the first or inserts at the caret. A command that only asked the screen reads `unchecked`.
 
-Your `setup` runs before these where there's a DOM. With none, a plugin that lists one gets them `unchecked`.
+These share one editor, as a mounted editor is shared: your `setup` runs on it once before them where there's a DOM, and the function it returns after them and the rows below. With no DOM, a plugin that lists a `setup` gets them `unchecked`.
 
 The rest are read, not driven:
 

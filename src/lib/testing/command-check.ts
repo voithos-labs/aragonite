@@ -38,12 +38,61 @@ export function menuSubjects(run: PluginCheckRun, plugin: string): Map<string, C
 	return byTrigger;
 }
 
+/** The editor the rows that drive a plugin share, as a mounted editor is shared. */
+export interface Mount {
+	/** `drive` with `source` loaded into that editor. */
+	drive(source: string, drive: (stage: Stage) => Promise<Outcome>): Promise<Outcome>;
+	/** Runs the function `setup` returned, once the rows are done; the `setup` row. */
+	end(): Outcome;
+}
+
+/** One editor over `source` with the plugin's `setup` run on it once. With no DOM and a `setup` to
+ *  run, no row can be driven as the plugin was promised. */
+export function mount(run: PluginCheckRun, setup: Contribution['setup'], source: string): Mount {
+	if (setup && typeof document === 'undefined') {
+		const needs = 'needs a DOM: setup runs once an editor is mounted, so it may use one';
+		return {
+			drive: async () => ({ status: 'unchecked', detail: needs }),
+			end: () => ({ status: 'unchecked', detail: needs })
+		};
+	}
+	const stage = run.stage(source);
+	let dispose: void | (() => void) = undefined;
+	let threw: string | null = null;
+	try {
+		dispose = setup?.(stage.editor);
+	} catch (error) {
+		threw = messageOf(error);
+	}
+	return {
+		async drive(text, drive) {
+			if (threw !== null) return failed(`its setup threw: ${threw}`);
+			stage.load(text);
+			try {
+				return await drive(stage);
+			} catch (error) {
+				return failed(`threw: ${messageOf(error)}`);
+			}
+		},
+		end() {
+			if (!setup) return { status: 'not-applicable', detail: 'lists no setup' };
+			if (threw !== null) return failed(`threw: ${threw}`);
+			try {
+				if (typeof dispose === 'function') dispose();
+				return { status: 'passed', detail: 'ran, and so did the function it returned' };
+			} catch (error) {
+				return failed(`threw: ${messageOf(error)}`);
+			}
+		}
+	};
+}
+
 /** `waitingWrite` and `actionTarget` over `entry`; a command its block types place is handed a
  *  block of the first of them with a sample. */
 export async function commandOutcomes(
 	run: PluginCheckRun,
 	entry: ContributedCommand,
-	setup: Contribution['setup']
+	mounted: Mount
 ): Promise<[CommandCheck, Outcome][]> {
 	const placing = placingSample(run, entry);
 	if (entry.placedBy.size > 0 && !placing) {
@@ -56,12 +105,12 @@ export async function commandOutcomes(
 			['actionTarget', none]
 		];
 	}
-	const waiting = await withSetup(run, setup, placing?.sample ?? 'A note.\n', (stage) => {
+	const waiting = await mounted.drive(placing?.sample ?? 'A note.\n', (stage) => {
 		const block = placing && blocksOf(stage, placing.kind)[0];
 		return waitingCommand(run, stage, entry, block ?? undefined);
 	});
 	const target = placing
-		? await withSetup(run, setup, `${placing.sample}\n${placing.sample}`, (stage) =>
+		? await mounted.drive(`${placing.sample}\n${placing.sample}`, (stage) =>
 				actionTarget(run, stage, entry, placing.kind)
 			)
 		: { status: 'not-applicable' as const, detail: 'takes no block, so none is handed to it' };
@@ -73,16 +122,13 @@ export async function commandOutcomes(
 
 /** `waitingWrite` over the menus sharing `trigger`: each picks its first row for an empty query. */
 export async function menuOutcome(
-	run: PluginCheckRun,
 	trigger: string,
 	menus: readonly ContributedMenu[],
-	setup: Contribution['setup']
+	mounted: Mount
 ): Promise<Outcome> {
 	const outcomes: Outcome[] = [];
 	for (const { menu } of menus) {
-		const outcome = await withSetup(run, setup, `${trigger}\n`, (stage) =>
-			waitingPick(stage, menu)
-		);
+		const outcome = await mounted.drive(`${trigger}\n`, (stage) => waitingPick(stage, menu));
 		const named =
 			menus.length > 1 ? { ...outcome, detail: `${menu.label}: ${outcome.detail}` } : outcome;
 		outcomes.push(named);
@@ -102,32 +148,6 @@ const ANOTHER_NOTE = 'Another note.\n';
 
 const failed = (detail: string): Outcome => ({ status: 'failed', detail });
 const messageOf = (error: unknown) => (error as Error)?.message ?? String(error);
-
-/** The plugin's `setup` first, as a mounted editor runs it, and its disposer after. With no DOM
- *  and a `setup` to run, the row can't be driven as the plugin was promised. */
-async function withSetup(
-	run: PluginCheckRun,
-	setup: Contribution['setup'],
-	source: string,
-	drive: (stage: Stage) => Promise<Outcome>
-): Promise<Outcome> {
-	if (setup && typeof document === 'undefined') {
-		return {
-			status: 'unchecked',
-			detail: 'needs a DOM: the plugin’s setup runs first, and setup may use one'
-		};
-	}
-	const stage = run.stage(source);
-	let dispose: void | (() => void) = undefined;
-	try {
-		dispose = setup?.(stage.editor);
-		return await drive(stage);
-	} catch (error) {
-		return failed(`threw: ${messageOf(error)}`);
-	} finally {
-		if (typeof dispose === 'function') dispose();
-	}
-}
 
 function placingSample(run: PluginCheckRun, entry: ContributedCommand) {
 	for (const kind of entry.placedBy) {

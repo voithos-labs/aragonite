@@ -56,6 +56,23 @@ describe('rewriteLands', () => {
 		expect((await rowOf(check(settles)))?.status).toBe('passed');
 	});
 
+	it('passes an empty answer, which takes the block out', async () => {
+		const gone = rewriting('gone', () => '');
+		expect((await rowOf(check(gone)))?.status).toBe('passed');
+	});
+
+	it('passes an answer of two blocks, at the top and inside a quote', async () => {
+		const split = definePlugin({
+			name: 'split',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				rewrites: [rewrite({ from: builtin.blocks.heading, into: () => 'one\n\ntwo' })]
+			})
+		});
+		expect(await rowOf(check(split))).toMatchObject({ subject: 'heading', status: 'passed' });
+	});
+
 	it('reads not-applicable for a rewrite that keeps every sample', async () => {
 		const keeps = rewriting('keeps', () => null);
 		expect(await rowOf(check(keeps))).toMatchObject({ status: 'not-applicable' });

@@ -93,6 +93,15 @@ describe('waitingWrite over commands', () => {
 		});
 	});
 
+	// E24 reads a screen-bound command unchecked; with no promise there is no wait, screen or not.
+	it('reads not-applicable for an unplaced command that only opens a menu', async () => {
+		const list = menu<MenuRow>({ label: 'List', trigger: '%', rows: () => [], pick: () => {} });
+		const opens = commanding('opens', (editor) => editor.openMenu(list));
+		const report = await check(opens);
+		expect(rowOf(report, 'opens/go', 'waitingWrite')?.status).toBe('not-applicable');
+		expect(rowOf(report, 'opens/go', 'actionTarget')?.status).toBe('not-applicable');
+	});
+
 	it('takes an excuse by the command’s own id', async () => {
 		const late = commanding('late-ok', async (editor) => {
 			await Promise.resolve();

@@ -66,13 +66,16 @@ export function rewriteOutcome(
 	const problems: string[] = [];
 	let landed = 0;
 	for (const sample of samples) {
-		for (const clip of [`${sample}\n${after}`, wrap(`${sample}\n${after}`)]) {
+		for (const [clip, inside] of [
+			[`${sample}\n${after}`, false],
+			[wrap(`${sample}\n${after}`), true]
+		] as const) {
 			run.stage(clip);
 			const out = pasted(context, activation, clip);
 			if (out === clip) continue;
 			landed++;
 			const problem =
-				landingProblem(context, clip, out, afterKind) ??
+				landingProblem(context, out, afterKind, inside) ??
 				growth(clip, out, pasted(context, activation, out));
 			if (problem) problems.push(problem);
 		}
@@ -89,15 +92,16 @@ export function rewriteOutcome(
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-/** Why `out`, the answer pasted with a block below it, doesn't land as `clip`'s blocks did. */
+/** Why `out`, the answer pasted with a block below it, doesn't land as its own blocks: one pasted
+ *  `inside` a container has to leave everything in it. */
 function landingProblem(
 	context: CheckContext,
-	clip: string,
 	out: string,
-	afterKind: string
+	afterKind: string,
+	inside: boolean
 ): string | null {
 	const now = context.parse(out).children;
-	if (now.length !== context.parse(clip).children.length) {
+	if (inside && now.length !== 1) {
 		return `${show(out)} leaves the container it was pasted in`;
 	}
 	const last = lastLeaf(now);
