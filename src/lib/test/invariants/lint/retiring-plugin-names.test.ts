@@ -1,6 +1,7 @@
 // G4.369: the process-wide block-command and paste-transform names keep the callers they have, so
-// nothing new is built on the surface a plugin value's `chords`, `actions`, `commands` and
-// `blockRewrites` replace. A file that drops its last use leaves the list; a file that gains one fails.
+// nothing new is built on the surface a plugin value's `chords`, `actions`, `commands`,
+// `pasteRewrites` and `blockRewrites` replace. A file that drops its last use leaves the list; a file
+// that gains one fails.
 import { describe, expect, it } from 'vitest';
 import { collectEditorSources, REPO_WIDE_ROOTS, ROUTES_SRC, sourceFile } from './scan-source';
 
@@ -75,7 +76,7 @@ describe('G4.369 the retiring plugin names gain no caller', () => {
 		const added = naming.filter((path) => !CALLERS.includes(path));
 		const gone = CALLERS.filter((path) => !naming.includes(path));
 		const reason =
-			'build a new command on a block type’s `chords` or `actions`, or a `command` in `commands`, and a paste rewrite on `blockRewrites`; a file that no longer names one leaves CALLERS';
+			'build a new command on a block type’s `chords` or `actions`, or a `command` in `commands`, and a paste rewrite on `pasteRewrites` or `blockRewrites`; a file that no longer names one leaves CALLERS';
 		expect({ added, gone }, reason).toEqual({ added: [], gone: [] });
 	});
 
