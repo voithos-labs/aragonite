@@ -36,8 +36,26 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 - The host's `setSelection` at byte 4 of the row while the caret is on it: the caret is put exactly there.
 - A `<details>` summary, Home from inside it: the summary's start, byte 0, which is its title's start.
 
+## A press on a row not showing its name
+
+A row with a title shows its `:::tip` when the press that focused it ends, so the title stays where the user saw it while the browser reads the press. `:::tip Title words`, the caret in the body:
+
+- A click on a title letter: the caret rests on that letter (byte 14), and `x` writes `:::tip Title wxords`.
+- The same click on a nested row: the letter clicked.
+- A double-click on a title word: that word is selected (13..18), and `x` writes `:::tip Title x`.
+- A double-click in preview-block: the same word.
+- A drag across title letters: those letters (8..16), and `x` writes `:::tip Txds`.
+- A drag leftward past the row's edge: it stops at the title's start (14..7).
+- The button held down on a title letter: the marker paints nothing; released, it paints.
+- ArrowUp onto the row: the marker paints at once.
+- A press on an untitled row: the marker paints while the button is down, and stays painted when End and ` T` give the row a title before the release.
+- An untitled row reached by ArrowUp, then ` T`, then two Backspaces: the marker stays painted as the title gains its first letter and loses its last.
+- A tap at the start of a title word: the caret rests there (byte 13), and `x` writes `:::tip Title xwords`.
+- A double tap on a title word: that word. Not on desktop WebKit, which sends two taps as two single clicks.
+
 ## Regressions
 
+- A click on a title landed left of the letter clicked, a double-click selected a colon, and a drag ran into the colons, where the next letter turned the callout into a paragraph. The row showed its `:::tip` at mousedown and the title moved right under the pointer before the browser read the press. Miss-analysis: every click row pressed the row's left edge, where the landing is the same before and after the text moves; no row pressed a letter, double-clicked or dragged.
 - Home in a callout's title, ArrowUp from its body, or a click at its row's left edge put the caret before the `:::` in live mode, and the next letter turned the callout into a paragraph. Miss-analysis: every arrival spec landed on prose or a heading, whose markers live mode hides at the caret; the one row that shows its markers at the caret had no arrival row at all.
 - The padding press and the right-click ran on a titled row, where the browser lands at the title's start by itself, so neither row could fail with the rule removed. On an untitled row the rule decides both. Miss-analysis: each row was watched pass on the fix and never watched fail without it.
 
@@ -45,7 +63,6 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 
 The rule reaches a caret through the block's landing, Home and the click. These put a caret (or a range's edge) before the title's start in live mode and are not held:
 
-- A double-click or a drag that starts on a row not yet showing its `:::name`: the row shows it under the pointer, the text moves right, and the press reads the colons.
 - A range collapsed by ArrowLeft (after Shift+Home, Mod+A on the row or a triple-click).
 - PageUp with the caret already on the row.
 - Tab or Shift+Tab moving focus onto the row.

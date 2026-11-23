@@ -214,3 +214,66 @@ describe('editor-root focus attribution: data-focused', () => {
 		expect(e.marked()).toEqual([e.second.el]);
 	});
 });
+
+// Miss-analysis: every mark test ran in a preview mode, so live mode's one marked block, a row
+// that shows its source at the caret, had no row, and its reveal was left to `:focus-within`.
+describe('editor-root focus attribution: a row that shows its source at the caret', () => {
+	const press = (type: string, target: Element) =>
+		target.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 }));
+	const asRow = (leaf: Element, untitled = false) => {
+		leaf.setAttribute('data-source-at-caret', '');
+		if (untitled) leaf.setAttribute('data-content-empty', '');
+	};
+
+	it('live marks the host of a focused row, and of no other block', () => {
+		const e = editor('live');
+		asRow(e.second.leaf);
+		e.focusIn(e.first.leaf);
+		expect(e.marked()).toEqual([]);
+		e.focusIn(e.second.leaf);
+		expect(e.marked()).toEqual([e.second.el]);
+		expect(e.moved).toContain(e.second.el);
+		e.focusIn(e.first.leaf);
+		expect(e.marked()).toEqual([]);
+	});
+
+	it('source and reading mark no row', () => {
+		for (const mode of ['source', 'reading'] as const) {
+			const e = editor(mode);
+			asRow(e.second.leaf);
+			e.focusIn(e.second.leaf);
+			expect(e.marked(), mode).toEqual([]);
+		}
+	});
+
+	it('a press that focuses a titled row marks it at the release', () => {
+		const e = editor('live');
+		asRow(e.second.leaf);
+		e.focusIn(e.first.leaf);
+		press('pointerdown', e.second.leaf);
+		e.focusIn(e.second.leaf);
+		expect(e.marked()).toEqual([]);
+		press('pointerup', e.second.leaf);
+		expect(e.marked()).toEqual([e.second.el]);
+	});
+
+	it('a press away from a row keeps its mark until the release', () => {
+		const e = editor('live');
+		asRow(e.second.leaf);
+		e.focusIn(e.second.leaf);
+		press('pointerdown', e.first.leaf);
+		e.focusIn(e.first.leaf);
+		expect(e.marked()).toEqual([e.second.el]);
+		press('pointerup', e.first.leaf);
+		expect(e.marked()).toEqual([]);
+	});
+
+	it('a press that focuses an untitled row marks it at once', () => {
+		const e = editor('live');
+		asRow(e.second.leaf, true);
+		e.focusIn(e.first.leaf);
+		press('pointerdown', e.second.leaf);
+		e.focusIn(e.second.leaf);
+		expect(e.marked()).toEqual([e.second.el]);
+	});
+});

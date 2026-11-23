@@ -2,13 +2,18 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 import { edgeKey, extendKey } from '../../platform-keys';
+import { multiClick } from '../../multi-click';
+import { skipUnlessSupported } from '../../browser-engine';
+import { textRunCenter, textRunStart } from '../../text-runs';
 
 /**
  * Where a caret arriving on a `:::` container's opener row rests in live mode: at the title's
  * start (the row's end when untitled), for the arrivals that read `browser/offsets.ts ::
  * arrivalRawStart` (a landing from another line, Home, a click). One row per route, then the
  * routes left as they were: a step, a selection, source mode, a restore, a `<details>` summary.
- * The requirement file lists the arrivals the rule does not reach.
+ * Then the presses: a titled row shows its `:::name` when the press ends, so a click, a
+ * double-click and a drag read the text where the user saw it. The requirement file lists the
+ * arrivals the rule does not reach.
  */
 
 const T = ':::tip Title\nbody\n:::\n';
@@ -292,4 +297,177 @@ test.describe('the opener row gestures left as they were', () => {
 			if (row.bytes) expect(await sourceOf(page)).toBe(row.bytes);
 		});
 	}
+});
+
+// ── A press on a row not showing its `:::name` ───────────────────────────────
+
+const WORDS = ':::tip Title words\nbody\n:::\n';
+const NEST_WORDS = '::::note Outer\n:::tip Inner words\nin\n:::\n::::\n';
+const ROW = [0, 0];
+/** A point just inside the left edge of `needle` in the row at `path`: a click there rests before
+ *  its first letter. */
+const before = (page: Page, needle: string, path: number[] = ROW) =>
+	textRunStart(page, needle, { path });
+
+/** The computed `display` of the row's `:::name` marker. */
+const markerDisplay = (page: Page, path: number[] = ROW): Promise<string> =>
+	page.evaluate((path) => {
+		const marker = document.querySelector(
+			`[data-block-path="${JSON.stringify(path)}"] [contenteditable="true"] .md-marker`
+		)!;
+		return getComputedStyle(marker).display;
+	}, path);
+
+async function loadWithCaretInBody(
+	page: Page,
+	source: string,
+	body: number[],
+	mode: 'live' | 'preview-block' = 'live'
+): Promise<PluginsPage> {
+	const editor = new PluginsPage(page);
+	await editor.gotoPlugins('admonitions');
+	await editor.loadContent(source);
+	await editor.setPresentationMode(mode);
+	await editor.focusBlockAtPath(body, 2);
+	await editor.waitForRenderFlush();
+	return editor;
+}
+
+async function typeX(page: Page, editor: PluginsPage): Promise<string> {
+	await page.keyboard.type('x');
+	await editor.waitForRenderFlush();
+	return sourceOf(page);
+}
+
+test.describe('a press on a :::tip row not showing its name', () => {
+	test('a click on a title letter lands on that letter', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await before(page, 'ords');
+		await page.mouse.click(at.x, at.y);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:14');
+		expect(await typeX(page, editor)).toBe(':::tip Title wxords\nbody\n:::\n');
+	});
+
+	test('a click on a nested row lands on the letter', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, NEST_WORDS, [0, 1, 1]);
+		const at = await before(page, 'ords', [0, 1, 0]);
+		await page.mouse.click(at.x, at.y);
+		await expect.poll(() => caretText(page)).toBe('[0,1,0]:14');
+		expect(await typeX(page, editor)).toBe('::::note Outer\n:::tip Inner wxords\nin\n:::\n::::\n');
+	});
+
+	test('a double-click selects the title word under it', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await textRunCenter(page, 'words', { path: ROW });
+		await multiClick(page, at, 2);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:13..[0,0]:18');
+		expect(await typeX(page, editor)).toBe(':::tip Title x\nbody\n:::\n');
+	});
+
+	test('a double-click in preview-block selects the title word under it', async ({ page }) => {
+		await loadWithCaretInBody(page, WORDS, [0, 1], 'preview-block');
+		const at = await textRunCenter(page, 'words', { path: ROW });
+		await multiClick(page, at, 2);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:13..[0,0]:18');
+	});
+
+	test('a drag across title letters selects those letters', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const from = await before(page, 'itle');
+		const to = await before(page, 'ds');
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		await page.mouse.move(to.x, to.y, { steps: 6 });
+		await page.mouse.up();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:8..[0,0]:16');
+		expect(await typeX(page, editor)).toBe(':::tip Txds\nbody\n:::\n');
+	});
+
+	test('a drag leftward past the row stays in the title', async ({ page }) => {
+		await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const from = await before(page, 'ords');
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		await page.mouse.move(2, from.y, { steps: 6 });
+		await page.mouse.up();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:14..[0,0]:7');
+	});
+
+	test('the name shows when the button comes up, not when it goes down', async ({ page }) => {
+		await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await before(page, 'ords');
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:14');
+		expect(await markerDisplay(page)).toBe('none');
+		await page.mouse.up();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+	});
+
+	test('a keyboard arrival shows the name at once', async ({ page }) => {
+		await loadWithCaretInBody(page, WORDS, [0, 1]);
+		expect(await markerDisplay(page)).toBe('none');
+		await page.keyboard.press('ArrowUp');
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+	});
+
+	test('a press on an untitled row shows its name at once, and through a first letter', async ({
+		page
+	}) => {
+		await loadWithCaretInBody(page, U, [0, 1]);
+		const box = (await page
+			.locator('[data-block-path="[0,0]"] [contenteditable="true"]')
+			.boundingBox())!;
+		await page.mouse.move(box.x + 60, box.y + box.height / 2);
+		await page.mouse.down();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+		// The click's own landing waits for the release, so End takes the caret to the name's end.
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.type(' T');
+		await expect.poll(() => sourceOf(page)).toBe(':::tip T\nbody\n:::\n');
+		expect(await markerDisplay(page)).toBe('inline');
+		await page.mouse.up();
+		expect(await markerDisplay(page)).toBe('inline');
+	});
+
+	test('the name stays shown as the title gains its first letter and loses its last', async ({
+		page
+	}) => {
+		const editor = await loadWithCaretInBody(page, U, [0, 1]);
+		await page.keyboard.press('ArrowUp');
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+		await page.keyboard.type(' T');
+		await editor.waitForRenderFlush();
+		expect(await sourceOf(page)).toBe(':::tip T\nbody\n:::\n');
+		expect(await markerDisplay(page)).toBe('inline');
+		await page.keyboard.press('Backspace');
+		await page.keyboard.press('Backspace');
+		await editor.waitForRenderFlush();
+		expect(await sourceOf(page)).toBe(U);
+		expect(await markerDisplay(page)).toBe('inline');
+	});
+});
+
+test.describe('a tap on a :::tip row not showing its name', () => {
+	test.use({ hasTouch: true });
+
+	// At the word's start, where WebKit puts a tap anywhere in the word.
+	test('a tap on a title word lands on that word', async ({ page }) => {
+		skipUnlessSupported(page, 'touch');
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await before(page, 'words');
+		await page.touchscreen.tap(at.x, at.y);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:13');
+		expect(await typeX(page, editor)).toBe(':::tip Title xwords\nbody\n:::\n');
+	});
+
+	test('a double tap selects the title word under it', async ({ page, browserName }) => {
+		skipUnlessSupported(page, 'touch');
+		test.skip(browserName === 'webkit', 'desktop WebKit sends two taps as two single clicks');
+		await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await textRunCenter(page, 'words', { path: ROW });
+		await page.touchscreen.tap(at.x, at.y);
+		await page.touchscreen.tap(at.x, at.y);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:13..[0,0]:18');
+	});
 });

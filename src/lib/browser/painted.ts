@@ -132,17 +132,27 @@ export function screenVisibilityOf(container: ParentNode | null): VisibilityCont
 	);
 }
 
-/** The stylesheet's condition for painting an empty construct's or a source-at-caret row's markers:
- *  the attribute plus focus inside, read by containment because jsdom lacks `:focus-within`. */
+/** Whether `row` is a source-at-caret row whose source the mode hides right now: a press that
+ *  focuses it shows the source when it ends, which moves the row's text. */
+export function hidesRowSource(row: Element): boolean {
+	return (
+		row.hasAttribute(SOURCE_AT_CARET_ATTR) &&
+		markerHidingMode(row) !== null &&
+		!chromeStampPaints(row)
+	);
+}
+
+/** The stylesheet's condition for painting bare markers: focus inside an empty construct (read by
+ *  containment, jsdom lacking `:focus-within`), its host's `data-focused` for a titled source row. */
 function chromeStampPaints(container: Element): boolean {
-	if (
-		!container.hasAttribute(CONTENT_EMPTY_ATTR) &&
-		!container.hasAttribute(SOURCE_AT_CARET_ATTR)
-	) {
-		return false;
+	if (container.hasAttribute(CONTENT_EMPTY_ATTR)) {
+		const active = container.ownerDocument.activeElement;
+		return active !== null && container.contains(active);
 	}
-	const active = container.ownerDocument.activeElement;
-	return active !== null && container.contains(active);
+	return (
+		container.hasAttribute(SOURCE_AT_CARET_ATTR) &&
+		container.closest(FOCUSED_HOST_SELECTOR) !== null
+	);
 }
 
 /** A `<br>` that gives the caret a line nothing else paints, adding no text. `role` tells the walks

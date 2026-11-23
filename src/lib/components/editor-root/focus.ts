@@ -1,14 +1,15 @@
 /**
  * Tracks which block host holds the caret. Each windowing list keeps that block mounted, so a
  * scroll that pushes the caret off-screen never drops native focus or the IME. The preview modes
- * style the focused block's markers off `data-focused`, which moves only while no pointer is down.
+ * style the focused block's markers off `data-focused`, and live mode a `:::` opener line's; the
+ * attribute moves only while no pointer is down.
  */
 
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkCaretCanLand } from '../../invariants/caret-can-land';
 import { isPreviewMode, type PresentationMode } from '../../presentation-mode';
 import { readBlockPath } from '../../selection/path-lookup';
-import { CONTENT_EMPTY_ATTR } from '../../browser/painted';
+import { CONTENT_EMPTY_ATTR, SOURCE_AT_CARET_ATTR } from '../../browser/painted';
 import { onRoot, removeAll } from './listeners';
 import type { TextMoves } from '../overlays/text-moves';
 
@@ -35,14 +36,19 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	let focusedHostEl: HTMLElement | null = null;
 	let paintedHostEl: HTMLElement | null = null;
 	let pressHeld = false;
+	// Whether focus sits on a row that shows its source at the caret, which live mode marks too.
+	let onSourceRow = false;
+	// A row of bare markers shows them at the press, as its `:focus-within` rule does.
+	let showsAtPress = false;
 	let readAttr: string | null = null;
 	let readPath: number[] | null = null;
 
-	// Preview modes only, so source and reading DOM stay byte-identical; a held press keeps the prior
+	// Never in source or reading, whose DOM stays byte-identical; a held press keeps the prior
 	// paint so markers can't move the text the caret is about to land in.
 	function applyFocusedAttr(): void {
-		if (pressHeld) return;
-		const next = isPreviewMode(deps.mode) ? focusedHostEl : null;
+		if (pressHeld && !showsAtPress) return;
+		const marks = isPreviewMode(deps.mode) || (deps.mode === 'live' && onSourceRow);
+		const next = marks ? focusedHostEl : null;
 		if (paintedHostEl !== next) {
 			paintedHostEl?.removeAttribute('data-focused');
 			if (paintedHostEl) deps.textMoves.movedWithin(paintedHostEl);
@@ -92,6 +98,9 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 				clear();
 				return;
 			}
+			const row = e.target instanceof Element && e.target.hasAttribute(SOURCE_AT_CARET_ATTR);
+			onSourceRow = row;
+			showsAtPress = row && (e.target as Element).hasAttribute(CONTENT_EMPTY_ATTR);
 			setFocusedHost(host as HTMLElement);
 			// Every way of placing a caret focuses its editable element, whoever wrote the code,
 			// so a consumer's own caret placement is checked here too (G1.33).

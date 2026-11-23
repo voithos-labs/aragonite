@@ -48,6 +48,8 @@ A press is read when it goes down, not at the click or the menu that comes after
 - the root's right-click record (`gestures.ts` :: `notePress`), which keeps the selection the press lands on, ends one it misses where a menu opens, and places the menu's caret;
 - the dead-space click (`dead-space-caret.ts` :: `planAtPoint`), which also reads the block's own snap before it places a caret.
 
+One line would move its own text under the press: a `:::` opener line shows its `:::name` once the caret is on it, which pushes the title right. So a line with a title shows the name when the press ends, not when it starts (`src/lib/components/editor-root/focus.ts` holds the focused block's paint while a button is down), and the browser reads the click, the drag or the long press against the text you saw.
+
 ## 2. Which block, and where in it
 
 A click inside a text block: the browser already knows (or the editor does, for a padding click), so skip to stage 4. A click anywhere else (the margin, the room a block's box keeps around its text, below the last block; "dead space" in the code) goes to `src/lib/selection/dead-space-caret.ts`, which decides in this order:
@@ -109,7 +111,7 @@ The widgets it measures are every widget the block draws, a picture inside a lin
 
 The snap does nothing when the browser already put the caret in visible text, or when the surface holds a range (the second and third clicks of a run are a word or block selection, `src/lib/selection/multi-click.ts`, not a caret).
 
-The same click also moves a caret that landed inside the container's marker prefix (the `[^label]: ` in front of a footnote definition's text) back into the content, and in live mode one that landed on a `:::` opener line's `:::name` to the title's start, where Home and an arrow from another line land too. And while a widget is selected whole, a caret the browser puts in its block goes back to the widget's edge, where it stays hidden until a key places one or a press lands elsewhere (`docs/design/selection.md`).
+The same click also moves a caret that landed inside the container's marker prefix (the `[^label]: ` in front of a footnote definition's text) back into the content, and in live mode one that landed on a `:::` opener line's `:::name` to the title's start, where Home and an arrow from another line land too. A double-click on such a line needs one more step: its first click shows the name and moves the title, so the second selects the word where the first landed, not the one now under the pointer. And while a widget is selected whole, a caret the browser puts in its block goes back to the widget's edge, where it stays hidden until a key places one or a press lands elsewhere (`docs/design/selection.md`).
 
 That's the caret placed. Now the keyboard.
 
