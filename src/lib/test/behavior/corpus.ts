@@ -27,8 +27,11 @@ export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
 	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) })
 ];
 
-/** The same in an editor, with the plugin values only an editor installs: `[[toc]]` among them. */
-export const EDITOR_SYNTAX_PLUGINS: PluginsProp = [...SYNTAX_PLUGINS, toc];
+/** The bundled plugin values that add syntax, which an editor installs for itself: `[[toc]]`. */
+export const SYNTAX_PLUGIN_VALUES = [toc];
+
+/** Both, as an editor's `plugins` lists them. */
+export const EDITOR_SYNTAX_PLUGINS: PluginsProp = [...SYNTAX_PLUGINS, ...SYNTAX_PLUGIN_VALUES];
 
 /** One document per block kind, container and inline construct, short enough that every offset
  *  times every key stays cheap. Ids name rows, so renaming one renames its rows. */

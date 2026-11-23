@@ -27,7 +27,7 @@ import {
 	pressHardwareKey,
 	type InsertionRoute
 } from '#lib/test/harness/insertion-routes.js';
-import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
+import { EDITOR_SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
 import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
@@ -61,7 +61,7 @@ export function mountCase(source: string, mode: PresentationMode): Editor {
 	return mountEditor<EditorTestSurface>({
 		source,
 		presentationMode: mode,
-		plugins: SYNTAX_PLUGINS
+		plugins: EDITOR_SYNTAX_PLUGINS
 	});
 }
 
@@ -292,12 +292,14 @@ export function blocksOf(nodes: readonly Block[]): unknown[] {
 	});
 }
 
-/** Every registered kind with a conformance fixture, read once an editor has installed its plugins. */
+/** Every registered kind with a conformance fixture, read while an editor runs its plugins, so a
+ *  block type a plugin value lends the page is among them. */
 export async function kitFixtures(): Promise<[string, string][]> {
 	mountCase('', 'source');
-	await destroyMountedEditors();
-	return getAllRegisteredKinds().flatMap((kind) => {
+	const fixtures = getAllRegisteredKinds().flatMap((kind) => {
 		const fixture = getBlockKindDescriptor(kind).samples?.[0];
 		return fixture ? [[kind, fixture] as [string, string]] : [];
 	});
+	await destroyMountedEditors();
+	return fixtures;
 }
