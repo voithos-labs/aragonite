@@ -144,14 +144,14 @@ editor.events.on('selectionChange', (sel) => {
 });
 ```
 
-Keying the cache on an index (word to marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite-highlight-occurrences`) is this recipe end to end.
+Keying the cache on an index (word to marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite-highlight-occurrences`) does the same job as a plugin value, through `paint` ([the plugin unit](../plugin-api.md#the-plugin-unit)): the editor asks only about blocks on screen, so there is no whole-document index to keep.
 
 <details>
 <summary>Three more tricks highlight-occurrences pulls, if you're building something like it</summary>
 
-- It only indexes blocks with inline prose in them (`isProseKind`, the descriptor's `supportsInline`), so a fenced code block's bytes are neither scanned nor highlighted.
-- Typing bumps the epoch on every keystroke, so it keeps a second memo: each block's word list, keyed on that block's text. A rebuild re-reads only the block you're typing in.
-- It hides its marks while you type, since a word lighting up under your own caret mid-sentence is maddening. A new epoch preceded only by `input` edit events is a keystroke, and the source serves nothing for it. Any other `edit` op, or a `sourceSwap`, brings the marks straight back; otherwise a timer restarted on each `input` brings them back once you've stopped typing for a quarter second.
+- It paints only blocks of prose (`block.prose`), so a fenced code block's bytes are neither read nor highlighted.
+- It keeps each block's word list while that block's text holds, so a caret moving to another word reads no text again, and it asks `editor.repaint()` only when the marked word changes.
+- It hides its marks while you type, since a word lighting up under your own caret mid-sentence is maddening. An `edit` whose op is `input` is a keystroke and hides them. Any other op, or a `load`, brings them straight back; otherwise a timer restarted on each key brings them back once you've stopped typing for a quarter second.
 
 </details>
 

@@ -1,40 +1,19 @@
 /**
- * Pure occurrence scan: indexing by word turns the caret-driven lookup into one map read
- * instead of a fresh document walk. Offsets are raw offsets within a block, dimmed markers
- * included, which is what mark decorations are measured in. Only prose blocks are scanned
- * (`isProseKind`), so a code, HTML or raw block is neither scanned nor a word to search for.
+ * The words of a block of prose, and the marks over the ones the caret's word repeats. A word is
+ * read off the block's bytes, markers and destinations included, so offsets stay in those bytes;
+ * a code, HTML or raw block is neither read nor a word to look for.
  */
 
-import {
-	blockNodeAt,
-	isProseKind,
-	walkBlocks,
-	type DocumentView,
-	type EditorSelection,
-	type MarkDecoration
-} from '@voithos-labs/aragonite/plugin';
+import type { Block, Editor, Paint } from '@voithos-labs/aragonite/plugin';
 import { WORD_CHAR } from './word-char';
 
+/** The class every mark carries, under the editor's `decoration-overlay`. */
 export const OCCURRENCE_CLASS = 'hl-occurrence';
 
 export interface WordSpan {
 	word: string;
 	start: number;
 	end: number;
-}
-
-export type OccurrenceIndex = Map<string, MarkDecoration[]>;
-
-/** Token lists keyed by the block `raw` they were scanned from, so a block whose bytes did
- *  not move costs one string compare instead of a re-tokenize. */
-export type TokenCache = Map<string, WordSpan[]>;
-
-export interface OccurrenceScan {
-	index: OccurrenceIndex;
-	/** Pass into the next scan; a block gone from the document drops out of it. */
-	tokens: TokenCache;
-	/** Blocks whose text had to be tokenized: what a caching test asserts on. */
-	tokenizedLeaves: number;
 }
 
 /** Prefers the char at the caret, falling back to the one before it (the usual
@@ -52,47 +31,44 @@ export function wordAt(text: string, offset: number): WordSpan | null {
 	return { word: text.slice(start, end), start, end };
 }
 
-/** Null when the selection's focus is not a block of text (a container or a table-cell
- *  endpoint), or the caret sits on a character that cannot start a word. */
-export function anchorWord(doc: DocumentView, selection: EditorSelection | null): string | null {
-	if (!selection) return null;
-	const leaf = blockNodeAt(doc, selection.focus.path);
-	if (!leaf || leaf.children || !isProseKind(leaf.kind)) return null;
-	const span = wordAt(leaf.raw, selection.focus.offset);
-	return span ? span.word : null;
+/** The word at the selection's head, in a block of prose; null for a selection over table cells
+ *  or none, and for a head on no word. */
+export function wordAtCaret(editor: Pick<Editor, 'selection' | 'blockAt'>): string | null {
+	const selection = editor.selection;
+	if (!selection || selection.cells) return null;
+	const block = editor.blockAt(selection.head);
+	if (!block?.prose) return null;
+	const offset = block.offsetAt(selection.head);
+	return offset === null ? null : (wordAt(block.text, offset)?.word ?? null);
 }
 
-/** Built once per document change by a caching source, not once per caret move. The marks
- *  are rebuilt every time (they hold paths), the tokens only for blocks that changed. */
-export function buildOccurrenceIndex(doc: DocumentView, cached?: TokenCache): OccurrenceScan {
-	const index: OccurrenceIndex = new Map();
-	const tokens: TokenCache = new Map();
-	let tokenizedLeaves = 0;
-	walkBlocks(doc, (node, path) => {
-		if (node.children || !isProseKind(node.kind)) return;
-		let spans = tokens.get(node.raw) ?? cached?.get(node.raw);
-		if (!spans) {
-			spans = [...tokenizeWords(node.raw)];
-			tokenizedLeaves++;
-		}
-		tokens.set(node.raw, spans);
-		for (const span of spans) {
-			const mark: MarkDecoration = {
-				type: 'mark',
-				path,
-				start: span.start,
-				end: span.end,
-				class: OCCURRENCE_CLASS
-			};
-			const bucket = index.get(span.word);
-			if (bucket) bucket.push(mark);
-			else index.set(span.word, [mark]);
-		}
-	});
-	return { index, tokens, tokenizedLeaves };
+/** A mark over each `word` in `block`, in document bytes. */
+export function occurrenceMarks(block: Block, word: string): Paint[] {
+	if (!block.prose) return [];
+	const marks: Paint[] = [];
+	for (const span of spansOf(block)) {
+		if (span.word !== word) continue;
+		// A word never crosses a line, so its bytes run on from its first.
+		const from = block.byteAt(span.start);
+		if (from < 0) continue;
+		marks.push({ type: 'mark', from, to: from + span.word.length, class: OCCURRENCE_CLASS });
+	}
+	return marks;
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+// Kept per block while its bytes hold, so a caret moving to another word reads no text again.
+const read = new WeakMap<Block, { text: string; spans: readonly WordSpan[] }>();
+
+function spansOf(block: Block): readonly WordSpan[] {
+	const { text } = block;
+	const held = read.get(block);
+	if (held?.text === text) return held.spans;
+	const spans = [...tokenizeWords(text)];
+	read.set(block, { text, spans });
+	return spans;
+}
 
 function* tokenizeWords(text: string): Generator<WordSpan> {
 	let i = 0;

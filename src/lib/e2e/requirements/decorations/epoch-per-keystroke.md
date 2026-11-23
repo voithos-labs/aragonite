@@ -6,18 +6,17 @@ batch, which groups a burst of typing into one entry. An epoch that waited for t
 end would leave every source serving the previous document's decorations, and the overlays
 would measure those stale offsets, so marks visibly drag behind the text the user just moved.
 
-The occurrence highlight steps aside on purpose. Its marks hide on the keystroke and come back
-once typing pauses, so what these scenarios pin is a source that keeps re-running per
-keystroke underneath a mark set that stays empty until the pause.
+The occurrence highlight steps aside on purpose: its marks hide on the keystroke and come back
+once typing pauses, so the epoch is read off a probe source of its own instead.
 
-Scenarios run on `/test/plugins?seed=hloccur-memo`, whose seed publishes the plugin's
-index-rebuild count to `window.__hloccurScans`. Block [0] is the paragraph
+Scenarios run on `/test/plugins?seed=hloccur-memo`; the epoch row registers a decoration
+source through `window.__test.decorations` that records each epoch it's handed. Block [0] is the paragraph
 `alpha beta alpha`, so a caret on the first `alpha` paints two overlays in it.
 
 Playwright's fake clock is installed and paused once the caret is placed, so no timer in the
 page fires until the scenario advances it, while the runner's own retries keep their real
 clock. That is what makes both halves deterministic instead of a race against the typing
-pause: the per-keystroke rebuild finishes within a microtask (an effect plus a `tick()`),
+pause: the per-keystroke epoch arrives within a microtask (an effect plus a `tick()`),
 while the marks coming back needs the wall-clock pause that a frozen page only gets when the
 spec hands it over.
 
@@ -35,9 +34,9 @@ overlay's own offset mapping, so an overlay drawn off its word matched its own r
 - advancing the frozen clock past the typing pause paints the overlays back onto the words they mark: every overlay's left and right edge
   sits within a pixel of the word's painted text, measured off the text node itself rather
   than through the offset mapping the overlay paints with, and no extra overlay is painted
-- the same keystroke rebuilds the cached index exactly once (`__hloccurScans` increases
-  by one) while the clock is frozen, so the counter reached the source without waiting for
-  the typing pause
+- the same keystroke hands a decoration source exactly one new epoch while the clock is
+  frozen, so the epoch reached the source without waiting for the typing pause or the undo
+  batch
 
 ## Edge cases
 

@@ -64,6 +64,23 @@ export async function freezeInPageClock(page: Page): Promise<void> {
 /** Advance a frozen clock by this to elapse the occurrence plugin's typing pause, with a margin. */
 export const PAST_OCCURRENCE_PAUSE_MS = TYPING_PAUSE_MS + 50;
 
+/** Registers a decoration source through the bridge that records each edit epoch it's handed,
+ *  and returns how many it has seen so far. */
+export async function watchEditEpochs(page: Page): Promise<() => Promise<number>> {
+	await page.evaluate(() => {
+		const host = window as unknown as { __epochs: number[]; __test: any };
+		host.__epochs = [];
+		host.__test.decorations.addSource({
+			name: 'epoch-probe',
+			provide: (_doc: unknown, ctx: { editEpoch: number }) => {
+				if (host.__epochs.at(-1) !== ctx.editEpoch) host.__epochs.push(ctx.editEpoch);
+				return [];
+			}
+		});
+	});
+	return () => page.evaluate(() => (window as unknown as { __epochs: number[] }).__epochs.length);
+}
+
 // Whether the top-level block at `index` has a mounted host: false once windowing unmounts it.
 export function topLevelHostPresent(page: Page, index: number): Promise<boolean> {
 	return page.evaluate(

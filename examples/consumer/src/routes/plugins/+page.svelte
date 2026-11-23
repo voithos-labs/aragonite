@@ -6,7 +6,7 @@
 	import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
 	import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
 	import { tocPlugin } from '@voithos-labs/aragonite-toc';
-	import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-occurrences';
+	import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
 	import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
 	import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
 	import { highlight } from '@voithos-labs/aragonite-highlight';
@@ -23,7 +23,7 @@
 		// plugin's no-engine fallback from outside the repo.
 		mermaidPlugin(),
 		tocPlugin(),
-		highlightOccurrencesPlugin(),
+		highlightOccurrences,
 		// Trigger bytes shared with the seed's `:::name` and `[[toc]]`: installed here to prove
 		// the recognizer rungs coexist rather than contest a claim.
 		emojiPlugin(),

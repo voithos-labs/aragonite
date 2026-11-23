@@ -1,19 +1,14 @@
-// The two pure halves behind the highlight-occurrences plugin, each asserted at its
-// own level: word-under-caret resolution (`anchorWord`) and the whole-document
-// occurrence index the caching source looks that word up in.
+// @vitest-environment node
+// The two halves behind highlight-occurrences, each at its own level: the word under the caret
+// (`wordAtCaret`, read through a document's `blockAt`) and the marks a block's paint answers.
 import { describe, expect, it } from 'vitest';
-import { parse, type EditorSelection } from '#lib';
+import { grammar, type Block, type Doc, type Paint } from '#lib/plugin.js';
 import {
 	OCCURRENCE_CLASS,
-	anchorWord,
-	buildOccurrenceIndex,
-	wordAt
+	occurrenceMarks,
+	wordAt,
+	wordAtCaret
 } from '#packages/highlight-occurrences/src/occurrences.js';
-
-function caret(path: number[], offset: number, cellCoordinate?: boolean): EditorSelection {
-	const point = cellCoordinate ? { path, offset, cellCoordinate } : { path, offset };
-	return { anchor: point, focus: point };
-}
 
 describe('wordAt', () => {
 	it.each([
@@ -37,108 +32,86 @@ describe('wordAt', () => {
 	});
 });
 
-describe('anchorWord', () => {
-	const doc = parse('cat one\n\n> a cat naps\n\n## cat title\n\ncatalog\n');
+const read = (text: string): Doc => grammar([]).parse(text);
 
-	it('resolves the word under a caret in a top-level leaf', () => {
-		expect(anchorWord(doc, caret([0], 1))).toBe('cat');
+/** The editor `wordAtCaret` reads: a caret at document byte `head`, or a selection over cells. */
+function caretIn(doc: Doc, head: number | null, cells = false) {
+	const selection =
+		head === null ? null : ({ head, cells: cells ? { anchor: [0, 0] } : null } as never);
+	return { selection, blockAt: (at: number) => doc.blockAt(at) };
+}
+
+describe('wordAtCaret', () => {
+	const doc = read('cat one\n\n> a cat naps\n\n## cat title\n\ncatalog\n');
+
+	it('reads the word under a caret in a top-level block', () => {
+		expect(wordAtCaret(caretIn(doc, 1))).toBe('cat');
 	});
 
-	it('returns null for a null selection', () => {
-		expect(anchorWord(doc, null)).toBeNull();
+	it('reads the word under a caret in a quote, past its marker', () => {
+		expect(wordAtCaret(caretIn(doc, 'cat one\n\n> a c'.length))).toBe('cat');
 	});
 
-	it('returns null when the caret sits on a marker char', () => {
-		expect(anchorWord(doc, caret([2], 1))).toBeNull();
+	it('reads nothing with no selection', () => {
+		expect(wordAtCaret(caretIn(doc, null))).toBeNull();
 	});
 
-	it('returns null for a container focus (table cell-coordinate endpoint)', () => {
-		const tableDoc = parse('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
-		expect(anchorWord(tableDoc, caret([0], 1, true))).toBeNull();
+	it("reads nothing at a heading's marker", () => {
+		expect(wordAtCaret(caretIn(doc, 'cat one\n\n> a cat naps\n\n#'.length))).toBeNull();
 	});
 
-	it('resolves through a deep cell path to the cell leaf', () => {
-		const tableDoc = parse('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
-		expect(anchorWord(tableDoc, caret([0, 0, 0], 1))).toBe('cat');
+	const table = read('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
+
+	it('reads nothing for a selection over table cells', () => {
+		expect(wordAtCaret(caretIn(table, 3, true))).toBeNull();
 	});
 
-	// A fenced code block is not inline prose (`supportsInline: false`, read through
-	// `isProseKind`), which is what occurrence highlighting limits itself to.
-	it('returns null when the caret sits inside a non-prose leaf', () => {
-		const codeDoc = parse('cat one\n\n```\ncat inside code\n```\n');
-		// Offset 5 sits inside the fence body's 'cat' (raw: '```\ncat inside…').
-		expect(anchorWord(codeDoc, caret([1], 5))).toBeNull();
-	});
-});
-
-describe('buildOccurrenceIndex', () => {
-	const doc = parse('cat one\n\n> a cat naps\n\n## cat title\n\ncatalog\n');
-
-	it('indexes every whole-word occurrence across top-level, nested, and heading leaves', () => {
-		expect(buildOccurrenceIndex(doc).index.get('cat')).toEqual([
-			{ type: 'mark', path: [0], start: 0, end: 3, class: OCCURRENCE_CLASS },
-			{ type: 'mark', path: [1, 0], start: 2, end: 5, class: OCCURRENCE_CLASS },
-			// Heading offsets are raw offsets: 'cat' sits past the '## ' marker.
-			{ type: 'mark', path: [2], start: 3, end: 6, class: OCCURRENCE_CLASS }
-		]);
+	it("reads the word under a caret in a table cell's text", () => {
+		expect(wordAtCaret(caretIn(table, 3))).toBe('cat');
 	});
 
-	it('buckets a longer word separately, never as a substring match', () => {
-		const { index } = buildOccurrenceIndex(doc);
-		expect(index.get('cat')?.some((m) => m.path[0] === 3)).toBe(false);
-		expect(index.get('catalog')?.map((m) => m.path)).toEqual([[3]]);
-	});
-
-	it('indexes table-cell leaves', () => {
-		const tableDoc = parse('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
-		// The delimiter row is not a child: body cells sit on row 1.
-		expect(
-			buildOccurrenceIndex(tableDoc)
-				.index.get('cat')
-				?.map((m) => m.path)
-		).toEqual([
-			[0, 0, 0],
-			[0, 1, 0]
-		]);
-	});
-
-	it('skips non-prose leaves, so a word inside a fenced code block is never indexed', () => {
-		const codeDoc = parse('cat one\n\n```\ncat inside code\n```\n');
-		expect(
-			buildOccurrenceIndex(codeDoc)
-				.index.get('cat')
-				?.map((m) => m.path)
-		).toEqual([[0]]);
+	// A fenced code block is not prose, which is what the highlight limits itself to.
+	it('reads nothing under a caret inside a code block', () => {
+		const code = read('cat one\n\n```\ncat inside code\n```\n');
+		expect(wordAtCaret(caretIn(code, 'cat one\n\n```\nc'.length))).toBeNull();
 	});
 });
 
-// The scan runs on every keystroke, so what it must not redo is the part that matters: a
-// block whose bytes did not move keeps the token list the previous scan produced.
-describe('buildOccurrenceIndex token cache', () => {
-	const doc = parse('cat one\n\ndog two\n');
-	const rawOf = (parsed: ReturnType<typeof parse>, index: number) => parsed.children[index].raw;
+/** Each mark's document bytes and the text they hold. */
+const marked = (doc: Doc, word: string) =>
+	[...doc.walk()].flatMap((block: Block) =>
+		occurrenceMarks(block, word).map((paint: Paint) => {
+			const { from, to } = paint as { from: number; to: number; class: string };
+			expect((paint as { class: string }).class).toBe(OCCURRENCE_CLASS);
+			return doc.text.slice(from, to);
+		})
+	);
 
-	it('re-tokenizes only the leaf an edit changed, reusing the rest by identity', () => {
-		const first = buildOccurrenceIndex(doc);
-		expect(first.tokenizedLeaves).toBe(2);
+describe('occurrenceMarks', () => {
+	const doc = read('cat one\n\n> a cat naps\n\n## cat title\n\ncatalog\n');
 
-		const edited = parse('cat one\n\ndog twos\n');
-		const second = buildOccurrenceIndex(edited, first.tokens);
-		expect(second.tokenizedLeaves).toBe(1);
-		expect(second.tokens.get(rawOf(doc, 0))).toBe(first.tokens.get(rawOf(doc, 0)));
-	});
-
-	it('drops a leaf that left the document from the carried cache', () => {
-		const first = buildOccurrenceIndex(doc);
-		const shorter = parse('cat one\n');
-		expect([...buildOccurrenceIndex(shorter, first.tokens).tokens.keys()]).toEqual([
-			rawOf(shorter, 0)
+	it('marks every whole-word occurrence in a paragraph, a quote and a heading, in document bytes', () => {
+		const at = (block: Block) =>
+			occurrenceMarks(block, 'cat').map((m) => (m as { from: number }).from);
+		expect([...doc.walk()].flatMap(at)).toEqual([
+			0,
+			'cat one\n\n> a '.length,
+			'cat one\n\n> a cat naps\n\n## '.length
 		]);
+		expect(marked(doc, 'cat')).toEqual(['cat', 'cat', 'cat']);
 	});
 
-	it('tokenizes two leaves holding the same text once, marking both paths', () => {
-		const twins = buildOccurrenceIndex(parse('same text\n\nsame text\n'));
-		expect(twins.tokenizedLeaves).toBe(1);
-		expect(twins.index.get('same')?.map((m) => m.path)).toEqual([[0], [1]]);
+	it('marks a longer word apart, never as a substring', () => {
+		expect(marked(doc, 'catalog')).toEqual(['catalog']);
+	});
+
+	it("marks a word in a table's cells", () => {
+		const table = read('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
+		expect(marked(table, 'cat')).toEqual(['cat', 'cat']);
+	});
+
+	it('marks nothing inside a code block', () => {
+		const code = read('cat one\n\n```\ncat inside code\n```\n');
+		expect(marked(code, 'cat')).toEqual(['cat']);
 	});
 });

@@ -22,6 +22,12 @@ describe('every bundled plugin passes its own published conformance suite', () =
 		expect(dirs).toHaveLength(12);
 		const values = [];
 		for (const dir of dirs) if ('plugin' in (await suiteOf(dir))) values.push(dir);
-		expect(values).toEqual(['highlight', 'parrot', 'slash-commands', 'spellcheck']);
+		expect(values).toEqual([
+			'highlight',
+			'highlight-occurrences',
+			'parrot',
+			'slash-commands',
+			'spellcheck'
+		]);
 	});
 });

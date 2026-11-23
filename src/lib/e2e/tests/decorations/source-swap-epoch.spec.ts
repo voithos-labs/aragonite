@@ -1,20 +1,17 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
+import { watchEditEpochs } from '../../page-probes';
 
 /**
- * Decorations across a whole-document `source` swap
- * (requirements/decorations/source-swap-epoch.md). The swap must bump the edit counter, or the
- * memoized occurrence index paints the previous document's paths.
+ * Decorations across a whole-document `source` swap (requirements/decorations/source-swap-epoch.md):
+ * the swap bumps the edit epoch a probe source reads, and the occurrence marks paint in the new
+ * document's blocks.
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
 const blockOccurrences = (page: Page, path: number[]) =>
 	page.locator(`[data-block-path='[${path.join(',')}]'] ${OCCURRENCE}`);
-
-function scanCount(page: Page): Promise<number> {
-	return page.evaluate(() => (window as any).__hloccurScans ?? 0);
-}
 
 test.describe('highlight-occurrences across a source-prop swap', () => {
 	let editor: PluginsPage;
@@ -27,7 +24,8 @@ test.describe('highlight-occurrences across a source-prop swap', () => {
 	});
 
 	test('marks clear on the swap and re-paint in the new document’s blocks', async ({ page }) => {
-		const before = await scanCount(page);
+		const epochs = await watchEditEpochs(page);
+		const before = await epochs();
 		await editor.loadContent('nothing here at all\n\nalpha alpha alpha\n');
 		// The reset drops the selection, so the source has no word under the caret to paint.
 		await expect(page.locator(OCCURRENCE)).toHaveCount(0);
@@ -35,7 +33,7 @@ test.describe('highlight-occurrences across a source-prop swap', () => {
 		await editor.clickBlockAtPath([1], 0);
 		await expect(blockOccurrences(page, [1])).toHaveCount(3);
 		await expect(blockOccurrences(page, [0])).toHaveCount(0);
-		expect(await scanCount(page)).toBeGreaterThan(before);
+		expect(await epochs()).toBeGreaterThan(before);
 	});
 
 	// A word the previous document never held: an index that was not rebuilt has no
