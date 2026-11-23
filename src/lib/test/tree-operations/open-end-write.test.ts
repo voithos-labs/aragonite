@@ -15,7 +15,7 @@ import { endsOpen, keepOpenTail } from '#lib/tree-operations/fix-up/apply.js';
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 /** `source` after its block at `index` takes `text`, as a keystroke's commit writes it. */
 function written(source: string, index: number, text: string): string {
