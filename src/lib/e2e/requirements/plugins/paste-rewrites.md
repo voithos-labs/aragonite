@@ -1,6 +1,6 @@
 # Feature: a paste rewrite by block type
 
-A plugin value lists `rewrites`, each naming a block type and the Markdown that takes a pasted
+A plugin value lists `blockRewrites`, each naming a block type and the Markdown that takes a pasted
 block's place. The alerts plugin rewrites a pasted `%> [!TYPE]` alert to a `:::type` callout. Every
 scenario runs on `/test/plugins?seed=alerts` with real clicks, keys and the system clipboard. The
 order of rewrites, their depth, an empty answer and their cost are held by

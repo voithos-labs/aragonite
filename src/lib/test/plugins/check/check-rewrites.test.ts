@@ -4,7 +4,7 @@
 // and a paste of the answer isn't rewritten again. `rewritePaste` runs
 // the same production function over a plugin list.
 import { describe, expect, it } from 'vitest';
-import { builtin, definePlugin, rewrite, type Plugin } from '#lib/plugin.js';
+import { blockRewrite, builtin, definePlugin, type Plugin } from '#lib/plugin.js';
 import { check, isCheckFailure, type CheckReport, type Excuses } from '#lib/testing/check.js';
 import { rewritePaste } from '#lib/testing.js';
 
@@ -14,8 +14,8 @@ function rewriting(name: string, ...into: ((body: string) => string | null)[]): 
 		version: '1.0.0',
 		editor: '*',
 		contributes: () => ({
-			rewrites: into.map((answer) =>
-				rewrite({ from: builtin.blocks.paragraph, into: (block) => answer(block.body) })
+			blockRewrites: into.map((answer) =>
+				blockRewrite({ from: builtin.blocks.paragraph, into: (block) => answer(block.body) })
 			)
 		})
 	});
@@ -23,9 +23,9 @@ function rewriting(name: string, ...into: ((body: string) => string | null)[]): 
 
 async function rowOf(run: Promise<CheckReport>) {
 	try {
-		return (await run).rows.find((row) => row.of === 'rewrite');
+		return (await run).rows.find((row) => row.of === 'blockRewrite');
 	} catch (error) {
-		if (isCheckFailure(error)) return error.report.rows.find((row) => row.of === 'rewrite');
+		if (isCheckFailure(error)) return error.report.rows.find((row) => row.of === 'blockRewrite');
 		throw error;
 	}
 }
@@ -70,7 +70,7 @@ describe('rewriteLands', () => {
 			version: '1.0.0',
 			editor: '*',
 			contributes: () => ({
-				rewrites: [rewrite({ from: builtin.blocks.heading, into: (block) => block.body })]
+				blockRewrites: [blockRewrite({ from: builtin.blocks.heading, into: (block) => block.body })]
 			})
 		});
 		expect(await rowOf(check(flat))).toMatchObject({
@@ -87,7 +87,7 @@ describe('rewriteLands', () => {
 			version: '1.0.0',
 			editor: '*',
 			contributes: () => ({
-				rewrites: [rewrite({ from: builtin.blocks.heading, into: () => 'one\n\ntwo' })]
+				blockRewrites: [blockRewrite({ from: builtin.blocks.heading, into: () => 'one\n\ntwo' })]
 			})
 		});
 		expect(await rowOf(check(split))).toMatchObject({ subject: 'heading', status: 'passed' });
@@ -120,16 +120,16 @@ describe('rewriteLands', () => {
 			if (isCheckFailure(error)) return error.report;
 			throw error;
 		});
-		const rows = report.rows.filter((row) => row.of === 'rewrite');
+		const rows = report.rows.filter((row) => row.of === 'blockRewrite');
 		expect(rows).toHaveLength(1);
 		expect(rows[0].status).toBe('failed');
 	});
 
-	it('takes no excuse: the rewrites group types none', async () => {
+	it('takes no excuse: the blockRewrites group types none', async () => {
 		const open = rewriting('open-ok', (body) => `\`\`\`\n${body}`);
 		const excuse: Excuses = {
 			// @ts-expect-error: rewriteLands takes no excuse.
-			rewrites: { paragraph: { rewriteLands: 'A fence it closes later.' } }
+			blockRewrites: { paragraph: { rewriteLands: 'A fence it closes later.' } }
 		};
 		expect((await rowOf(check(open, { excuse })))?.detail).toMatch(/never covers this check/);
 	});

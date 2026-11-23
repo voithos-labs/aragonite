@@ -109,7 +109,7 @@ export type CheckStatus =
 	'passed' | 'failed' | 'advisory' | 'excused' | 'not-applicable' | 'unchecked';
 
 export interface CheckRow {
-	readonly of: 'plugin' | 'block' | 'inline' | 'command' | 'menu' | 'rewrite';
+	readonly of: 'plugin' | 'block' | 'inline' | 'command' | 'menu' | 'blockRewrite';
 	/** The name the author wrote: the plugin's, a type's qualified name, `plugin/id`, a trigger. */
 	readonly subject: string;
 	readonly check: CheckName;
@@ -137,7 +137,7 @@ export interface Excuses {
 	/** By trigger; menus sharing one are one subject. */
 	readonly menus?: { readonly [trigger: string]: Excused<MenuCheck> };
 	/** By the full name of the type rewritten (`paragraph`, `alerts/alert`). */
-	readonly rewrites?: { readonly [type: string]: Excused<RewriteCheck> };
+	readonly blockRewrites?: { readonly [type: string]: Excused<RewriteCheck> };
 }
 
 /** A package's `./conformance` default export: the plugin value itself, not a call of it. */
@@ -219,7 +219,7 @@ async function rowsOf(
 				push('menu', trigger, 'waitingWrite', await menuOutcome(trigger, menus, mounted));
 			}
 			for (const [from, entries] of rewriteSubjects(run, plugin.name)) {
-				push('rewrite', from, 'rewriteLands', rewriteOutcome(run, mounted, from, entries));
+				push('blockRewrite', from, 'rewriteLands', rewriteOutcome(run, mounted, from, entries));
 			}
 			const painted = await paintOutcomes(run, mounted, plugin.name, own, warnings);
 			for (const [check, outcome] of painted) push('plugin', plugin.name, check, outcome);
@@ -444,7 +444,7 @@ function excused(rows: Row[], excuse: Excuses | undefined, plugin: string): Row[
 		['inline', excuse?.inlines, true],
 		['command', excuse?.commands, true],
 		['menu', excuse?.menus, false],
-		['rewrite', excuse?.rewrites, false]
+		['blockRewrite', excuse?.blockRewrites, false]
 	] as const) {
 		for (const [local, checks] of Object.entries(space ?? {})) {
 			const subject = named ? qualifiedName(plugin, local) : local;

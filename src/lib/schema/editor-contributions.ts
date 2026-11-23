@@ -19,7 +19,7 @@ import { makingOf } from './block-type';
 import { qualifiedName } from './plugin-name';
 import { nodeOfBlock, type Block } from './doc-view';
 import type { DocumentView, NodeView } from '../core/node-views';
-import type { PasteRewrite } from './paste-rewrite';
+import type { BlockRewrite } from './paste-rewrite';
 import { togglesOf } from './inline-type';
 import type { ContributedMenu } from './caret-menu';
 import { iconProblem, type Icon } from '../menu-icons';
@@ -41,10 +41,10 @@ export interface ContributedCommand {
 	readonly placedBy: ReadonlySet<string>;
 }
 
-/** A plugin's paste rewrite, as an editor holds it. */
-export interface ContributedRewrite {
+/** A plugin's block rewrite, as an editor holds it. */
+export interface ContributedBlockRewrite {
 	readonly plugin: string;
-	readonly rewrite: PasteRewrite<unknown>;
+	readonly rewrite: BlockRewrite<unknown>;
 }
 
 /** A row of a block type's menu, as an editor holds it. */
@@ -80,13 +80,13 @@ export interface EditorContributions {
 	readonly selectionActions: readonly ContributedAction[];
 	/** The plugins that paint, in list order. */
 	readonly paints: readonly { readonly plugin: string; readonly contribution: Contribution }[];
-	/** Each plugin's paste rewrites, in list order. */
-	readonly rewrites: readonly ContributedRewrite[];
+	/** Each plugin's block rewrites, in list order. */
+	readonly blockRewrites: readonly ContributedBlockRewrite[];
 	/** Reads the blocks of `clip`, a clipboard read as blocks, with positions from its start. */
 	clipboardBlocks(clip: DocumentView): (node: NodeView, path: readonly number[]) => Block;
 	/** `entry`'s Markdown for a pasted `block`; null where it keeps the block or throws, which is
 	 *  reported. */
-	answer(entry: ContributedRewrite, block: Block): string | null;
+	answer(entry: ContributedBlockRewrite, block: Block): string | null;
 	/** Each plugin's code highlighter in list order, guarded. */
 	readonly highlighters: readonly ContributedHighlighter[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
@@ -131,7 +131,7 @@ export function createEditorContributions(deps: {
 	let menus: readonly ContributedMenu[] = [];
 	let selectionActions: readonly ContributedAction[] = [];
 	let paints: EditorContributions['paints'] = [];
-	let rewrites: readonly ContributedRewrite[] = [];
+	let blockRewrites: readonly ContributedBlockRewrite[] = [];
 	let highlighters: readonly ContributedHighlighter[] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
@@ -151,7 +151,7 @@ export function createEditorContributions(deps: {
 				menuProblem(unit) ??
 				actionProblem(unit) ??
 				containerDataProblem(unit) ??
-				rewriteProblem(unit);
+				blockRewriteProblem(unit);
 			if (problem) deps.report(installError(unit.name, problem));
 			return !problem;
 		});
@@ -207,8 +207,8 @@ export function createEditorContributions(deps: {
 		paints = kept.flatMap(({ name, contribution }) =>
 			contribution.paint || contribution.paintContainer ? [{ plugin: name, contribution }] : []
 		);
-		rewrites = kept.flatMap(({ name, contribution }) =>
-			(contribution.rewrites ?? []).map((rewrite) => ({ plugin: name, rewrite }))
+		blockRewrites = kept.flatMap(({ name, contribution }) =>
+			(contribution.blockRewrites ?? []).map((rewrite) => ({ plugin: name, rewrite }))
 		);
 		highlighters = kept.flatMap(({ name, contribution }) =>
 			contribution.code ? [guardedHighlighter(name, contribution.code, deps.report)] : []
@@ -282,7 +282,7 @@ export function createEditorContributions(deps: {
 		return text.trim() ? text : fail(new TypeError('its label is blank'));
 	}
 
-	function answer(entry: ContributedRewrite, block: Block): string | null {
+	function answer(entry: ContributedBlockRewrite, block: Block): string | null {
 		const editor = deps.editorFor(entry.plugin);
 		if (!editor) return null;
 		try {
@@ -318,8 +318,8 @@ export function createEditorContributions(deps: {
 		get paints() {
 			return paints;
 		},
-		get rewrites() {
-			return rewrites;
+		get blockRewrites() {
+			return blockRewrites;
 		},
 		clipboardBlocks: deps.clipboardBlocks,
 		answer,
@@ -506,11 +506,11 @@ function blockKeysOf(unit: InstalledPlugin, containers: boolean): string[] {
 		.flatMap(({ making }) => Object.keys(making.chords ?? {}));
 }
 
-function rewriteProblem(unit: InstalledPlugin): string | null {
-	const bad = (unit.contribution.rewrites ?? []).some(
+function blockRewriteProblem(unit: InstalledPlugin): string | null {
+	const bad = (unit.contribution.blockRewrites ?? []).some(
 		(r) => typeof r?.from?.name !== 'string' || typeof r.into !== 'function'
 	);
-	return bad ? 'has a paste rewrite with no block type in `from` or no `into`' : null;
+	return bad ? 'has a block rewrite with no block type in `from` or no `into`' : null;
 }
 
 function installError(plugin: string, problem: string): PluginError {

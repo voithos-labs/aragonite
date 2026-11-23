@@ -19,14 +19,14 @@ function reader(text: string) {
 	return vi.fn(() => readBlocks(text, { grammar, scope: 'fragment' }));
 }
 
-/** An editor whose plugins list `rewrites`, each keyed by a kind and answering from the node. */
+/** An editor whose plugins list `blockRewrites`, each keyed by a kind and answering from the node. */
 function listing(...rewrites: [kind: string, into: (node: NodeView) => string | null][]) {
 	const answer = vi.fn(
 		(entry: { rewrite: { into(node: NodeView): string | null } }, node: NodeView) =>
 			entry.rewrite.into(node)
 	);
 	const contributions = {
-		rewrites: rewrites.map(([kind, into], i) => ({
+		blockRewrites: rewrites.map(([kind, into], i) => ({
 			plugin: `p${i}`,
 			rewrite: { from: { name: kind, label: kind }, into }
 		})),

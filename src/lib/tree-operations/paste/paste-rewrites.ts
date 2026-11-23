@@ -11,7 +11,7 @@ import { serialize } from '../../core/serializer';
 import { ownTrailingLineEnding } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
-import type { ContributedRewrite } from '../../schema/editor-contributions';
+import type { ContributedBlockRewrite } from '../../schema/editor-contributions';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { cloneNode } from '../clone';
 import { applyPasteTransforms } from './paste-transforms';
@@ -72,9 +72,9 @@ function byType(
 	parts: PartsApart
 ): string {
 	const contributions = activation.contributions;
-	const listed = contributions?.rewrites ?? [];
+	const listed = contributions?.blockRewrites ?? [];
 	if (!contributions || listed.length === 0) return text;
-	const byKind = new Map<string, ContributedRewrite[]>();
+	const byKind = new Map<string, ContributedBlockRewrite[]>();
 	for (const entry of listed) {
 		const kind = entry.rewrite.from.name;
 		byKind.set(kind, [...(byKind.get(kind) ?? []), entry]);

@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { builtin, definePlugin, type EditorPlugin } from '#lib/plugin.js';
 import { container } from '#lib/components/block-makers/container.js';
-import { rewrite, type PasteRewrite } from '#lib/schema/paste-rewrite.js';
+import { blockRewrite, type BlockRewrite } from '#lib/schema/paste-rewrite.js';
 import { OWN_CLIPBOARD_TYPE } from '#lib/browser/clipboard.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import type { Block } from '#lib/schema/doc-view.js';
@@ -62,14 +62,14 @@ function makeAlerts(into: (block: Block<AlertData>) => string | null, ofParagrap
 		}
 	});
 	const from = ofParagraphs ? (builtin.blocks.paragraph as unknown as typeof alert) : alert;
-	const rewrites: PasteRewrite<unknown>[] = [
-		rewrite({ from, into: (block) => (read.push(block), into(block)) })
+	const blockRewrites: BlockRewrite<unknown>[] = [
+		blockRewrite({ from, into: (block) => (read.push(block), into(block)) })
 	];
 	const plugin = definePlugin({
 		name: 'alerts',
 		version: '1.0.0',
 		editor: '*',
-		contributes: () => ({ blocks: [alert], rewrites })
+		contributes: () => ({ blocks: [alert], blockRewrites })
 	});
 	return { plugin, read };
 }

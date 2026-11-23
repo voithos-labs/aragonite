@@ -88,7 +88,7 @@ interface CheckSpec<C extends CheckName> {
 		readonly inline?: CellContract;
 		readonly command?: CellContract;
 		readonly menu?: CellContract;
-		readonly rewrite?: CellContract;
+		readonly blockRewrite?: CellContract;
 	};
 }
 
@@ -278,7 +278,7 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 	rewriteLands: {
 		excusable: false,
 		contract: {
-			rewrite: promise(
+			blockRewrite: promise(
 				'a rewrite’s answer lands as blocks of its own, leaving the blocks above and after it and the container around it, and a paste of it is not rewritten again'
 			)
 		}

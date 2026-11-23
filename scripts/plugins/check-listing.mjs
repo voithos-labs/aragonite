@@ -28,7 +28,7 @@ import {
 
 // ── Pure parts ───────────────────────────────────────────────────────────────
 
-const OF = ['plugin', 'block', 'inline', 'command', 'menu', 'rewrite'];
+const OF = ['plugin', 'block', 'inline', 'command', 'menu', 'blockRewrite'];
 const STATUSES = ['passed', 'failed', 'advisory', 'excused', 'not-applicable', 'unchecked'];
 // What reaches the gallery table is held to a shape no Markdown or HTML hides in; a name outside it
 // shows as `(unshown)`, so one stray name never refuses the whole run.

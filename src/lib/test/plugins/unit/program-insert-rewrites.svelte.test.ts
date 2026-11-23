@@ -10,7 +10,7 @@ import {
 	definePlugin,
 	menu,
 	registerPasteTransform,
-	rewrite,
+	blockRewrite,
 	type EditorPlugin,
 	type MenuPick,
 	type MenuRow
@@ -54,8 +54,8 @@ const byType = definePlugin({
 	version: '1.0.0',
 	editor: '*',
 	contributes: () => ({
-		rewrites: [
-			rewrite({
+		blockRewrites: [
+			blockRewrite({
 				from: builtin.blocks.blockquote,
 				into: (block) => (asked.push(block.text), 'REWRITTEN')
 			})

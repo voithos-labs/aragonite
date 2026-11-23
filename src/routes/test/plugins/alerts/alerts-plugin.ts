@@ -2,7 +2,14 @@
 // command on the alert: the next type in the list, written into the head line; a `[!LOCKED]` alert
 // refuses it. Its `[[flag on]]` line is a block picked up whole, so its row sits in the block's own
 // menu. A pasted alert lands as a `:::type` callout.
-import { command, container, definePlugin, lineBlock, rewrite, type Block } from '#lib/plugin.js';
+import {
+	blockRewrite,
+	command,
+	container,
+	definePlugin,
+	lineBlock,
+	type Block
+} from '#lib/plugin.js';
 
 interface AlertData {
 	type: string;
@@ -72,8 +79,8 @@ export const alertsPlugin = definePlugin({
 	editor: '*',
 	contributes: () => ({
 		blocks: [alertType, flagType],
-		rewrites: [
-			rewrite({
+		blockRewrites: [
+			blockRewrite({
 				from: alertType,
 				into: (block) => {
 					const body = block.children.map((child) => child.text).join('');

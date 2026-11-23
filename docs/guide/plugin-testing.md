@@ -149,7 +149,7 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 | --- | --- | --- | --- |
 | `waitingWrite` | every menu | A pick that waits writes nothing once the host loads another note | yes |
 
-**A paste rewrite.** `of: 'rewrite'`, and the subject is the full name of the type it rewrites (`heading`, `alerts/alert`). Rewrites that share a `from` are one subject.
+**A block rewrite.** `of: 'blockRewrite'`, and the subject is the full name of the type it rewrites (`heading`, `alerts/alert`). Rewrites that share a `from` are one subject.
 
 | Check | Runs for | What it holds you to | Excuse |
 | --- | --- | --- | --- |
@@ -213,7 +213,7 @@ Each group is keyed by a name you wrote:
 | `commands` | the command's own id | `waitingWrite`, `actionTarget` |
 | `menus` | the trigger | `waitingWrite` |
 
-`plugin` and `rewrites` exist too, and take nothing: none of their checks can be excused.
+`plugin` and `blockRewrites` exist too, and take nothing: none of their checks can be excused.
 
 An excuse is a claim, not a waiver, and the run checks it:
 
@@ -400,7 +400,7 @@ expect(tabOrder(target.querySelector('.editor')!)).toBeNull();
 The function every paste that lands as blocks runs, over a string, so a test proves your rewrite is **wired**, not merely that your `into` works. `plugins` is what you'd hand an editor's `plugins` prop.
 
 ```ts
-import { builtin, definePlugin, rewrite } from '@voithos-labs/aragonite/plugin';
+import { blockRewrite, builtin, definePlugin } from '@voithos-labs/aragonite/plugin';
 import { rewritePaste } from '@voithos-labs/aragonite/testing';
 
 const shout = definePlugin({
@@ -408,7 +408,9 @@ const shout = definePlugin({
 	version: '1.0.0',
 	editor: '*',
 	contributes: () => ({
-		rewrites: [rewrite({ from: builtin.blocks.heading, into: (block) => block.text.toUpperCase() })]
+		blockRewrites: [
+			blockRewrite({ from: builtin.blocks.heading, into: (block) => block.text.toUpperCase() })
+		]
 	})
 });
 
@@ -440,7 +442,7 @@ afterEach(() => {
 While a callback is registered it takes over reporting completely (nothing reaches the console), and every entry is a small object. A rewrite whose `into` throws, for instance, is contained as a decline and reported like this:
 
 ```ts
-import { builtin, definePlugin, rewrite } from '@voithos-labs/aragonite/plugin';
+import { blockRewrite, builtin, definePlugin } from '@voithos-labs/aragonite/plugin';
 import { rewritePaste } from '@voithos-labs/aragonite/testing';
 
 const boom = definePlugin({
@@ -448,8 +450,8 @@ const boom = definePlugin({
 	version: '1.0.0',
 	editor: '*',
 	contributes: () => ({
-		rewrites: [
-			rewrite({
+		blockRewrites: [
+			blockRewrite({
 				from: builtin.blocks.heading,
 				into: () => {
 					throw new Error('boom');

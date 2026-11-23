@@ -8,7 +8,7 @@ import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { splitLines, trimTrailingLineEnding } from '../core/lines';
 import type { AnyBlockKind, CstNode } from '../core/nodes';
 import { rewrittenClip } from '../selection/cross-block/range-paste';
-import type { ContributedRewrite } from '../schema/editor-contributions';
+import type { ContributedBlockRewrite } from '../schema/editor-contributions';
 import type { PluginActivation } from '../schema/plugin-activation';
 import type { PluginError } from '../schema/plugin-unit';
 import type { CheckContext, PluginCheckRun } from './check-context';
@@ -31,13 +31,13 @@ export const pasted = (context: CheckContext, activation: PluginActivation, text
 
 // ── The row ──────────────────────────────────────────────────────────────────
 
-/** `plugin`'s rewrites by the full name of the type each rewrites, in list order. */
+/** `plugin`'s block rewrites by the full name of the type each rewrites, in list order. */
 export function rewriteSubjects(
 	run: PluginCheckRun,
 	plugin: string
-): Map<string, ContributedRewrite[]> {
-	const byType = new Map<string, ContributedRewrite[]>();
-	for (const entry of run.contributions.rewrites) {
+): Map<string, ContributedBlockRewrite[]> {
+	const byType = new Map<string, ContributedBlockRewrite[]>();
+	for (const entry of run.contributions.blockRewrites) {
 		if (entry.plugin !== plugin) continue;
 		const from = entry.rewrite.from.name;
 		byType.set(from, [...(byType.get(from) ?? []), entry]);
@@ -51,7 +51,7 @@ export function rewriteOutcome(
 	run: PluginCheckRun,
 	mounted: Mount,
 	from: string,
-	entries: readonly ContributedRewrite[]
+	entries: readonly ContributedBlockRewrite[]
 ): Outcome {
 	const { context } = run;
 	const samples = context.grammar.tryDescriptor(from as AnyBlockKind)?.samples ?? [];
@@ -62,7 +62,7 @@ export function rewriteOutcome(
 	const base = context.grammar.activation;
 	const activation: PluginActivation = {
 		isActive: (name) => base.isActive(name),
-		contributions: { ...base.contributions!, rewrites: entries }
+		contributions: { ...base.contributions!, blockRewrites: entries }
 	};
 	// Neighbours a sample of `from` can't read into, so only its answer can.
 	const [above, below] =
