@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: a drawn `lineBlock`'s `renderSource` was handed its whole line, a fenced block's
-// only its body, and no row read which of a line's bytes the editor draws as its marker.
+// only its body, and no row read which of a line's bytes the editor draws as its marker, nor
+// mounted a line block with no `draw` that gave one.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -9,6 +10,7 @@ import {
 	surfaceAt,
 	typeInto
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { VIEW_TEXT_ATTR } from '#lib/caret/block-content-selector.js';
 import { definePlugin, lineBlock, type TextDrawContext } from '#lib/plugin.js';
 import type { LineBlockSpec } from '#lib/schema/block-shapes.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
@@ -91,6 +93,37 @@ describe('a drawn line block’s marker', () => {
 		typeInto(surfaceAt(editor, [0]), '[abc');
 		await editor.settle();
 		expect(shape(surfaceAt(editor, [0]))).toEqual([['text', '[abc']]);
+	});
+});
+
+describe('a line block with no draw', () => {
+	const noDraw = { edit: undefined, draw: undefined };
+
+	it('is drawn by the editor around the text its renderSource paints', async () => {
+		const editor = await mounted('[abc]\n', { ...noDraw, renderSource: textSpan });
+		const el = surfaceAt(editor, [0]);
+		expect(el.matches('.text-editable-block')).toBe(false);
+		expect(shape(el)).toEqual([
+			['md-marker', '['],
+			['text', 'abc'],
+			['md-marker', ']']
+		]);
+	});
+
+	it('shows its text as a picture until the caret comes in, with edit source', async () => {
+		const editor = await mounted('[abc]\n', { ...noDraw, edit: 'source' });
+		const host = editor.target.querySelector<HTMLElement>('[data-block-path="[0]"]')!;
+		const text = host.querySelector<HTMLElement>(`[${VIEW_TEXT_ATTR}]`)!;
+		const picture = text.previousElementSibling as HTMLElement;
+		expect([text.hidden, picture.hidden, picture.textContent]).toEqual([true, false, 'abc']);
+		(editor.instance as unknown as Seam).__test.getBlockComponent([0]).focus(2);
+		await editor.settle();
+		expect([text.hidden, picture.hidden]).toEqual([false, true]);
+	});
+
+	it('is the editor’s text block when it asks for neither', async () => {
+		const editor = await mounted('[abc]\n', noDraw);
+		expect(surfaceAt(editor, [0]).matches('.text-editable-block')).toBe(true);
 	});
 });
 
