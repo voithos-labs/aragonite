@@ -172,6 +172,7 @@ const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/components/blocks/text/text-render.ts': 'creates the block-own prefix span',
 	'src/lib/components/blocks/code/code-renderer.ts':
 		'creates fence marker and fence-line spans, for every kind that holds its own fence',
+	'src/lib/components/block-makers/line-block.ts': "creates a drawn line block's marker spans",
 	'src/lib/invariants/marker-css-parity.ts':
 		'the DEV probe comparing the classification home against the stylesheet, one span per family'
 };
@@ -212,6 +213,7 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/components/blocks/text/text-render.ts': "creates the block's own prefix span",
 	'src/lib/components/blocks/code/code-renderer.ts':
 		'creates the fence marker spans, for every kind that holds its own fence',
+	'src/lib/components/block-makers/line-block.ts': "creates a drawn line block's marker spans",
 	'src/lib/invariants/marker-css-parity.ts': 'mounts one probe span per family for the DEV probe'
 };
 

@@ -770,9 +770,9 @@ test.describe('perf a/b: a letter typed into other documents', () => {
 	// The fence lines the editor draws around a plugin's body, against the code block's own.
 	test('fixed-fence-letter', async ({ page }) => {
 		const fence = codeFence(500).replace('```js\n', '%%%\n').replace('\n```\n', '\n%%%\n');
-		const open = async () => {
+		const open = async (editor: EditorPage) => {
 			await gotoReady(page, '/test/plugins?seed=fence-lines');
-			await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+			await editor.setPresentationMode('live');
 		};
 		const needs = [...BRIDGE, 'parkCaretInBlockComponent', 'setPresentationMode'];
 		const editor = await load(page, 'fixed-fence-letter', fence, open, needs);
