@@ -20,6 +20,7 @@ import {
 	type InsertionRoute
 } from '#lib/test/harness/insertion-routes.js';
 import { COLON_LINES, definePlugin, registerDirective, type CstNode } from '#lib/plugin.js';
+import { installPlugins } from '#lib';
 import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
@@ -119,4 +120,24 @@ describe.each(INSERTION_ROUTES)('text at an untitled row’s name end, by %s', (
 			const line = PASTES.includes(route) ? pasted : typed;
 			expect(editor.source()).toBe(`${line}\nin\n:::\n`);
 		});
+});
+
+// The held names are the editor's own list's, as its grammar reads them: a `notes` installed for
+// the page continues `note` in an editor that lists nothing, never in one whose list leaves it out.
+describe('a name end reads the names of the plugins its editor runs', () => {
+	it.each([
+		['an editor running every installed plugin', undefined, ':::notes'],
+		['an editor whose list leaves the box out', SYNTAX_PLUGINS, ':::note s']
+	])('%s', async (_, plugins, typed) => {
+		installPlugins([...SYNTAX_PLUGINS, notesBox]);
+		const editor = mountEditor({ source: ':::note\nin\n:::\n', plugins });
+		await editor.settle();
+		placeCaret(surfaceAt(editor, [0, 0]), ':::note'.length);
+		await editor.settle();
+
+		await insertBy('hardware key', document.activeElement as HTMLElement, 's');
+		await editor.settle();
+
+		expect(editor.source()).toBe(`${typed}\nin\n:::\n`);
+	});
 });
