@@ -68,7 +68,15 @@ export function derivedProfile(
 function grownSample(context: CheckContext, kind: AnyBlockKind, sample: string): string {
 	const doc = context.parse(sample);
 	const node = subjectNode(doc, kind, [0], 'the sample');
-	while ((node.children?.length ?? 0) < 2) writeChildIn(context, kind, doc);
+	const data = getPluginMetadata(node);
+	try {
+		while ((node.children?.length ?? 0) < 2) writeChildIn(context, kind, doc);
+	} catch (error) {
+		// A marker that doesn't read back says so in its own words, ahead of the child it broke.
+		const lines = context.descriptor(kind).lines;
+		if (lines) shapeReadsItsWriting(kind, lines, data);
+		throw error;
+	}
 	return node.raw;
 }
 
@@ -144,7 +152,7 @@ function indentedReadsBack(kind: AnyBlockKind, lines: IndentedLines<unknown>, da
 	const marker = lines.first(data);
 	const read = lines.open.exec(`${marker}probe`);
 	assert(
-		read?.index === 0 && read[0].length <= marker.length && same(lines.data(read), data),
+		read?.index === 0 && read[0] === marker && same(lines.data(read), data),
 		`"${kind}"'s lines.first gives ${show(marker)} for ${show(JSON.stringify(data))}, which ` +
 			`lines.open doesn't read back as that data`
 	);
