@@ -20,7 +20,7 @@ definePlugin({ name: 'shout', /* ... */ contributes: () => ({ pasteRewrites: [sh
 
 `into` gets the paste as a `Doc`: its `text`, with LF line endings, and its blocks. It answers the Markdown to paste instead, `''` to paste nothing, or `null` to keep the paste. The editor lands the answer the way it lands any paste, so one line can come back as blocks, and several lines as one line of text. `name` names the rewrite's `check` row and is unique in your plugin; `sample` is a paste it rewrites, which `check` pastes.
 
-Every paste that lands as Markdown is read, one line after text, a table cell and a title row included. A paste into a code block's body, a shown math source or another block whose text is literal is code, and goes in as written. The whole-paste rewrites of every listed plugin chain in list order, each reading the paste as the one before left it, so `pasted.text` is the clipboard's own text only for the first. A rewrite that throws reaches `onError` as `rewrite paste` and keeps the paste; the rest still run. An answer of `''` ends the chain, and nothing is pasted.
+Every paste that lands as Markdown is read, one line after text, a table cell and a title row included. A paste into a code block's body, a shown math source or a block type whose `body` is `literal` (a leaf's default) is code, and goes in as written. The whole-paste rewrites of every listed plugin chain in list order, each reading the paste as the one before left it, so `pasted.text` is the clipboard's own text only for the first. A rewrite that throws reaches `onError` as `rewrite paste` and keeps the paste; the rest still run. An answer of `''` ends the chain, and nothing is pasted.
 
 **A plugin value's `blockRewrites`**
 
