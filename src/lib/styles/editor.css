@@ -791,10 +791,15 @@
 	display: none;
 }
 
-/* A focused construct of bare markers shows them, having nothing else to show, and so does a titled
-   `:::` opener line under its host's `data-focused`; mirrored in `browser/painted.ts`. */
+/* A focused construct of bare markers shows them, having nothing else to show, and so does a
+   titled `:::` opener line unless a held press keeps its paint; mirrored in `browser/painted.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
 	[contenteditable][data-content-empty]:focus-within
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line),
+:where(.editor):is([data-presentation^='preview-'], [data-presentation='live']):not(
+		[data-press-held]
+	)
+	[contenteditable][data-source-at-caret]:focus-within
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line),
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
 	.block-host[data-focused]

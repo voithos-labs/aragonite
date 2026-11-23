@@ -257,6 +257,18 @@ describe('editor-root focus attribution: a row that shows its source at the care
 		expect(e.marked()).toEqual([e.second.el]);
 	});
 
+	// Miss-analysis: the press rows read the hosts' marks alone, so nothing said a press was held to
+	// a reader of a row focused before its `focusin`, which WebKit sends after a landing's write.
+	it('marks the root while a press is held, in a mode that hides markers', () => {
+		for (const mode of ['live', 'preview-block', 'source'] as const) {
+			const e = editor(mode);
+			press('pointerdown', e.first.leaf);
+			expect(e.root.hasAttribute('data-press-held'), mode).toBe(mode !== 'source');
+			press('pointerup', e.first.leaf);
+			expect(e.root.hasAttribute('data-press-held'), mode).toBe(false);
+		}
+	});
+
 	it('a press away from a row keeps its mark until the release', () => {
 		const e = editor('live');
 		asRow(e.second.leaf);

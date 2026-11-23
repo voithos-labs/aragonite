@@ -70,6 +70,10 @@ export const CONTENT_EMPTY_ATTR = 'data-content-empty';
  *  container's opener line); `chromeStampPaints` says when, mirrored in `styles/editor.css`. */
 export const SOURCE_AT_CARET_ATTR = 'data-source-at-caret';
 
+/** Set on the editor root while a primary press is held (`components/editor-root/focus.ts`), so a
+ *  row the press focuses keeps the paint the press began with until the release. */
+export const PRESS_HELD_ATTR = 'data-press-held';
+
 /** The class the preview-inline reveal trigger sets and this walk's hiding rule reads, defined
  *  once so the two sides cannot drift. */
 export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
@@ -142,16 +146,18 @@ export function hidesRowSource(row: Element): boolean {
 	);
 }
 
-/** The stylesheet's condition for painting bare markers: focus inside an empty construct (read by
- *  containment, jsdom lacking `:focus-within`), its host's `data-focused` for a titled source row. */
+/** The stylesheet's condition for painting bare markers, focus read by containment: focus inside an
+ *  empty construct; for a titled source row, its host's `data-focused` or focus with no press held. */
 function chromeStampPaints(container: Element): boolean {
-	if (container.hasAttribute(CONTENT_EMPTY_ATTR)) {
-		const active = container.ownerDocument.activeElement;
-		return active !== null && container.contains(active);
-	}
+	const active = container.ownerDocument.activeElement;
+	const focused = active !== null && container.contains(active);
+	if (container.hasAttribute(CONTENT_EMPTY_ATTR)) return focused;
+	if (!container.hasAttribute(SOURCE_AT_CARET_ATTR)) return false;
+	// Focus can come before its `focusin` (WebKit fires it after a landing's own write), and the
+	// host's mark waits for that event.
 	return (
-		container.hasAttribute(SOURCE_AT_CARET_ATTR) &&
-		container.closest(FOCUSED_HOST_SELECTOR) !== null
+		container.closest(FOCUSED_HOST_SELECTOR) !== null ||
+		(focused && container.closest(`[${PRESS_HELD_ATTR}]`) === null)
 	);
 }
 

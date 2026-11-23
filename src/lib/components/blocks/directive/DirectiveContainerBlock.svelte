@@ -55,6 +55,13 @@
 		> :global(
 			.block-list
 				> [data-block-kind='directiveOpenerLine']:not([data-focused])
+				.directive-opener-line:not([data-content-empty]):not(:focus-within)::before
+		),
+	:global(.editor[data-presentation][data-press-held])
+		.directive-block
+		> :global(
+			.block-list
+				> [data-block-kind='directiveOpenerLine']:not([data-focused])
 				.directive-opener-line:not([data-content-empty])::before
 		),
 	:global(.editor[data-presentation])

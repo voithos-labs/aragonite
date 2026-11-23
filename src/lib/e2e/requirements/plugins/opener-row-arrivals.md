@@ -61,7 +61,9 @@ The browser puts these carets down itself; the caret writer moves one that lands
 - ArrowLeft into the name, a letter typed in a field outside the editor, then a script's `focus()` on the row: the title's start, since focus left the row in between.
 - The same after a letter typed in the name, which draws the row again (`:::txip Title`): its title's start, byte 8.
 - ArrowLeft into the name, then `x`: `:::txip Title`, the caret after the `x`.
-- ArrowLeft into the name, then Backspace: `:::ip Title`, the caret where the `t` was. Not on WebKit, which lands that caret at the title's start with or without the rule.
+- ArrowLeft into `:::t|ip`, then Backspace twice: `:::ip Title`, then `::ip Title`. The first key renames the row to a name no plugin holds, which draws it again, and the second still deletes before the caret.
+- The same with Delete twice: `:::tp Title`, then `:::t Title`.
+- The same with Shift+ArrowLeft, Delete, then Backspace: `:::ip Title`, then `::ip Title`.
 - ArrowLeft into the name, then a composition of `か`: `:::tかip Title`, the caret after it.
 
 ## A press on a row not showing its name
@@ -86,6 +88,7 @@ A row with a title shows its `:::tip` when the press that focused it ends, so th
 ## Regressions
 
 - A click on a title landed left of the letter clicked, a double-click selected a colon, and a drag ran into the colons, where the next letter turned the callout into a paragraph. The row showed its `:::tip` at mousedown and the title moved right under the pointer before the browser read the press. Miss-analysis: every click row pressed the row's left edge, where the landing is the same before and after the text moves; no row pressed a letter, double-clicked or dragged.
+- On WebKit, a delete in a callout's name that renamed it put the caret at the title's start, and the next Backspace joined the name to the title (`:::ipTitle`). WebKit sends `focusin` after the landing's own write, and the row read as hidden until its host was marked at that event. Miss-analysis: the row was skipped on WebKit as the engine's own behaviour, measured against a base that already held the change, so no run compared it with the release.
 - A press that left an untitled row painted its name twice until the release (`:::foo :::foo`, `Tiptip`): the stylesheet held the row's markers under its host's `data-focused`, while `browser/painted.ts` and the drawn copy read an untitled row off focus alone. Miss-analysis: the held-press rows all pressed onto a row; none pressed away from one, and the parity probe had no case for an untitled row under a marked host.
 - Home in a callout's title, ArrowUp from its body, or a click at its row's left edge put the caret before the `:::` in live mode, and the next letter turned the callout into a paragraph. Miss-analysis: every arrival spec landed on prose or a heading, whose markers live mode hides at the caret; the one row that shows its markers at the caret had no arrival row at all.
 - The padding press and the right-click ran on a titled row, where the browser lands at the title's start by itself, so neither row could fail with the rule removed. On an untitled row the rule decides both. Miss-analysis: each row was watched pass on the fix and never watched fail without it.

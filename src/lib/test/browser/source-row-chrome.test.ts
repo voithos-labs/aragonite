@@ -6,6 +6,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	CONTENT_EMPTY_ATTR,
+	PRESS_HELD_ATTR,
 	SOURCE_AT_CARET_ATTR,
 	hidesRowSource,
 	isHiddenMarkerRoot,
@@ -20,11 +21,19 @@ interface RowOptions {
 	title?: string;
 	hostFocused?: boolean;
 	focused?: boolean;
+	pressHeld?: boolean;
 }
 
-function mountRow({ mode, title = '', hostFocused = false, focused = false }: RowOptions) {
+function mountRow({
+	mode,
+	title = '',
+	hostFocused = false,
+	focused = false,
+	pressHeld = false
+}: RowOptions) {
 	const root = document.createElement('div');
 	if (mode) root.setAttribute('data-presentation', mode);
+	if (pressHeld) root.setAttribute(PRESS_HELD_ATTR, '');
 	const host = document.createElement('div');
 	host.className = 'block-host';
 	if (hostFocused) host.setAttribute('data-focused', '');
@@ -54,10 +63,24 @@ describe('a titled source-at-caret row', () => {
 	});
 
 	it('keeps them hidden while it holds focus under a press, its host not yet marked', () => {
-		const { row, marker } = mountRow({ mode: 'live', title: 'Title', focused: true });
+		const { row, marker } = mountRow({
+			mode: 'live',
+			title: 'Title',
+			focused: true,
+			pressHeld: true
+		});
 		expect(screenVisibilityOf(row).chromePaints).toBe(false);
 		expect(isHiddenMarkerRoot(marker, row)).toBe(true);
 		expect(hidesRowSource(row)).toBe(true);
+	});
+
+	// Miss-analysis: the held-press row stood for every focus its host's mark had not reached, so
+	// none mounted focus with no press, the state WebKit writes a landing's caret in.
+	it('paints them as focus arrives with no press, before its host is marked', () => {
+		const { row, marker } = mountRow({ mode: 'live', title: 'Title', focused: true });
+		expect(screenVisibilityOf(row).chromePaints).toBe(true);
+		expect(isHiddenMarkerRoot(marker, row)).toBe(false);
+		expect(hidesRowSource(row)).toBe(false);
 	});
 
 	it('hides no source in source mode, where nothing hides', () => {

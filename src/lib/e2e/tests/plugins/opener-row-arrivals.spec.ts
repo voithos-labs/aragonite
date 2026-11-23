@@ -515,18 +515,21 @@ test.describe('a caret the browser leaves on a :::tip row in live mode', () => {
 		await expect.poll(() => caretText(page)).toBe('[0,0]:5');
 	});
 
-	test('Backspace inside the name stays there', async ({ page, browserName }) => {
-		test.skip(browserName === 'webkit', 'WebKit lands a rename by Backspace at the title start');
-		const editor = new PluginsPage(page);
-		await run(page, editor, {
-			name: '',
-			source: T,
-			steps: [...arrowBack(8), { key: 'Backspace' }],
-			caret: ''
+	// Each first key renames `tip` to a name the grammar does not hold, which draws the row again.
+	for (const { keys, after } of [
+		{ keys: ['Backspace', 'Backspace'], after: [':::ip Title', '::ip Title'] },
+		{ keys: ['Delete', 'Delete'], after: [':::tp Title', ':::t Title'] },
+		{ keys: ['Shift+ArrowLeft', 'Delete', 'Backspace'], after: ['', ':::ip Title', '::ip Title'] }
+	]) {
+		test(`${keys.join(', ')} inside the name edit the name`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, { name: '', source: T, steps: arrowBack(8), caret: '' });
+			for (const [i, key] of keys.entries()) {
+				await page.keyboard.press(key);
+				if (after[i]) await expect.poll(() => sourceOf(page)).toBe(`${after[i]}\nbody\n:::\n`);
+			}
 		});
-		await expect.poll(() => sourceOf(page)).toBe(':::ip Title\nbody\n:::\n');
-		await expect.poll(() => caretText(page)).toBe('[0,0]:3');
-	});
+	}
 
 	test('a composition inside the name stays there', async ({ page }) => {
 		const editor = new PluginsPage(page);

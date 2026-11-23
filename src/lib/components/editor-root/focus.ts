@@ -9,7 +9,7 @@ import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkCaretCanLand } from '../../invariants/caret-can-land';
 import { isPreviewMode, type PresentationMode } from '../../presentation-mode';
 import { readBlockPath } from '../../selection/path-lookup';
-import { CONTENT_EMPTY_ATTR, SOURCE_AT_CARET_ATTR } from '../../browser/painted';
+import { CONTENT_EMPTY_ATTR, PRESS_HELD_ATTR, SOURCE_AT_CARET_ATTR } from '../../browser/painted';
 import { onRoot, removeAll } from './listeners';
 import type { TextMoves } from '../overlays/text-moves';
 
@@ -35,6 +35,7 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	// where a reactive write would trip state_unsafe_mutation.
 	let focusedHostEl: HTMLElement | null = null;
 	let paintedHostEl: HTMLElement | null = null;
+	let editorRoot: HTMLElement | null = null;
 	let pressHeld = false;
 	// Whether focus sits on a row that shows its source at the caret, which live mode marks too.
 	let onSourceRow = false;
@@ -82,14 +83,23 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 		return readPath;
 	}
 
+	// The root carries the press as well, so a row focused under it reads hidden in the stylesheet
+	// and in `browser/painted.ts` alike; nothing repaints until the release moves the mark.
+	function holdPress(held: boolean): void {
+		pressHeld = held;
+		const hides = isPreviewMode(deps.mode) || deps.mode === 'live';
+		editorRoot?.toggleAttribute(PRESS_HELD_ATTR, held && hides);
+	}
+
 	// A release the page never hears (focus or the window left mid-press) must not strand the paint.
 	function endPress(): void {
 		if (!pressHeld) return;
-		pressHeld = false;
+		holdPress(false);
 		applyFocusedAttr();
 	}
 
 	function install(root: HTMLElement): () => void {
+		editorRoot = root;
 		const onFocusIn = (e: FocusEvent) => {
 			const host = (e.target as Element | null)?.closest('[data-block-path]');
 			if (!host || !root.contains(host)) {
@@ -110,11 +120,11 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
 			if (next && root.contains(next)) return; // moving between blocks: keep the focused path
-			pressHeld = false;
+			holdPress(false);
 			clear();
 		};
 		const onPress = (e: MouseEvent) => {
-			if (e.button === 0) pressHeld = true;
+			if (e.button === 0) holdPress(true);
 		};
 		const doc = root.ownerDocument;
 		return removeAll(
