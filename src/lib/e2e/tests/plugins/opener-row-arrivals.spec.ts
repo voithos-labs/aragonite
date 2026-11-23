@@ -9,8 +9,9 @@ import { textRunCenter, textRunStart } from '../../text-runs';
 /**
  * Where a caret arriving on a `:::` container's opener row rests in live mode: at the title's
  * start (the row's end when untitled), for the arrivals that read `browser/offsets.ts ::
- * arrivalRawStart` (a landing from another line, Home, a click). One row per route, then the
- * routes left as they were: a step, a selection, source mode, a restore, a `<details>` summary.
+ * arrivalRawStart` (a landing from another line, Home, a click, ArrowLeft over a range, a page
+ * step, a host's `navigateTo`). One row per route, then the routes left as they were: a step, a
+ * selection, source mode, a restore, a `<details>` summary.
  * Then the presses: a titled row shows its `:::name` when the press ends, so a click, a
  * double-click and a drag read the text where the user saw it. The requirement file lists the
  * arrivals the rule does not reach.
@@ -22,11 +23,17 @@ const ABOVE = 'above\n\n:::tip Title\nbody\n:::\n';
 const NEST = '::::note Outer\n:::tip Inner\nin\n:::\n::::\n';
 const DETAILS = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
+const TWO = ':::tip Title\nbody\n:::\n\nafter\n';
+const LONG =
+	T + Array.from({ length: 60 }, (_, i) => `\nparagraph ${i} of the long page\n`).join('');
+
 type Step =
 	| { at: [number[], number] }
-	| { key: string }
+	| { key: string; times?: number }
 	| { type: string }
-	| { click: 'left' | 'far-left' | 'padding' | 'right-click'; row?: number[] }
+	| { click: 'left' | 'shift-left' | 'far-left' | 'padding' | 'right-click'; row?: number[] }
+	| { tripleClick: string }
+	| { navigateTo: [number[]] | [number[], number] }
 	| { mode: 'source' | 'live' };
 
 interface Row {
@@ -159,10 +166,99 @@ const ARRIVALS: Row[] = [
 			{ key: 'ArrowUp' }
 		],
 		caret: '[0,0]:10'
+	},
+	{
+		name: 'Shift+Home, then ArrowLeft',
+		source: T,
+		steps: [...arrowBack(2), { key: extendKey('lineStart') }, { key: 'ArrowLeft' }, { type: 'x' }],
+		caret: '[0,0]:8',
+		bytes: ':::tip xTitle\nbody\n:::\n'
+	},
+	{
+		name: 'Mod+A on the row, then ArrowLeft',
+		source: T,
+		steps: [...arrowBack(2), { key: 'ControlOrMeta+a' }, { key: 'ArrowLeft' }, { type: 'x' }],
+		caret: '[0,0]:8',
+		bytes: ':::tip xTitle\nbody\n:::\n'
+	},
+	{
+		name: 'a triple-click on the title, then ArrowLeft',
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { tripleClick: 'Title' }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:7'
+	},
+	{
+		name: 'a Shift+click at the row left edge, then ArrowLeft',
+		source: T,
+		steps: [...arrowBack(2), { click: 'shift-left' }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:7'
+	},
+	{
+		name: 'Mod+A twice, then ArrowLeft',
+		source: TWO,
+		steps: [...arrowBack(2), { key: 'ControlOrMeta+a', times: 2 }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:7'
+	},
+	{
+		name: 'PageUp twice from the body',
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { key: 'PageUp', times: 2 }, { type: 'x' }],
+		caret: '[0,0]:8',
+		bytes: ':::tip xTitle\nbody\n:::\n'
+	},
+	{
+		name: 'PageUp held up a long page',
+		source: LONG,
+		steps: [{ at: [[40], 3] }, { key: 'PageUp', times: 14 }],
+		caret: '[0,0]:7'
+	},
+	{
+		name: "the host's navigateTo on the row with no offset",
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { navigateTo: [[0, 0]] }, { type: 'x' }],
+		caret: '[0,0]:8',
+		bytes: ':::tip xTitle\nbody\n:::\n'
+	},
+	{
+		name: "the host's navigateTo on the callout with no offset",
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { navigateTo: [[0]] }],
+		caret: '[0,0]:7'
 	}
 ];
 
 const LEFT_ALONE: Row[] = [
+	{
+		name: 'Shift+ArrowLeft from the title start, then ArrowLeft, stays in the name',
+		source: T,
+		steps: [...arrowBack(5), { key: 'Shift+ArrowLeft', times: 2 }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:5'
+	},
+	{
+		name: 'Shift+ArrowLeft inside the name, then ArrowLeft, stays there',
+		source: T,
+		steps: [...arrowBack(7), { key: 'Shift+ArrowLeft', times: 2 }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:3'
+	},
+	{
+		name: 'Shift+Home on an untitled row, then ArrowLeft',
+		source: U,
+		steps: [...arrowBack(0), { key: extendKey('lineStart') }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:0'
+	},
+	{
+		name: 'source mode Shift+Home, then ArrowLeft',
+		source: T,
+		mode: 'source',
+		steps: [...arrowBack(2), { key: extendKey('lineStart') }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:0'
+	},
+	{
+		name: "the host's navigateTo on the row at offset 0",
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { navigateTo: [[0, 0], 0] }],
+		caret: '[0,0]:0'
+	},
 	{
 		name: 'ArrowLeft walks from the title start into the colons',
 		source: T,
@@ -256,10 +352,18 @@ async function run(page: Page, editor: PluginsPage, row: Row): Promise<void> {
 	await editor.setPresentationMode(row.mode ?? 'live');
 	for (const step of row.steps) {
 		if ('at' in step) await editor.focusBlockAtPath(step.at[0], step.at[1]);
-		else if ('key' in step) await page.keyboard.press(step.key);
-		else if ('type' in step) await page.keyboard.type(step.type);
+		else if ('key' in step) {
+			for (let i = 0; i < (step.times ?? 1); i++) await page.keyboard.press(step.key);
+		} else if ('type' in step) await page.keyboard.type(step.type);
 		else if ('mode' in step) await editor.setPresentationMode(step.mode);
-		else await clickRow(page, step.click, step.row ?? [0, 0]);
+		else if ('tripleClick' in step) {
+			await multiClick(page, await textRunCenter(page, step.tripleClick, { path: [0, 0] }), 3);
+		} else if ('navigateTo' in step) {
+			await page.evaluate(
+				(args) => (window as any).__test.rects.navigateTo(...args),
+				step.navigateTo
+			);
+		} else await clickRow(page, step.click, step.row ?? [0, 0]);
 		await editor.waitForRenderFlush();
 	}
 }
@@ -274,7 +378,11 @@ async function clickRow(page: Page, where: string, path: number[]): Promise<void
 		await page.mouse.click(outer.x + 1, middle);
 	} else if (where === 'padding') await page.mouse.click(box.x + 2, box.y + 1);
 	else if (where === 'right-click') await page.mouse.click(box.x + 1, middle, { button: 'right' });
-	else await page.mouse.click(box.x + 1, middle);
+	else if (where === 'shift-left') {
+		await page.keyboard.down('Shift');
+		await page.mouse.click(box.x + 1, middle);
+		await page.keyboard.up('Shift');
+	} else await page.mouse.click(box.x + 1, middle);
 }
 
 test.describe('an arrival on a :::tip row in live mode', () => {

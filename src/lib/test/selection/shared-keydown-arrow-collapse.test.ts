@@ -22,7 +22,7 @@ vi.mock('../../browser/visual-lines', async (original) => ({
 	isAtLastVisualLine: () => true
 }));
 
-function mount() {
+function mount(arrivalStart?: number) {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
 	el.textContent = 'abcdef';
@@ -54,7 +54,8 @@ function mount() {
 		focus: { moveFocus: vi.fn(async () => {}) } as unknown as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,
 		unitContext: () => null,
-		caretUnits: { beside: () => null, crossed: () => {} }
+		caretUnits: { beside: () => null, crossed: () => {} },
+		...(arrivalStart === undefined ? {} : { arrivalStart: () => arrivalStart })
 	};
 	const select = (anchor: number, focus: number) =>
 		window.getSelection()!.setBaseAndExtent(text, anchor, text, focus);
@@ -86,6 +87,23 @@ describe('handleSharedKeydown: a plain arrow over a range collapses it first', (
 			const e = press(key);
 			await handleSharedKeydown(e, h.ctx);
 			expect(e.defaultPrevented).toBe(true);
+			expect(h.read()).toEqual({ anchor: at, focus: at });
+		});
+	}
+
+	// Miss-analysis: the opener row's arrival rows were all carets, and no row collapsed a range there.
+	for (const { key, anchor, focus, at } of [
+		{ key: 'ArrowLeft', anchor: 5, focus: 1, at: 3 },
+		{ key: 'ArrowLeft', anchor: 0, focus: 6, at: 3 },
+		{ key: 'ArrowLeft', anchor: 3, focus: 1, at: 1 },
+		{ key: 'ArrowLeft', anchor: 6, focus: 4, at: 4 },
+		{ key: 'ArrowRight', anchor: 5, focus: 1, at: 5 },
+		{ key: 'ArrowDown', anchor: 5, focus: 1, at: 1 }
+	]) {
+		it(`${key} over ${anchor}..${focus} with the arrival start at 3 leaves a caret at ${at}`, async () => {
+			const h = mount(3);
+			h.select(anchor, focus);
+			await handleSharedKeydown(press(key), h.ctx);
 			expect(h.read()).toEqual({ anchor: at, focus: at });
 		});
 	}

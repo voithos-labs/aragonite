@@ -90,6 +90,7 @@ Below the verbs:
 - A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `place-caret.ts`, which ends what the editor had selected the way `focus` does.
 - The two selections the editor keeps without a caret on screen have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a lint fails any other file that writes either.
 - A lint (G4.270) fails any native selection write outside the caret writer, `browser/caret-writer.ts`.
+- A caret put down with no byte in hand is an arrival: a landing, Home, a click, ArrowLeft over a selection, a page step, a host's `navigateTo` with no offset. On a `:::` opener line in live mode an arrival rests no earlier than the title's start, so each of those sites reads `arrivalRawStart`. A step (ArrowLeft into the name) and a byte in hand (undo, `setSelection`) are left alone. A lint (G4.389) fails a caret write nobody has said is which.
 
 ## 4. The snap
 
