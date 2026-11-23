@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from './helpers';
@@ -163,6 +164,84 @@ test.describe('block math: typed formation', () => {
 		await editor.bridge.waitForSourceEquals(COMPLETED);
 	});
 });
+
+// A ```math fence typed key by key into `start\n\n|\n\nafter`, read after every key: block 1's
+// type, the bytes, the caret (`path:offset`) and the shown source. Pinned from 0.11.5.
+const MATH = 'mathFence';
+const CODE = 'fencedCode';
+type Step = [key: string, kind: string, source: string, caret: string | null, shown: string | null];
+const doc = (block: string) => `start\n\n${block}\n\nafter\n`;
+const TYPED: Record<'source' | 'live', Step[]> = {
+	// The first backtick writes its pair, and the second types over the closer.
+	source: [
+		['`', 'paragraph', doc('``'), '1:1', null],
+		['`', 'paragraph', doc('``'), '1:2', null],
+		['`', CODE, doc('```\n```'), '1:3', null],
+		['m', CODE, doc('```m\n```'), '1:4', null],
+		['a', CODE, doc('```ma\n```'), '1:5', null],
+		['t', CODE, doc('```mat\n```'), '1:6', null],
+		['h', MATH, doc('```math\n```'), '1:8', '```math\n\n```'],
+		['Enter', MATH, doc('```math\n```'), '1:9', '```math\n\n\n```'],
+		['x', MATH, doc('```math\n```'), '1:10', '```math\n\nx\n```'],
+		['Enter', MATH, doc('```math\n```'), '1:11', '```math\n\nx\n\n```'],
+		['`', MATH, doc('```math\n```'), '1:12', '```math\n\nx\n`\n```'],
+		['`', MATH, doc('```math\n```'), '1:13', '```math\n\nx\n``\n```'],
+		['`', MATH, doc('```math\n```'), '1:14', '```math\n\nx\n```\n```'],
+		['ArrowDown', MATH, doc('```math\n```'), '1:18', '```math\n\nx\n```\n```']
+	],
+	live: [
+		['`', 'paragraph', doc('``'), '1:1', null],
+		['`', 'paragraph', doc('``'), '1:2', null],
+		['`', CODE, doc('```\n\n```'), null, null],
+		['m', CODE, doc('```\n\n```'), null, null],
+		['a', CODE, doc('```\n\n```'), null, null],
+		['t', CODE, doc('```\n\n```'), null, null],
+		['h', CODE, doc('```\n\n```'), null, null],
+		['Enter', MATH, doc('```math\n\n```'), '1:8', '```math\n\n```'],
+		['x', MATH, doc('```math\n\n```'), '1:9', '```math\nx\n```'],
+		['Enter', MATH, doc('```math\n\n```'), '1:10', '```math\nx\n\n```'],
+		['`', MATH, doc('```math\n\n```'), '1:11', '```math\nx\n`\n```'],
+		['`', MATH, doc('```math\n\n```'), '1:12', '```math\nx\n``\n```'],
+		['`', MATH, doc('```math\n\n```'), '1:13', '```math\nx\n```\n```'],
+		['ArrowDown', MATH, doc('````math\nx\n```\n````'), '2:4', null]
+	]
+};
+
+test.describe('a ```math fence typed key by key', () => {
+	for (const mode of ['source', 'live'] as const) {
+		test(`each key lands as 0.11.5's did (${mode})`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins();
+			await editor.setPresentationMode(mode);
+			await editor.loadContent('start\n\nafter\n');
+			await editor.clickBlock(0);
+			await page.keyboard.press(edgeKey('lineEnd'));
+			await page.keyboard.press('Enter');
+			await editor.bridge.waitForBlockCount(3);
+			for (const [i, [key, kind, source, caret, shown]] of TYPED[mode].entries()) {
+				await page.keyboard.press(key);
+				await expect
+					.poll(() => typedState(page), { message: `after key ${i + 1} (${key})` })
+					.toEqual({ kind, source, caret, shown });
+			}
+		});
+	}
+});
+
+function typedState(page: Page) {
+	return page.evaluate(() => {
+		const t = (window as any).__test;
+		const sel = t.getSelection();
+		const at = (p: { path: number[]; offset: number }) => `${p.path.join('.')}:${p.offset}`;
+		const shown = document.querySelector('[data-block-path="[1]"] .math-block-source');
+		return {
+			kind: t.getBlockKind(1),
+			source: t.getSource(),
+			caret: sel ? at(sel.focus) : null,
+			shown: shown?.textContent ?? null
+		};
+	});
+}
 
 // Recognizing the syntax needs the plugin installed, and so does completing it: the editor harness
 // loads no plugins, so the same keystrokes must leave plain GFM's own shape.

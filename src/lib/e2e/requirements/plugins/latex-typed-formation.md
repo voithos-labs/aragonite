@@ -38,7 +38,22 @@ its end, is replaced by the finished fence pair instead of being split.
   keypress completes once the mode is lifted, which is what proves the key reached the editor
   and was declined
 
+## A ` ```math ` fence typed key by key
+
+- In an empty paragraph, three backticks, `math`, Enter, `x`, Enter, three backticks and
+  ArrowDown, in source and in live mode: after every key the block's type, the document's bytes,
+  the caret and the shown source are 0.11.5's, row for row
+- Source mode: the third backtick writes a closed code block, `h` turns it into a math block whose
+  source shows an empty body line with the caret on it, and every later key edits that source,
+  the closer-shaped line included, with the bytes held until the source closes
+- Live mode: the third backtick opens the code block's language field, `math` and Enter set the
+  fence to math with the caret on its body line, and ArrowDown out of the source writes the fence
+  grown past the closer-shaped line inside it
+
 ## Miss-analysis
+
+No row typed a ` ```math ` fence key by key, so nothing held what each key did to a code
+block turning into a math block while its language was typed.
 
 No test could have caught this: the completion registry had exactly one registrant, a built-in,
 so nothing exercised a completer arriving from a plugin, including the fact that the caret for a
