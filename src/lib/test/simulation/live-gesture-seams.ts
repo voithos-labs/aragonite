@@ -430,6 +430,7 @@ async function pressEdgeKey(
 		getNode: node,
 		getIndex: () => leaf.index,
 		getPath: () => leaf.path,
+		getDoc: () => h.doc,
 		blockEdit: leaf.blockEdit,
 		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 		getPreEditOffset: () => offset,

@@ -7,7 +7,13 @@ import {
 	type UnwrapRole,
 	type WriteRule
 } from './block-kind-descriptor';
-import { isDirectiveContainerKind } from '../core/directive/registry';
+import type { GrammarView } from './block-openers';
+import {
+	isDirectiveContainerKind,
+	resolveDirective,
+	startsContainerName
+} from '../core/directive/registry';
+import { matchDirectiveOpener } from '../core/directive/grammar';
 import { DIRECTIVE_OPENER_LINE } from '../core/directive/container-shape';
 
 /**
@@ -75,20 +81,25 @@ export function rowKeepingTitleTo(container: NodeView, row: NodeView, to: number
 	return trimTrailingLineEnding(row.raw).slice(0, Math.max(to, rowMarker(container, row).length));
 }
 
-/** Where text put on a title row at `offset` lands, and the space it needs in front: a spot in or at
- *  the end of a `:::name` marker moves to the title's start, so the text never joins the name. */
-export function titleInsertionPoint(
-	container: NodeView,
+/** The space text typed onto `row`, child `index`, to read `written` needs in front to start a title:
+ *  at an untitled row's end, where it would lengthen a held name into one no held name starts. */
+export function typedTitleGap(
 	row: NodeView,
-	offset: number
-): { offset: number; gap: string } {
-	const marker = rowMarker(container, row);
-	const nameEnd = withoutTrailingSpaces(marker).length;
-	const spaced = marker.length > nameEnd;
-	if (nameEnd === 0 || offset > marker.length || (offset === marker.length && spaced)) {
-		return { offset, gap: '' };
-	}
-	return { offset: marker.length, gap: spaced ? '' : ' ' };
+	index: number,
+	written: string,
+	container: () => NodeView | undefined,
+	grammar: GrammarView
+): string {
+	// The row's own bytes first: the walk to its container is paid only by a line that could be one.
+	const line = trimTrailingLineEnding(row.raw);
+	const fence = index === 0 ? matchDirectiveOpener(line) : null;
+	if (!fence || written.length <= line.length || !written.startsWith(line)) return '';
+	const owner = container();
+	if (!owner || !isReservedChromeChild(owner, index) || !rowIsOpenerLine(owner.kind)) return '';
+	if (!resolveDirective('container', fence.name, grammar)) return '';
+	// The grammar's own matcher says what joins a name, so a `!` or an `é` ends it as it reads.
+	const joined = matchDirectiveOpener(written)!.name;
+	return joined === fence.name || startsContainerName(joined, grammar) ? '' : ' ';
 }
 
 function withoutTrailingSpaces(text: string): string {

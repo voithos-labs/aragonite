@@ -103,6 +103,7 @@ export function makeEdgeDispatch(
 			getNode: readNode,
 			getIndex: () => 0,
 			getPath: () => [0],
+			getDoc: () => parse(''),
 			blockEdit,
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 			getPreEditOffset: () => keyCaret,

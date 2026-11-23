@@ -647,6 +647,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getNode: deps.getNode,
 		getIndex: deps.getIndex,
 		getPath: deps.getMyPath,
+		getDoc: deps.getDoc,
 		blockEdit,
 		kindCue: deps.kindCue,
 		getPreEditOffset: () => preEditOffset,

@@ -14,6 +14,7 @@ import { refusedWrite, withStoredCaret } from '#lib/editor-actions/stored-caret.
 import { stubBlockEdit } from '#lib/testing/headless-actions.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { parse } from '#lib/core/parser.js';
 
 function writerFor() {
 	const node: NodeView = { kind: 'paragraph', leadingTrivia: '', raw: 'ab\n' };
@@ -30,6 +31,7 @@ function writerFor() {
 		getNode: () => node,
 		getIndex: () => 0,
 		getPath: () => [0],
+		getDoc: () => parse(''),
 		blockEdit,
 		kindCue: { afterTypedWrite, labelAt: () => undefined, dismiss: () => {} },
 		getPreEditOffset: () => 0,
@@ -87,6 +89,7 @@ describe('a typed line the on-type completer takes', () => {
 			getNode: () => node,
 			getIndex: () => 0,
 			getPath: () => [0],
+			getDoc: () => parse(''),
 			blockEdit: { ...stubBlockEdit(), updateBlockContent, completeLineOnType },
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 			getPreEditOffset: () => 1,
