@@ -70,6 +70,9 @@ const ROWS = {
 	'emoji-letter': { label: 'a letter typed at the end of a paragraph of fifty :shortcode: emoji' },
 	'occurrence-letter': {
 		label: 'a letter typed into a marked word in the middle of 2,000 paragraphs'
+	},
+	'toc-heading-letter': {
+		label: 'a letter typed into a heading under a table of contents of 2,000 headings'
 	}
 } as const;
 
@@ -839,6 +842,22 @@ test.describe('perf a/b: a letter typed into other documents', () => {
 		if (!marked)
 			absent('occurrence-letter', 'no occurrence was marked on /test/plugins?seed=hloccur');
 		await letterRow(editor, 'occurrence-letter', { path: [middle] }, TYPED_KEYS);
+	});
+
+	// The outline reads each heading through `depends`, so a key asks the heading it typed in.
+	test('toc-heading-letter', async ({ page }) => {
+		const headings = Array.from({ length: 2000 }, (_, i) => `## Heading ${i}`);
+		const source = `[[toc]]\n\n${headings.join('\n\n')}\n`;
+		const editor = await load(page, 'toc-heading-letter', source, () =>
+			gotoReady(page, '/test/plugins?seed=toc')
+		);
+		// The outline lists each heading; none listed means it isn't on this route.
+		if ((await page.locator('.toc-block-item').count()) === 0)
+			absent('toc-heading-letter', 'no outline was drawn on /test/plugins?seed=toc');
+		const middle = 1000;
+		const [length] = await bringIntoView(page, middle, middle);
+		await editor.focusBlockAtPath([middle], length);
+		await letterRow(editor, 'toc-heading-letter', { path: [middle] }, TYPED_KEYS);
 	});
 });
 
