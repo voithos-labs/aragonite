@@ -56,10 +56,11 @@ export function cycleHeading(
 ): TextEditResult | null {
 	if (level === 0) return demoteToParagraph(raw, content, preEditOffset);
 	const prefix = '#'.repeat(level) + ' ';
-	const newDisplay = prefix + raw.slice(content.start, content.end);
+	const suffix = sameLineSuffixOf(raw, content.end);
+	const newDisplay = prefix + raw.slice(content.start, content.end) + suffix;
 	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
 	return {
-		newRaw: newDisplay + endingPastContent(raw, content.end),
+		newRaw: newDisplay + endingPastContent(raw, content.end + suffix.length),
 		caretOffset: prefix.length + (inContent - content.start)
 	};
 }
