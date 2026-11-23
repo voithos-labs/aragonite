@@ -13,6 +13,9 @@ Shown on the page with plugins, at a phone's width.
 - A mouse drag down out of a table does the same, like every other drag.
   - Miss-analysis: the cell drag had no join rule at all and took the outline at its edge; the
     centre-line rows only dragged from text and only onto short blocks.
+  - Miss-analysis: every outline these rows dragged over took its text out of the page while
+    folded; a block type's drawing keeps its text element there, hidden, and the hit test read it
+    as the block's characters.
 - A finger's end handle on a word dragged a line past a tall outline's edge takes the outline in.
   - Miss-analysis: the join rule was only exercised with a mouse on blocks a couple of lines
     tall, where the middle is a line away anyway.

@@ -7,7 +7,7 @@
 import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionEndpoint } from './primitives';
-import type { BlockElLookup } from '../caret/block-el-lookup';
+import { blockBoxElAt, type BlockElLookup } from '../caret/block-el-lookup';
 import { caretOffsetAtPoint, elementAtPoint } from '../browser/point';
 import { applyCollapsedCaret, applySingleBlockRange } from './native-bridge';
 import type { CaretWriter } from '../browser/caret-writer';
@@ -160,8 +160,7 @@ export function installDragListener(
 	}
 
 	function reaches(path: number[], clientY: number): boolean {
-		const box = ctx.getBlockElByPath(path)?.getBoundingClientRect();
-		return reachesWholeBlock(box, anchorPoint.path, path, clientY, finger !== null);
+		return reachesBlockAt(ctx.editorRoot, anchorPoint.path, path, clientY, finger !== null);
 	}
 
 	// A whole-block anchor (a table, an equation) has nothing to paint natively, so the block is
@@ -233,6 +232,19 @@ export function installDragListener(
 
 /** About a line: how far past a tall block's edge a finger's drag must go to take it in. */
 const FINGER_REACH_PX = 24;
+
+/** {@link reachesWholeBlock} for the block at `path`, measured by its box, never by its text
+ *  element, which a drawing hides while its picture shows. Every drag route asks this. */
+export function reachesBlockAt(
+	root: HTMLElement,
+	anchorPath: readonly number[],
+	path: readonly number[],
+	clientY: number,
+	finger: boolean
+): boolean {
+	const box = blockBoxElAt(root, [...path])?.getBoundingClientRect();
+	return reachesWholeBlock(box, anchorPath, path, clientY, finger);
+}
 
 /** Whether a drag at `clientY` takes `box`, a block with no positions inside, into the range: past
  *  its centre line from the anchor's side, or for a finger a line past its edge if that's nearer. */
