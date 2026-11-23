@@ -402,9 +402,9 @@ Breaks follow a schedule you can pin a peer range to:
 
 A break is anything the changelog files under its breaking entries for plugins.
 
-The checks keep the same schedule. [`check`](plugin-testing.md#checking-a-plugin-value-check) and `aragonite-plugin-check` come with the editor, so your plugin is held to the checks of whichever editor it's installed beside. A new check, or one made stricter, is a break like any other: it lands in a minor, under those breaking entries. So a plugin that peers on `^0.12.0` and passes keeps passing through every 0.12 patch.
+The checks keep the same schedule. [`check`](plugin-testing.md#checking-a-plugin-value-check) and `aragonite-plugin-check` come with the editor, so your plugin is held to the checks of the editor it's installed beside. A new check, or one made stricter, is a break like any other, and lands in a minor. So a plugin that peers on `^0.12.0` and passes keeps passing through every 0.12 patch.
 
-One exception: a check that stops a plugin corrupting a document can't wait for a minor. It may land in a patch as **advisory**, where its row is reported and the run still passes. The same result fails from the next minor, so fix it or [excuse it](plugin-testing.md#excuses) before then.
+One exception: a check that stops a plugin corrupting a document can't wait for a minor. It may land in a patch as **advisory**: its row is reported and the run still passes. It fails from the next minor, so fix it or [excuse it](plugin-testing.md#excuses) before then.
 
 ## What draws your plugin, and where it runs
 
