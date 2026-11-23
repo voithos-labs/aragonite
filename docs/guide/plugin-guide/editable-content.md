@@ -99,6 +99,8 @@ A painted source takes its plain-text edits from the leaf, not the browser: typi
 
 A `lineBlock` is one line, so Enter ends the block, as the quickstart showed. A `fencedBlock`'s text spans lines, so there Enter types a newline in the block's own line ending.
 
+A gap caret, the caret that stands between two blocks, sits wherever the caret can't reach your block's edge: on both sides of a `fencedBlock` and of a block drawn with `edit: 'source'`, and above an `edit: 'box'` block, whose Enter opens a paragraph below. A `lineBlock` whose text shows gets none, since Enter splits it at either end.
+
 **Commit semantics.** A commit parses the edited text and lands it the way the editor lands any edit, by what the parse gives back:
 
 ```

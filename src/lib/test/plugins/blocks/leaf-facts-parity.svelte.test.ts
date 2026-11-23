@@ -74,10 +74,7 @@ const TWINS: { kind: string; twin: BlockType<unknown>; differs?: Partial<Facts> 
 			sample: '[[toc]]',
 			insert: { none: 'a test block type' },
 			draw: source
-		}),
-		// The hand toc binds no keys, so its open text can't split; the twin's Enter splits at
-		// either end, which covers both edges.
-		differs: { gapEdges: 'none' }
+		})
 	}
 ];
 

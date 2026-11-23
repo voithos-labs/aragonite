@@ -258,6 +258,30 @@ test.describe('the bundled party parrot', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('a click just above the bird puts a gap caret there, and a letter opens a paragraph', async ({
+		page
+	}) => {
+		const box = (await editor.block.boundingBox())!;
+		await page.mouse.click(box.x + 40, box.y - 6);
+		await editor.bridge.waitForGapCaret({ parentPath: [], index: 0 });
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceEquals(`x
+
+${SEED}`);
+		expect(await activeBlockPath(page)).toEqual([0]);
+	});
+
+	test('ArrowUp from the start of the open source puts a gap caret above it', async ({ page }) => {
+		await editor.getBlock(1).click();
+		await page.keyboard.press(edgeKey('lineStart'));
+		await page.keyboard.press('ArrowUp');
+		await expect(editor.source).toBeVisible();
+		await page.keyboard.press(edgeKey('lineStart'));
+		await page.keyboard.press('ArrowUp');
+		await editor.bridge.waitForGapCaret({ parentPath: [], index: 0 });
+		expect(await editor.bridge.getSource()).toBe(SEED);
+	});
+
 	test('Enter at the end of the caption leaves a paragraph below, caret in it', async ({
 		page
 	}) => {
