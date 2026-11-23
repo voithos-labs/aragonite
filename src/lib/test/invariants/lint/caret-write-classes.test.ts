@@ -28,9 +28,9 @@ const CLASSED: Record<string, string> = {
 	[`${BLOCKS}editable/editable-surface.ts :: focusAtColumn`]:
 		'arrival: a vertical arrow from another line, its column scan floored at the arrival start',
 	[`${SEL}motion-keys.ts :: handleMotion`]:
-		'arrival: Home and Mod+Home stop at `arrivalFloor`; the character and word keys are steps',
+		'arrival: Home and Mod+Home stop at `arrivalFloor`, and a word key over a range starts from `leftEdgeArrival`; the character and word keys are steps',
 	[`${SEL}shared-keydown.ts :: collapseRangeForArrow`]:
-		'arrival: ArrowLeft over a range reaching past the arrival start lands there',
+		'arrival: ArrowLeft over a range whose start an arrival put before the arrival start lands there; a start steps left stays',
 	[`${SEL}keyboard-extend.ts :: moveByPage`]: 'arrival: a page step’s hit, floored',
 	[`${BLOCKS}text/widget-interaction.ts :: snapToPress`]:
 		'arrival: a click on the block, floored; beside a widget, the seat the press read',

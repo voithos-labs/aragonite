@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
-import { edgeKey, extendKey } from '../../platform-keys';
+import { edgeKey, extendKey, WORD_MODIFIER } from '../../platform-keys';
 import { multiClick } from '../../multi-click';
 import { skipUnlessSupported } from '../../browser-engine';
 import { textRunCenter, textRunStart } from '../../text-runs';
@@ -10,9 +10,10 @@ import { attachIme } from '../../simulation/ime';
 /**
  * Where a caret arriving on a `:::` container's opener row rests in live mode: at the title's
  * start (the row's end when untitled), for the arrivals that read `browser/offsets.ts ::
- * arrivalRawStart` (a landing from another line, Home, a click, ArrowLeft over a range, a page
- * step, a host's `navigateTo`). One row per route, then the routes left as they were: a step, a
- * selection, source mode, a restore, a `<details>` summary. Then the carets the browser leaves
+ * arrivalRawStart` (a landing from another line, Home, a click, a page step, a host's
+ * `navigateTo`). One row per route, then the routes left as they were: a step, source mode, a
+ * restore, a `<details>` summary. Then an arrow over a selection on the row, which ArrowLeft
+ * collapses by how its start got there: by steps, or by an arrival. Then the carets the browser leaves
  * (Tab, a script's `focus()`, a line step), which the caret writer moves unless they are steps.
  * Then the presses: a titled row shows its `:::name` when the press ends, so a click, a
  * double-click and a drag read the text where the user saw it. The requirement file lists the
@@ -170,32 +171,6 @@ const ARRIVALS: Row[] = [
 		caret: '[0,0]:10'
 	},
 	{
-		name: 'Shift+Home, then ArrowLeft',
-		source: T,
-		steps: [...arrowBack(2), { key: extendKey('lineStart') }, { key: 'ArrowLeft' }, { type: 'x' }],
-		caret: '[0,0]:8',
-		bytes: ':::tip xTitle\nbody\n:::\n'
-	},
-	{
-		name: 'Mod+A on the row, then ArrowLeft',
-		source: T,
-		steps: [...arrowBack(2), { key: 'ControlOrMeta+a' }, { key: 'ArrowLeft' }, { type: 'x' }],
-		caret: '[0,0]:8',
-		bytes: ':::tip xTitle\nbody\n:::\n'
-	},
-	{
-		name: 'a triple-click on the title, then ArrowLeft',
-		source: T,
-		steps: [{ at: [[0, 1], 2] }, { tripleClick: 'Title' }, { key: 'ArrowLeft' }],
-		caret: '[0,0]:7'
-	},
-	{
-		name: 'a Shift+click at the row left edge, then ArrowLeft',
-		source: T,
-		steps: [...arrowBack(2), { click: 'shift-left' }, { key: 'ArrowLeft' }],
-		caret: '[0,0]:7'
-	},
-	{
 		name: 'Mod+A twice, then ArrowLeft',
 		source: TWO,
 		steps: [...arrowBack(2), { key: 'ControlOrMeta+a', times: 2 }, { key: 'ArrowLeft' }],
@@ -230,24 +205,6 @@ const ARRIVALS: Row[] = [
 ];
 
 const LEFT_ALONE: Row[] = [
-	{
-		name: 'Shift+ArrowLeft from the title start, then ArrowLeft, stays in the name',
-		source: T,
-		steps: [...arrowBack(5), { key: 'Shift+ArrowLeft', times: 2 }, { key: 'ArrowLeft' }],
-		caret: '[0,0]:5'
-	},
-	{
-		name: 'Shift+ArrowLeft inside the name, then ArrowLeft, stays there',
-		source: T,
-		steps: [...arrowBack(7), { key: 'Shift+ArrowLeft', times: 2 }, { key: 'ArrowLeft' }],
-		caret: '[0,0]:3'
-	},
-	{
-		name: 'Shift+Home on an untitled row, then ArrowLeft',
-		source: U,
-		steps: [...arrowBack(0), { key: extendKey('lineStart') }, { key: 'ArrowLeft' }],
-		caret: '[0,0]:0'
-	},
 	{
 		name: 'source mode Shift+Home, then ArrowLeft',
 		source: T,
@@ -405,6 +362,240 @@ test.describe('the opener row gestures left as they were', () => {
 			await run(page, editor, row);
 			await expect.poll(() => caretText(page)).toBe(row.caret);
 			if (row.bytes) expect(await sourceOf(page)).toBe(row.bytes);
+		});
+	}
+});
+
+// ── An arrow over a selection on the row ─────────────────────────────────────
+
+/** A selection made on the row: ArrowLeft rests at `left`, and `x` then makes the row read `row`;
+ *  ArrowRight rests at `right`, its end. */
+interface Collapse {
+	name: string;
+	source: string;
+	steps: Step[];
+	left: number;
+	row: string;
+	right: number;
+}
+
+const ARRIVE: Step[] = [{ at: [[0, 1], 0] }, { key: 'ArrowUp' }];
+const shift = (key: string, times = 1): Step => ({ key: `Shift+${key}`, times });
+const HOME: Step = { key: extendKey('lineStart') };
+const ALL: Step = { key: 'ControlOrMeta+a' };
+const SHIFT_LEFT: Step = { click: 'shift-left' };
+
+const COLLAPSES: Collapse[] = [
+	{
+		name: 'Shift+ArrowLeft twice from the title start',
+		source: T,
+		steps: [...ARRIVE, shift('ArrowLeft', 2)],
+		left: 5,
+		row: ':::tixp Title',
+		right: 7
+	},
+	{
+		name: 'Shift+ArrowLeft five times from inside the title',
+		source: T,
+		steps: [...arrowBack(2), shift('ArrowLeft', 5)],
+		left: 5,
+		row: ':::tixp Title',
+		right: 10
+	},
+	{
+		name: 'Shift+ArrowRight four times from inside the name',
+		source: T,
+		steps: [...arrowBack(7), shift('ArrowRight', 4)],
+		left: 5,
+		row: ':::tixp Title',
+		right: 9
+	},
+	{
+		name: 'Shift+ArrowLeft twice from inside the name',
+		source: T,
+		steps: [...arrowBack(7), shift('ArrowLeft', 2)],
+		left: 3,
+		row: ':::xtip Title',
+		right: 5
+	},
+	{
+		name: 'Shift+Home from inside the title',
+		source: T,
+		steps: [...arrowBack(2), HOME],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 10
+	},
+	{
+		name: 'Shift+Home from the title start',
+		source: T,
+		steps: [...ARRIVE, HOME],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 7
+	},
+	{
+		name: 'Shift+Home from inside the name',
+		source: T,
+		steps: [...arrowBack(7), HOME],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 5
+	},
+	{
+		name: 'Mod+A from the title start',
+		source: T,
+		steps: [...ARRIVE, ALL],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 12
+	},
+	{
+		name: 'Mod+A from inside the name',
+		source: T,
+		steps: [...arrowBack(7), ALL],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 12
+	},
+	{
+		name: 'Mod+A, then Shift+ArrowLeft',
+		source: T,
+		steps: [...ARRIVE, ALL, shift('ArrowLeft')],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 11
+	},
+	{
+		name: 'a triple-click on the title from the body',
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { tripleClick: 'Title' }],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 12
+	},
+	{
+		name: 'a Shift+click at the row left edge from inside the title',
+		source: T,
+		steps: [...arrowBack(2), SHIFT_LEFT],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 10
+	},
+	{
+		name: 'a Shift+click at the row left edge from the title start',
+		source: T,
+		steps: [...ARRIVE, SHIFT_LEFT],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 7
+	},
+	{
+		name: 'a Shift+click at the row left edge from inside the name',
+		source: T,
+		steps: [...arrowBack(7), SHIFT_LEFT],
+		left: 7,
+		row: ':::tip xTitle',
+		right: 5
+	},
+	{
+		name: 'untitled, Shift+Home from the row end',
+		source: U,
+		steps: [...ARRIVE, HOME],
+		left: 6,
+		row: ':::tip x',
+		right: 6
+	},
+	{
+		name: 'untitled, Shift+Home from inside the name',
+		source: U,
+		steps: [...arrowBack(2), HOME],
+		left: 6,
+		row: ':::tip x',
+		right: 4
+	},
+	{
+		name: 'untitled, Mod+A',
+		source: U,
+		steps: [...ARRIVE, ALL],
+		left: 6,
+		row: ':::tip x',
+		right: 6
+	},
+	{
+		name: 'untitled, a triple-click on the name',
+		source: U,
+		steps: [...ARRIVE, { tripleClick: 'tip' }],
+		left: 6,
+		row: ':::tip x',
+		right: 6
+	},
+	{
+		name: 'untitled, a Shift+click at the row left edge',
+		source: U,
+		steps: [...ARRIVE, SHIFT_LEFT],
+		left: 6,
+		row: ':::tip x',
+		right: 6
+	},
+	{
+		name: 'untitled, Shift+ArrowLeft twice from the row end',
+		source: U,
+		steps: [...ARRIVE, shift('ArrowLeft', 2)],
+		left: 4,
+		row: ':::txip',
+		right: 6
+	},
+	{
+		name: 'untitled, Shift+ArrowRight twice from inside the name',
+		source: U,
+		steps: [...arrowBack(2), shift('ArrowRight', 2)],
+		left: 4,
+		row: ':::txip',
+		right: 6
+	}
+];
+
+/** A word step over a selection starts from where ArrowLeft would rest, so after an arrival it
+ *  steps from the title's start (the row's end when untitled) into the name, as from a caret. */
+const WORD_LEFT: Omit<Collapse, 'right'>[] = [
+	{ name: 'Mod+A', source: T, steps: [...ARRIVE, ALL], left: 3, row: ':::xtip Title' },
+	{
+		name: 'Shift+Home from the title start',
+		source: T,
+		steps: [...ARRIVE, HOME],
+		left: 3,
+		row: ':::xtip Title'
+	},
+	{ name: 'untitled, Mod+A', source: U, steps: [...ARRIVE, ALL], left: 3, row: ':::xtip' }
+];
+
+test.describe('a word step over a selection on a :::tip row in live mode', () => {
+	for (const row of WORD_LEFT) {
+		test(`${row.name}, then a word step left and x`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			const steps = [...row.steps, { key: `${WORD_MODIFIER}+ArrowLeft` }];
+			await run(page, editor, { name: row.name, source: row.source, steps, caret: '' });
+			await expect.poll(() => caretText(page)).toBe(`[0,0]:${row.left}`);
+			expect(await typeX(page, editor)).toBe(`${row.row}\nbody\n:::\n`);
+		});
+	}
+});
+
+test.describe('an arrow over a selection on a :::tip row in live mode', () => {
+	for (const row of COLLAPSES) {
+		const select: Row = { name: row.name, source: row.source, steps: row.steps, caret: '' };
+		test(`${row.name}, then ArrowLeft and x`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, { ...select, steps: [...row.steps, { key: 'ArrowLeft' }] });
+			await expect.poll(() => caretText(page)).toBe(`[0,0]:${row.left}`);
+			expect(await typeX(page, editor)).toBe(`${row.row}\nbody\n:::\n`);
+		});
+
+		test(`${row.name}, then ArrowRight`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, { ...select, steps: [...row.steps, { key: 'ArrowRight' }] });
+			await expect.poll(() => caretText(page)).toBe(`[0,0]:${row.right}`);
 		});
 	}
 });

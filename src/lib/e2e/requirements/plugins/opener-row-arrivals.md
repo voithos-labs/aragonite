@@ -1,6 +1,6 @@
 # Feature: where a caret arriving on a `:::` opener row rests in live mode
 
-While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed, so every byte of the line is a place a caret can sit. A caret put down on the line by a landing from another line, by Home, by a click, by ArrowLeft over a selection, by PageUp or by the host's `navigateTo` still rests where it would with the name hidden: at the title's start (byte 7 of `:::tip Title`), or at the row's end when the row has no title. A letter typed there goes into the title and the callout stays. ArrowLeft remains the way into the name and the colons.
+While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed, so every byte of the line is a place a caret can sit. A caret put down on the line by a landing from another line, by Home, by a click, by ArrowLeft over a selection an arrival began, by PageUp or by the host's `navigateTo` still rests where it would with the name hidden: at the title's start (byte 7 of `:::tip Title`), or at the row's end when the row has no title. A letter typed there goes into the title and the callout stays. ArrowLeft remains the way into the name and the colons.
 
 ## Happy paths
 
@@ -22,10 +22,6 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 - A right-click at an untitled row's left edge (the menu's caret, the menu then closed): the row's end.
 - A click at an untitled row's left edge: the row's end.
 - ArrowUp from a nested row whose column falls right of the outer title's start: the column is kept (`::::note Outer`, byte 10).
-- Shift+Home from inside the title, ArrowLeft, then `x`: the title's start, `:::tip xTitle`.
-- Mod+A on the row, ArrowLeft, then `x`: the title's start, `:::tip xTitle`.
-- A triple-click on the title, then ArrowLeft: the title's start.
-- A Shift+click at the row's left edge from inside the title, then ArrowLeft: the title's start.
 - Mod+A twice (the whole document), then ArrowLeft: the title's start. That range's collapse writes its caret before the row shows its name, so it landed there before the change too; the row pins the route.
 - PageUp twice from the body, then `x`: the title's start, `:::tip xTitle`.
 - PageUp held from far down a long page: the title's start.
@@ -34,9 +30,6 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 
 ## Left as they were
 
-- Shift+ArrowLeft twice from the title's start, then ArrowLeft: byte 5, in the name, where the selection began.
-- Shift+ArrowLeft twice from byte 5, then ArrowLeft: byte 3.
-- Shift+Home on an untitled row, then ArrowLeft: byte 0. The selection is the whole name and reaches no title, so it collapses where it begins, as one made by Shift+ArrowLeft does.
 - Source mode, Shift+Home, then ArrowLeft: byte 0.
 - The host's `navigateTo` on the row at offset 0: byte 0, the offset it named.
 - ArrowLeft from the title's start, seven presses: the caret walks through the name and the colons to byte 0.
@@ -49,6 +42,23 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 - Delete at byte 0, then undo: the bytes come back and the caret rests at the title's start, as before.
 - The host's `setSelection` at byte 4 of the row while the caret is on it: the caret is put exactly there.
 - A `<details>` summary, Home from inside it: the summary's start, byte 0, which is its title's start.
+
+## An arrow over a selection on the row
+
+ArrowLeft over a selection on the row rests where the selection starts when a caret stood there, or Shift+Arrow steps took its start there from where a caret stood. When Shift+Home, Mod+A or a press put its start before the title, it rests where an arrival would: the title's start, or the row's end with no title. Then `x`:
+
+- Shift+ArrowLeft twice from the title's start: byte 5, `:::tixp Title`.
+- Shift+ArrowLeft five times from inside the title (byte 10): byte 5, `:::tixp Title`. The selection's start crossed the title's start a step at a time, as ArrowLeft five times takes the caret there.
+- Shift+ArrowRight four times from byte 5: byte 5, `:::tixp Title`.
+- Shift+ArrowLeft twice from byte 5: byte 3, `:::xtip Title`.
+- Shift+Home from inside the title, from the title's start, and from byte 5: the title's start, `:::tip xTitle`.
+- Mod+A from the title's start and from byte 5, and Mod+A then Shift+ArrowLeft: the title's start.
+- A triple-click on the title from the body: the title's start.
+- A Shift+click at the row's left edge from inside the title, from the title's start, and from byte 5: the title's start.
+- An untitled `:::tip`, Shift+Home from the row's end or from byte 4, Mod+A, a triple-click on the name, or a Shift+click at the row's left edge: the row's end, and `x` writes `:::tip x`. ArrowLeft moves the caret right there, which keeps the callout.
+- An untitled `:::tip`, Shift+ArrowLeft twice from the row's end, or Shift+ArrowRight twice from byte 4: byte 4, `:::txip`.
+- ArrowRight over each of those selections: its end.
+- A word step left (Ctrl+ArrowLeft, Option on macOS) over Mod+A or Shift+Home from the title's start: from the title's start into the name, byte 3, `:::xtip Title`; over Mod+A on an untitled row, `:::xtip`.
 
 ## A caret the browser leaves on the row
 
@@ -95,3 +105,4 @@ A row with a title shows its `:::tip` when the press that focused it ends, so th
 - The padding press and the right-click ran on a titled row, where the browser lands at the title's start by itself, so neither row could fail with the rule removed. On an untitled row the rule decides both. Miss-analysis: each row was watched pass on the fix and never watched fail without it.
 - ArrowLeft over a selection of the row, a second PageUp at the top, and the host's `navigateTo` with no offset put the caret before the `:::`, and the next letter turned the callout into a paragraph. Each is a caret the editor writes itself, at an offset a key or a caller computed, and none read the rule. Miss-analysis: the arrival rows covered the carets the block's landing places, and no list said which other caret writes were arrivals, so three were never given a row.
 - Tab or Shift+Tab onto the row on Firefox and WebKit, the row's own `focus()` and ArrowUp inside a wrapped title left the caret at byte 0. The browser placed each one, and the caret writer passed over a caret it had not written only to fix a spot it never writes. Miss-analysis: the arrival rows ran on Chromium and through the editor's own landings; no row moved focus the way the browser does by itself.
+- ArrowLeft over a selection judged by its bytes alone: Shift+Home, Mod+A, a triple-click or a Shift+click on an untitled row rested at byte 0, where a letter turned the callout into a paragraph; from a titled row's start, Shift+Home or a Shift+click did the same; and a selection Shift+ArrowRight made from inside the name, or Shift+ArrowLeft from inside the title, rested at the title's start instead of its own start. Miss-analysis: every collapse row started from byte 10, inside the title, where the bytes rule and the arrival rule agree; no row started from the title's start, the name or an untitled row.

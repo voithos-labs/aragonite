@@ -17,7 +17,12 @@ import type { Reading } from '../schema/reading';
 import { extendFocusToNextBlock, extendFocusToPreviousBlock } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../caret/sticky-measure';
 import { reachableRawBounds } from '../browser/offsets';
-import { handleMotion, stepBesideWidget, type MotionKeyContext } from './motion-keys';
+import {
+	handleMotion,
+	leftEdgeArrival,
+	stepBesideWidget,
+	type MotionKeyContext
+} from './motion-keys';
 import { isAtFirstVisualLine, isAtLastVisualLine, lineHeightOf } from '../browser/visual-lines';
 import { caretEdgeKey, endsSelectAllRun, eventToChord, motionKey } from '../schema/keybindings';
 import { isDefaultGlobalChord } from '../schema/commands';
@@ -196,20 +201,13 @@ function collapseRangeForArrow(
 	if (!range || range.start === null || range.end === null) return false;
 	const at =
 		e.key === 'ArrowLeft'
-			? leftEdgeArrival(range.start, range.end, ctx)
+			? leftEdgeArrival(range.start, ctx, el)
 			: e.key === 'ArrowRight'
 				? range.end
 				: ctx.getFocusOffset();
 	if (at === null) return false;
 	// Reading mode declines the caret and drops the range, leaving the arrow at the block's edge.
 	return ctx.caretWriter.placeCaretAtRaw(el, at, { clamp: 'reachable' });
-}
-
-/** Where ArrowLeft collapses a range `[start, end]` to: a range reaching past the block's arrival
- *  start (a `:::` row's title start) lands there, and one wholly before it stays where it begins. */
-function leftEdgeArrival(start: number, end: number, ctx: SharedKeydownContext): number {
-	const floor = ctx.arrivalStart?.() ?? 0;
-	return end > floor ? Math.max(start, floor) : start;
 }
 
 /** ArrowDown with no caret in a block running past the editor's bottom edge scrolls one line

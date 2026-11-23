@@ -13,10 +13,12 @@ function paragraph(text: string): HTMLElement {
 	return el;
 }
 
-/** The writer's read and its record of a decided key, which leave the selection as it stood. */
+/** The writer's reads and its records of a key, which leave the selection as it stood. */
 type WriterRead =
 	| 'focusEndsLine'
 	| 'holdsWrittenCaret'
+	| 'noteStep'
+	| 'stepsLeftStartAt'
 	| 'noteDecidedMotion'
 	| 'checkDecidedMotion'
 	| 'forgetDecidedMotion';
@@ -70,6 +72,8 @@ describe('every caret writer method requests one paint', () => {
 		const read: WriterRead[] = [
 			'focusEndsLine',
 			'holdsWrittenCaret',
+			'noteStep',
+			'stepsLeftStartAt',
 			'noteDecidedMotion',
 			'checkDecidedMotion',
 			'forgetDecidedMotion'

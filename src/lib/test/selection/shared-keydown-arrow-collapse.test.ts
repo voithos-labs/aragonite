@@ -95,7 +95,7 @@ describe('handleSharedKeydown: a plain arrow over a range collapses it first', (
 	for (const { key, anchor, focus, at } of [
 		{ key: 'ArrowLeft', anchor: 5, focus: 1, at: 3 },
 		{ key: 'ArrowLeft', anchor: 0, focus: 6, at: 3 },
-		{ key: 'ArrowLeft', anchor: 3, focus: 1, at: 1 },
+		{ key: 'ArrowLeft', anchor: 3, focus: 1, at: 3 },
 		{ key: 'ArrowLeft', anchor: 6, focus: 4, at: 4 },
 		{ key: 'ArrowRight', anchor: 5, focus: 1, at: 5 },
 		{ key: 'ArrowDown', anchor: 5, focus: 1, at: 1 }
@@ -107,6 +107,14 @@ describe('handleSharedKeydown: a plain arrow over a range collapses it first', (
 			expect(h.read()).toEqual({ anchor: at, focus: at });
 		});
 	}
+
+	it('ArrowLeft rests at a start before the arrival start that steps left there', async () => {
+		const h = mount(3);
+		h.ctx.caretWriter = { ...testCaretWriter, stepsLeftStartAt: (_, start) => start === 1 };
+		h.select(5, 1);
+		await handleSharedKeydown(press('ArrowLeft'), h.ctx);
+		expect(h.read()).toEqual({ anchor: 1, focus: 1 });
+	});
 
 	// Option and Cmd arrows on macOS, and Ctrl and Alt arrows elsewhere, are motions of their own.
 	// Cmd+Up and Cmd+Down jump to the block's edge instead, which the edge-key rows cover.
