@@ -93,20 +93,29 @@ type AnyPlugin = EditorPlugin | ReturnType<typeof marked>;
 const mount = (plugin: AnyPlugin, source = SOURCE) =>
 	mountEditor({ source, plugins: [plugin] }) as MountedEditor<Seam>;
 
-const FORMS: { form: string; plugin: () => AnyPlugin }[] = [
-	{ form: 'a Svelte component', plugin: () => markerLeafPlugin(svelteBlockView(PlainLeafBlock)) },
-	{ form: 'draw', plugin: () => marked({ edit: 'text', draw: (_block, ctx) => badged(ctx) }) }
+// A component paints its text as one node; a `draw` gets the editor's marker drawn before it.
+const FORMS: { form: string; plugin: () => AnyPlugin; nodes: string[] }[] = [
+	{
+		form: 'a Svelte component',
+		plugin: () => markerLeafPlugin(svelteBlockView(PlainLeafBlock)),
+		nodes: ['@@ abcd']
+	},
+	{
+		form: 'draw',
+		plugin: () => marked({ edit: 'text', draw: (_block, ctx) => badged(ctx) }),
+		nodes: ['@@ ', 'abcd']
+	}
 ];
 
-describe.each(FORMS)('a plain text block drawn by $form', ({ plugin }) => {
-	it('is one editable text node holding the block’s text, as a textbox', async () => {
+describe.each(FORMS)('a plain text block drawn by $form', ({ plugin, nodes }) => {
+	it('is an editable element holding the block’s text, as a textbox', async () => {
 		const editor = mount(plugin());
 		await editor.settle();
 		const el = surfaceAt(editor, LEAF);
 		expect(el.getAttribute('contenteditable')).toBe('true');
 		expect(el.getAttribute('role')).toBe('textbox');
 		expect(el.textContent).toBe('@@ abcd');
-		expect(el.childNodes).toHaveLength(1);
+		expect([...el.childNodes].map((node) => node.textContent)).toEqual(nodes);
 		expect(blockContentElAt(editor.target, LEAF)).toBe(el);
 	});
 
@@ -374,7 +383,7 @@ describe('a drawn picture that opens its text (edit: source)', () => {
 		expect(shownSource(editor)).not.toBeNull();
 	});
 
-	it('paints its shown text through renderSource on every opening, its bytes kept', async () => {
+	it('paints its text through renderSource on every opening, the marker the editor’s', async () => {
 		const editor = mount(
 			picture({
 				renderSource: (text) => {
@@ -385,12 +394,20 @@ describe('a drawn picture that opens its text (edit: source)', () => {
 			})
 		);
 		await editor.settle();
+		const painted = () =>
+			[...shownSource(editor)!.children].map((el) => [el.className, el.textContent]);
 		await click(editor);
-		expect(shownSource(editor)?.querySelector('span')?.textContent).toBe('@@ abcd');
+		expect(painted()).toEqual([
+			['md-marker', '@@ '],
+			['', 'abcd']
+		]);
 		shownSource(editor)!.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
 		await editor.settle();
 		await click(editor);
-		expect(shownSource(editor)?.querySelector('span')?.textContent).toBe('@@ abcd');
+		expect(painted()).toEqual([
+			['md-marker', '@@ '],
+			['', 'abcd']
+		]);
 	});
 
 	// The edit the text still held lands as a step of its own first, which the undo takes back.

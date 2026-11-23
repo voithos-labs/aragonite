@@ -107,7 +107,7 @@ export type LeafDraw<D> =
 	| ({
 			edit?: 'text' | 'source';
 			/** Paints the block's text as DOM (highlight tokens through `paint`), its `textContent`
-			 *  staying `text`; a fenced block's is its body, the editor drawing its fence lines. */
+			 *  staying `text`; the editor draws a line's marker or a fence's lines around it. */
 			renderSource?(text: string, paint: CodePainter): Node;
 			/** The text as the block type keeps it, asked on show and after each edit, with the caret
 			 *  carried; an added line takes `lineEnding`. Null keeps it. */
@@ -296,6 +296,14 @@ export function lineShape(spec: LineBlockSpec<unknown>, priority: number) {
 					return at ? { start: at[0], end: at[1] } : { start: text.length, end: text.length };
 				}
 			: null,
+		/** Where the text sits in a shown line: all of a line the type doesn't read, none of one
+		 *  with no text of its own. */
+		textIn(line: string): { start: number; end: number } {
+			const read = wholeLine(line);
+			if (!read) return { start: 0, end: line.length };
+			const at = read.text ?? [line.length, line.length];
+			return { start: at[0], end: at[1] };
+		},
 		/** Lines a completion wrote: exactly one, matched whole. */
 		claims: (lines: readonly string[]) => lines.length === 1 && wholeLine(lines[0]) !== null,
 		opener(kind: PluginBlockKind): BlockOpener {

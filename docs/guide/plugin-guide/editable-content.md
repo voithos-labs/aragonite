@@ -83,7 +83,7 @@ const label = lineBlock({
 });
 ```
 
-**A painted source.** A `fencedBlock`'s fence lines are the editor's: it draws them as the code block draws its own, dimmed, and hidden in the modes that hide markers. By default the body between them is one text node. Give the spec a `renderSource(body, paint)` and it paints the body as DOM instead: highlight tokens, whatever your block draws. `paint.code(body, language)` highlights with whatever highlighter the editor lists, and paints plain without one. The editor checks `textContent === body` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
+**A painted source.** A `lineBlock`'s marker and a `fencedBlock`'s fence lines are the editor's: it draws them dimmed, as the built-in blocks draw theirs, and hides them in the modes that hide markers. By default the text inside them (a line block's `text` group, a fenced block's body) is one text node. Give the spec a `renderSource(text, paint)` and it paints that text as DOM instead: highlight tokens, whatever your block draws. `paint.code(body, language)` highlights with whatever highlighter the editor lists, and paints plain without one. The editor checks `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
 
 The fence lines come with two shapes the shown text keeps while it's edited. A closed block with no body line gets an empty one, for the caret to sit on once the fence lines hide. A line break typed into a one-line block's text (a fence with `oneLine`) puts its fences on lines of their own at once:
 

@@ -49,14 +49,18 @@ class ParrotPage extends PluginsPage {
 		});
 	}
 
-	/** The collapsed caret's offset in the open source's single text node, or null. */
+	/** The collapsed caret's offset in the open source's text, its marker included, or null. */
 	async sourceCaretOffset(): Promise<number | null> {
 		return this.page.evaluate(() => {
 			const el = document.querySelector('.parrot-source');
 			const selection = window.getSelection();
 			if (!el || !selection || selection.rangeCount === 0) return null;
 			const range = selection.getRangeAt(0);
-			return el.contains(range.startContainer) ? range.startOffset : null;
+			if (!el.contains(range.startContainer)) return null;
+			const before = document.createRange();
+			before.setStart(el, 0);
+			before.setEnd(range.startContainer, range.startOffset);
+			return before.toString().length;
 		});
 	}
 

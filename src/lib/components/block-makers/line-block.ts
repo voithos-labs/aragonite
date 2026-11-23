@@ -13,14 +13,26 @@ import {
 } from '../../schema/block-shapes';
 import { textBlockView } from '../blocks/text/text-block-view';
 
-// The line handed to the type's painting whole.
-const WHOLE_LINE: SourceFrame = {
-	wrap(text, paintText) {
-		const frag = document.createDocumentFragment();
-		frag.append(paintText(text));
-		return frag;
-	}
-};
+// The line's marker drawn dimmed on each side of its text, as a text block draws its own.
+function lineMarker(shape: ReturnType<typeof lineShape>): SourceFrame {
+	return {
+		wrap(text, paintText) {
+			const { start, end } = shape.textIn(text);
+			const frag = document.createDocumentFragment();
+			if (start > 0) frag.append(markerSpan(text.slice(0, start)));
+			frag.append(paintText(text.slice(start, end)));
+			if (end < text.length) frag.append(markerSpan(text.slice(end)));
+			return frag;
+		}
+	};
+}
+
+function markerSpan(text: string): HTMLSpanElement {
+	const span = document.createElement('span');
+	span.className = 'md-marker';
+	span.textContent = text;
+	return span;
+}
 
 /** Makes a one-line block type; what it claims is the line it matched, so its bytes can't be wrong. */
 export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
@@ -29,7 +41,7 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 	const shape = lineShape(spec as LineBlockSpec<unknown>, priority);
 	// With no `draw`, the line is the editor's own text block, its marker dimmed.
 	const drawing = spec.draw
-		? framedDrawing(spec as LineBlockSpec<unknown>, () => type, true, WHOLE_LINE)
+		? framedDrawing(spec as LineBlockSpec<unknown>, () => type, true, lineMarker(shape))
 		: null;
 	const type: BlockType<D> = madeBlockType<D>({
 		local: spec.name,
