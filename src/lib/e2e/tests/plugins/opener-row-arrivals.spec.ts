@@ -411,7 +411,7 @@ test.describe('a press on a :::tip row not showing its name', () => {
 		await expect.poll(() => markerDisplay(page)).toBe('inline');
 	});
 
-	test('a press on an untitled row shows its name at once, and through a first letter', async ({
+	test('a press on an untitled row shows its name at once, until a first letter', async ({
 		page
 	}) => {
 		await loadWithCaretInBody(page, U, [0, 1]);
@@ -425,7 +425,24 @@ test.describe('a press on a :::tip row not showing its name', () => {
 		await page.keyboard.press(edgeKey('lineEnd'));
 		await page.keyboard.type(' T');
 		await expect.poll(() => sourceOf(page)).toBe(':::tip T\nbody\n:::\n');
-		expect(await markerDisplay(page)).toBe('inline');
+		// A titled row waits for the release, this one included.
+		await expect.poll(() => markerDisplay(page)).toBe('none');
+		await page.mouse.up();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+	});
+
+	test('a held press on a titled row shows its name once the title is gone', async ({ page }) => {
+		await loadWithCaretInBody(page, ':::tip T\nbody\n:::\n', [0, 1]);
+		const at = await before(page, 'T');
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		expect(await markerDisplay(page)).toBe('none');
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.press('Backspace');
+		await page.keyboard.press('Backspace');
+		await expect.poll(() => sourceOf(page)).toBe(U);
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
 		await page.mouse.up();
 		expect(await markerDisplay(page)).toBe('inline');
 	});

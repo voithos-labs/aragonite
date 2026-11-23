@@ -67,7 +67,7 @@ const WIDGET_ATTR = 'data-inline-widget';
 export const CONTENT_EMPTY_ATTR = 'data-content-empty';
 
 /** Set on the editable element of a row that shows its source while the caret is in it (a `:::`
- *  container's opener line); read by this walk and `styles/editor.css` like the attribute above. */
+ *  container's opener line); `chromeStampPaints` says when, mirrored in `styles/editor.css`. */
 export const SOURCE_AT_CARET_ATTR = 'data-source-at-caret';
 
 /** The class the preview-inline reveal trigger sets and this walk's hiding rule reads, defined

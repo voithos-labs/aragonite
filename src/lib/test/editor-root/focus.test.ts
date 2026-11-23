@@ -268,12 +268,14 @@ describe('editor-root focus attribution: a row that shows its source at the care
 		expect(e.marked()).toEqual([]);
 	});
 
-	it('a press that focuses an untitled row marks it at once', () => {
-		const e = editor('live');
+	it('a press that focuses an untitled row leaves the block it left marked until the release', () => {
+		const e = editor('preview-block');
 		asRow(e.second.leaf, true);
 		e.focusIn(e.first.leaf);
 		press('pointerdown', e.second.leaf);
 		e.focusIn(e.second.leaf);
+		expect(e.marked()).toEqual([e.first.el]);
+		press('pointerup', e.second.leaf);
 		expect(e.marked()).toEqual([e.second.el]);
 	});
 });

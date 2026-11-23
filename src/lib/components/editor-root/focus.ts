@@ -38,15 +38,13 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	let pressHeld = false;
 	// Whether focus sits on a row that shows its source at the caret, which live mode marks too.
 	let onSourceRow = false;
-	// A row of bare markers shows them at the press, as its `:focus-within` rule does.
-	let showsAtPress = false;
 	let readAttr: string | null = null;
 	let readPath: number[] | null = null;
 
 	// Never in source or reading, whose DOM stays byte-identical; a held press keeps the prior
 	// paint so markers can't move the text the caret is about to land in.
 	function applyFocusedAttr(): void {
-		if (pressHeld && !showsAtPress) return;
+		if (pressHeld) return;
 		const marks = isPreviewMode(deps.mode) || (deps.mode === 'live' && onSourceRow);
 		const next = marks ? focusedHostEl : null;
 		if (paintedHostEl !== next) {
@@ -98,9 +96,7 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 				clear();
 				return;
 			}
-			const row = e.target instanceof Element && e.target.hasAttribute(SOURCE_AT_CARET_ATTR);
-			onSourceRow = row;
-			showsAtPress = row && (e.target as Element).hasAttribute(CONTENT_EMPTY_ATTR);
+			onSourceRow = e.target instanceof Element && e.target.hasAttribute(SOURCE_AT_CARET_ATTR);
 			setFocusedHost(host as HTMLElement);
 			// Every way of placing a caret focuses its editable element, whoever wrote the code,
 			// so a consumer's own caret placement is checked here too (G1.33).

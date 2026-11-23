@@ -48,7 +48,8 @@ A row with a title shows its `:::tip` when the press that focused it ends, so th
 - A drag leftward past the row's edge: it stops at the title's start (14..7).
 - The button held down on a title letter: the marker paints nothing; released, it paints.
 - ArrowUp onto the row: the marker paints at once.
-- A press on an untitled row: the marker paints while the button is down, and stays painted when End and ` T` give the row a title before the release.
+- A press on an untitled row: the marker paints while the button is down. When End and ` T` give the row a title before the release, it paints nothing until the release, as a titled row does.
+- The button held down on a `:::tip T` row, then End and two Backspaces: the marker paints nothing until the title is gone, then paints, through the release.
 - An untitled row reached by ArrowUp, then ` T`, then two Backspaces: the marker stays painted as the title gains its first letter and loses its last.
 - A tap at the start of a title word: the caret rests there (byte 13), and `x` writes `:::tip Title xwords`.
 - A double tap on a title word: that word. Not on desktop WebKit, which sends two taps as two single clicks.
