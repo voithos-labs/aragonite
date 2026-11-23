@@ -129,8 +129,9 @@ more${TAIL}`,
 		[1, 0],
 		{ gesture: { type: "'" } }
 	),
+	// Inside the name: at a held name's end a letter starts the title instead.
 	'a letter that renames a nested admonition': row('::::note\n:::tip\n:::\n::::\n', [0, 1, 0], {
-		from: 6
+		from: 5
 	}),
 	'CRLF line endings': row('x\r\n:::tip\r\nner\r\n:::\r\n\r\n# h\r\n', [1, 0]),
 	'a soft key': row(UNDER_PARAGRAPH, [1, 0], { gesture: { type: 'x', by: 'soft key' } }),
