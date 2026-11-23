@@ -5,9 +5,10 @@ import { edgeKey, extendKey } from '../../platform-keys';
 
 /**
  * Where a caret arriving on a `:::` container's opener row rests in live mode: at the title's
- * start (the row's end when untitled), never before or between the colons, whatever put it down
- * (`browser/offsets.ts :: arrivalRawStart`). One row per arrival route, then the routes left as
- * they were: a step, a selection, source mode, a restore, a `<details>` summary.
+ * start (the row's end when untitled), for the arrivals that read `browser/offsets.ts ::
+ * arrivalRawStart` (a landing from another line, Home, a click). One row per route, then the
+ * routes left as they were: a step, a selection, source mode, a restore, a `<details>` summary.
+ * The requirement file lists the arrivals the rule does not reach.
  */
 
 const T = ':::tip Title\nbody\n:::\n';
@@ -127,16 +128,16 @@ const ARRIVALS: Row[] = [
 		caret: '[0,0]:7'
 	},
 	{
-		name: 'a press in the row top padding',
-		source: T,
+		name: 'a press in an untitled row top padding',
+		source: U,
 		steps: [{ at: [[0, 1], 2] }, { click: 'padding' }],
-		caret: '[0,0]:7'
+		caret: '[0,0]:6'
 	},
 	{
-		name: 'a right-click at the row left edge',
-		source: T,
+		name: 'a right-click at an untitled row left edge',
+		source: U,
 		steps: [{ at: [[0, 1], 2] }, { click: 'right-click' }, { key: 'Escape' }],
-		caret: '[0,0]:7'
+		caret: '[0,0]:6'
 	},
 	{
 		name: 'a click at an untitled row left edge',
@@ -188,6 +189,20 @@ const LEFT_ALONE: Row[] = [
 		mode: 'source',
 		steps: [{ at: [[0, 1], 3] }, { key: 'ArrowUp' }],
 		caret: '[0,0]:0'
+	},
+	{
+		name: 'source mode click at the row left edge',
+		source: T,
+		mode: 'source',
+		steps: [{ at: [[0, 1], 2] }, { click: 'left' }],
+		caret: '[0,0]:0'
+	},
+	{
+		name: 'source mode ArrowRight from the end of the line above',
+		source: ABOVE,
+		mode: 'source',
+		steps: [{ at: [[0], 5] }, { key: 'ArrowRight' }],
+		caret: '[1,0]:0'
 	},
 	{
 		name: 'a switch from source with the caret before the colons',

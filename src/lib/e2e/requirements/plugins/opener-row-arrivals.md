@@ -1,6 +1,6 @@
 # Feature: where a caret arriving on a `:::` opener row rests in live mode
 
-While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed, so every byte of the line is a place a caret can sit. A caret put down on the line from elsewhere still rests where it would with the name hidden: at the title's start (byte 7 of `:::tip Title`), or at the row's end when the row has no title. A letter typed there goes into the title and the callout stays. ArrowLeft remains the way into the name and the colons.
+While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed, so every byte of the line is a place a caret can sit. A caret put down on the line by a landing from another line, by Home or by a click still rests where it would with the name hidden: at the title's start (byte 7 of `:::tip Title`), or at the row's end when the row has no title. A letter typed there goes into the title and the callout stays. ArrowLeft remains the way into the name and the colons.
 
 ## Happy paths
 
@@ -18,8 +18,8 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 - A click at the row's left edge from the body, then `x`: the title's start, `:::tip xTitle`.
 - A click at the row's left edge with the caret already on the row: the title's start.
 - A click at the block's far left edge (the margin, not the text): the title's start.
-- A press in the row's top padding: the title's start.
-- A right-click at the row's left edge (the menu's caret, the menu then closed): the title's start.
+- A press in an untitled row's top padding: the row's end.
+- A right-click at an untitled row's left edge (the menu's caret, the menu then closed): the row's end.
 - A click at an untitled row's left edge: the row's end.
 - ArrowUp from a nested row whose column falls right of the outer title's start: the column is kept (`::::note Outer`, byte 10).
 
@@ -29,6 +29,8 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 - End, Shift+Home, then `Q`: the row reads `:::tip Q` and the callout stays.
 - Source mode, Home from the title: byte 0, where source mode's row is text like a heading's `#`.
 - Source mode, ArrowUp from the body: byte 0.
+- Source mode, a click at the row's left edge: byte 0.
+- Source mode, ArrowRight from the end of the line above: byte 0.
 - A switch from source mode with the caret at byte 0: the caret rests at the title's start in live mode, as before.
 - Delete at byte 0, then undo: the bytes come back and the caret rests at the title's start, as before.
 - The host's `setSelection` at byte 4 of the row while the caret is on it: the caret is put exactly there.
@@ -37,3 +39,15 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 ## Regressions
 
 - Home in a callout's title, ArrowUp from its body, or a click at its row's left edge put the caret before the `:::` in live mode, and the next letter turned the callout into a paragraph. Miss-analysis: every arrival spec landed on prose or a heading, whose markers live mode hides at the caret; the one row that shows its markers at the caret had no arrival row at all.
+- The padding press and the right-click ran on a titled row, where the browser lands at the title's start by itself, so neither row could fail with the rule removed. On an untitled row the rule decides both. Miss-analysis: each row was watched pass on the fix and never watched fail without it.
+
+## Limits
+
+The rule reaches a caret through the block's landing, Home and the click. These put a caret (or a range's edge) before the title's start in live mode and are not held:
+
+- A double-click or a drag that starts on a row not yet showing its `:::name`: the row shows it under the pointer, the text moves right, and the press reads the colons.
+- A range collapsed by ArrowLeft (after Shift+Home, Mod+A on the row or a triple-click).
+- PageUp with the caret already on the row.
+- Tab or Shift+Tab moving focus onto the row.
+- ArrowUp inside a title that wraps, onto its first line.
+- The host's `navigateTo` with no offset.
