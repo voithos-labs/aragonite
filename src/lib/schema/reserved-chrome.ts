@@ -112,18 +112,11 @@ function withoutTrailingSpaces(text: string): string {
 }
 
 /** The write rule every title row takes by its position, after its kind's own: the row's text on
- *  {@link oneLine}, ending as the row ends, so the row never runs into the line below. */
+ *  {@link oneLine} (its last break dropped), then the row's own ending back on. */
 export const titleRowWrite: WriteRule = {
-	normalize: (raw, ctx) =>
-		oneLine(withoutOwnEnding(raw, ctx.node)).text + ownTrailingLineEnding(ctx.node.raw),
-	mapOffset: (raw, offset, ctx) => oneLine(withoutOwnEnding(raw, ctx.node)).at(offset)
+	normalize: (raw, ctx) => oneLine(raw).text + ownTrailingLineEnding(ctx.node.raw),
+	mapOffset: (raw, offset) => oneLine(raw).at(offset)
 };
-
-/** `raw` less the row's own line ending, where it still ends with it. */
-function withoutOwnEnding(raw: string, row: NodeView): string {
-	const own = ownTrailingLineEnding(row.raw);
-	return own && raw.endsWith(own) ? raw.slice(0, -own.length) : raw;
-}
 
 /** True only when the kind declares an `isCollapsed` check and that check reports it collapsed. */
 export function isCollapsedContainer(node: NodeView): boolean {
