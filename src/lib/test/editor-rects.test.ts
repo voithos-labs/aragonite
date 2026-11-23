@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorRects } from '../editor-rects';
+import { CURSOR_START } from '../block-component';
 import type { PlaceOptions } from '../windowing/scroll-owner';
 import { headless } from '#lib/testing.js';
 import { caretRectAt } from '../browser/visual-lines';
@@ -67,10 +68,11 @@ describe('EditorRects.scrollTo', () => {
 });
 
 describe('EditorRects.navigateTo', () => {
-	it('lands the caret at the target through the restore path', async () => {
+	// With no offset the landing gets the start code, which a `:::` row resolves to its title's start.
+	it('lands the caret at the target, at its arrival start', async () => {
 		const { rects, landCaretAt } = makeRects();
 		expect(await rects.navigateTo([4, 1])).toBe(true);
-		expect(landCaretAt).toHaveBeenCalledWith([4, 1], 0);
+		expect(landCaretAt).toHaveBeenCalledWith([4, 1], CURSOR_START);
 	});
 
 	it('carries an offset to the landing, for a caller aiming past the block start', async () => {
@@ -85,7 +87,7 @@ describe('EditorRects.navigateTo', () => {
 		const done = rects.navigateTo(path);
 		path[1] = 7;
 		await done;
-		expect(landCaretAt).toHaveBeenCalledWith([4, 1], 0);
+		expect(landCaretAt).toHaveBeenCalledWith([4, 1], CURSOR_START);
 	});
 });
 

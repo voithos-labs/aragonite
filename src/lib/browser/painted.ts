@@ -67,8 +67,12 @@ const WIDGET_ATTR = 'data-inline-widget';
 export const CONTENT_EMPTY_ATTR = 'data-content-empty';
 
 /** Set on the editable element of a row that shows its source while the caret is in it (a `:::`
- *  container's opener line); read by this walk and `styles/editor.css` like the attribute above. */
+ *  container's opener line); `chromeStampPaints` says when, mirrored in `styles/editor.css`. */
 export const SOURCE_AT_CARET_ATTR = 'data-source-at-caret';
+
+/** Set on the editor root while a primary press is held (`components/editor-root/focus.ts`), so a
+ *  row the press focuses keeps the paint the press began with until the release. */
+export const PRESS_HELD_ATTR = 'data-press-held';
 
 /** The class the preview-inline reveal trigger sets and this walk's hiding rule reads, defined
  *  once so the two sides cannot drift. */
@@ -132,17 +136,29 @@ export function screenVisibilityOf(container: ParentNode | null): VisibilityCont
 	);
 }
 
-/** The stylesheet's condition for painting an empty construct's or a source-at-caret row's markers:
- *  the attribute plus focus inside, read by containment because jsdom lacks `:focus-within`. */
+/** Whether `row` is a source-at-caret row whose source the mode hides right now: a press that
+ *  focuses it shows the source when it ends, which moves the row's text. */
+export function hidesRowSource(row: Element): boolean {
+	return (
+		row.hasAttribute(SOURCE_AT_CARET_ATTR) &&
+		markerHidingMode(row) !== null &&
+		!chromeStampPaints(row)
+	);
+}
+
+/** The stylesheet's condition for painting bare markers, focus read by containment: focus inside an
+ *  empty construct; for a titled source row, its host's `data-focused` or focus with no press held. */
 function chromeStampPaints(container: Element): boolean {
-	if (
-		!container.hasAttribute(CONTENT_EMPTY_ATTR) &&
-		!container.hasAttribute(SOURCE_AT_CARET_ATTR)
-	) {
-		return false;
-	}
 	const active = container.ownerDocument.activeElement;
-	return active !== null && container.contains(active);
+	const focused = active !== null && container.contains(active);
+	if (container.hasAttribute(CONTENT_EMPTY_ATTR)) return focused;
+	if (!container.hasAttribute(SOURCE_AT_CARET_ATTR)) return false;
+	// Focus can come before its `focusin` (WebKit fires it after a landing's own write), and the
+	// host's mark waits for that event.
+	return (
+		container.closest(FOCUSED_HOST_SELECTOR) !== null ||
+		(focused && container.closest(`[${PRESS_HELD_ATTR}]`) === null)
+	);
 }
 
 /** A `<br>` that gives the caret a line nothing else paints, adding no text. `role` tells the walks

@@ -52,6 +52,8 @@ import { checkWidgetCaretLanding } from '../../../invariants/widget-caret-landin
 import { checkMotionLeftWidget } from '../../../invariants/selected-widget-motion';
 import type { RevealFold } from '../editable/surface-clipboard';
 import { hasModifier, surfaceHoldsRange } from './click-snap-guard';
+import { hidesRowSource } from '../../../browser/painted';
+import { spanAround } from '../../../selection/multi-click';
 import { selectedWidgetKeeps } from './selected-widget-keys';
 import { caretEdgeKey, pageKey, typesCharacter } from '../../../schema/keybindings';
 import { elementAtPoint } from '../../../browser/point';
@@ -455,6 +457,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		/** What the press means at a hidden edge, for a press that doesn't travel. */
 		side: ClickSide;
 		edgeSeat: WidgetEdgeSeat | null;
+		/** The press went down on a row not yet showing its source, which the release shows. */
+		showsSourceOnRelease: boolean;
 	}
 
 	function readPress(el: HTMLElement, x: number, y: number): PressReading {
@@ -463,7 +467,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			reveal: hit && { inline: hit.inline, seat: seatFromPoint(el, hit.inline, x, y) },
 			onShownSource: pointOnShownSource(el, x, y),
 			side: clickSide(el, x, y, false),
-			edgeSeat: nearestWidgetEdgeSeat(measuredWidgets(el), x, y)
+			edgeSeat: nearestWidgetEdgeSeat(measuredWidgets(el), x, y),
+			showsSourceOnRelease: hidesRowSource(el)
 		};
 	}
 
@@ -496,6 +501,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// Selecting the whole token belongs to the double-click that opened the source, and nothing
 	// in the second click's own shape tells it apart from a later one inside that source.
 	let revealOpenedByLastClick = false;
+	// Where the first click of a run landed on a row whose source its release showed.
+	let rowShownAt: number | null = null;
 
 	// Closing the current source writes nothing, so the offsets the press read still hold after.
 	function revealFromPress(el: HTMLElement, reveal: NonNullable<PressReading['reveal']>): void {
@@ -796,7 +803,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const clickCount = press.clickCount ?? 1;
 		// Every double-click starts with a single click, so that first click is where the flag
 		// is set and any flag left over from an earlier gesture is cleared.
-		if (clickCount === 1) revealOpenedByLastClick = false;
+		if (clickCount === 1) {
+			revealOpenedByLastClick = false;
+			rowShownAt = null;
+		}
 		const el = deps.getEl();
 		if (!el || !reading) return;
 		// A third click selects the block (`selection/multi-click.ts`), and showing a source under
@@ -812,14 +822,22 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// The first click of a double-click showed the source, and the browser's word rule would take
 		// `[` or `$` alone, so the second click selects the whole token.
 		if (clickCount === 2 && revealOpenedByLastClick && selectShownSource(el, reading)) return;
+		// The first click's release showed the row's source and moved its text under the pointer, so
+		// the second click takes the word where the first landed.
+		if (clickCount === 2 && rowShownAt !== null) {
+			const word = spanAround(el, 'word', rowShownAt);
+			if (word && deps.caretWriter.selectRawRange(el, word.start, word.end)) return;
+		}
 		// The snap below places a caret, so it does nothing while this block shows a selected
 		// range, which it would collapse; `clampOutOfMarkerPrefix` already holds that rule.
 		if (surfaceHoldsRange(el)) return;
-		const floor = arrivalRawStart(el, deps.node);
-		if (floor > 0 && (deps.cursor.getRaw() ?? floor) < floor) {
-			deps.cursor.setRaw(asRawOffset(floor), { clamp: 'reachable' });
-			return;
+		const floor = arrivalRawStart(el);
+		const below = floor > 0 && (deps.cursor.getRaw() ?? floor) < floor;
+		if (below) deps.cursor.setRaw(asRawOffset(floor), { clamp: 'reachable' });
+		if (clickCount === 1 && reading.showsSourceOnRelease && !press.moved) {
+			rowShownAt = deps.cursor.getRaw();
 		}
+		if (below) return;
 		const side = press.moved ? null : reading.side;
 		if (side === 'fresh') deps.caretMemory.noteOutside();
 		else if (side) deps.pinChipSide(side === 'chip-inside' ? 'inside' : 'outside');

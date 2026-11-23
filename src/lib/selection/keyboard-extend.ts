@@ -12,6 +12,7 @@ import {
 	applySingleBlockRange
 } from './native-bridge';
 import { readNativeSelection } from '../browser/selection-read';
+import { arrivalRawStart } from '../browser/offsets';
 import type { CaretWriter } from '../browser/caret-writer';
 import { pageTarget, type PageStepContext } from './page-step';
 import { lineEdgeOffset } from '../browser/visual-lines';
@@ -207,7 +208,7 @@ export function moveByPage(
 	direction: 'up' | 'down'
 ): Promise<void> {
 	return queuePageStep(ctx, async (from) => {
-		const target = (await pageTarget(ctx, from, direction)) ?? from;
+		const target = pageArrival(ctx, (await pageTarget(ctx, from, direction)) ?? from);
 		// The landing forgets the caret memory, and with it the column the next page key aims at.
 		const column = ctx.caretMemory.column();
 		ctx.selection.collapse();
@@ -215,6 +216,12 @@ export function moveByPage(
 		await ctx.caretLanding.restore({ anchor: target, focus: target }, { reveal: 'into-view' });
 		if (column !== null) ctx.caretMemory.captureColumn(column);
 	});
+}
+
+/** A page step's hit is an arrival, so on a `:::` row it rests no earlier than the title's start. */
+function pageArrival(ctx: PageExtendContext, hit: SelectionPoint): SelectionPoint {
+	const el = ctx.getBlockElByPath(hit.path);
+	return el ? { ...hit, offset: Math.max(hit.offset, arrivalRawStart(el)) } : hit;
 }
 
 /** Runs `step` from the moving end once the step before it is done, the end shown first: a wheel

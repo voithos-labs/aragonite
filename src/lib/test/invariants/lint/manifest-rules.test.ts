@@ -141,6 +141,7 @@ const HIDING_SELECTORS = [
 	'data-construct-',
 	'data-presentation',
 	'data-focused',
+	'data-press-held',
 	'data-content-empty'
 ];
 const QUOTE = '[\'"`]';

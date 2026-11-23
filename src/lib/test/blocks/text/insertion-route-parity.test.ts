@@ -9,14 +9,19 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	mountWithCaret,
-	placeCaret
+	placeCaret,
+	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import {
 	INSERTION_ROUTES,
 	TEXT_HOSTS,
 	dispatchBeforeInput,
-	insertBy
+	insertBy,
+	type InsertionRoute
 } from '#lib/test/harness/insertion-routes.js';
+import { COLON_LINES, definePlugin, registerDirective, type CstNode } from '#lib/plugin.js';
+import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -61,3 +66,57 @@ describe.each(TEXT_HOSTS)(
 		});
 	}
 );
+
+// A `notes` box beside the admonitions' `note`, so one name the editor holds starts another.
+const notesBox = definePlugin({
+	name: 'spec-notes-box',
+	setup() {
+		const kind = testLeaf('spec-notes-box', {
+			mergeRole: 'container',
+			container: { lines: COLON_LINES }
+		});
+		registerDirective('container', 'notes', {
+			kind,
+			fromDirective: (parsed) =>
+				({
+					kind,
+					leadingTrivia: parsed.leadingTrivia,
+					raw: parsed.raw,
+					innerPrefix: parsed.body?.prefix ?? '',
+					children: parsed.body?.children ?? [],
+					innerSuffix: parsed.body?.suffix ?? ''
+				}) as CstNode
+		});
+	}
+});
+
+// A paste the browser inserts with no paste event reads back as typed text, so it types.
+const PASTES: readonly InsertionRoute[] = ['paste'];
+
+/** [what is put in, the row it lands on, the row a typing route writes, the row a paste writes] */
+const NAME_END: [string, string, string, string, string][] = [
+	['a letter at a name the editor holds', ':::tip', 'x', ':::tip x', ':::tip x'],
+	// The exceptions, each by the rule that makes it.
+	['a letter at a name the editor does not hold', ':::foo', 'x', ':::foox', ':::foo x'],
+	['a character no name holds', ':::tip', '!', ':::tip!', ':::tip !'],
+	['a letter that continues to another held name', ':::note', 's', ':::notes', ':::note s']
+];
+
+// Text lengthening a held `:::name` at an untitled row's end starts the title on every route.
+// Miss-analysis: routes were compared at prose's edges only, never at a name's end, where they part.
+describe.each(INSERTION_ROUTES)('text at an untitled row’s name end, by %s', (route) => {
+	for (const [name, row, text, typed, pasted] of NAME_END)
+		it(name, async () => {
+			const source = `${row}\nin\n:::\n`;
+			const editor = mountEditor({ source, plugins: [...SYNTAX_PLUGINS, notesBox] });
+			await editor.settle();
+			placeCaret(surfaceAt(editor, [0, 0]), row.length);
+			await editor.settle();
+
+			await insertBy(route, document.activeElement as HTMLElement, text);
+			await editor.settle();
+
+			const line = PASTES.includes(route) ? pasted : typed;
+			expect(editor.source()).toBe(`${line}\nin\n:::\n`);
+		});
+});

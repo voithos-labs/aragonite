@@ -29,8 +29,8 @@ export function hidesMarkers(mode: PresentationMode): boolean {
 	return mode !== 'source';
 }
 
-/** The modes that show markers back in a focused block, the only ones needing `data-focused`;
- *  live hides markers and never shows them back. */
+/** The modes that show markers back in a focused block, which they mark `data-focused`; live
+ *  shows none back but a row's own source at the caret (`browser/painted.ts`). */
 export function isPreviewMode(mode: PresentationMode): boolean {
 	return mode === 'preview-block' || mode === 'preview-inline';
 }

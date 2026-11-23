@@ -71,7 +71,7 @@ export function withEnterCompletion(
 			if (!completion) return refusedWrite();
 			// A line that closes an opener waiting above finishes that block and opens none.
 			const lines = displayLines(text).map((line) => line.text);
-			const above = (i: number) => childAt(i)?.raw ?? '';
+			const above = (i: number) => childAt(i)!;
 			if (waitingAboveClosedBy(lines, above, index, unfinishedReadings(grammar)) >= 0) {
 				return refusedWrite();
 			}

@@ -187,13 +187,21 @@ const BOTH_MODES: Row[] = [
 		['Backspace'],
 		'<details>\n<summary>Sumx</summary>\n\n[[toc]]\n\n</details>\n\nalpha\n'
 	],
-	// Controls: a caret the user puts on syntax types there.
+	// Controls: a caret the user puts on syntax types there, and a letter at a held name's end
+	// starts the title.
 	[
 		'a caret placed at a row’s name end',
 		':::tip\nin\n:::\n',
 		{ path: [0, 0], offset: 6 },
 		[],
-		':::tipx\nin\n:::\n'
+		':::tip x\nin\n:::\n'
+	],
+	[
+		'a caret placed at an unknown row’s name end',
+		':::foo\nin\n:::\n',
+		{ path: [0, 0], offset: 6 },
+		[],
+		':::foox\nin\n:::\n'
 	],
 	[
 		'Backspace at a titled callout body’s start lands at its title’s end',

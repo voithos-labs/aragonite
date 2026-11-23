@@ -22,7 +22,7 @@ export function rereadUnfinished(work: Work, from: number, count: number, host: 
 
 function lookUp(work: Work, from: number, count: number, host: Host): boolean {
 	const written = work.blocks.slice(from, from + count).flatMap(lines);
-	const top = host.waitingAboveClosedBy(written, (i) => work.blocks.at(i).raw, from);
+	const top = host.waitingAboveClosedBy(written, (i) => work.blocks.at(i), from);
 	return top >= 0 && reread(work, top, from + count - 1, host) !== null;
 }
 
@@ -35,9 +35,7 @@ function lookDown(
 ): void {
 	for (let i = from; i < to && i < work.blocks.length; i++) {
 		// A wait no line closes is `settleWaits`'s, which reads as far as it runs and no further.
-		const waiting = readings.flatMap((reading) =>
-			reading.closer !== null && reading.notFinal(work.blocks.at(i).raw) ? [reading] : []
-		);
+		const waiting = host.closedWaitsOf(work.blocks.at(i), readings);
 		if (waiting.length === 0) continue;
 		let toEnd = false;
 		const closes = (k: number) =>

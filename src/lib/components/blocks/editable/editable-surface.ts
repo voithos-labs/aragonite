@@ -459,7 +459,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		unitContext: (caret) => deps.unitContext?.(caret) ?? null,
 		arrivalStart: () => {
 			const el = deps.getEl();
-			return el ? arrivalRawStart(el, deps.getNode()) : 0;
+			return el ? arrivalRawStart(el) : 0;
 		},
 		getMyPath: deps.getMyPath,
 		getIndex: deps.getIndex,
@@ -491,8 +491,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			deps.backend.setRaw(asRawOffset(0), { clamp: 'exact' });
 			return;
 		}
-		const requested =
-			landed === CURSOR_START ? arrivalRawStart(el, deps.getNode()) : Math.max(0, landed);
+		const requested = landed === CURSOR_START ? arrivalRawStart(el) : Math.max(0, landed);
 		deps.landCaret(requested, 'reachable');
 	}
 
@@ -505,7 +504,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		el.focus({ preventScroll: true });
 		const within = deps.columnWindow?.();
 		// The default floor keeps the scan out of the container's marker prefix and a row's marker.
-		const min = walkOffsetOfRaw(el, within?.start ?? arrivalRawStart(el, deps.getNode()));
+		const min = walkOffsetOfRaw(el, within?.start ?? arrivalRawStart(el));
 		const max = within ? walkOffsetOfRaw(el, within.end) : undefined;
 		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);
 		deps.backend.setRaw(rawOfWalkOffset(el, walkOffset), { clamp: 'exact' });
@@ -647,6 +646,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getNode: deps.getNode,
 		getIndex: deps.getIndex,
 		getPath: deps.getMyPath,
+		getDoc: deps.getDoc,
 		blockEdit,
 		kindCue: deps.kindCue,
 		getPreEditOffset: () => preEditOffset,

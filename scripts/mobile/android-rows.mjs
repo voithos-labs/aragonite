@@ -29,6 +29,13 @@ const PAST_EDGE = 40;
 // range empties whole.
 const TIGHT_END = 'alpha beta\n\n```\ncode\n```\nomega\n';
 const EMPTIED_END = 'alpha beta\n\n```\ncode\n```\n\n';
+// A callout under a lead line, on the page with plugins: its title row shows `:::tip ` once the
+// caret is on it, which moves the title.
+const CALLOUT = 'lead line\n\n:::tip Title words\nbody\n:::\n';
+const CALLOUT_URL = HARNESS_URL.replace('/test/editor', '/test/plugins?seed=admonitions');
+const CALLOUT_ROW = [1, 0];
+// `words` in the row's bytes.
+const TITLE_WORD = [13, 18];
 
 // ── Rows ──────────────────────────
 
@@ -192,6 +199,25 @@ export const rows = {
 		const nodes = menuNodes(ctx, 'cells-menus');
 		const reasons = ownedWordReasons(pressed.after, 1, nodes, [1, 0, 0]);
 		return { reasons, evidence: { ...pressed, nodes } };
+	},
+
+	"a long press on a callout's title takes the word pressed": async (ctx) => {
+		await ctx.fresh(CALLOUT, CALLOUT_URL);
+		const toScreen = await screenMap(ctx, 0);
+		const word = await ctx.page.evaluate(TITLE_WORD_POINT);
+		const press = toScreen(word.x, word.y);
+		const pressed = await pressReport(ctx, 'callout-press', () =>
+			ctx.device.swipe(press.x, press.y, press.x, press.y, 1500)
+		);
+		const { editor } = pressed.after;
+		const ends = editor ? [editor.anchor, editor.focus] : [];
+		const inRow = ends.length === 2 && ends.every((end) => json(end.path) === json(CALLOUT_ROW));
+		const offsets = ends.map((end) => end.offset).sort((a, b) => a - b);
+		const reasons = [];
+		if (!inRow || json(offsets) !== json(TITLE_WORD))
+			reasons.push(`the long press left ${json(editor)}, not \`words\` in the title row`);
+		if ((await source(ctx)) !== CALLOUT) reasons.push('the long press changed the bytes');
+		return { reasons, evidence: pressed };
 	},
 
 	'the cell menu button deletes a row': async (ctx) => {
@@ -444,6 +470,17 @@ const cellPoint = (row, col) => `(() => {
 	const cell = document.querySelectorAll('[role="table"] [data-table-row-idx="${row}"] > :is([role="cell"], [role="columnheader"])')[${col}];
 	const r = cell.getBoundingClientRect();
 	return { x: r.left + 24, y: (r.top + r.bottom) / 2 };
+})()`;
+
+// The middle of the `r` in the callout title's `words`, in page coordinates.
+const TITLE_WORD_POINT = `(() => {
+	const row = document.querySelector('[data-block-path="${JSON.stringify(CALLOUT_ROW)}"] [contenteditable="true"]');
+	const title = [...row.childNodes].find((n) => n.nodeType === 3 && n.data.includes('words'));
+	const range = document.createRange();
+	range.setStart(title, title.data.indexOf('words') + 2);
+	range.setEnd(title, title.data.indexOf('words') + 3);
+	const r = range.getBoundingClientRect();
+	return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 };
 })()`;
 
 // The centre of the open menu's row labelled `label`, in page coordinates, and whether it's enabled.

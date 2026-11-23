@@ -54,8 +54,22 @@
 		.directive-block
 		> :global(
 			.block-list
+				> [data-block-kind='directiveOpenerLine']:not([data-focused])
+				.directive-opener-line:not([data-content-empty]):not(:focus-within)::before
+		),
+	:global(.editor[data-presentation][data-press-held])
+		.directive-block
+		> :global(
+			.block-list
+				> [data-block-kind='directiveOpenerLine']:not([data-focused])
+				.directive-opener-line:not([data-content-empty])::before
+		),
+	:global(.editor[data-presentation])
+		.directive-block
+		> :global(
+			.block-list
 				> [data-block-kind='directiveOpenerLine']
-				.directive-opener-line:not(:focus-within)::before
+				.directive-opener-line[data-content-empty]:not(:focus-within)::before
 		) {
 		content: var(--md-directive-marker);
 		opacity: var(--syntax-marker-dim, 0.65);

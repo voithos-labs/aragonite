@@ -3,7 +3,7 @@ import { svelteBlockView } from '../../svelte-block-view';
 import TextEditableBlock from './TextEditableBlock.svelte';
 
 /** The editor's own plain editable text block as a view, the one paragraphs and raw kinds use;
- *  `blockClass` lands on its element, and `sourceAtCaret` shows its markers while focused. */
+ *  `blockClass` lands on its element, and `sourceAtCaret` shows its markers while the caret is in it. */
 export function textBlockView(
 	opts: { blockClass?: string; sourceAtCaret?: boolean } = {}
 ): BlockView {

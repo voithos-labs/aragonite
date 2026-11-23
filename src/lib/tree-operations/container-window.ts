@@ -367,8 +367,8 @@ export function waitsInto(
 	at: number,
 	readings: readonly GrammarReading[]
 ): boolean {
-	const { raw, leadingTrivia } = blocks[at];
-	const opening = { raw: raw.slice(0, raw.indexOf('\n') + 1 || raw.length), leadingTrivia };
+	const { raw, leadingTrivia, kind } = blocks[at];
+	const opening = { raw: raw.slice(0, raw.indexOf('\n') + 1 || raw.length), leadingTrivia, kind };
 	return waitingAboveThrough((i) => (i === at ? opening : blocks[i]), at, 0, readings) >= 0;
 }
 
