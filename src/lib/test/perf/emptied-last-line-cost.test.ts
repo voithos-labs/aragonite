@@ -14,18 +14,20 @@ import { startWork } from '#lib/tree-operations/fix-up/work.js';
 const quote = () => parse('> zz\n>\n> ab').children[0];
 const bullet = () => parse('- ab').children[0].children![0];
 
-/** The step over `owner`'s body with its last block's bytes set to `last`: how often it asked the
- *  host for a kind's traits, and the bytes it left that block. */
+/** The step over `owner`'s body after a write of `last` into its last block: how often it asked
+ *  the host for a kind's traits, and the bytes it left that block. */
 function stepOver(owner: CstNode, last: string): { asks: number; raw: string } {
-	const children = owner.children!.map((child, i, all) =>
-		i === all.length - 1 ? { ...child, raw: last } : child
+	const index = owner.children!.length - 1;
+	const children = owner.children!.map((child, i) =>
+		i === index ? { ...child, raw: last } : child
 	);
 	const real = editorHost(defaultGrammarView);
 	let asks = 0;
 	const host: Host = { ...real, kindTraits: (kind) => (asks++, real.kindTraits(kind)) };
 	const work = startWork({ owner, children, lineEnding: '\n' }, {});
-	endEmptiedLastLine(work, host);
-	return { asks, raw: work.blocks.at(children.length - 1).raw };
+	const written = { index, previous: owner.children![index], text: last };
+	endEmptiedLastLine(work, { span: null, written }, host);
+	return { asks, raw: work.blocks.at(index).raw };
 }
 
 describe('ending an emptied last line asks the host only once a paragraph stands emptied', () => {

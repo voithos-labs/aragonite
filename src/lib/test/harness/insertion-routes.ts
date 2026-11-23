@@ -78,6 +78,18 @@ export async function pressHardwareKey(
  *  nor `beforeinput`, the browser's own removal and its `input`, which jsdom doesn't perform. */
 export async function deleteBy(el: HTMLElement, key: 'Backspace' | 'Delete'): Promise<void> {
 	if ((await pressHardwareKey(el, { key })) !== 'browser') return;
+	await browserDelete(el, key);
+}
+
+/** A soft keyboard's Backspace: `beforeinput` with no keydown, then the browser's own removal
+ *  where the editor leaves it. */
+export async function softBackspace(el: HTMLElement): Promise<void> {
+	const before = dispatchBeforeInput(el, 'deleteContentBackward');
+	await settleEditor();
+	if (!before.defaultPrevented) await browserDelete(el, 'Backspace');
+}
+
+async function browserDelete(el: HTMLElement, key: 'Backspace' | 'Delete'): Promise<void> {
 	const range = window.getSelection()!.getRangeAt(0);
 	if (range.collapsed && key === 'Backspace')
 		range.setStart(range.startContainer, range.startOffset - 1);

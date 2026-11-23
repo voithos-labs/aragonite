@@ -139,7 +139,8 @@ function edited(
 		return { source, caret: { at: to, holds: 'text' }, clipboard, own };
 	}
 	if (gesture === 'place') return placeAnswer(doc, range);
-	if (typeof gesture === 'string') return answer(removalEdit(doc, from, to, gesture));
+	if (typeof gesture === 'string')
+		return answer(atOpenEnd(doc, range, (read) => removalEdit(read, from, to, gesture)));
 	// A line ending landing on a last line that has none lands as on one that has, then the break
 	// comes back off unless the line left last is blank (`syntax-tree.md` § The last line).
 	const reclosed = (at: number, text: string): RangeEditResult | null => {
@@ -159,7 +160,8 @@ function edited(
 				: { ...result, source: result.source + ending };
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
-		if (back) return answer(back);
+		// A cut that left a blank last line its ending keeps it when the cut bytes go back.
+		if (back) return keepLastEnding(answer(back));
 		const onClosed = reclosed(to, gesture.paste);
 		if (onClosed) return onClosed;
 		// A clipboard that carries the editor's own entry is the editor's own bytes, and a key's text
@@ -495,7 +497,32 @@ export function removalOf(
 	host: RangeHost
 ): RemovalAnswer {
 	const doc = readDoc(source, host, mode);
-	return answerOf(removalEdit(doc, range.from, range.to, gesture), gesture, doc, range);
+	const removed = atOpenEnd(doc, range, (read) => removalEdit(read, range.from, range.to, gesture));
+	return answerOf(removed, gesture, doc, range);
+}
+
+/** A removal over a range reaching an open end: what `remove` leaves in the bytes given a final line
+ *  break, less that break unless the line left last is blank (`syntax-tree.md` § The last line). */
+function atOpenEnd(doc: Doc, range: Range, remove: (doc: Doc) => Removal): Removal {
+	const { source, ending, host, mode } = doc;
+	const reaches = !ownTrailingLineEnding(source) && !source.includes('\n', range.to);
+	if (!reaches) return remove(doc);
+	const closed = remove({ ...doc, ...readDoc(source + ending, host, mode), ending });
+	// An emptied document has no last line to keep.
+	if (isBlankText(closed.source) || !closed.source.endsWith(ending)) return remove(doc);
+	const body = closed.source.slice(0, -ending.length);
+	// A line that holds a container's marker or indent gives the break back, as it always has.
+	if (body.endsWith('\n')) return closed;
+	const within = (at: number | undefined) => (at === undefined ? at : Math.min(at, body.length));
+	return {
+		...closed,
+		source: body,
+		caret: Math.min(closed.caret, body.length),
+		after: within(closed.after),
+		took: within(closed.took),
+		// A caret that stood past the break stands past the last block still, never in its text.
+		...(closed.caret > body.length && { pastEnd: true })
+	};
 }
 
 /** A removal's answer, and where the block the range started in stood when it went whole, read on
@@ -653,7 +680,8 @@ export function copyRange(
 /** What a removal of `[from, to)` takes, as a copy and a cut both write it; a range holding no text
  *  that it takes nothing from (a hidden fence, markers alone) copies blank lines at most. */
 function taken(doc: Doc, from: number, to: number) {
-	const removed = removeLeavingBlank(doc, from, to);
+	// The removal a cut makes, so its own entry fits the bytes the cut leaves.
+	const removed = atOpenEnd(doc, { from, to }, (read) => removeLeavingBlank(read, from, to));
 	const copy = copyOf(doc, from, to);
 	const copies = removed.source !== doc.source || isBlankText(copy) || holdsText(doc, from, to);
 	return { removed, clipboard: copies ? copy : '', own: ownEntry(doc.source, from, to, removed) };
@@ -695,6 +723,8 @@ function caretOf(
 					? startAfter(result, at, after)
 					: (beside === 'gap above' && gapBefore(result, at)) || firstPlace(result, at);
 	if (side) return side;
+	// Past the final break every container had ended, so the gap is the document's own.
+	if (edit.pastEnd) return edit.parent ? boundary() : { at, holds: 'boundary', parent: [] };
 	let text = at;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
 	while (text > lineStart && !result.layout.pointAt(text)) text--;
