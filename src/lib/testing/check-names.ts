@@ -162,7 +162,11 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 	},
 	mergeBackspace: {
 		excusable: true,
-		contract: { block: promise('Backspace merges into your block only as its `role` says') }
+		contract: {
+			block: promise(
+				'Backspace merges into your block only as its `role`, or a container’s `joins`, says'
+			)
+		}
 	},
 	clipboard: { excusable: true, contract: kind('clipboard') },
 	undo: { excusable: true, contract: kind('undo') },
@@ -191,7 +195,7 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		excusable: true,
 		contract: {
 			block: promise(
-				'typing your first line’s marker above a block keeps the caret on a line it can type in'
+				'typing your sample’s first line above a block, a character at a time, keeps the caret on a line it can type in'
 			)
 		}
 	},
