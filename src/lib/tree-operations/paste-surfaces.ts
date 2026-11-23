@@ -5,7 +5,7 @@
 
 import { isBuiltinBlockKind, type AnyBlockKind, type Document } from '../core/nodes';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
-import type { PastedClip } from './paste/paste-rewrites';
+import type { RewrittenClip } from './paste/paste-rewrites';
 import type { PluginActivation } from '../schema/plugin-activation';
 import type { Reading } from '../schema/reading';
 import { createBlockKindRegistry } from '../schema/plugin-kind';
@@ -17,7 +17,7 @@ import { createBlockKindRegistry } from '../schema/plugin-kind';
 export interface ClipPasteInput {
 	doc: Document;
 	targetPath: number[];
-	clip: PastedClip;
+	clip: RewrittenClip;
 	cells: { top: number; left: number; rows: number; cols: number } | null;
 	controller: PasteCommitCoordinator;
 	reading: Reading;

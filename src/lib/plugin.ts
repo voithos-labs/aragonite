@@ -420,9 +420,10 @@ export type {
 export { createScanIndex } from './scan-index';
 
 // ── Paste transforms (pre-freeze) ────────────────────────────────────────────
-// A plugin value's rewrite of pasted blocks by type, where a paste lands as blocks.
-export { blockRewrite } from './schema/paste-rewrite';
-export type { BlockRewrite } from './schema/paste-rewrite';
+// A plugin value's rewrites of a paste: of the whole paste before it lands, and of pasted blocks by
+// type where it lands as blocks.
+export { blockRewrite, pasteRewrite } from './schema/paste-rewrite';
+export type { BlockRewrite, PasteRewrite } from './schema/paste-rewrite';
 // A `setup` plugin's pre-parse clipboard rewrite: inspect the raw pasted text, replace it or
 // decline (null). Transforms run in install order after the rewrites, never on load or typing.
 export { registerPasteTransform } from './tree-operations/paste/paste-transforms';

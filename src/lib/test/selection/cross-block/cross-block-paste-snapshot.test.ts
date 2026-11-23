@@ -30,7 +30,7 @@ describe('the commits of a paste over a range across blocks', () => {
 				await makeHandlers(env, anchor).pasteOverRange({
 					text: clip,
 					plain: false,
-					asksRewrites: true
+					asksRewrites: 'blocks'
 				});
 
 				expect(serialize(env.doc)).not.toBe(source);

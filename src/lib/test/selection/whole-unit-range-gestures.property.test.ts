@@ -74,7 +74,7 @@ async function applyGesture(
 	if (gesture === 'printable') {
 		await handlers.handleBeforeInput(makeBeforeInputEvent(TYPED));
 	} else if (gesture === 'paste') {
-		await handlers.pasteOverRange({ text: PASTED, plain: false, asksRewrites: true });
+		await handlers.pasteOverRange({ text: PASTED, plain: false, asksRewrites: 'blocks' });
 	} else {
 		const event = {
 			preventDefault: () => {},

@@ -25,7 +25,12 @@ export function activationWith(...highlighters: { name: string; code: CodeHighli
 		report,
 		blocksAround: () => ({ blocks: [] }),
 		blockOf: (node) => DETACHED_READING.blockOf(node, null),
-		clipboardBlocks: () => (node) => DETACHED_READING.blockOf(node, null)
+		clipboardRead: () => ({
+			doc: () => {
+				throw new Error('no clipboard is read here');
+			},
+			blockOf: (node) => DETACHED_READING.blockOf(node, null)
+		})
 	});
 	const plugins = highlighters.map(({ name, code }) =>
 		definePlugin({ name, version: '1.0.0', editor: '*', contributes: () => ({ code }) })

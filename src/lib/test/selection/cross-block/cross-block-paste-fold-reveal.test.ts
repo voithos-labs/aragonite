@@ -12,7 +12,7 @@ describe('cross-block paste: a fold above the pasted bytes', () => {
 		const handlers = makeHandlers(env, [1]);
 
 		selectAcross(env.selectionState, [1], [2], 1);
-		await handlers.pasteOverRange({ text: 'x', plain: false, asksRewrites: true });
+		await handlers.pasteOverRange({ text: 'x', plain: false, asksRewrites: 'blocks' });
 
 		expect(serialize(env.doc)).toBe('a\nxkk\n');
 		expect(env.doc.children).toHaveLength(1);

@@ -27,7 +27,11 @@ import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { createImagePasteArm } from '../paste-image-arm';
-import type { PastedClip } from '../../tree-operations/paste/paste-rewrites';
+import {
+	wholeRewritten,
+	type PastedClip,
+	type RewrittenClip
+} from '../../tree-operations/paste/paste-rewrites';
 
 export interface RootPasteDeps {
 	/** A getter, never a value: the root binds after construction. */
@@ -36,7 +40,7 @@ export interface RootPasteDeps {
 	/** What the paste reads and commits through; its controller is the editor's own. */
 	context: PasteContext;
 	/** Pastes over the range the editor holds (`CrossBlockHandlers.pasteOverRange`). */
-	pasteOverRange(clip: PastedClip): Promise<boolean>;
+	pasteOverRange(clip: RewrittenClip): Promise<boolean>;
 	/** Makes an empty top-level paragraph at `boundary`. */
 	insertParagraph(boundary: number, text: string): Promise<boolean>;
 	getBlockComponent(path: number[]): BlockComponent | null;
@@ -64,6 +68,9 @@ export interface RootPaste {
 	 *  null with nowhere to aim. */
 	aim(): AimedPaste | null;
 }
+
+/** An aimed paste past the whole-paste rewrites, which have read its clip. */
+type Landing = (clip: RewrittenClip) => Promise<boolean>;
 
 /** Where a paste goes, before the block is asked anything. */
 type Holder =
@@ -123,12 +130,23 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		return deps.getBlockElByPath(holder.path)?.contains(target) ? holder : null;
 	}
 
-	/** `holder` read into a paste, or null where the editor takes no write. A paste event's block
-	 *  is asked `now`, before anything waits; a menu's once its clipboard has arrived. */
+	/** The clip as the whole-paste rewrites leave it, read before anything reads where it lands. */
+	const rewritten = (clip: PastedClip) =>
+		wholeRewritten(clip, ctx.activePlugins, ctx.reading.grammar);
+
+	/** `holder` read into a paste, or null where the editor takes no write; the whole-paste
+	 *  rewrites read the clip before the paste lands. */
 	function aimAt(holder: Holder, now: boolean): AimedPaste | null {
+		const land = landingAt(holder, now);
+		return land && ((clip) => land(rewritten(clip)));
+	}
+
+	/** `holder` read into a landing. A paste event's block is asked `now`, before anything waits; a
+	 *  menu's once its clipboard has arrived. */
+	function landingAt(holder: Holder, now: boolean): Landing | null {
 		if (!ctx.controller.admitsGesture(null)) return null;
 		const madeFor = deps.stamps.current();
-		const live = (land: AimedPaste): AimedPaste => {
+		const live = (land: Landing): Landing => {
 			return async (clip) => !!clip.text && madeFor.live && (await land(clip)) && madeFor.live;
 		};
 		switch (holder.at) {
@@ -164,14 +182,14 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 
 	/** A paste at a place between blocks, whose undo puts the caret back on the block at `beside`.
 	 *  It lands in blocks of its own, so no block's step spends it. */
-	function atPlace(aim: PasteAim, beside: number[]): AimedPaste {
+	function atPlace(aim: PasteAim, beside: number[]): Landing {
 		const undo = { path: docPathFrom(beside), offset: 0 };
 		return (clip) => pasteThroughCore(ctx, aim, clip, undo, null);
 	}
 
 	/** The paste into a paragraph opened under top-level block `top`, both one undo entry: the
 	 *  clipboard lands there as on any empty line, so a list beside a list of its type joins it. */
-	async function below(top: number, clip: PastedClip): Promise<boolean> {
+	async function below(top: number, clip: RewrittenClip): Promise<boolean> {
 		const madeFor = deps.stamps.current();
 		const opened = docPathFrom([top + 1]);
 		let landed = false;
@@ -189,7 +207,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		path: number[],
 		block: BlockComponent,
 		answer: PreparedPaste | null,
-		clip: PastedClip
+		clip: RewrittenClip
 	): Promise<boolean> {
 		if (!answer) return false;
 		const { start, end } = answer;
@@ -214,13 +232,14 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		const images = imageArm.filesOf(clip.files);
 		if (images.length === 0) return void (await aimed(clip));
 		const madeFor = deps.stamps.current();
-		const markdown = scriptedClip(await imageArm.run(images), true);
+		const answered = scriptedClip(await imageArm.run(images), true);
+		const markdown = rewritten(answered);
 		const overRange = !!markdown.text && madeFor.live && deps.selection.ownsRange;
 		// The aim is still asked, with nothing, so a block it prepared lets its records go.
 		const landed = overRange
 			? !(await aimed(scriptedClip('', true))) && (await deps.pasteOverRange(markdown))
 			: await aimed(markdown);
-		if (landed || !markdown.text) return;
+		if (landed || !answered.text) return;
 		// The asset is imported and nothing shows it, which only the host can clean up.
 		emitClipboardError(deps.events, {
 			error: new Error('an imported image had nowhere to land; nothing inserted')
@@ -245,8 +264,10 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 			if (!options?.below || here)
 				return (holder && aimAt(holder, true)?.(clip)) ?? Promise.resolve(false);
 			const block = blockAt(active);
-			const lands = block?.at === 'block' && !!clip.text && ctx.controller.admitsGesture(null);
-			return lands ? below(block.path[0], clip) : Promise.resolve(false);
+			if (block?.at !== 'block' || !clip.text || !ctx.controller.admitsGesture(null))
+				return Promise.resolve(false);
+			const taken = rewritten(clip);
+			return taken.text ? below(block.path[0], taken) : Promise.resolve(false);
 		},
 		aim() {
 			const holder = holderAt(document.activeElement);

@@ -32,7 +32,11 @@ import type { Reading } from '../../schema/reading';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { getPasteSurface, type ClipPasteInput } from '../../tree-operations/paste-surfaces';
 import { splicedBytes } from '../../tree-operations/spliced-openers';
-import { rewrittenPaste, type PastedClip } from '../../tree-operations/paste/paste-rewrites';
+import {
+	rewrittenPaste,
+	type PastedClip,
+	type RewrittenClip
+} from '../../tree-operations/paste/paste-rewrites';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretLanding } from '../caret-landing';
 import {
@@ -75,7 +79,7 @@ export interface BlockSpan {
 export async function pasteInBlock(
 	ctx: PasteContext,
 	span: BlockSpan,
-	clip: PastedClip,
+	clip: RewrittenClip,
 	undo: CommitSnapshotArg,
 	spend: SpendInsertion | null
 ): Promise<boolean> {
@@ -87,7 +91,7 @@ export async function pasteInBlock(
 }
 
 /** `clip` as the kind of the text block at `path` takes text in. */
-function takenBy(ctx: PasteContext, path: readonly number[], clip: PastedClip): PastedClip {
+function takenBy(ctx: PasteContext, path: readonly number[], clip: RewrittenClip): RewrittenClip {
 	const node = blockNodeAt(ctx.getDoc(), path);
 	const text = node && getPasteSurface(node.kind, ctx.activePlugins)?.pastedText?.(clip.text);
 	return text === undefined || text === null ? clip : { ...clip, text };
@@ -98,7 +102,7 @@ function takenBy(ctx: PasteContext, path: readonly number[], clip: PastedClip): 
 export async function answeredAhead(
 	ctx: PasteContext,
 	path: readonly number[],
-	clip: PastedClip,
+	clip: RewrittenClip,
 	cells: ClipPasteInput['cells']
 ): Promise<boolean> {
 	const doc = ctx.getDoc();
@@ -132,7 +136,7 @@ export function rewrittenClip(
 export async function pasteThroughCore(
 	ctx: PasteContext,
 	aim: PasteAim,
-	clip: PastedClip,
+	clip: RewrittenClip,
 	undo: CommitSnapshotArg,
 	spend: SpendInsertion | null
 ): Promise<boolean> {
@@ -156,7 +160,7 @@ function pasteAnswer(
 	ctx: PasteContext,
 	doc: CurrentDocument,
 	place: PastePlace,
-	clip: PastedClip,
+	clip: RewrittenClip,
 	spend: SpendInsertion | null
 ): RangeEditResult | null {
 	let emptied = false;

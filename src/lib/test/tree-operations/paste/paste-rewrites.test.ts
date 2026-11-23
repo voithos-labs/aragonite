@@ -31,7 +31,7 @@ function listing(...rewrites: [kind: string, into: (node: NodeView) => string | 
 			rewrite: { from: { name: kind, label: kind }, into }
 		})),
 		// The rewrites here read the node itself.
-		clipboardBlocks: () => (node: NodeView) => node,
+		clipboardRead: () => ({ blockOf: (node: NodeView) => node, doc: () => null }),
 		answer
 	};
 	return {

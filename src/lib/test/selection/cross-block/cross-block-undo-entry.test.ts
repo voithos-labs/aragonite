@@ -51,7 +51,7 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 			const handlers = makeHandlers(env, [0]);
 
 			if (gesture === 'paste')
-				await handlers.pasteOverRange({ text: 'X', plain: false, asksRewrites: true });
+				await handlers.pasteOverRange({ text: 'X', plain: false, asksRewrites: 'blocks' });
 			else await handlers.handleBeforeInput(makeBeforeInputEvent('X'));
 
 			expect(serialize(env.doc)).not.toBe(SOURCE);

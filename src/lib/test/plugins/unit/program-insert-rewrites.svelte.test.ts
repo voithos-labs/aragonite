@@ -9,6 +9,7 @@ import {
 	builtin,
 	definePlugin,
 	menu,
+	pasteRewrite,
 	registerPasteTransform,
 	blockRewrite,
 	type EditorPlugin,
@@ -63,6 +64,25 @@ const byType = definePlugin({
 	})
 });
 
+// A plugin value's whole-paste rewrite: every quote line of the paste becomes REWRITTEN.
+const whole = definePlugin({
+	name: 'program-insert-whole',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		pasteRewrites: [
+			pasteRewrite({
+				name: 'quotes',
+				sample: '> q',
+				into: ({ text }) => {
+					asked.push(text);
+					return /^> /m.test(text) ? text.replace(/^> .*$/gm, 'REWRITTEN') : null;
+				}
+			})
+		]
+	})
+});
+
 let onPick: (pick: MenuPick) => unknown = () => undefined;
 
 // A `/` menu with one row, listed in every mount; `onPick` decides what the pick writes.
@@ -84,7 +104,8 @@ const picker = definePlugin({
 
 const REWRITERS: [string, EditorPlugin[]][] = [
 	['a paste transform', [textTransform]],
-	['a rewrite by type', [byType as unknown as EditorPlugin]]
+	['a rewrite by type', [byType as unknown as EditorPlugin]],
+	['a whole-paste rewrite', [whole as unknown as EditorPlugin]]
 ];
 
 const focused = () => (document.activeElement as HTMLElement | null) ?? document.body;

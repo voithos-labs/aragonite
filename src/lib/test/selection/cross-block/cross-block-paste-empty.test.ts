@@ -13,7 +13,11 @@ describe('a cross-block paste with an empty payload', () => {
 		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
 
 		expect(
-			await makeHandlers(env, [0]).pasteOverRange({ text: '', plain: false, asksRewrites: true })
+			await makeHandlers(env, [0]).pasteOverRange({
+				text: '',
+				plain: false,
+				asksRewrites: 'blocks'
+			})
 		).toBe(false);
 
 		expect(serialize(env.doc)).toBe(SOURCE);

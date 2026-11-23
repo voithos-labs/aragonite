@@ -15,7 +15,7 @@ import type { CaretMenu } from './caret-menu';
 import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import type { Block, Doc } from './doc-view';
-import type { BlockRewrite } from './paste-rewrite';
+import type { BlockRewrite, PasteRewrite } from './paste-rewrite';
 import type { Selection, SelectionInput } from './selection-read';
 import type { BlockPaint, Paint, PaintContext } from '../decorations/paint';
 import type { CodeHighlighter } from './code-highlighter';
@@ -85,6 +85,9 @@ export interface Contribution {
 	/** Rewrites of pasted blocks by type, made with `blockRewrite()`; the first listed that answers
 	 *  a block takes it. */
 	blockRewrites?: readonly BlockRewrite<unknown>[];
+	/** Rewrites of the whole paste, made with `pasteRewrite()`, run in list order before the block
+	 *  rewrites, each reading the paste the one before left. */
+	pasteRewrites?: readonly PasteRewrite[];
 	/** What to lay over `block`, a block of text (one holding no other blocks), asked while it's on
 	 *  screen and kept while its bytes hold and `paintDepends`' answers stand. */
 	paint?(block: Block, ctx: PaintContext): readonly Paint[];

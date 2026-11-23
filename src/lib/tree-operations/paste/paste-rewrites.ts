@@ -1,18 +1,21 @@
 /**
- * The one place a paste's rewrites run, wherever a paste lands as blocks (the range-edit core's
- * host, a table cell, the block menu's Replace with clipboard): each plugin value's rewrites by
- * block type, outermost block first, then the process-wide paste transforms. Plain text, the
- * editor's own copy and a program's own insert are never rewritten.
+ * The one place a paste's rewrites run. The whole-paste rewrites read every paste first, in plugin
+ * list order, before anything reads where it lands (`wholeRewritten`, at the paste entry). Then,
+ * wherever the paste lands as blocks (the range-edit core's host, a table cell, the block menu's
+ * Replace with clipboard), each plugin value's rewrites by block type, outermost block first, then
+ * the process-wide paste transforms. Plain text, the editor's own copy and a program's own insert
+ * are never rewritten.
  */
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { readBlocks } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { ownTrailingLineEnding } from '../../core/lines';
+import { normalizeLineEndings, ownTrailingLineEnding } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import type { ContributedBlockRewrite } from '../../schema/editor-contributions';
 import type { PluginActivation } from '../../schema/plugin-activation';
+import type { Doc } from '../../schema/doc-view';
 import { cloneNode } from '../clone';
 import { applyPasteTransforms } from './paste-transforms';
 
@@ -22,9 +25,13 @@ export interface PastedClip {
 	readonly text: string;
 	readonly plain: boolean;
 	readonly own?: string;
-	/** Whether the plugins' paste rewrites read it: false for Markdown a program inserts itself. */
-	readonly asksRewrites: boolean;
+	/** Which of the plugins' paste rewrites read it: every one, `'blocks'` once the whole-paste
+	 *  rewrites have, or none (false) for Markdown a program inserts itself. */
+	readonly asksRewrites: boolean | 'blocks';
 }
+
+/** A clip the whole-paste rewrites have read: what every step past the paste entry takes. */
+export type RewrittenClip = PastedClip & { readonly asksRewrites: false | 'blocks' };
 
 /** One of two blocks left touching: its bytes, and its kind where the asker knows it. */
 interface JoinSide {
@@ -45,8 +52,35 @@ export type PartsApart = (
 	stood: number | null
 ) => boolean;
 
-/** `clip`'s text as the rewrites of the plugins `activation` runs leave it; `read` is the clipboard
- *  read as blocks, asked only where a rewrite is listed, and `parts` the core's join question. */
+/** `clip` as the whole-paste rewrites of the plugins `activation` runs leave it, each reading the
+ *  paste as the one listed before left it; the same clip where it asks none of them. */
+export function wholeRewritten(
+	clip: PastedClip,
+	activation: PluginActivation,
+	grammar: GrammarView
+): RewrittenClip {
+	if (isRewritten(clip)) return clip;
+	const contributions = activation.contributions;
+	const listed = contributions?.pasteRewrites ?? [];
+	let text = clip.text;
+	if (contributions && listed.length > 0 && !clip.plain && clip.own === undefined && text) {
+		let read = normalizeLineEndings(text);
+		let pasted: Doc | null = null;
+		for (const entry of listed) {
+			pasted ??= contributions.clipboardRead(readPaste(read, grammar)).doc();
+			const out = contributions.answerPaste(entry, pasted);
+			if (out === null) continue;
+			text = read = normalizeLineEndings(out);
+			pasted = null;
+			// Nothing is left for a later rewrite to read.
+			if (read === '') break;
+		}
+	}
+	return { ...clip, text, asksRewrites: 'blocks' };
+}
+
+/** `clip`'s text as the plugins' rewrites leave it: the whole-paste ones where they haven't read
+ *  it, then those by type over `read`, the clipboard as blocks; `parts` is the core's join question. */
 export function rewrittenPaste(
 	clip: PastedClip,
 	read: () => DocumentView,
@@ -55,8 +89,16 @@ export function rewrittenPaste(
 	parts: PartsApart
 ): string {
 	if (!clip.asksRewrites || clip.plain || clip.own !== undefined) return clip.text;
-	return applyPasteTransforms(byType(clip.text, read, activation, grammar, parts), activation);
+	const whole = wholeRewritten(clip, activation, grammar);
+	const blocks = whole.text === clip.text ? read : () => readPaste(whole.text, grammar);
+	return applyPasteTransforms(byType(whole.text, blocks, activation, grammar, parts), activation);
 }
+
+const isRewritten = (clip: PastedClip): clip is RewrittenClip => clip.asksRewrites !== true;
+
+/** A paste's text read as the blocks of a document of its own. */
+const readPaste = (text: string, grammar: GrammarView) =>
+	readBlocks(text, { grammar, scope: 'document' });
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
@@ -80,11 +122,11 @@ function byType(
 		byKind.set(kind, [...(byKind.get(kind) ?? []), entry]);
 	}
 	const clip = read();
-	const blockOf = contributions.clipboardBlocks(clip);
+	const pasted = contributions.clipboardRead(clip);
 	const claims: { path: number[]; out: string }[] = [];
 	const visit = (node: NodeView, path: number[]): void => {
 		for (const entry of byKind.get(node.kind) ?? []) {
-			const out = contributions.answer(entry, blockOf(node, path));
+			const out = contributions.answer(entry, pasted.blockOf(node, path), pasted.doc);
 			if (out !== null) return void claims.push({ path, out });
 		}
 		node.children?.forEach((child, i) => visit(child, [...path, i]));

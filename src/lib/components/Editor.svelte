@@ -289,7 +289,7 @@
 		report: reportPluginError,
 		blocksAround: (kinds) => placingBlocks(kinds),
 		blockOf: (node, path) => documentRead.blockOf(node, path),
-		clipboardBlocks: (clip) => {
+		clipboardRead: (clip) => {
 			const of = measured(clip);
 			return createDocumentRead({
 				getDoc: () => clip,
@@ -298,7 +298,7 @@
 				reading,
 				version: () => 0,
 				source: () => serialize(clip)
-			}).blockOf;
+			});
 		}
 	});
 	const installList = (values: PluginList, previous?: readonly InstalledPlugin[]) =>

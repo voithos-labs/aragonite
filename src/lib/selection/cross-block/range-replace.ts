@@ -52,7 +52,7 @@ import { completeLineOnType } from '../../schema/block-completions';
 import { blockFacts } from '../../schema/block-facts';
 import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommandLanding } from '../../invariants/command-key-landing';
-import type { PastedClip } from '../../tree-operations/paste/paste-rewrites';
+import type { RewrittenClip } from '../../tree-operations/paste/paste-rewrites';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ import type { PastedClip } from '../../tree-operations/paste/paste-rewrites';
 export type RangeInsertion =
 	| { kind: 'none'; gesture: RemovalGesture }
 	| { kind: 'text'; text: string }
-	| { kind: 'paste'; clip: PastedClip }
+	| { kind: 'paste'; clip: RewrittenClip }
 	| { kind: 'composition' }
 	/** `place`: the core's place the key's claim asked for, run on while the document holds the
 	 *  bytes it read. */
@@ -593,7 +593,7 @@ async function insertAt(
 async function pasteOver(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
-	clip: PastedClip,
+	clip: RewrittenClip,
 	started: SelectionPoint
 ): Promise<RangeReplaceOutcome> {
 	const undo = deleteSnapshot(started.path, started.offset);

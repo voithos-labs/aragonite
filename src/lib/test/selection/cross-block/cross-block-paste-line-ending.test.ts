@@ -15,7 +15,11 @@ describe('a paste over a range that takes every line ending of a CRLF document',
 		const env = makeEnv('one\r\n\r\ntwo');
 		env.selectionState.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });
 
-		await makeHandlers(env, [0]).pasteOverRange({ text: clip, plain: false, asksRewrites: true });
+		await makeHandlers(env, [0]).pasteOverRange({
+			text: clip,
+			plain: false,
+			asksRewrites: 'blocks'
+		});
 
 		expect(serialize(env.doc)).toBe(after);
 	});
