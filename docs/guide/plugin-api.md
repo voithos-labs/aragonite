@@ -623,7 +623,7 @@ _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the bor
 | --- | --- |
 | `createContainerBlock` | _(from `/svelte`)_ Wire a nested-child-list container so your component is as thin as the built-in blockquote's |
 | `BlockList` | _(from `/svelte`)_ The child-list component your container renders, spread with the factory's props, as a direct child of your box |
-| `registerChromeLeaf` | Register a container's title or summary line as a kind of its own, with a sensible default keymap. Not for a `:::` container, whose title row is its opener line (`directiveOpenerLine`), built by the grammar |
+| `registerChromeLeaf` | Register a container's title or summary line as a kind of its own, with a sensible default keymap. The editor keeps it one line: a line break written into it goes. Not for a `:::` container, whose title row is its opener line (`directiveOpenerLine`), built by the grammar |
 | `chromeChild` | Build the reserved child-0 node for that line: the title text plus its newline (an empty title keeps the bare newline). Again not for a `:::` container |
 | `isCollapsedContainer` | Read a container's collapse state through its descriptor, so your component and the editor's own walks agree |
 | `rowContentRange` | Where the title sits on a container's title line, past a `:::name` and the spaces after it, so a view reading the title skips the name |

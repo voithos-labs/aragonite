@@ -7,6 +7,7 @@
  */
 
 import { displayLines, isBlankText, trimTrailingLineEnding, withLineEnding } from '../core/lines';
+import { titleLine } from '../schema/reserved-chrome';
 import type { NodeView } from '../core/node-views';
 import { metadataIfKind } from '../core/nodes';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
@@ -1134,7 +1135,7 @@ function openingBlock(pasted: Doc, first: LaidBlock, levels: number): LaidBlock 
 	return undefined;
 }
 
-/** Text for a block that holds one line: each run of line breaks a space, a last one dropped. */
+/** A table cell's text, on one line: each run of line breaks a space, a last one dropped. */
 const oneLine = (text: string) => text.replace(/\n+$/, '').replace(/\n+/g, ' ');
 
 /** One line pasted after text on the caret's line reads as that line reads. */
@@ -1224,7 +1225,7 @@ function insertBytes(
 	};
 }
 
-/** A title row holds one line: the paste goes in with each run of line breaks turned to a space,
+/** A title row holds one line: the paste goes in on it as the row's own write rule puts text there,
  *  after a space of its own where the caret stands at the end of the row's name. */
 function intoTitle(
 	doc: Doc,
@@ -1235,7 +1236,7 @@ function intoTitle(
 	text: string,
 	plain: boolean
 ): Edit {
-	const flat = oneLine(text);
+	const flat = titleLine(text);
 	const title = plain ? plainText(doc, row, flat) : flat;
 	const line = (joinsName(doc, owner, row, from) && title !== '' ? ' ' : '') + title;
 	return {

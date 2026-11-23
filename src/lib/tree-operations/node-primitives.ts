@@ -11,7 +11,11 @@ import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import { documentLineEnding, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import { concatChildren } from '../core/serializer';
-import { reservedChromeKindOf } from '../schema/reserved-chrome';
+import {
+	isReservedChromeChild,
+	reservedChromeKindOf,
+	titleRowWrite
+} from '../schema/reserved-chrome';
 import { tryGetBlockKindDescriptor, type WriteRule } from '../schema/block-kind-descriptor';
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkWriteRuleKeepsBytes } from '../invariants/write-rule-keeps-bytes';
@@ -134,8 +138,30 @@ export const forBody = (parent: BodyParentArg, raw: string): string =>
  */
 export function kindWriteRule(node: NodeView): WriteRule | undefined {
 	const rule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;
+	return rule && checkedRule(rule);
+}
+
+/** The write rule child `index` of `owner` takes: its kind's, then on a title row the one-line rule,
+ *  which no kind can leave out; each runs under {@link kindWriteRule}'s check. */
+export function writeRuleAt(
+	owner: NodeView | undefined,
+	index: number,
+	node: NodeView
+): WriteRule | undefined {
+	const own = kindWriteRule(node);
+	if (!owner || !isReservedChromeChild(owner, index)) return own;
+	const row = checkedRule(titleRowWrite);
+	if (!own) return row;
+	return {
+		normalize: (raw, ctx) => row.normalize(own.normalize(raw, ctx), ctx),
+		mapOffset: (raw, offset, ctx) =>
+			row.mapOffset(own.normalize(raw, ctx), own.mapOffset(raw, offset, ctx), ctx)
+	};
+}
+
+function checkedRule(rule: WriteRule): WriteRule {
 	// A production build runs the rule bare, so a keystroke pays nothing for the check.
-	if (!rule || !devChecksOn) return rule;
+	if (!devChecksOn) return rule;
 	return {
 		...rule,
 		normalize: (raw, ctx) => {

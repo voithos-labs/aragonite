@@ -516,23 +516,28 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.245 a kind’s write rule runs through kindWriteRule',
-		matches: /\.rawWrite\b|\{[^}=]*\brawWrite\b[^}=]*\}\s*=[^=>]/,
+		id: 'G4.245 a write rule runs through kindWriteRule or writeRuleAt',
+		matches: /\.rawWrite\b|\{[^}=]*\brawWrite\b[^}=]*\}\s*=[^=>]|(?<!const\s)\btitleRowWrite\b/,
 		allowed: {
 			'src/lib/tree-operations/node-primitives.ts':
-				'`kindWriteRule`: the one reader, which checks that a rule deletes no byte the write left alone',
+				'`kindWriteRule` and `writeRuleAt` (a title row’s one line by position): the readers, which check that a rule deletes no byte the write left alone',
 			'src/lib/invariants/leaf-text.ts': 'reads the rule’s `text`, a block’s text, not a write',
 			'src/lib/testing/kind-conformance.ts':
 				'the conformance kit drives a plugin kind’s rule directly against its fixture'
 		},
 		reason:
-			'a rule run outside `kindWriteRule` skips the dev check that it deletes no byte outside the written span (G1.143); read it through `kindWriteRule`',
+			'a rule run outside `kindWriteRule` skips the dev check that it deletes no byte outside the written span (G1.143), and a title row run outside `writeRuleAt` misses its one-line rule or its kind’s; read a rule through one of them',
 		hits: [
 			'const rule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;',
 			'getBlockKindDescriptor(kind).rawWrite!.normalize(raw, ctx)',
-			'const { rawWrite } = descriptor;'
+			'const { rawWrite } = descriptor;',
+			'const stored = titleRowWrite.normalize(raw, ctx);'
 		],
-		misses: ['registerBlockKind(kind, { rawWrite: fencedCodeWrite });', 'rawWrite: mathBlockWrite,']
+		misses: [
+			'registerBlockKind(kind, { rawWrite: fencedCodeWrite });',
+			'rawWrite: mathBlockWrite,',
+			'export const titleRowWrite: WriteRule = {'
+		]
 	},
 	{
 		id: 'G4.194 a block reaches the clipboard steps through its surface',

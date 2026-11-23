@@ -194,7 +194,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.240 | Every `ResizeObserver` is made in `windowing/observe-resize.ts` | L |
 | G4.241 | _Retired upward_: the run layout and the joins are the commit’s own steps (G4.258) | L |
 | G4.243 | A caret's line is read through one step; `Selection.modify` is the caret writer's (G4.270) | L |
-| G4.245 | A kind's write rule is run through `kindWriteRule` | L |
+| G4.245 | A write rule is run through `kindWriteRule` or `writeRuleAt` | L |
 | G4.247 | A production build of the published package carries no dev check | harness |
 | G4.248 | Dev-only code reads one switch, in `dev-checks.ts`, imported by its package name | L |
 | G4.249 | A measured height enters the height table only through `applyMeasured` | L |
@@ -615,7 +615,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.243 · One read of the caret's line.** At a soft wrap a caret's one DOM position is on two lines, and `caretRectAt` reads one of them whatever the browser shows. So at a wrap the line checks in `browser/visual-lines.ts` ask the browser through the caret writer, the one file G4.270 lets call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line wrong at a wrap is harmless or a known gap. `lint/file-rules.test.ts`.
 
-**G4.245 · One way to run a write rule.** A kind's `rawWrite` is read only by `tree-operations/node-primitives.ts :: kindWriteRule`, which checks every run against G1.143. The leaf-text reader (it reads the rule's `text`) and the conformance kit are the listed exceptions. `lint/file-rules.test.ts`.
+**G4.245 · One way to run a write rule.** A kind's `rawWrite` is read only by `tree-operations/node-primitives.ts :: kindWriteRule`, which checks every run against G1.143, and a title row's one-line rule (`schema/reserved-chrome.ts :: titleRowWrite`) only by `writeRuleAt`, which runs it after the row kind's own. The leaf-text reader (it reads the rule's `text`) and the conformance kit are the listed exceptions. `lint/file-rules.test.ts`.
 
 **G4.247 · A production build carries no dev check.** Under the `production` condition the editor's dev-checks import gets `dev-checks-stripped.ts`: a constant-`false` switch and empty reporters. `scripts/pack/verify-dev-strip.mjs` (run by verify-pack) builds a page through both builds with Vite and fails on any check tag the production build keeps; the page imports `configureEditorEnv`, so only the swap can prove the switch off. `test/dev-checks-stripped.test.ts` holds the copy to the real module's names and to the side-effect annotations esbuild needs.
 

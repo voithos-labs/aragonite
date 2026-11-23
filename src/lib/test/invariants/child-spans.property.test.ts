@@ -230,16 +230,15 @@ describe('container child spans', () => {
 					.filter((i) => i >= 0);
 				if (leaves.length === 0) return;
 
-				// Writing a child's own bytes back fills the spans without moving anything.
-				const seedAt = leaves[c.seedAt % leaves.length];
-				await h.bundle.blockEdit.updateBlockContent(
-					seedAt,
-					container().children![seedAt].raw,
-					'authored',
-					'join-typing',
-					0
-				);
-				expect(container().raw, 'after the seeding write').toBe(fullRebuildOf(container()).raw);
+				// A child's bytes written away and back fill the spans and leave every byte as it was;
+				// its own bytes alone would commit nothing.
+				const prose = leaves.filter((i) => container().children![i].raw.trim() !== '');
+				if (prose.length === 0) return;
+				const seedAt = prose[c.seedAt % prose.length];
+				const own = container().children![seedAt].raw;
+				for (const raw of [own.replace(/(\r?\n)?$/, 'z$1'), own])
+					await h.bundle.blockEdit.updateBlockContent(seedAt, raw, 'authored', 'join-typing', 0);
+				expect(container().raw, 'after the seeding writes').toBe(fullRebuildOf(container()).raw);
 
 				const seeded = container().childSpans;
 				const targets = c.prose
