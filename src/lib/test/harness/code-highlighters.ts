@@ -25,7 +25,7 @@ export function activationWith(...highlighters: { name: string; code: CodeHighli
 		report,
 		blocksAround: () => ({ blocks: [] }),
 		blockOf: (node) => DETACHED_READING.blockOf(node, null),
-		clipboardRead: () => ({
+		pastedReader: () => ({
 			doc: () => {
 				throw new Error('no clipboard is read here');
 			},

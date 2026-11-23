@@ -67,7 +67,7 @@ const contributions = createEditorContributions({
 	blockOf: () => {
 		throw new Error('no block is read here');
 	},
-	clipboardRead: () => {
+	pastedReader: () => {
 		throw new Error('no block is read here');
 	},
 	report: ({ cause }) => {

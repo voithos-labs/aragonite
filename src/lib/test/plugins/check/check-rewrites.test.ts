@@ -225,6 +225,13 @@ describe('rewriteLands for a whole-paste rewrite', () => {
 		});
 	});
 
+	it('hands the rewrite an editor with a caret where the paste lands', async () => {
+		const caret = wholeRewriting('caret', (pasted, editor) =>
+			editor.selection ? pasted.text.toUpperCase() : null
+		);
+		expect((await rowOf(check(caret), 'pasteRewrite'))?.status).toBe('passed');
+	});
+
 	it('fails a rewrite with no sample', async () => {
 		const bare = wholeRewriting('bare', shout, { sample: '' });
 		expect(await rowOf(check(bare), 'pasteRewrite')).toMatchObject({

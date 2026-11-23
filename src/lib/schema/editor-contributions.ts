@@ -55,7 +55,7 @@ export interface ContributedPasteRewrite {
 }
 
 /** A clipboard read as blocks, as a rewrite reads it: positions count from its start. */
-export interface ClipboardRead {
+export interface PastedReader {
 	doc(): Doc;
 	blockOf(node: NodeView, path: readonly number[]): Block;
 }
@@ -97,7 +97,7 @@ export interface EditorContributions {
 	readonly blockRewrites: readonly ContributedBlockRewrite[];
 	/** Each plugin's whole-paste rewrites, in list order. */
 	readonly pasteRewrites: readonly ContributedPasteRewrite[];
-	clipboardRead(clip: DocumentView): ClipboardRead;
+	pastedReader(clip: DocumentView): PastedReader;
 	/** `entry`'s Markdown for a pasted `block` of the paste `pasted`; null where it keeps the block
 	 *  or throws, which is reported. */
 	answer(entry: ContributedBlockRewrite, block: Block, pasted: () => Doc): string | null;
@@ -137,7 +137,7 @@ export function createEditorContributions(deps: {
 	 *  blocks each covered block's outermost such block, with the step their runs share. */
 	blocksAround(kinds: ReadonlySet<string>): PlacingBlocks;
 	blockOf(node: NodeView, path: readonly number[]): Block;
-	clipboardRead: EditorContributions['clipboardRead'];
+	pastedReader: EditorContributions['pastedReader'];
 }): EditorContributions {
 	let commands: ContributedCommand[] = [];
 	let byValue = new Map<Command<unknown>, ContributedCommand>();
@@ -347,7 +347,7 @@ export function createEditorContributions(deps: {
 		get pasteRewrites() {
 			return pasteRewrites;
 		},
-		clipboardRead: deps.clipboardRead,
+		pastedReader: deps.pastedReader,
 		answer: ({ plugin, rewrite }, block, pasted) =>
 			answered(plugin, (editor) =>
 				rewrite.into(block, {

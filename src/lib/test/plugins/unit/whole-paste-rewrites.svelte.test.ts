@@ -419,8 +419,8 @@ describe('the pasted text', () => {
 	])('%s', async (_, doc, place, paste, text) => {
 		const { whole, byType } = await reads(doc, place, paste);
 		expect(whole).toEqual([text]);
-		expect(byType.map((read) => read.at.trimEnd())).toEqual(byType.length ? ['# LOUD'] : []);
-		for (const read of byType) expect(read.pasted).toContain('# LOUD');
+		expect(byType.map((read) => read.at.trimEnd())).toEqual(['# LOUD']);
+		expect(byType[0].pasted).toContain('# LOUD');
 	});
 });
 

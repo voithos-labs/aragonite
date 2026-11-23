@@ -18,7 +18,7 @@ export function valueActivation(
 		report: thrown,
 		blocksAround: () => ({ blocks: [] }),
 		blockOf: (node) => DETACHED_READING.blockOf(node, null),
-		clipboardRead: () => ({
+		pastedReader: () => ({
 			doc: () => {
 				throw new Error('no clipboard is read here');
 			},

@@ -181,7 +181,7 @@ export function pluginCheckContext(
 	const list = listGrammar(plugins, report, {
 		editorFor: () => current?.editor,
 		blockOf: (node, path) => current!.read.blockOf(node, path),
-		clipboardRead: (clip) => clipboardRead(clip, list.units, context.reading())
+		pastedReader: (clip) => clipboardRead(clip, list.units, context.reading())
 	});
 	const context = checkContext(list.grammar);
 	const stage = (source: string) =>

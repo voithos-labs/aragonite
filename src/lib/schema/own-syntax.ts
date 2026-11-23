@@ -60,7 +60,7 @@ export function listGrammar(
 		/** The editor a plugin's command meets; with none, no command runs. */
 		editorFor?: (plugin: string) => Editor | undefined;
 		blockOf?: (node: NodeView, path: readonly number[]) => Block;
-		clipboardRead?: EditorContributions['clipboardRead'];
+		pastedReader?: EditorContributions['pastedReader'];
 	} = {}
 ): ListGrammar {
 	const contributions = createEditorContributions({
@@ -69,7 +69,7 @@ export function listGrammar(
 		// With no editor there's no caret to find a block at.
 		blocksAround: () => ({ blocks: [] }),
 		blockOf: options.blockOf ?? noEditor,
-		clipboardRead: options.clipboardRead ?? (() => ({ doc: noEditor, blockOf: noEditor }))
+		pastedReader: options.pastedReader ?? (() => ({ doc: noEditor, blockOf: noEditor }))
 	});
 	const units = contributions.read(installPluginList(plugins, report));
 	const own = installOwnSyntax(units, report);

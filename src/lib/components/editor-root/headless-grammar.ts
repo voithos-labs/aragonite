@@ -3,14 +3,20 @@
  * as an editor running those plugins reads it, its blocks placed in the text's bytes. The plugins'
  * syntax stays known to the process while the grammar is reachable, as a mounted editor's does.
  */
-import { devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import type { AnyBlockKind } from '../../core/nodes';
 import { blockKindLabel } from '../../a11y-strings';
 import { createDocumentRead } from '../../editor-actions/commit/document-read';
 import { measured } from '../../tree-operations/top-level-starts';
 import type { SyntaxOptions } from '../../schema/editor-grammar';
 import { listGrammar } from '../../schema/own-syntax';
-import type { BlockType, InstalledPlugin, PluginError, PluginList } from '../../schema/plugin-unit';
+import {
+	reportWords,
+	type BlockType,
+	type InstalledPlugin,
+	type PluginError,
+	type PluginList
+} from '../../schema/plugin-unit';
 import type { Doc } from '../../schema/doc-view';
 import { initDocument } from './document-swap';
 
@@ -51,5 +57,5 @@ export function blockTypeIn(
 
 // With no editor to hear it, a plugin left out says so in a dev build, as an unheard one does.
 function reportOutsideEditor(error: PluginError): void {
-	devWarn('plugin-error', `plugin '${error.plugin}' failed (${error.doing})`, error.cause);
+	if (devChecksOn) devWarn('plugin-error', reportWords(error), error.cause);
 }

@@ -67,7 +67,7 @@ export function wholeRewritten(
 		let read = normalizeLineEndings(text);
 		let pasted: Doc | null = null;
 		for (const entry of listed) {
-			pasted ??= contributions.clipboardRead(readPaste(read, grammar)).doc();
+			pasted ??= contributions.pastedReader(readPaste(read, grammar)).doc();
 			const out = contributions.answerPaste(entry, pasted);
 			if (out === null) continue;
 			text = read = normalizeLineEndings(out);
@@ -122,7 +122,7 @@ function byType(
 		byKind.set(kind, [...(byKind.get(kind) ?? []), entry]);
 	}
 	const clip = read();
-	const pasted = contributions.clipboardRead(clip);
+	const pasted = contributions.pastedReader(clip);
 	const claims: { path: number[]; out: string }[] = [];
 	const visit = (node: NodeView, path: number[]): void => {
 		for (const entry of byKind.get(node.kind) ?? []) {

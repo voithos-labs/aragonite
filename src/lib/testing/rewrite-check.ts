@@ -13,7 +13,7 @@ import type {
 	ContributedPasteRewrite
 } from '../schema/editor-contributions';
 import type { PluginActivation } from '../schema/plugin-activation';
-import type { PluginError } from '../schema/plugin-unit';
+import { reportWords, type PluginError } from '../schema/plugin-unit';
 import type { CheckContext, PluginCheckRun } from './check-context';
 import type { Mount } from './command-check';
 import type { Outcome } from './inline-check';
@@ -21,11 +21,9 @@ import { show } from './conformance-core';
 
 // ── The paste ────────────────────────────────────────────────────────────────
 
-// With no editor to hear it, what the editor reports of a plugin says so in a dev build, in the
-// cause's own words, so a plugin that still runs never reads as one that failed.
+// With no editor to hear it, what the editor reports of a plugin says so in a dev build.
 export function heardOutside(error: PluginError): void {
-	const said = (error.cause as Error | undefined)?.message ?? String(error.cause);
-	devWarn('plugin-error', `plugin '${error.plugin}' (${error.doing}): ${said}`, error.cause);
+	devWarn('plugin-error', reportWords(error), error.cause);
 }
 
 /** `text` pasted from outside the editor, read as `context` reads it. */
@@ -56,8 +54,8 @@ export function pasteRewriteOutcome(
 	};
 	const problems: string[] = [];
 	for (const [where, doc] of PLACES) {
-		// The editor a rewrite is handed holds the document the paste lands in.
-		mounted.over(doc);
+		// The editor a rewrite is handed holds the caret where the paste lands.
+		mounted.over(doc).caret(doc.length - 1);
 		const out = pasted(context, activation, sample);
 		if (out === sample) problems.push(`it keeps its own sample ${show(sample)} pasted ${where}`);
 		else {

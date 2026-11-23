@@ -171,6 +171,13 @@ export interface PluginError {
 	readonly cause: unknown;
 }
 
+/** A report as a dev build words it: the plugin, what the editor was doing, and the cause's own
+ *  words, so a plugin that still runs never reads as one that failed. */
+export function reportWords(error: PluginError): string {
+	const said = (error.cause as Error | undefined)?.message ?? String(error.cause);
+	return `plugin '${error.plugin}' (${error.doing}): ${said}`;
+}
+
 /** A plugin the install pass kept for one editor, with what it contributed there. */
 export interface InstalledPlugin {
 	readonly name: string;

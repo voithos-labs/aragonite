@@ -166,6 +166,7 @@
 	import type { CaretMenu } from '../schema/caret-menu';
 	import {
 		installPluginList,
+		reportWords,
 		type BlockType,
 		type InstalledPlugin,
 		type PluginError,
@@ -271,11 +272,7 @@
 		});
 		// A dev build says so once when nothing hears it; production stays silent.
 		if (devChecksOn && !heard && !onError) {
-			devWarn(
-				'plugin-error',
-				`plugin '${error.plugin}' failed (${error.doing}) and nothing heard it: pass onError`,
-				error.cause
-			);
+			devWarn('plugin-error', `${reportWords(error)}; nothing heard it: pass onError`, error.cause);
 		}
 	}
 
@@ -289,7 +286,7 @@
 		report: reportPluginError,
 		blocksAround: (kinds) => placingBlocks(kinds),
 		blockOf: (node, path) => documentRead.blockOf(node, path),
-		clipboardRead: (clip) => {
+		pastedReader: (clip) => {
 			const of = measured(clip);
 			return createDocumentRead({
 				getDoc: () => clip,
