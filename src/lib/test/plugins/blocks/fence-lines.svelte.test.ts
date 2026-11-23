@@ -177,6 +177,23 @@ describe('a fenced block’s shown text', () => {
 		expect(caret()).toBe(at);
 	});
 
+	// Miss-analysis: a painted text was only ever one that writes as it leaves, so no row undid
+	// inside one that writes every key.
+	it('takes an undo from the document while its text writes every key', async () => {
+		const editor = await mounted('%%%\nbody\n%%%\n', {
+			edit: 'text',
+			draw: placed,
+			renderSource: bodySpan
+		});
+		const el = surfaceAt(editor, [0]);
+		placeCaret(el, 8);
+		await pressKey(el, { key: 'Enter' });
+		expect(editor.source()).toBe('%%%\nbody\n\n%%%\n');
+		await pressKey(el, { key: 'z', ctrlKey: true });
+		expect(editor.source()).toBe('%%%\nbody\n%%%\n');
+		expect(el.textContent).toBe('%%%\nbody\n%%%');
+	});
+
 	it('puts a one-line block’s fences on lines of their own once Enter goes into its text', async () => {
 		const { editor, el, caret } = await opened('$$x^2$$\n', {
 			fence: { open: /\$\$/, close: '$$', oneLine: true },

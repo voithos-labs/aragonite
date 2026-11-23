@@ -205,6 +205,8 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 		throw new Error('createEditableLeaf: render-primary mode requires isRevealed and setRevealed');
 	}
 	const isRevealed = deps.mode === 'render-primary' ? deps.isRevealed : () => true;
+	// A text that writes every key leaves its undo to the document's history.
+	const ownsHistory = kindPaints && mode === 'render-primary';
 
 	const wiring = wireSurfaceContexts();
 	const {
@@ -572,7 +574,7 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 	 *  the document's history. */
 	function stepSourceHistory(e: Event, undo: boolean): boolean {
 		const el = deps.getEl();
-		if (!el || !kindPaints || !isRevealed()) return false;
+		if (!el || !ownsHistory || !isRevealed()) return false;
 		const [from, to] = undo ? [sourceUndo, sourceRedo] : [sourceRedo, sourceUndo];
 		if (from.length === 0) return false;
 		e.preventDefault();
@@ -612,7 +614,7 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 			isAtMostOneCharacter(text.slice(start, end)) &&
 			isAtMostOneCharacter(insert) &&
 			!/[\r\n]/.test(insert);
-		if (kindPaints) recordSourceEdit(text, backend.getRaw() ?? start, keystroke);
+		if (ownsHistory) recordSourceEdit(text, backend.getRaw() ?? start, keystroke);
 		const spliced = text.slice(0, start) + insert + text.slice(end);
 		// Every edit gets the reshape showing the source does: an emptied body is the same bare
 		// source a new block arrives as.
@@ -622,7 +624,7 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 		reportSourceEdit(next);
 		setCaret(reshaped?.caret ?? start + insert.length);
 		// Started after the edit, so the pause measured is the one the user leaves.
-		if (kindPaints && keystroke) sourceBatch.armPause();
+		if (ownsHistory && keystroke) sourceBatch.armPause();
 		if (mode === 'plain') editableSurface.commitInput();
 	}
 
@@ -668,7 +670,7 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 
 		// Undo inside a shown painted source steps through its own edits; the document sees them as
 		// one entry written on blur.
-		if (kindPaints && isRevealed()) {
+		if (ownsHistory && isRevealed()) {
 			const command = wiring.resolveChord(e, deps.getNode().kind);
 			if (command === 'history.undo' || command === 'history.redo') {
 				if (stepSourceHistory(e, command === 'history.undo')) return;
