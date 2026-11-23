@@ -2,7 +2,14 @@
 // G1.233: `check` runs every check over every sample of every block type a plugin value lists, with
 // no DOM; an excuse that doesn't stand, or a dev warning, fails the run.
 import { afterEach, describe, expect, it } from 'vitest';
-import { container, definePlugin, fencedBlock, lineBlock, type Plugin } from '#lib/plugin.js';
+import {
+	command,
+	container,
+	definePlugin,
+	fencedBlock,
+	lineBlock,
+	type Plugin
+} from '#lib/plugin.js';
 import { configureEditorEnv, resetEditorEnv } from '#lib/testing.js';
 import { devWarn } from '#lib/dev-checks.js';
 import {
@@ -220,19 +227,47 @@ describe('check over block types', () => {
 });
 
 describe('check over the plugin', () => {
+	const strict = definePlugin<{ level: number; twice: boolean }>({
+		name: 'strict',
+		version: '1.0.0',
+		editor: '*',
+		defaults: { level: 0, twice: false },
+		validate: ({ level }) => (level > 0 ? undefined : 'level has to be above zero'),
+		contributes: ({ twice }) => {
+			const go = () => command({ id: 'go', title: 'Go', run: () => true });
+			return { commands: twice ? [go(), go()] : [] };
+		}
+	});
+
 	it('fails install for a plugin whose defaults fail its own validate', async () => {
-		const strict = definePlugin<{ level: number }>({
-			name: 'strict',
-			version: '1.0.0',
-			editor: '*',
-			defaults: { level: 0 },
-			validate: ({ level }) => (level > 0 ? undefined : 'level has to be above zero'),
-			contributes: () => ({})
-		});
 		const report = await reportOf(check(strict));
 		expect(rowOf(report, 'install')).toMatchObject({
 			status: 'failed',
 			detail: expect.stringMatching(/validate: level has to be above zero/)
+		});
+	});
+
+	// Miss: `strict` only ever ran bare. `install` holds the defaults beside the options handed, so a
+	// plugin with a required option failed a row no excuse covers, whatever it was handed.
+	it('passes install for a required option handed, saying its defaults alone are refused', async () => {
+		const report = await check(strict, { options: { level: 2 } });
+		expect(rowOf(report, 'install')).toMatchObject({
+			status: 'passed',
+			detail:
+				'installs with your options; its defaults alone are refused (validate: level has to be above zero)'
+		});
+	});
+
+	it('still fails install where the options handed are refused, or anything else is wrong', async () => {
+		const refused = await reportOf(check(strict, { options: { level: -1 } }));
+		expect(rowOf(refused, 'install')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/^validate: level has to be above zero/)
+		});
+		const clashing = await reportOf(check(strict, { options: { level: 2, twice: true } }));
+		expect(rowOf(clashing, 'install')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/lists two commands with the id/)
 		});
 	});
 

@@ -242,6 +242,8 @@ A row is `passed`, `failed`, `excused`, `advisory` (it didn't hold, and this rel
 
 A failed row, or a dev warning unless you pass `warningsFail: false`, rejects with a `CheckFailure`: its message names each failed row and the contract it breaks, and its `report` holds every row. `isCheckFailure(error)` tells one apart, even one thrown by another copy of the editor.
 
+`install` holds your plugin with its defaults and with `options` at once. An option with no valid default is fine: hand it through `options`, and defaults your own `validate` refuses are said in the row's detail without failing it. With no `options`, that refusal fails.
+
 A block type gets `sample` first; a failing one stops the rest. Beside the editing checks, three read what your type reads and writes besides its bytes:
 
 - `completion`, for a type with `complete`: some prefix of a sample's first line completes, into lines that read as your type, the caret inside them. One no prefix reaches fails, since a completion the editor refuses never runs; that one takes an excuse.

@@ -244,11 +244,15 @@ function install(
 	warnings: Warnings,
 	said: string[]
 ): { row: CheckRow; run: PluginCheckRun | null } {
-	const report = ({ doing, cause }: PluginError) => said.push(`${doing}: ${messageOf(cause)}`);
+	const text = ({ doing, cause }: PluginError) => `${doing}: ${messageOf(cause)}`;
+	const report = (error: PluginError) => said.push(text(error));
+	// What the defaults alone are told, apart from what the options handed are told.
+	const bare: PluginError[] = [];
 	const before = warnings.length;
 	let run: PluginCheckRun | null = null;
 	try {
-		const defaults = pluginCheckContext([plugin], report, timeout);
+		const alone = options ? (error: PluginError) => bare.push(error) : report;
+		const defaults = pluginCheckContext([plugin], alone, timeout);
 		try {
 			run = options ? pluginCheckContext([plugin(options)], report, timeout) : defaults;
 		} finally {
@@ -257,13 +261,22 @@ function install(
 	} catch (error) {
 		said.push(`installing threw: ${messageOf(error)}`);
 	}
-	const problems = said.splice(0);
+	// A required option has no valid default: with it handed, that refusal is said, not failed.
+	const refused = bare.filter(({ doing }) => doing === 'validate').map(text);
+	const problems = [
+		...bare.filter(({ doing }) => doing !== 'validate').map(text),
+		...said.splice(0)
+	];
 	if (warningsFail !== false) {
 		for (const { tag, message } of warnings.slice(before))
 			problems.push(`dev warning [${tag}]: ${message}`);
 	}
-	const passed = options ? 'installs with its defaults and with your options' : 'installs';
-	const detail = problems.length > 0 ? problems.join('; ') : passed;
+	const unheld =
+		refused.length > 0 ? [`its defaults alone are refused (${refused.join('; ')})`] : [];
+	const held =
+		options && unheld.length === 0 ? 'its defaults and with your options' : 'your options';
+	const passed = options ? [`installs with ${held}`, ...unheld].join('; ') : 'installs';
+	const detail = problems.length > 0 ? [...problems, ...unheld].join('; ') : passed;
 	const status = problems.length > 0 ? 'failed' : 'passed';
 	return { row: { of: 'plugin', subject: plugin.name, check: 'install', status, detail }, run };
 }
