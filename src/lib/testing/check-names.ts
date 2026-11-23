@@ -103,6 +103,8 @@ function promise(text: string): CellContract {
 function kitPromise<C extends string>(table: Record<C, CellContract>, cell: C): CellContract {
 	return promise(table[cell].promise);
 }
+// A kit's sentence is borrowed where it holds for a plugin value; one naming what only a `setup`
+// plugin writes (a fixture, a merge role) is worded here in the plugin value's own terms.
 const kind = (cell: keyof typeof KIND_CELL_CONTRACTS) => ({
 	block: kitPromise(KIND_CELL_CONTRACTS, cell)
 });
@@ -152,13 +154,16 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 	roundTrip: {
 		excusable: false,
 		contract: {
-			block: kitPromise(KIND_CELL_CONTRACTS, 'roundTrip'),
+			block: promise('your samples read back to their exact bytes'),
 			inline: promise(
 				'your samples, and each line holding a claim beside any neighbour, read back to their bytes'
 			)
 		}
 	},
-	mergeBackspace: { excusable: true, contract: kind('mergeBackspace') },
+	mergeBackspace: {
+		excusable: true,
+		contract: { block: promise('Backspace merges into your block only as its `role` says') }
+	},
 	clipboard: { excusable: true, contract: kind('clipboard') },
 	undo: { excusable: true, contract: kind('undo') },
 	search: { excusable: false, contract: kind('searchPaint') },
@@ -167,7 +172,14 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		contract: { block: promise('a search match in your block is painted where it is') }
 	},
 	rawWrite: { excusable: false, contract: kind('rawWrite') },
-	unfinishedReading: { excusable: false, contract: kind('unfinishedReading') },
+	unfinishedReading: {
+		excusable: false,
+		contract: {
+			block: promise(
+				'your block, typed with no closing line yet, gives the rest of the document back once it closes'
+			)
+		}
+	},
 	focus: { excusable: false, contract: kind('focus') },
 	selectionPaint: { excusable: false, contract: kind('selectionPaint') },
 	reorder: { excusable: false, contract: kind('reorder') },
@@ -175,7 +187,14 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 	localIndex: { excusable: true, contract: box('localIndex') },
 	ancestry: { excusable: false, contract: box('ancestry') },
 	focusBubble: { excusable: true, contract: box('focusBubble') },
-	openerLine: { excusable: true, contract: box('openerLine') },
+	openerLine: {
+		excusable: true,
+		contract: {
+			block: promise(
+				'typing your first line’s marker above a block keeps the caret on a line it can type in'
+			)
+		}
+	},
 	containerCopy: { excusable: false, contract: box('copyMarkers') },
 	containerDeclared: {
 		excusable: false,

@@ -19,6 +19,7 @@ import {
 	type CheckReport,
 	type Excuses
 } from '#lib/testing/check.js';
+import { CHECKS } from '#lib/testing/check-names.js';
 
 const NOT_INSERTED = { none: 'a fixture of the check suite' };
 
@@ -413,6 +414,17 @@ describe('check over the plugin', () => {
 		expect(failure.message).toMatch(
 			/check failed for plugin 'drifts':\n {2}- block drifts\/d sample: .*\n {4}breaks: each block type has a sample, and each reads as that type first \(plugin-testing\.md#checking-a-plugin-value-check\)/
 		);
+	});
+
+	// Miss: the promises were borrowed from the kits for `setup` plugins, whose words a plugin value
+	// never wrote, and nothing read them as its author does.
+	it('words every contract a failure names as a plugin value’s author wrote it', () => {
+		const promises = Object.values(CHECKS).flatMap(({ contract }) =>
+			Object.values(contract).map(({ promise }) => promise)
+		);
+		expect(promises.length).toBeGreaterThan(30);
+		const oldWords = /\b(?:fixture|mergeRole|opener|profile)/i;
+		expect(promises.filter((promise) => oldWords.test(promise))).toEqual([]);
 	});
 
 	// A failure crosses two copies of the entry, a plugin's tests and the bin, so it's told by a mark.
