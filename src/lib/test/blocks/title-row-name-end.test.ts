@@ -33,6 +33,25 @@ async function mountAt(source: string, mode: PresentationMode, at: number): Prom
 	return editor;
 }
 
+// A caret stepped into the name from the title's start (the row's end when untitled), as ArrowLeft
+// takes it: in live mode one put there with no caret on the row before it moves to the title's start.
+async function mountInName(
+	source: string,
+	mode: PresentationMode,
+	steps: number[]
+): Promise<Editor> {
+	const editor = mountCase(source, mode);
+	await editor.settle();
+	const row = surfaceAt(editor, [0, 0]);
+	for (const step of steps) {
+		placeCaret(row, step);
+		// jsdom fires no `selectionchange` of its own.
+		document.dispatchEvent(new Event('selectionchange'));
+		await editor.settle();
+	}
+	return editor;
+}
+
 async function typed(editor: Editor, text: string): Promise<string> {
 	await insertBy('hardware key', focused(), text);
 	await editor.settle();
@@ -88,12 +107,12 @@ describe('text typed at an untitled row’s name end', () => {
 		});
 
 		it(`${mode}: a letter at a titled row’s name end edits the name`, async () => {
-			const editor = await mountAt(':::tip Title\nin\n:::\n', mode, 6);
+			const editor = await mountInName(':::tip Title\nin\n:::\n', mode, [7, 6]);
 			expect(await typed(editor, 'x')).toBe(':::tipx Title\nin\n:::\n');
 		});
 
 		it(`${mode}: a letter inside the name edits the name`, async () => {
-			const editor = await mountAt(':::tip\nin\n:::\n', mode, 5);
+			const editor = await mountInName(':::tip\nin\n:::\n', mode, [6, 5]);
 			expect(await typed(editor, 'x')).toBe(':::tixp\nin\n:::\n');
 		});
 	}
