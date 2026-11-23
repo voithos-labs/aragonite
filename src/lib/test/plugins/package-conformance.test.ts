@@ -27,7 +27,8 @@ describe('every bundled plugin passes its own published conformance suite', () =
 			'highlight-occurrences',
 			'parrot',
 			'slash-commands',
-			'spellcheck'
+			'spellcheck',
+			'toc'
 		]);
 	});
 });

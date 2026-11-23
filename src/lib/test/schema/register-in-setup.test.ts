@@ -75,16 +75,16 @@ describe('a duplicate on a dev server', () => {
 	// Hot reload re-evaluates a plugin's module into a new unit with the same name; the install
 	// keeps the first and never re-runs a setup, so no plugin entry meets a duplicate.
 	it('never reaches a plugin entry: a re-evaluated plugin module keeps the first registration', async () => {
-		const first = await import('#packages/toc/src/toc-plugin.js');
-		installPlugins([first.tocPlugin()]);
-		const registered = getBlockKindDescriptor(declaredPluginKind('toc'));
+		const first = await import('#packages/details/src/register.js');
+		installPlugins([first.detailsPlugin()]);
+		const registered = getBlockKindDescriptor(declaredPluginKind('details'));
 		// A query makes a second instance of the module, sharing every registry with the first.
-		const reevaluatedPath = '#packages/toc/src/toc-plugin.ts?reeval';
+		const reevaluatedPath = '#packages/details/src/register.ts?reeval';
 		const reevaluated: typeof first = await import(/* @vite-ignore */ reevaluatedPath);
-		expect(reevaluated.tocPlugin).not.toBe(first.tocPlugin);
-		installPlugins([reevaluated.tocPlugin()]);
+		expect(reevaluated.detailsPlugin).not.toBe(first.detailsPlugin);
+		installPlugins([reevaluated.detailsPlugin()]);
 
-		expect(getBlockKindDescriptor(declaredPluginKind('toc'))).toBe(registered);
+		expect(getBlockKindDescriptor(declaredPluginKind('details'))).toBe(registered);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['plugin-install']);
 	});
 });

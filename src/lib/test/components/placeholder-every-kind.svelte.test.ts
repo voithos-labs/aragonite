@@ -22,7 +22,7 @@ import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 
 installLayoutStubs();
 afterEach(destroyMountedEditors);
@@ -38,7 +38,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
 	'slash-commands': () => slashCommands,
-	toc: tocPlugin
+	toc: () => toc
 };
 
 /** A kind that can be empty: the source holding one empty block of it and that block's path, and
@@ -68,7 +68,7 @@ const NEVER_ASKED: Record<string, string> = {
 	indentedCode: 'an indented code block starts at its first non-blank line',
 	htmlBlock: NO_BLANK_FORM,
 	linkReferenceDefinition: NO_BLANK_FORM,
-	toc: NO_BLANK_FORM,
+	'toc/toc': NO_BLANK_FORM,
 	unrecognized: 'no opener produces it, and it keeps the bytes it was given',
 	table: 'its cells are not blocks and are not asked',
 	tableRow: 'rendered inside its table, whose cells are not asked',

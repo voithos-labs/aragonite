@@ -24,7 +24,7 @@ import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
@@ -37,7 +37,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
 	'slash-commands': () => slashCommands,
-	toc: tocPlugin
+	toc: () => toc
 };
 
 /** A plugin kind no insert entry makes, and why. */

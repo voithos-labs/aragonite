@@ -5,7 +5,6 @@ import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
@@ -23,7 +22,6 @@ beforeEach(() => {
 	installPlugins([
 		admonitionsPlugin(),
 		detailsPlugin(),
-		tocPlugin(),
 		footnotesPlugin(),
 		emojiPlugin(),
 		latexPlugin(),

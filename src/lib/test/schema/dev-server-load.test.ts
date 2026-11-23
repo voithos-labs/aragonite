@@ -28,7 +28,7 @@ it(
 			import('#packages/mermaid/src/index.js').then((m) => m.mermaidPlugin()),
 			import('#packages/parrot/src/index.js').then((m) => m.parrotPlugin()),
 			import('#packages/slash-commands/src/index.js').then((m) => m.slashCommands),
-			import('#packages/toc/src/index.js').then((m) => m.tocPlugin())
+			import('#packages/toc/src/index.js').then((m) => m.toc)
 		]);
 
 		expect(() => {
@@ -36,10 +36,7 @@ it(
 			activateDirectives();
 			installPlugins(normalizePluginEntries(plugins).plugins);
 		}).not.toThrow();
-		expect(parse('[[toc]]\n\n:::note\nx\n:::\n').children.map((c) => c.kind)).toEqual([
-			'toc',
-			'admonition'
-		]);
+		expect(parse(':::note\nx\n:::\n').children.map((c) => c.kind)).toEqual(['admonition']);
 		// The guard is live in this module graph, so the silence above is the package's own.
 		expect(() => declarePluginKind('dev-load-bare')).toThrow(/outside a plugin's setup/);
 	}

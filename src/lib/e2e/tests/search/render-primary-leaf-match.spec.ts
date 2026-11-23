@@ -50,9 +50,18 @@ test.describe('search: folded render-primary leaf widget', () => {
 		page
 	}) => {
 		await editor.loadContent('# Overview\n\n[[toc]]\n\nFooter\n');
-		await expect(hostFor(page, 'toc')).toHaveCount(1);
+		await expect(hostFor(page, 'toc/toc')).toHaveCount(1);
 
 		await search(editor, 'toc');
-		await expectFoundAndPainted(page, 'toc');
+		await expectFoundAndPainted(page, 'toc/toc');
+	});
+
+	test('a match inside a folded drawn block paints over its box too', async ({ page }) => {
+		await editor.gotoPlugins('parrot');
+		await editor.loadContent('%%parrot party zebra\n\nAfter\n');
+		await expect(hostFor(page, 'parrot/parrot')).toHaveCount(1);
+
+		await search(editor, 'zebra');
+		await expectFoundAndPainted(page, 'parrot/parrot');
 	});
 });

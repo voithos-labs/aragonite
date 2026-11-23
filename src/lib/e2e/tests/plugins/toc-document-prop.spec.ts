@@ -57,7 +57,7 @@ test.describe('toc dogfood: the document prop consumer', () => {
 		// Two ATX headings and one setext heading, marker-stripped, in document order.
 		expect(await editor.itemTexts()).toEqual(['Overview', 'Details', 'Appendix']);
 		await expect(editor.source).toHaveCount(0);
-		expect(await editor.bridge.getBlockKind(3)).toBe('toc');
+		expect(await editor.bridge.getBlockKind(3)).toBe('toc/toc');
 	});
 
 	test('the document prop is live: editing a heading updates the folded list', async ({ page }) => {
@@ -98,7 +98,7 @@ test.describe('toc dogfood: the document prop consumer', () => {
 		const doc = '# Title\n\n[[toc]]\n\nBody\n';
 		await editor.loadContent(doc);
 		expect(await editor.bridge.getSource()).toBe(doc);
-		expect(await editor.bridge.getBlockKind(1)).toBe('toc');
+		expect(await editor.bridge.getBlockKind(1)).toBe('toc/toc');
 	});
 });
 
@@ -117,7 +117,7 @@ test.describe('toc dogfood: the document prop reaches nested depth', () => {
 	}) => {
 		const quote = await readContainer(page, 2);
 		expect(quote.kind).toBe('blockquote');
-		expect(quote.childKinds).toEqual(['toc']);
+		expect(quote.childKinds).toEqual(['toc/toc']);
 
 		await expect(editor.nestedItem(0)).toHaveText('Chapter One');
 		await expect(editor.nestedItem(1)).toHaveText('Section A');

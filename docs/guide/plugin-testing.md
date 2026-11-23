@@ -556,30 +556,30 @@ Takes your kind (the value `declaredPluginKind` returns) and runs one cell per e
 
 Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one: [`check`](#checking-a-plugin-value-check) runs these checks over it.
 
-The whole checkup is one call. It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the bundled `[[toc]]` block:
+The whole checkup is one call. It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For a one-line `[[outline]]` block registered with `registerBlockKind`:
 
 ```ts
-const report = await runKindConformance(declaredPluginKind('toc'));
+const report = await runKindConformance(declaredPluginKind('outline'));
 report.cells.map((c) => `${c.cell}: ${c.status}`);
 // [
 //   'roundTrip: asserted',      // the fixture round-trips
 //   'focus: boundary',          // browser only
 //   'mergeBackspace: asserted', // eligibility matches mergeRole
 //   'selectionPaint: boundary', // browser only
-//   'searchPaint: boundary',    // browser only, since the toc is searchable
+//   'searchPaint: boundary',    // browser only, since the outline is searchable
 //   'reorder: boundary',        // browser only
 //   'undo: asserted',           // one edit, one undo entry
 //   'clipboard: asserted',      // copy is a raw byte slice
 //   'simOracle: boundary',      // aragonite's own simulation, never this runner
 //   'rawWrite: asserted',       // no rule, and cutting the closing line swallows nothing
-//   'unfinishedReading: exempt' // the toc never backs out
+//   'unfinishedReading: exempt' // the outline never backs out
 // ]
 ```
 
 When something's wrong the run throws instead of resolving; a fixture that stopped producing your kind reads like this:
 
 ```
-Error: kind conformance failed for "toc": sample parses to no "toc" node
+Error: kind conformance failed for "outline": sample parses to no "outline" node
 ```
 
 **The fixture contract.** The first of your `samples` has to hold your kind inside its **first** top-level block, or the run fails outright: the undo and clipboard cells drive the fixture's first block, next to a throwaway neighbour block the kit adds. A kind that only ever appears nested still enrolls, sitting inside the first block; its clipboard cell then reports `boundary`, because its bytes get copied as part of the enclosing container.

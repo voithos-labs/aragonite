@@ -28,7 +28,7 @@ import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
@@ -41,7 +41,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
 	'slash-commands': () => slashCommands,
-	toc: tocPlugin
+	toc: () => toc
 };
 // One instance each: installing a second object under a plugin's name warns.
 const PLUGINS = normalizePluginEntries(Object.values(BUNDLED).map((plugin) => plugin())).plugins;
@@ -72,7 +72,7 @@ const MERGE_KEYS: Record<string, string | null> = {
 /** Literal kinds whose lines are no body: a line pasted in one is not one of its lines. */
 const NO_BODY_LINES = ['linkReferenceDefinition'];
 /** Drawn by a component that opens the text on a click, which the registration can't see. */
-const PICTURES_BY_COMPONENT = ['mathBlock', 'mathFence', 'toc'];
+const PICTURES_BY_COMPONENT = ['mathBlock', 'mathFence'];
 const JOINS_BY_ROLE: Record<MergeRole, BlockFacts['joins']> = {
 	prose: 'text',
 	'prose-absorber': 'text-keeping-type',

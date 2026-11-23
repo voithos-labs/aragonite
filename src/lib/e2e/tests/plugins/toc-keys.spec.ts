@@ -149,10 +149,9 @@ test.describe('the open source', () => {
 		await expect.poll(() => editor.caret()).toBe('2:6');
 	});
 
-	test('Enter at its end types a line break into it', async () => {
+	test('Enter at its end opens an empty paragraph below, the caret in it', async () => {
 		await editor.press('Enter');
-		await expect.poll(() => editor.source.evaluate((el) => el.textContent)).toBe('[[toc]]\n');
-		expect(await editor.bridge.getSource()).toBe(LAST);
-		await expect.poll(() => editor.caret()).toBe('2:8');
+		await editor.bridge.waitForSourceEquals(`${LAST}\n\n`);
+		await expect.poll(() => editor.caret()).toBe('3:0');
 	});
 });

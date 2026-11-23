@@ -5,27 +5,30 @@
 import { createHash } from 'node:crypto';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { EditorPlugin } from '#lib/plugin.js';
+import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 import { MULTI_SEEDS } from '#lib/e2e/simulation/multi-seeds.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 
 /** The bundled plugins that add syntax and render without a network or a canvas, so `$x$`,
- *  `:::note`, `[^1]` and `[[toc]]` read the way the showcase reads them. */
+ *  `:::note` and `[^1]` read the way the showcase reads them, installed page-wide. */
 export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
 	admonitionsPlugin(),
 	detailsPlugin(),
-	tocPlugin(),
 	footnotesPlugin(),
 	emojiPlugin(),
 	latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) })
 ];
+
+/** The same in an editor, with the plugin values only an editor installs: `[[toc]]` among them. */
+export const EDITOR_SYNTAX_PLUGINS: PluginsProp = [...SYNTAX_PLUGINS, toc];
 
 /** One document per block kind, container and inline construct, short enough that every offset
  *  times every key stays cheap. Ids name rows, so renaming one renames its rows. */

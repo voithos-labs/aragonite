@@ -34,7 +34,7 @@ import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 import { readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
@@ -51,8 +51,7 @@ const BUNDLED_PLUGINS = [
 			throw new Error('the chord sweep renders no math');
 		}
 	}),
-	mermaidPlugin(),
-	tocPlugin()
+	mermaidPlugin()
 ];
 // Installed as the file loads too, so the row tables below can name the bundled kinds.
 installPlugins(BUNDLED_PLUGINS);
@@ -73,7 +72,7 @@ const contributions = createEditorContributions({
 	}
 });
 contributions.read(
-	installPluginList([slashCommands, parrotPlugin()], ({ cause }) => {
+	installPluginList([slashCommands, parrotPlugin(), toc], ({ cause }) => {
 		throw cause;
 	})
 );

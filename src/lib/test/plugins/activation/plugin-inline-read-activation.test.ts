@@ -12,9 +12,14 @@ import {
 	collectFootnoteReferences,
 	footnoteNumbersFor
 } from '#packages/footnotes/src/footnote-numbering.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
-import { collectHeadings } from '#packages/toc/src/heading-outline.js';
+import { toc } from '#packages/toc/src/index.js';
 import type { EditorContext } from '#lib/plugin.js';
+import type { PluginsProp } from '#lib/schema/plugin-install.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { inlineReaderFor } from '#lib/core/inline/index.js';
 import { definitionsOf } from '#lib/core/inline/scan/definitions.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
@@ -29,14 +34,15 @@ import {
 } from '#lib/perf/instruments.js';
 import { grammarListing } from './grammar-listing';
 
+const LATEX = latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) });
+
 beforeEach(() => {
-	installPlugins([
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		footnotesPlugin(),
-		tocPlugin()
-	]);
+	installPlugins([LATEX, footnotesPlugin()]);
 });
-afterEach(disablePerfInstruments);
+afterEach(async () => {
+	disablePerfInstruments();
+	await destroyMountedEditors();
+});
 
 /** A reading in `grammar` with no link reference definitions. */
 const readingIn = (grammar: GrammarView): Reading => ({ ...kitReading(), grammar });
@@ -69,17 +75,19 @@ describe('footnote numbering reads its editor’s inline syntax', () => {
 
 describe('toc labels read their editor’s inline syntax', () => {
 	const SOURCE = '# Title $*x*$\n\n[[toc]]\n';
-	const labelIn = (names: string[]) => {
-		const { doc, editor } = editorListing(names, SOURCE, 'toc');
-		return collectHeadings(doc, 6, editor.computeInlineContent)[0].label;
-	};
+	async function labelIn(plugins: PluginsProp) {
+		installLayoutStubs();
+		const m = mountEditor({ source: SOURCE, plugins });
+		await m.settle();
+		return m.target.querySelector('.toc-block-item')?.textContent?.trim();
+	}
 
-	it('drops the emphasis markers where latex is left out', () => {
-		expect(labelIn(['toc'])).toBe('Title $x$');
+	it('drops the emphasis markers where latex is left out', async () => {
+		expect(await labelIn([toc])).toBe('Title $x$');
 	});
 
-	it('keeps the math source where latex is listed', () => {
-		expect(labelIn(['toc', 'latex'])).toBe('Title $*x*$');
+	it('keeps the math source where latex is listed', async () => {
+		expect(await labelIn([toc, LATEX])).toBe('Title $*x*$');
 	});
 });
 

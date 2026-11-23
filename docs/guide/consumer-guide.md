@@ -830,7 +830,7 @@ Each one releases with the editor and asks for exactly its version, so bump them
 ```ts
 import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
 import { detailsPlugin } from '@voithos-labs/aragonite-details';
-import { tocPlugin } from '@voithos-labs/aragonite-toc';
+import { toc } from '@voithos-labs/aragonite-toc';
 import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
 import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
 import { highlight } from '@voithos-labs/aragonite-highlight';
@@ -846,7 +846,7 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 | --- | --- |
 | `admonitionsPlugin()` | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes |
 | `detailsPlugin()` | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; a non-canonical `<details …>` stays a plain HTML block |
-| `tocPlugin()` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
+| `toc` or `toc({ maxDepth? })` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
 | `footnotesPlugin()` | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order |
 | `emojiPlugin()` | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph, with the literal `:name:` still in the source |
 | `highlight({ renderer? })` | Fenced code highlights in its language: 24 common ones, eight with the page and each other one the first time a fence names it, or every highlight.js grammar if you opt in (**Code highlighting**, below). The code block's picker offers the ones it highlights. Without a renderer, code stays plain, which is also what an editor without this plugin shows |
@@ -861,15 +861,15 @@ A few of them take options or need a word more.
 
 **Admonitions.** Pass `{ convertAlertsOnPaste: true }` to rewrite pasted GitHub alerts to directive source instead of rendering them natively.
 
-**Table of contents.** The walk descends into containers, so headings inside blockquotes, lists, and callouts are listed too, and navigation is view-only, so entries work in every presentation mode. `{ maxDepth }` (1 through 6, default 6) lists only the top levels, and it's read per instance:
+**Table of contents.** Headings inside blockquotes, lists and callouts are listed too, and following an entry changes no bytes, so entries work in every presentation mode. `maxDepth` (1 through 6, default 6) lists only the top levels, in the editor whose list holds it:
 
 ```ts
-import { tocPlugin, type TocOptions } from '@voithos-labs/aragonite-toc';
+import { toc } from '@voithos-labs/aragonite-toc';
 
-const plugins = [{ plugin: tocPlugin(), options: { maxDepth: 3 } satisfies TocOptions }];
+const plugins = [toc({ maxDepth: 3 })];
 ```
 
-Two editors in one process can list different depths this way; the factory form, `tocPlugin({ maxDepth: 3 })`, is the default for an instance that declares none. The `satisfies TocOptions` is there because `options` is `unknown` to the editor, and with it a typo or an out-of-range level stays a compile error. At runtime anything that isn't a level from 1 to 6 falls back to the factory value.
+Two editors in one process can list different depths this way. At runtime anything that isn't a level from 1 to 6 lists every level.
 
 **Footnotes.** A reference jumps to its definition on the click a link follows: a plain click in reading mode, Ctrl/Cmd+click while editing, or a plain click in live mode too if you set `linkClick: 'plain'`. Any other plain click opens the reference's source to edit. The definition's own `[^label]` marker is the way back, on the same gesture, and it lands the caret right after the first citation. In reading mode both are links a keyboard reaches with Tab and follows with Enter, and the way back focuses that first citation, so Tab carries on from it; the editing modes give them no tab stop.
 

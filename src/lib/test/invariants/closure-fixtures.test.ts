@@ -12,7 +12,6 @@ import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind
 import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { ADMONITION } from '#packages/admonitions/src/kinds.js';
-import { registerTocBlock, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // Every declared `sample` parses to a tree containing the kind that declared it
@@ -89,10 +88,5 @@ describe('directive + bundled-plugin conformance fixtures parse to their kind', 
 		activateDirectives();
 		registerAdmonitions(testView());
 		checkFixture(ADMONITION);
-	});
-
-	it('toc', () => {
-		registerTocBlock(testView());
-		checkFixture(TOC_BLOCK);
 	});
 });

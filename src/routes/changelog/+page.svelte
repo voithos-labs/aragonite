@@ -1,11 +1,9 @@
 <script module lang="ts">
-	import type { TocOptions } from '@voithos-labs/aragonite-toc';
 	import { DEMO_PLUGINS, DEMO_TOC } from './../demo-plugins';
 
-	// This route's own outline depth, declared per instance so the shared set still installs once.
-	// `satisfies` because the prop's options are `unknown` to the editor.
+	// This route's own outline depth, the shared set's other plugins as they are.
 	const changelogPlugins = DEMO_PLUGINS.map((entry) =>
-		entry === DEMO_TOC ? { plugin: DEMO_TOC, options: { maxDepth: 3 } satisfies TocOptions } : entry
+		entry === DEMO_TOC ? DEMO_TOC({ maxDepth: 3 }) : entry
 	);
 </script>
 

@@ -1,24 +1,33 @@
-import { beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins, parse, serialize } from '#lib';
-import { registerTocBlock, tocPlugin, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
-import { roundTripCases } from '#lib/test/harness/round-trip.js';
-import { testView } from '#lib/test/harness/test-view.js';
+// @vitest-environment jsdom
+import { afterEach, beforeAll, describe, it, expect } from 'vitest';
+import { grammar } from '#lib/plugin.js';
+import { toc } from '#packages/toc/src/index.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 
-// Recognition starts only once the opener registers: with no plugin loaded `[[toc]]` is an
-// ordinary paragraph, byte-identical to plain GFM.
-describe('toc is dormant until registered', () => {
-	it('leaves a [[toc]] line as a paragraph with nothing registered', () => {
-		const src = '# H\n\n[[toc]]\n';
-		expect(parse(src).children[1].kind).toBe('paragraph');
-		expect(serialize(parse(src))).toBe(src);
+beforeAll(() => installLayoutStubs());
+afterEach(destroyMountedEditors);
+
+const TOC = 'toc/toc';
+const kinds = (source: string, plugins = [toc]) =>
+	grammar(plugins)
+		.parse(source)
+		.blocks.map((block) => block.type.name);
+
+// Without the plugin `[[toc]]` is an ordinary paragraph, byte-identical to plain GFM.
+describe('toc is dormant where no editor lists it', () => {
+	it('leaves a [[toc]] line as a paragraph', () => {
+		const source = '# H\n\n[[toc]]\n';
+		expect(kinds(source, [])).toEqual(['heading', 'paragraph']);
 	});
 });
 
 // The opener takes only the exact line `[[toc]]`; indentation or trailing content stays a
 // paragraph, which keeps the opener out of every other plugin's documents.
 describe('toc recognition', () => {
-	beforeEach(() => registerTocBlock(testView()));
-
 	const recognition: Array<[string, string, boolean]> = [
 		['exact line', '[[toc]]\n', true],
 		['exact line, no trailing newline', '[[toc]]', true],
@@ -28,37 +37,34 @@ describe('toc recognition', () => {
 		['uppercase', '[[TOC]]\n', false],
 		['single bracket', '[toc]\n', false]
 	];
-	for (const [name, src, recognized] of recognition) {
+	for (const [name, source, recognized] of recognition) {
 		it(`${name} → ${recognized ? 'toc' : 'paragraph'}`, () => {
-			expect(parse(src).children[0].kind).toBe(recognized ? TOC_BLOCK : 'paragraph');
+			expect(kinds(source)[0]).toBe(recognized ? TOC : 'paragraph');
 		});
 	}
 
-	it('parses the line to a single source-holding leaf (no children)', () => {
-		const node = parse('[[toc]]\n').children[0];
-		expect(node.kind).toBe(TOC_BLOCK);
-		expect(node.children).toBeUndefined();
-		expect(node.raw).toBe('[[toc]]\n');
+	it('reads the line as one block with no children', () => {
+		const [block] = grammar([toc]).parse('[[toc]]\n').blocks;
+		expect(block.type.name).toBe(TOC);
+		expect(block.children).toEqual([]);
+		expect(block.text).toBe('[[toc]]\n');
 	});
 
 	it('interrupts an open paragraph, splitting the toc onto its own block', () => {
-		const doc = parse('intro\n[[toc]]\n');
-		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', TOC_BLOCK]);
+		expect(kinds('intro\n[[toc]]\n')).toEqual(['paragraph', TOC]);
 	});
 
 	it('recognizes a [[toc]] nested inside a blockquote', () => {
-		const quote = parse('> [[toc]]\n').children[0];
-		expect(quote.kind).toBe('blockquote');
-		expect(quote.children?.[0].kind).toBe(TOC_BLOCK);
+		const [quote] = grammar([toc]).parse('> [[toc]]\n').blocks;
+		expect(quote.type.name).toBe('blockquote');
+		expect(quote.children.map((child) => child.type.name)).toEqual([TOC]);
 	});
 });
 
-// Serialize re-emits `leadingTrivia + raw`, so a `raw` taken verbatim from the line round-trips;
-// the declined rows prove the shapes the opener does not take keep their bytes too.
+// An editor running the plugin writes the bytes back as it read them; the declined rows prove the
+// shapes the opener does not take keep their bytes too.
 describe('toc round-trip', () => {
-	beforeEach(() => registerTocBlock(testView()));
-
-	roundTripCases([
+	it.each([
 		'[[toc]]\n',
 		'# Overview\n\n## Details\n\n[[toc]]\n\nFooter\n',
 		'Appendix\n========\n\n[[toc]]\n',
@@ -68,12 +74,9 @@ describe('toc round-trip', () => {
 		' [[toc]]\n',
 		'[[toc]] contents\n',
 		'[[toc]]'
-	]);
-});
-
-describe('tocPlugin wires the opener', () => {
-	it('makes a [[toc]] line parse as a toc block through the installed plugin', () => {
-		installPlugins([tocPlugin()]);
-		expect(parse('[[toc]]\n').children[0].kind).toBe(TOC_BLOCK);
+	])('keeps %j whole', async (source) => {
+		const m = mountEditor({ source, plugins: [toc] });
+		await m.settle();
+		expect(m.source()).toBe(source);
 	});
 });

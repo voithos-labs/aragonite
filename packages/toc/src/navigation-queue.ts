@@ -1,26 +1,26 @@
 /**
- * One `rects.navigateTo` at a time per block, since two overlapping navigations would move the
- * caret twice. A call while one is in progress replaces the pending target, so the newest wins.
+ * One navigation at a time per block, since two overlapping navigations would move the caret
+ * twice. A call while one is in progress replaces the pending target, so the newest wins.
  */
-export interface NavigationQueue {
-	navigateTo(path: number[]): Promise<void>;
+export interface NavigationQueue<T> {
+	navigateTo(target: T): Promise<void>;
 }
 
-export function createNavigationQueue(deps: {
-	navigateTo: (path: number[]) => Promise<unknown>;
-}): NavigationQueue {
+export function createNavigationQueue<T>(deps: {
+	navigateTo: (target: T) => Promise<unknown>;
+}): NavigationQueue<T> {
 	let navigating = false;
-	let pendingPath: number[] | null = null;
+	let pending: { target: T } | null = null;
 
-	async function navigateTo(path: number[]): Promise<void> {
-		pendingPath = path;
+	async function navigateTo(target: T): Promise<void> {
+		pending = { target };
 		if (navigating) return;
 		navigating = true;
 		try {
-			while (pendingPath) {
-				const target = pendingPath;
-				pendingPath = null;
-				await deps.navigateTo(target);
+			while (pending) {
+				const next = pending.target;
+				pending = null;
+				await deps.navigateTo(next);
 			}
 		} finally {
 			navigating = false;

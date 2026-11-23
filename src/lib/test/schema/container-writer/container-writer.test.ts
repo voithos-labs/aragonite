@@ -17,7 +17,7 @@ import { detailsPlugin } from '#packages/details/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { createEditorGrammar, defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { memoPlugin } from '../../../../routes/test/plugins/memo/register';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import {
 	differentialDocuments,
@@ -346,11 +346,11 @@ describe('the editor’s grammar', () => {
 	// A plugin the editor leaves off interrupts no paragraph there, so the line it would open stays
 	// the quote's lazy line when the line above it changes.
 	it('keeps a lazy line that only the editor’s grammar continues', () => {
-		installPlugins([tocPlugin()]);
+		installPlugins([memoPlugin()]);
 		const grammar = createEditorGrammar({ plugins: activationFor([]) });
-		const quote = parse('> a\n[[toc]]\n', { grammar }).children[0];
-		quote.children![0].raw = 'ab\n[[toc]]\n';
+		const quote = parse('> a\n%% m\n', { grammar }).children[0];
+		quote.children![0].raw = 'ab\n%% m\n';
 		writeContainerRaw(quote, grammar);
-		expect(quote.raw).toBe('> ab\n[[toc]]\n');
+		expect(quote.raw).toBe('> ab\n%% m\n');
 	});
 });

@@ -1,3 +1,3 @@
-// A `[[toc]]` leaf rendering the document's heading outline, click-to-navigate.
-export { tocPlugin, TOC_BLOCK } from './toc-plugin';
+// A `[[toc]]` line drawn as the document's heading outline, click-to-navigate.
+export { toc } from './toc-plugin';
 export type { TocOptions, MaxHeadingLevel } from './toc-plugin';

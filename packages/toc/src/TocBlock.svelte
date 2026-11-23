@@ -1,81 +1,41 @@
 <script lang="ts">
-	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
-	// this component owns only the swap between the list and the source, and navigation.
-	import {
-		type DocumentView,
-		type EditorRects,
-		type NodeView
-	} from '@voithos-labs/aragonite/plugin';
-	import { createEditableLeaf } from '@voithos-labs/aragonite/svelte';
-	import { collectHeadings } from './heading-outline';
+	// The outline's drawing: the document's headings until the caret comes in, then the editor's
+	// element for its `[[toc]]` line. A click on an entry puts the caret in that heading.
+	import type { TextDrawContext } from '@voithos-labs/aragonite/plugin';
+	import { useDrawn, type SvelteBlockProps } from '@voithos-labs/aragonite/svelte';
+	import { headingOf, outlineOf, type TocEntry } from './heading-outline';
 	import { createNavigationQueue } from './navigation-queue';
-	import type { TocOptions } from './toc-plugin';
 
-	let {
-		node,
-		index,
-		myPath = [],
-		document,
-		rects
-	}: {
-		node: NodeView;
-		index: number;
-		myPath?: number[];
-		document?: DocumentView;
-		rects?: EditorRects;
-	} = $props();
+	let { ctx, Slot }: SvelteBlockProps<never, TextDrawContext> = $props();
 
-	let sourceEl: HTMLDivElement | undefined = $state();
-	let revealed = $state(false);
+	// The editor's element for the line is the source surface only while it shows.
+	$effect(() => {
+		for (const name of ['toc-block-source', 'md-source-surface'])
+			ctx.source.classList.toggle(name, ctx.focused);
+		ctx.source.setAttribute('aria-label', 'TOC source');
+	});
 
-	const leaf = createEditableLeaf({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getEl: () => sourceEl ?? null,
-		mode: 'render-primary',
-		isRevealed: () => revealed,
-		setRevealed: (value) => {
-			revealed = value;
+	const headings = $derived(outlineOf(ctx.depends));
+
+	// `reveal` opens a collapsed container on the way and scrolls; `select` then puts the caret in
+	// the heading, or focus in reading mode.
+	const navigation = createNavigationQueue<TocEntry>({
+		navigateTo: async (entry) => {
+			const heading = headingOf(ctx.editor.doc, entry);
+			if (!heading) return;
+			await ctx.editor.view.reveal(heading);
+			await ctx.editor.select(heading.from);
 		}
 	});
 
-	const depth = leaf.getOptions<Required<TocOptions>>().maxDepth;
-
-	// This reads heading bytes through the prop, subscribing to the CST's $state proxy, so an
-	// edit above re-runs it; left uncached so the derived stays reactive.
-	const headings = $derived(
-		collectHeadings(document, depth, leaf.getEditor()?.computeInlineContent)
-	);
-
-	// One navigation at a time per block (`navigation-queue.ts` says why). `navigateTo` moves
-	// the caret as well as scrolling, so focus never stays somewhere the keyboard cannot reach.
-	const navigation = createNavigationQueue({
-		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve()
-	});
-
-	// Stops the block showing its source on pointerdown, so clicking an entry navigates instead
-	// of opening the source. It only reads, so it works in reading mode too.
-	function onEntryPointerDown(e: PointerEvent): void {
-		e.stopPropagation();
-	}
-
-	export const blockApi = leaf.blockApi;
+	// A press on an entry is the entry's, so it navigates instead of opening the source.
+	useDrawn(() => ({
+		keep: (event) => event.target instanceof Element && !!event.target.closest('.toc-block-item')
+	}));
 </script>
 
-{#if revealed}
-	<div
-		bind:this={sourceEl}
-		{...leaf.surfaceProps}
-		class="toc-block-source md-source-surface"
-		aria-label="TOC source"
-	></div>
-{:else}
-	<div
-		class="toc-block-render"
-		aria-label="Table of contents (click to edit)"
-		{...leaf.renderProps}
-	>
+{#if !ctx.focused}
+	<div class="toc-block-render" aria-label="Table of contents (click to edit)">
 		<nav class="toc-block-nav" aria-label="Document headings">
 			{#if headings.length === 0}
 				<span class="toc-block-empty">No headings yet</span>
@@ -88,8 +48,7 @@
 							<button
 								type="button"
 								class="toc-block-item toc-block-level-{heading.level}"
-								onpointerdown={onEntryPointerDown}
-								onclick={() => navigation.navigateTo(heading.path)}
+								onclick={() => navigation.navigateTo(heading)}
 							>
 								{heading.label}
 							</button>
@@ -100,10 +59,11 @@
 		</nav>
 	</div>
 {/if}
+<Slot of="source" />
 
 <style>
 	/* Only the differences from the shared .md-source-surface (editor.css). */
-	.toc-block-source {
+	:global(.toc-block-source) {
 		outline: none;
 		padding: 8px 12px;
 		white-space: pre;

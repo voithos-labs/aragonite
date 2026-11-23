@@ -2520,8 +2520,7 @@ const REVEAL_IN_SVELTE: FileRule = {
 	population: under(SOURCE_DIR.plugins),
 	matches: /\bmode:\s*['"]render-primary['"]/,
 	allowed: {
-		[SOURCE.latexBlockMath]: `block math, with its layout toggle and live preview; ${MOVES_TO_BLOCK_VIEW}`,
-		'packages/toc/src/TocBlock.svelte': `the outline, whose list follows the headings; ${MOVES_TO_BLOCK_VIEW}`
+		[SOURCE.latexBlockMath]: `block math, with its layout toggle and live preview; ${MOVES_TO_BLOCK_VIEW}`
 	},
 	reason:
 		"a bundled block that shows a rendered view until clicked draws it with a block type's `draw` and `edit: 'source'`, the way a plugin author would",

@@ -5,7 +5,6 @@ import { installPlugins } from '#lib';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
@@ -43,7 +42,6 @@ const stubMermaid = (): EditorPlugin => mermaidPlugin({ renderer: async () => '<
 const demoRouteSet = (): EditorPlugin[] => [
 	admonitionsPlugin(),
 	detailsPlugin(),
-	tocPlugin(),
 	footnotesPlugin(),
 	emojiPlugin(),
 	stubLatex(),
@@ -57,8 +55,7 @@ const harnessSet = (): EditorPlugin[] => [
 	admonitionsPlugin(),
 	stubMermaid(),
 	memoPlugin(),
-	docStatsPlugin,
-	tocPlugin()
+	docStatsPlugin
 ];
 
 /** `/test/plugins`' default seed. */

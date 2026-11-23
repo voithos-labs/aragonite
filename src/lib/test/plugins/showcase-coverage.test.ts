@@ -18,7 +18,6 @@ import { EMOJI_KIND } from '#packages/emoji/src/index.js';
 import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
 import { MATH_BLOCK, MATH_INLINE } from '#packages/latex/src/index.js';
 import { MERMAID } from '#packages/mermaid/src/index.js';
-import { TOC_BLOCK } from '#packages/toc/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
@@ -54,10 +53,10 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	footnotes: [FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND],
 	latex: [MATH_BLOCK, MATH_INLINE],
 	mermaid: [MERMAID],
-	// A block type, read only by an editor running the plugin, so no page-wide parse holds it;
-	// `plugins/showcase-route.spec.ts` sees the bird on the page.
+	// Block types, read only by an editor running their plugin, so no page-wide parse holds them;
+	// `plugins/showcase-route.spec.ts` sees them on the page.
 	parrot: [],
-	toc: [TOC_BLOCK],
+	toc: [],
 	// Declares no kind at all: its demonstration is a paragraph repeating a word, asserted
 	// on its own below and chosen the same way by `plugins/showcase-occurrences.spec.ts`.
 	'highlight-occurrences': [],

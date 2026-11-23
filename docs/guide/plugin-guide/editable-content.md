@@ -113,7 +113,7 @@ commit(edited text) ── parse ──▶ same kind?        update in place, ca
 
 So editing past your own fence re-splits the document instead of wedging foreign text into your node.
 
-**Per-instance configuration.** Your plugin's `contributes(options)` runs once per editor with that editor's options, already merged over your `defaults`, so a `draw` made in there closes over them. The bundled toc block's `maxDepth` is one of these, with `tocPlugin({ maxDepth })` filling the default.
+**Per-instance configuration.** Your plugin's `contributes(options)` runs once per editor with that editor's options, already merged over your `defaults`, so a `draw` made in there closes over them. The bundled toc block's `maxDepth` is one of these: an editor listing `toc({ maxDepth: 3 })` lists three levels.
 
 ### Already in Svelte?
 

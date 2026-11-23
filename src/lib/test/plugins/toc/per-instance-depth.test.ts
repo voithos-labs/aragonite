@@ -1,53 +1,49 @@
 // @vitest-environment jsdom
-// Two editors, one process, one installed toc definition, two depths.
+// Two editors, one process, the one plugin value, two depths.
 // Miss-analysis: no test mounted a second toc instance, so a process-wide depth went unseen.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { EditorPluginEntry } from '#lib/plugin.js';
-import { headless } from '#lib/testing.js';
-import { tocPlugin } from '#packages/toc/src/toc-plugin.js';
-import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import type { PluginList } from '#lib/plugin.js';
+import { toc } from '#packages/toc/src/index.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 const SOURCE = '# One\n\n## Two\n\n### Three\n\n#### Four\n\n[[toc]]\n';
 
 // A short fixture, so it stays under the windowing watermark and the toc block mounts.
-const mountToc = (plugins: EditorPluginEntry[]): HTMLElement =>
-	mountEditor({ source: SOURCE, plugins, scrollMode: 'host' }).target;
+async function mountToc(plugins: PluginList): Promise<HTMLElement> {
+	const m = mountEditor({ source: SOURCE, plugins, scrollMode: 'host' });
+	await m.settle();
+	return m.target;
+}
 
 const entryLabels = (root: HTMLElement): string[] =>
 	[...root.querySelectorAll('.toc-block-item')].map((el) => el.textContent?.trim() ?? '');
 
-beforeEach(() => {
-	headless();
-});
+beforeAll(() => installLayoutStubs());
+afterEach(destroyMountedEditors);
 
-afterEach(async () => {
-	await destroyMountedEditors();
-});
-
-describe('tocPlugin depth through the per-instance options channel', () => {
-	it('two live editors sharing one installed definition list different depths', () => {
-		// The same plugin in both props: a second plugin of the same name is discarded in
-		// favour of the first, which is what this option exists to work around.
-		const toc = tocPlugin();
-		const shallow = mountToc([{ plugin: toc, options: { maxDepth: 1 } }]);
-		const deep = mountToc([{ plugin: toc, options: { maxDepth: 3 } }]);
+describe('toc depth, one editor at a time', () => {
+	it('two live editors running the one plugin list different depths', async () => {
+		const shallow = await mountToc([toc({ maxDepth: 1 })]);
+		const deep = await mountToc([toc({ maxDepth: 3 })]);
 
 		expect(entryLabels(shallow)).toEqual(['One']);
 		expect(entryLabels(deep)).toEqual(['One', 'Two', 'Three']);
 	});
 
-	it('a bare install with no factory argument lists every level', () => {
-		expect(entryLabels(mountToc([tocPlugin()]))).toEqual(['One', 'Two', 'Three', 'Four']);
+	it('lists every level with no options', async () => {
+		expect(entryLabels(await mountToc([toc]))).toEqual(['One', 'Two', 'Three', 'Four']);
 	});
 
-	it('a bare install still takes the factory argument', () => {
-		const root = mountToc([tocPlugin({ maxDepth: 2 })]);
-		expect(entryLabels(root)).toEqual(['One', 'Two']);
+	it('lists to the depth its options give', async () => {
+		expect(entryLabels(await mountToc([toc({ maxDepth: 2 })]))).toEqual(['One', 'Two']);
 	});
 
-	it('an instance depth outside 1..6 falls back to the factory argument', () => {
-		const toc = tocPlugin({ maxDepth: 2 });
-		const root = mountToc([{ plugin: toc, options: { maxDepth: 99 } }]);
-		expect(entryLabels(root)).toEqual(['One', 'Two']);
+	it('lists every level for a depth outside 1..6', async () => {
+		const root = await mountToc([toc({ maxDepth: 99 as never })]);
+		expect(entryLabels(root)).toEqual(['One', 'Two', 'Three', 'Four']);
 	});
 });

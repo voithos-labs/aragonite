@@ -27,24 +27,16 @@ Btw, the plugin's version should match the editor's version.
 ## Use it
 
 ```ts
-import { tocPlugin } from '@voithos-labs/aragonite-toc';
+import { toc } from '@voithos-labs/aragonite-toc';
 
-const plugins = [tocPlugin()];
+const plugins = [toc];
 ```
 
 Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. A few things worth knowing:
 
 - On React, Vue or plain JS, the list brings a stylesheet of its own: import `@voithos-labs/aragonite-toc/style.css` beside the editor's.
 - Click an entry (or press Enter on it) to jump to its heading. To edit the `[[toc]]` line itself, click the block anywhere but an entry.
-- `maxDepth` (1 to 6, default 6) is the deepest heading level listed. `tocPlugin({ maxDepth: 3 })` sets it for every editor, and a `{ plugin, options }` entry in one editor's `plugins` sets it there:
-
-  ```ts
-  import { tocPlugin, type TocOptions } from '@voithos-labs/aragonite-toc';
-
-  const plugins = [{ plugin: tocPlugin(), options: { maxDepth: 3 } satisfies TocOptions }];
-  ```
-
-  The `satisfies` is what makes a typo a compile error, since the editor types `options` as `unknown`.
+- `maxDepth` (1 to 6, default 6) is the deepest heading level listed, in the editor whose `plugins` holds it: `[toc({ maxDepth: 3 })]`.
 
 ## More
 
