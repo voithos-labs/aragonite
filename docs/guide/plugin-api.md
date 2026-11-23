@@ -212,7 +212,7 @@ if (!result.ok) console.warn(result.reason, result.message); // 'moved': they ty
 ```
 
 - `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`. Write an opener on a line of its own (a `$$`, a fence, a `:::note`) above a block that would close it, and the editor adds its closing line under it, same as it does for one the author types.
-- `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does. `insertBelow(markdown)` makes it a block of its own instead, as `placement: 'below'` does, in the same undo step.
+- `insert(markdown)` puts Markdown in at the caret once the replacements land. It lands where `insertMarkdown` would and goes in as written: no paste rewrite reads it, yours included. `insertBelow(markdown)` makes it a block of its own instead, as `placement: 'below'` does, in the same undo step.
 - `data(block, data)` sets the data of a block your `draw` was handed, rewriting only the bytes that carry it: a line block's line through its `write`, a container's head or first line. Inside a quote the `> ` stays. It's refused as `moved` if the block changed since you read it (checked at commit, so `stale` doesn't watch it), and as `illegal` on a built-in block, whose markers are its data (write `## ` with `replace` instead). A block with no data, or one you haven't narrowed with `is`, won't compile here.
 - `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the text as you wrote it (a closing line the editor added above it pushes it down for you). Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
 - `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
@@ -985,7 +985,7 @@ _(pre-freeze / unstable)_ The recipe: [Paste transforms](plugin-guide/paste-tran
 | Export | Role |
 | --- | --- |
 | `rewrite` | Makes a plugin value's `PasteRewrite`, so `into` reads `from`'s data |
-| `PasteRewrite` | A rewrite of pasted blocks of one type, listed in `Contribution.rewrites`: `from`, the block type, and `into(block, { editor })`, the Markdown for its place (`''` leaves it out, null keeps it). It runs wherever a paste lands as blocks, never on plain text, one line pasted into text, the editor's own copy or a drop |
+| `PasteRewrite` | A rewrite of pasted blocks of one type, listed in `Contribution.rewrites`: `from`, the block type, and `into(block, { editor })`, the Markdown for its place (`''` leaves it out, null keeps it). It runs wherever a paste lands as blocks, never on plain text, one line pasted into text, the editor's own copy, a drop, or Markdown a draft, a menu pick or an insert row puts in |
 | `registerPasteTransform` | A `setup` plugin's pre-parse rewrite of pasted text; transforms run where the rewrites do, after them, in install order, each seeing the previous one's output (the first gets CRLF already turned to LF), and never on load or typing |
 | `PasteTransform` | The unit: a process-unique `name`, plus `transform(text)` returning the replacement or null for "not mine" |
 
