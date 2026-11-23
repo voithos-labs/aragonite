@@ -231,8 +231,7 @@ function heard(outcome: Outcome, said: string[]): Outcome {
 }
 
 /** `install`: the plugin with its defaults and with `options`, held at once as two editors would
- *  hold them, so a fact that differs by option warns. No run comes back where installing threw.
- *  What the editor reports for the plugin from then on lands in `said`. */
+ *  hold them, so a fact that differs by option warns. No run comes back where installing threw. */
 function install(
 	plugin: Plugin<object>,
 	{ options, warningsFail, timeout }: CheckOptions<object>,
