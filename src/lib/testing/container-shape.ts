@@ -4,7 +4,7 @@
  * holds the line shape to itself (what it writes reads back).
  */
 
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { getPluginMetadata } from '../core/nodes';
 import { documentLineEnding, splitLines } from '../core/lines';
 import type { HeadedLines, IndentedLines, LineShape } from '../core/strip-lines';
@@ -68,29 +68,36 @@ export function derivedProfile(
 function grownSample(context: CheckContext, kind: AnyBlockKind, sample: string): string {
 	const doc = context.parse(sample);
 	const node = subjectNode(doc, kind, [0], 'the sample');
-	const children = (node.children ??= []);
-	if (children.length >= 2) return node.raw;
-	const ending = documentLineEnding(doc);
-	while (children.length < 2) {
-		const leadingTrivia = children.length > 0 ? ending : '';
-		children.push({ kind: 'paragraph', leadingTrivia, raw: `probe ${children.length}${ending}` });
-	}
-	writeContainerRaw(node, context.grammar);
-	const grown = context.parse(node.raw).children[0];
-	assert(
-		grown?.kind === kind && grown.children?.length === 2,
-		`"${kind}"'s own lines write the sample grown to two children as ${show(node.raw)}, which ` +
-			`reads back as ${grown?.kind === kind ? `${grown.children?.length ?? 0}` : `a "${grown?.kind}"`}`
-	);
+	while ((node.children?.length ?? 0) < 2) writeChildIn(context, kind, doc);
 	return node.raw;
+}
+
+/** Adds a paragraph as the last child of the type opening `doc` and writes it through the type's
+ *  own lines; fails unless those bytes read back as the same blocks. */
+function writeChildIn(context: CheckContext, kind: AnyBlockKind, doc: Document): void {
+	const node = doc.children[0];
+	const children = (node.children ??= []);
+	const ending = documentLineEnding(doc);
+	const leadingTrivia = children.length > 0 ? ending : '';
+	children.push({ kind: 'paragraph', leadingTrivia, raw: `probe ${children.length}${ending}` });
+	writeContainerRaw(node, context.grammar);
+	const read = context.parse(node.raw).children;
+	const held = (block: CstNode | undefined) =>
+		block?.kind === kind ? block.children?.map((child) => child.raw) : undefined;
+	assert(
+		read.length === 1 && same(held(read[0]), held(node)),
+		`"${kind}"'s own lines write a child added to the sample as ${show(node.raw)}, which ` +
+			`doesn't read back as that child: it reads as ${read.length} block(s), the first ` +
+			(held(read[0]) ? `holding ${show(JSON.stringify(held(read[0])))}` : `a "${read[0]?.kind}"`)
+	);
 }
 
 /* -------------------------------------------------------------------------- */
 /*                        The shape agrees with itself                        */
 /* -------------------------------------------------------------------------- */
 
-/** `containerDeclared`: a head line or first marker written from data reads back as it, and the
- *  writer keeps the grown sample's bytes, rewriting one child's lines alone however it's asked. */
+/** `containerDeclared`: a head line, a first marker and a child written in each read back as
+ *  written, and the writer keeps the grown sample's bytes, rewriting one child's lines alone. */
 export const CONTAINER_DECLARED: KitCell<'containerDeclared', ContainerCellContext> = {
 	cell: 'containerDeclared',
 	run: ({ context, kind, profile, sample }) => {
@@ -101,6 +108,8 @@ export const CONTAINER_DECLARED: KitCell<'containerDeclared', ContainerCellConte
 		shapeReadsItsWriting(kind, lines, getPluginMetadata(node));
 		// A derived profile focuses on the grown sample.
 		const source = profile.focusSource!;
+		// A sample of two children was never grown, so its lines meet the writer here.
+		writeChildIn(context, kind, context.parse(source));
 		const grown = subjectNode(context.parse(source), kind, [0], 'the grown sample');
 		assertRebuildKeepsParsedBytes(context, grown, kind);
 		assertUntouchedLinesKept(context, kind, descriptor, source);
