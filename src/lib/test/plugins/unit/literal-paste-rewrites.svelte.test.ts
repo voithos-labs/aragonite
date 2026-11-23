@@ -176,6 +176,23 @@ describe('a paste into literal text asks no rewrite', () => {
 	});
 });
 
+describe('a paste on a literal block’s syntax', () => {
+	it('lands as blocks above it, which a rewrite by type reads', async () => {
+		const { plugin, asked } = rewriting();
+		const editor = mountEditor({
+			source: 'intro\n\n%% the text\n',
+			plugins: [literalLeaves, plugin],
+			presentationMode: 'source'
+		});
+		await editor.settle();
+		await select(editor, point([1], 0));
+		document.activeElement!.dispatchEvent(pasteEvent('one!!\n'));
+		await editor.settle();
+		expect(asked).toEqual(['type one!!\n']);
+		expect(editor.source()).toMatch(/^intro\n\nONE!!\n+%% the text\n$/);
+	});
+});
+
 describe('a paste at a link definition', () => {
 	it('is read by a whole-paste rewrite, since its lines land as blocks under it', async () => {
 		const { plugin, asked } = rewriting();

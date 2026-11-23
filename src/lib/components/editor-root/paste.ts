@@ -135,11 +135,11 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 	const rewritten = (clip: PastedClip) =>
 		wholeRewritten(clip, ctx.activePlugins, ctx.reading.grammar);
 
-	/** The clip as it lands at `holder`: text pasted into literal text is code, which no rewrite of
-	 *  either form reads. */
+	/** The clip as it lands at `holder`: text pasted into a literal body is code, which no whole-paste
+	 *  rewrite reads; the core asks the rest only where the paste lands as blocks. */
 	function rewrittenAt(holder: Holder, clip: PastedClip): RewrittenClip {
 		return holder.at === 'block' && literalAt(holder.path)
-			? { ...clip, asksRewrites: false }
+			? { ...clip, asksRewrites: 'blocks' }
 			: rewritten(clip);
 	}
 
