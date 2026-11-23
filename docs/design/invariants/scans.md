@@ -249,6 +249,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
+| G4.389 | Every caret the editor writes says whether it arrives, steps or puts back a byte | L |
 
 ### The entries
 
@@ -519,7 +520,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.163 · One caller per mark gesture.** A call into a mark's `interactive.onClick`, `onHover` or `onActivate` sits only in `decorations/mark-hover.ts` (the hover lifecycle, keyed by the decoration), `decorations/mark-activation.ts` (the activate command) and `components/overlays/DecorationOverlay.svelte` (the click), each inside the engine's `runMarkHandler`. A new route that called a handler itself would skip the one-end rule or the `error` event. `test/invariants/lint/file-rules.test.ts`.
 
-**G4.165 · Text that moves inside an unresized block is reported.** An overlay is measured against the text under it, and a resize observer misses text sliding in a box that keeps its size, as when markers show or hide. Every marker-hook write (`data-focused`, the reveal class, the root's mode and theme) reports to `createTextMoves`, as do a widget swapping to its source, focus crossing a markers-only block, and image and font loads. `lint/file-rules.test.ts` lists the hook writers; `mark-overlay-follows-text.spec.ts` holds the swap and the focus.
+**G4.165 · Text that moves inside an unresized block is reported.** An overlay is measured against the text under it, and a resize observer misses text sliding in a box that keeps its size, as when markers show or hide. Every marker-hook write (`data-focused`, the reveal class, the root's mode, theme and held press) reports to `createTextMoves`, as do a widget swapping to its source, focus crossing a markers-only block, and image and font loads. `lint/file-rules.test.ts` lists the hook writers; `mark-overlay-follows-text.spec.ts` holds the swap and the focus.
 
 **G4.166 · The drawn caret stays on the device grid.** The paint puts the bar's edges on whole device pixels (`caret/drawn-caret-target.ts`) and hands the stylesheet the device pixel ratio, so each width rounds to the nearest whole device pixel, like the browser's caret, and each offset down to one. A shape whose length skips that rounding blurs across two pixel columns at a fractional display scale. `lint/drawn-caret-guards.test.ts` fails a length set in a `.md-drawn-caret` rule with no twin in `editor.css`'s device-rounding block, and a width there not rounded to the nearest.
 
@@ -724,3 +725,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.
 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
+
+**G4.389 · A caret write names its kind.** Every function that writes a caret at a raw offset (`placeCaretAtRaw`, a backend's `setRaw`, a landing's `restore`) is listed as an arrival, a step or an exact byte. An arrival has no byte in hand, so on a `:::` row in live mode it rests no earlier than the title's start, and its function must read `arrivalRawStart` or a reader of it. A collapse, a page step and `navigateTo` once landed before the colons, each a write nobody had to classify. `lint/caret-write-classes.test.ts`.

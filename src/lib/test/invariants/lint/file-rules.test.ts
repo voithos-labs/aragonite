@@ -3253,10 +3253,10 @@ const CONSTRUCT_REVEAL = `${SOURCE_DIR.textBlock}construct-reveal.ts`;
 const TEXT_MOVES: FileRule = {
 	id: 'G4.165 every write of a marker-visibility hook reports the moved text',
 	matches:
-		/\b(?:set|remove|toggle)Attribute\(\s*['"`]data-(?:focused|presentation|editor-theme)['"`]|\bdataset\.(?:focused|presentation|editorTheme)\s*=(?!=)|(?<![[\w-])data-(?:focused|presentation|editor-theme)=\{|\bclassList\.(?:add|remove|toggle|replace)\([^)]*(?:CONSTRUCT_REVEAL_CLASS\b|['"`]md-construct-reveal['"`])|\bclass(?:Name)?\s*=(?!=)[^;\n]*(?:md-construct-reveal|CONSTRUCT_REVEAL_CLASS)|\bclass:md-construct-reveal\b/,
+		/\b(?:set|remove|toggle)Attribute\(\s*(?:['"`]data-(?:focused|presentation|editor-theme|press-held)['"`]|PRESS_HELD_ATTR\b)|\bdataset\.(?:focused|presentation|editorTheme)\s*=(?!=)|(?<![[\w-])data-(?:focused|presentation|editor-theme)=\{|\bclassList\.(?:add|remove|toggle|replace)\([^)]*(?:CONSTRUCT_REVEAL_CLASS\b|['"`]md-construct-reveal['"`])|\bclass(?:Name)?\s*=(?!=)[^;\n]*(?:md-construct-reveal|CONSTRUCT_REVEAL_CLASS)|\bclass:md-construct-reveal\b/,
 	allowed: {
 		[FOCUS_ATTRIBUTION]:
-			'moves `data-focused` between hosts and reports both through `textMoves.movedWithin`, as it does a block of bare markers focus enters or leaves',
+			'moves `data-focused` between hosts and reports both through `textMoves.movedWithin`, as it does a block of bare markers focus enters or leaves; its held-press mark on the root shows or hides nothing until the release moves `data-focused`',
 		[CONSTRUCT_REVEAL]:
 			'toggles the reveal class on marker spans and reports the block through `textMoves.movedWithin`',
 		[`${SOURCE_DIR.components}Editor.svelte`]:
@@ -3275,7 +3275,8 @@ const TEXT_MOVES: FileRule = {
 		at(`${SOURCE_DIR.blocks}X.svelte`, '<div data-focused={focused ? "" : undefined}>'),
 		at(`${SOURCE_DIR.textBlock}X.svelte`, '<span class:md-construct-reveal={shown}>'),
 		at(`${SOURCE_DIR.textBlock}x.ts`, 'span.className = `md-marker ${CONSTRUCT_REVEAL_CLASS}`;'),
-		at(`${SOURCE_DIR.blocks}x.ts`, "host.dataset.focused = '';")
+		at(`${SOURCE_DIR.blocks}x.ts`, "host.dataset.focused = '';"),
+		at(`${SOURCE_DIR.components}x.ts`, 'root.toggleAttribute(PRESS_HELD_ATTR, held);')
 	],
 	misses: [
 		at(

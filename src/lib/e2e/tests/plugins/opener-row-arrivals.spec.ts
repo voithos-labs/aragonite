@@ -2,13 +2,21 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 import { edgeKey, extendKey } from '../../platform-keys';
+import { multiClick } from '../../multi-click';
+import { skipUnlessSupported } from '../../browser-engine';
+import { textRunCenter, textRunStart } from '../../text-runs';
+import { attachIme } from '../../simulation/ime';
 
 /**
  * Where a caret arriving on a `:::` container's opener row rests in live mode: at the title's
  * start (the row's end when untitled), for the arrivals that read `browser/offsets.ts ::
- * arrivalRawStart` (a landing from another line, Home, a click). One row per route, then the
- * routes left as they were: a step, a selection, source mode, a restore, a `<details>` summary.
- * The requirement file lists the arrivals the rule does not reach.
+ * arrivalRawStart` (a landing from another line, Home, a click, ArrowLeft over a range, a page
+ * step, a host's `navigateTo`). One row per route, then the routes left as they were: a step, a
+ * selection, source mode, a restore, a `<details>` summary. Then the carets the browser leaves
+ * (Tab, a script's `focus()`, a line step), which the caret writer moves unless they are steps.
+ * Then the presses: a titled row shows its `:::name` when the press ends, so a click, a
+ * double-click and a drag read the text where the user saw it. The requirement file lists the
+ * arrivals the rule does not reach.
  */
 
 const T = ':::tip Title\nbody\n:::\n';
@@ -17,11 +25,17 @@ const ABOVE = 'above\n\n:::tip Title\nbody\n:::\n';
 const NEST = '::::note Outer\n:::tip Inner\nin\n:::\n::::\n';
 const DETAILS = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
+const TWO = ':::tip Title\nbody\n:::\n\nafter\n';
+const LONG =
+	T + Array.from({ length: 60 }, (_, i) => `\nparagraph ${i} of the long page\n`).join('');
+
 type Step =
 	| { at: [number[], number] }
-	| { key: string }
+	| { key: string; times?: number }
 	| { type: string }
-	| { click: 'left' | 'far-left' | 'padding' | 'right-click'; row?: number[] }
+	| { click: 'left' | 'shift-left' | 'far-left' | 'padding' | 'right-click'; row?: number[] }
+	| { tripleClick: string }
+	| { navigateTo: [number[]] | [number[], number] }
 	| { mode: 'source' | 'live' };
 
 interface Row {
@@ -154,10 +168,99 @@ const ARRIVALS: Row[] = [
 			{ key: 'ArrowUp' }
 		],
 		caret: '[0,0]:10'
+	},
+	{
+		name: 'Shift+Home, then ArrowLeft',
+		source: T,
+		steps: [...arrowBack(2), { key: extendKey('lineStart') }, { key: 'ArrowLeft' }, { type: 'x' }],
+		caret: '[0,0]:8',
+		bytes: ':::tip xTitle\nbody\n:::\n'
+	},
+	{
+		name: 'Mod+A on the row, then ArrowLeft',
+		source: T,
+		steps: [...arrowBack(2), { key: 'ControlOrMeta+a' }, { key: 'ArrowLeft' }, { type: 'x' }],
+		caret: '[0,0]:8',
+		bytes: ':::tip xTitle\nbody\n:::\n'
+	},
+	{
+		name: 'a triple-click on the title, then ArrowLeft',
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { tripleClick: 'Title' }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:7'
+	},
+	{
+		name: 'a Shift+click at the row left edge, then ArrowLeft',
+		source: T,
+		steps: [...arrowBack(2), { click: 'shift-left' }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:7'
+	},
+	{
+		name: 'Mod+A twice, then ArrowLeft',
+		source: TWO,
+		steps: [...arrowBack(2), { key: 'ControlOrMeta+a', times: 2 }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:7'
+	},
+	{
+		name: 'PageUp twice from the body',
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { key: 'PageUp', times: 2 }, { type: 'x' }],
+		caret: '[0,0]:8',
+		bytes: ':::tip xTitle\nbody\n:::\n'
+	},
+	{
+		name: 'PageUp held up a long page',
+		source: LONG,
+		steps: [{ at: [[40], 3] }, { key: 'PageUp', times: 14 }],
+		caret: '[0,0]:7'
+	},
+	{
+		name: "the host's navigateTo on the row with no offset",
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { navigateTo: [[0, 0]] }, { type: 'x' }],
+		caret: '[0,0]:8',
+		bytes: ':::tip xTitle\nbody\n:::\n'
+	},
+	{
+		name: "the host's navigateTo on the callout with no offset",
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { navigateTo: [[0]] }],
+		caret: '[0,0]:7'
 	}
 ];
 
 const LEFT_ALONE: Row[] = [
+	{
+		name: 'Shift+ArrowLeft from the title start, then ArrowLeft, stays in the name',
+		source: T,
+		steps: [...arrowBack(5), { key: 'Shift+ArrowLeft', times: 2 }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:5'
+	},
+	{
+		name: 'Shift+ArrowLeft inside the name, then ArrowLeft, stays there',
+		source: T,
+		steps: [...arrowBack(7), { key: 'Shift+ArrowLeft', times: 2 }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:3'
+	},
+	{
+		name: 'Shift+Home on an untitled row, then ArrowLeft',
+		source: U,
+		steps: [...arrowBack(0), { key: extendKey('lineStart') }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:0'
+	},
+	{
+		name: 'source mode Shift+Home, then ArrowLeft',
+		source: T,
+		mode: 'source',
+		steps: [...arrowBack(2), { key: extendKey('lineStart') }, { key: 'ArrowLeft' }],
+		caret: '[0,0]:0'
+	},
+	{
+		name: "the host's navigateTo on the row at offset 0",
+		source: T,
+		steps: [{ at: [[0, 1], 2] }, { navigateTo: [[0, 0], 0] }],
+		caret: '[0,0]:0'
+	},
 	{
 		name: 'ArrowLeft walks from the title start into the colons',
 		source: T,
@@ -251,10 +354,18 @@ async function run(page: Page, editor: PluginsPage, row: Row): Promise<void> {
 	await editor.setPresentationMode(row.mode ?? 'live');
 	for (const step of row.steps) {
 		if ('at' in step) await editor.focusBlockAtPath(step.at[0], step.at[1]);
-		else if ('key' in step) await page.keyboard.press(step.key);
-		else if ('type' in step) await page.keyboard.type(step.type);
+		else if ('key' in step) {
+			for (let i = 0; i < (step.times ?? 1); i++) await page.keyboard.press(step.key);
+		} else if ('type' in step) await page.keyboard.type(step.type);
 		else if ('mode' in step) await editor.setPresentationMode(step.mode);
-		else await clickRow(page, step.click, step.row ?? [0, 0]);
+		else if ('tripleClick' in step) {
+			await multiClick(page, await textRunCenter(page, step.tripleClick, { path: [0, 0] }), 3);
+		} else if ('navigateTo' in step) {
+			await page.evaluate(
+				(args) => (window as any).__test.rects.navigateTo(...args),
+				step.navigateTo
+			);
+		} else await clickRow(page, step.click, step.row ?? [0, 0]);
 		await editor.waitForRenderFlush();
 	}
 }
@@ -269,7 +380,11 @@ async function clickRow(page: Page, where: string, path: number[]): Promise<void
 		await page.mouse.click(outer.x + 1, middle);
 	} else if (where === 'padding') await page.mouse.click(box.x + 2, box.y + 1);
 	else if (where === 'right-click') await page.mouse.click(box.x + 1, middle, { button: 'right' });
-	else await page.mouse.click(box.x + 1, middle);
+	else if (where === 'shift-left') {
+		await page.keyboard.down('Shift');
+		await page.mouse.click(box.x + 1, middle);
+		await page.keyboard.up('Shift');
+	} else await page.mouse.click(box.x + 1, middle);
 }
 
 test.describe('an arrival on a :::tip row in live mode', () => {
@@ -292,4 +407,373 @@ test.describe('the opener row gestures left as they were', () => {
 			if (row.bytes) expect(await sourceOf(page)).toBe(row.bytes);
 		});
 	}
+});
+
+// ── A caret the browser leaves on the row ────────────────────────────────────
+
+const WRAPPED = `:::tip ${'Title words that run on '.repeat(12).trim()}\nbody\n:::\n`;
+
+async function loadLive(page: Page, source: string): Promise<PluginsPage> {
+	const editor = new PluginsPage(page);
+	await editor.gotoPlugins('admonitions');
+	await editor.loadContent(source);
+	await editor.setPresentationMode('live');
+	return editor;
+}
+
+/** Presses `key` until focus is in the block at `path`, as a user tabbing through the page does. */
+async function tabUntil(page: Page, key: string, path: string): Promise<void> {
+	for (let i = 0; i < 20; i++) {
+		await page.keyboard.press(key);
+		const at = await page.evaluate(() =>
+			document.activeElement?.closest('[data-block-path]')?.getAttribute('data-block-path')
+		);
+		if (at === path) return;
+	}
+	throw new Error(`${key} never reached ${path}`);
+}
+
+test.describe('a caret the browser leaves on a :::tip row in live mode', () => {
+	test('Tab into the editor lands at the title start', async ({ page }) => {
+		const editor = await loadLive(page, T);
+		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+		await tabUntil(page, 'Tab', '[0,0]');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		expect(await typeX(page, editor)).toBe(':::tip xTitle\nbody\n:::\n');
+	});
+
+	test('Shift+Tab from the body lands at the title start', async ({ page }) => {
+		const editor = await loadLive(page, T);
+		await editor.focusBlockAtPath([0, 1], 2);
+		await tabUntil(page, 'Shift+Tab', '[0,0]');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		expect(await typeX(page, editor)).toBe(':::tip xTitle\nbody\n:::\n');
+	});
+
+	test("the row's own focus() lands at the title start", async ({ page }) => {
+		const editor = await loadLive(page, T);
+		await page.evaluate(() =>
+			document
+				.querySelector<HTMLElement>('[data-block-path="[0,0]"] [contenteditable="true"]')!
+				.focus()
+		);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		expect(await typeX(page, editor)).toBe(':::tip xTitle\nbody\n:::\n');
+	});
+
+	test('ArrowUp inside a wrapped title onto its first line lands at the title start', async ({
+		page
+	}) => {
+		const editor = await loadLive(page, WRAPPED);
+		await editor.focusBlockAtPath([0, 1], 0);
+		await page.keyboard.press('ArrowUp');
+		const lines = await page.evaluate(() => {
+			const el = document.querySelector<HTMLElement>(
+				'[data-block-path="[0,0]"] [contenteditable="true"]'
+			)!;
+			return Math.round(
+				el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)
+			);
+		});
+		expect(lines).toBeGreaterThan(1);
+		for (let i = 1; i < lines; i++) await page.keyboard.press('ArrowUp');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+	});
+
+	for (const [what, before] of [
+		['a step into the name', []],
+		['a letter typed in the name', [{ type: 'x' }]]
+	] as const) {
+		test(`focus that leaves after ${what} and comes back by script lands at the title start`, async ({
+			page
+		}) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, {
+				name: '',
+				source: T,
+				steps: [...arrowBack(8), ...before],
+				caret: ''
+			});
+			await page.evaluate(() => {
+				const field = document.body.appendChild(document.createElement('input'));
+				field.focus();
+			});
+			await page.keyboard.type('q');
+			await page.evaluate(() =>
+				document
+					.querySelector<HTMLElement>('[data-block-path="[0,0]"] [contenteditable="true"]')!
+					.focus()
+			);
+			await expect.poll(() => caretText(page)).toBe(before.length ? '[0,0]:8' : '[0,0]:7');
+		});
+	}
+
+	test('a letter typed inside the name stays there', async ({ page }) => {
+		const editor = new PluginsPage(page);
+		await run(page, editor, { name: '', source: T, steps: arrowBack(8), caret: '' });
+		expect(await typeX(page, editor)).toBe(':::txip Title\nbody\n:::\n');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:5');
+	});
+
+	// Each first key renames `tip` to a name the grammar does not hold, which draws the row again.
+	for (const { keys, after } of [
+		{ keys: ['Backspace', 'Backspace'], after: [':::ip Title', '::ip Title'] },
+		{ keys: ['Delete', 'Delete'], after: [':::tp Title', ':::t Title'] },
+		{ keys: ['Shift+ArrowLeft', 'Delete', 'Backspace'], after: ['', ':::ip Title', '::ip Title'] }
+	]) {
+		test(`${keys.join(', ')} inside the name edit the name`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, { name: '', source: T, steps: arrowBack(8), caret: '' });
+			for (const [i, key] of keys.entries()) {
+				await page.keyboard.press(key);
+				if (after[i]) await expect.poll(() => sourceOf(page)).toBe(`${after[i]}\nbody\n:::\n`);
+			}
+		});
+	}
+
+	test('a composition inside the name stays there', async ({ page }) => {
+		const editor = new PluginsPage(page);
+		await run(page, editor, { name: '', source: T, steps: arrowBack(8), caret: '' });
+		const ime = await attachIme(page);
+		await ime.compose('か');
+		await ime.commit('か');
+		await expect.poll(() => sourceOf(page)).toBe(':::tかip Title\nbody\n:::\n');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:5');
+	});
+});
+
+// ── A press on a row not showing its `:::name` ───────────────────────────────
+
+const WORDS = ':::tip Title words\nbody\n:::\n';
+const NEST_WORDS = '::::note Outer\n:::tip Inner words\nin\n:::\n::::\n';
+const ROW = [0, 0];
+/** A point just inside the left edge of `needle` in the row at `path`: a click there rests before
+ *  its first letter. */
+const before = (page: Page, needle: string, path: number[] = ROW) =>
+	textRunStart(page, needle, { path });
+
+/** The computed `display` of the row's `:::name` marker. */
+const markerDisplay = (page: Page, path: number[] = ROW): Promise<string> =>
+	page.evaluate((path) => {
+		const marker = document.querySelector(
+			`[data-block-path="${JSON.stringify(path)}"] [contenteditable="true"] .md-marker`
+		)!;
+		return getComputedStyle(marker).display;
+	}, path);
+
+async function loadWithCaretInBody(
+	page: Page,
+	source: string,
+	body: number[],
+	mode: 'live' | 'preview-block' = 'live'
+): Promise<PluginsPage> {
+	const editor = new PluginsPage(page);
+	await editor.gotoPlugins('admonitions');
+	await editor.loadContent(source);
+	await editor.setPresentationMode(mode);
+	await editor.focusBlockAtPath(body, 2);
+	await editor.waitForRenderFlush();
+	return editor;
+}
+
+async function typeX(page: Page, editor: PluginsPage): Promise<string> {
+	await page.keyboard.type('x');
+	await editor.waitForRenderFlush();
+	return sourceOf(page);
+}
+
+test.describe('a press on a :::tip row not showing its name', () => {
+	test('a click on a title letter lands on that letter', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await before(page, 'ords');
+		await page.mouse.click(at.x, at.y);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:14');
+		expect(await typeX(page, editor)).toBe(':::tip Title wxords\nbody\n:::\n');
+	});
+
+	test('a click on a nested row lands on the letter', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, NEST_WORDS, [0, 1, 1]);
+		const at = await before(page, 'ords', [0, 1, 0]);
+		await page.mouse.click(at.x, at.y);
+		await expect.poll(() => caretText(page)).toBe('[0,1,0]:14');
+		expect(await typeX(page, editor)).toBe('::::note Outer\n:::tip Inner wxords\nin\n:::\n::::\n');
+	});
+
+	test('a double-click selects the title word under it', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await textRunCenter(page, 'words', { path: ROW });
+		await multiClick(page, at, 2);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:13..[0,0]:18');
+		expect(await typeX(page, editor)).toBe(':::tip Title x\nbody\n:::\n');
+	});
+
+	test('a double-click in preview-block selects the title word under it', async ({ page }) => {
+		await loadWithCaretInBody(page, WORDS, [0, 1], 'preview-block');
+		const at = await textRunCenter(page, 'words', { path: ROW });
+		await multiClick(page, at, 2);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:13..[0,0]:18');
+	});
+
+	test('a drag across title letters selects those letters', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const from = await before(page, 'itle');
+		const to = await before(page, 'ds');
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		await page.mouse.move(to.x, to.y, { steps: 6 });
+		await page.mouse.up();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:8..[0,0]:16');
+		expect(await typeX(page, editor)).toBe(':::tip Txds\nbody\n:::\n');
+	});
+
+	test('a drag leftward past the row stays in the title', async ({ page }) => {
+		await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const from = await before(page, 'ords');
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		await page.mouse.move(2, from.y, { steps: 6 });
+		await page.mouse.up();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:14..[0,0]:7');
+	});
+
+	test('the name shows when the button comes up, not when it goes down', async ({ page }) => {
+		await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await before(page, 'ords');
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:14');
+		expect(await markerDisplay(page)).toBe('none');
+		await page.mouse.up();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+	});
+
+	test('a keyboard arrival shows the name at once', async ({ page }) => {
+		await loadWithCaretInBody(page, WORDS, [0, 1]);
+		expect(await markerDisplay(page)).toBe('none');
+		await page.keyboard.press('ArrowUp');
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+	});
+
+	test('a press on an untitled row shows its name at once, until a first letter', async ({
+		page
+	}) => {
+		await loadWithCaretInBody(page, U, [0, 1]);
+		const box = (await page
+			.locator('[data-block-path="[0,0]"] [contenteditable="true"]')
+			.boundingBox())!;
+		await page.mouse.move(box.x + 60, box.y + box.height / 2);
+		await page.mouse.down();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+		// The click's own landing waits for the release, so End takes the caret to the name's end.
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.type(' T');
+		await expect.poll(() => sourceOf(page)).toBe(':::tip T\nbody\n:::\n');
+		// A titled row waits for the release, this one included.
+		await expect.poll(() => markerDisplay(page)).toBe('none');
+		await page.mouse.up();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+	});
+
+	test('a titled generic row shows its name or its drawn copy, never both', async ({ page }) => {
+		const shown = () =>
+			page.evaluate(() => {
+				const row = document.querySelector<HTMLElement>('[data-source-at-caret]')!;
+				const copy = getComputedStyle(row, '::before').content;
+				const name = getComputedStyle(row.querySelector('.md-marker')!).display;
+				return `${name === 'inline' ? 'name' : ''}${copy.startsWith('"') ? 'copy' : ''}`;
+			});
+		await loadWithCaretInBody(page, ':::foo Title\nbody\n:::\n', [0, 1]);
+		const at = await before(page, 'itle');
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:8');
+		expect(await shown()).toBe('copy');
+		await page.mouse.up();
+		await expect.poll(shown).toBe('name');
+		const body = (await page
+			.locator('[data-block-path="[0,1]"] [contenteditable="true"]')
+			.boundingBox())!;
+		await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toMatch(/^\[0,1\]:/);
+		expect(await shown()).toBe('name');
+		await page.mouse.up();
+		await expect.poll(shown).toBe('copy');
+	});
+
+	for (const source of [U, ':::foo\nbody\n:::\n']) {
+		test(`a press that leaves an untitled row hides its name at once (${source.split('\n')[0]})`, async ({
+			page
+		}) => {
+			await loadWithCaretInBody(page, source, [0, 1]);
+			await page.keyboard.press('ArrowUp');
+			await expect.poll(() => markerDisplay(page)).toBe('inline');
+			const body = (await page
+				.locator('[data-block-path="[0,1]"] [contenteditable="true"]')
+				.boundingBox())!;
+			await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
+			await page.mouse.down();
+			await expect.poll(() => caretText(page)).toMatch(/^\[0,1\]:/);
+			expect(await markerDisplay(page)).toBe('none');
+			await page.mouse.up();
+			expect(await markerDisplay(page)).toBe('none');
+		});
+	}
+
+	test('a held press on a titled row shows its name once the title is gone', async ({ page }) => {
+		await loadWithCaretInBody(page, ':::tip T\nbody\n:::\n', [0, 1]);
+		const at = await before(page, 'T');
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		expect(await markerDisplay(page)).toBe('none');
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.press('Backspace');
+		await page.keyboard.press('Backspace');
+		await expect.poll(() => sourceOf(page)).toBe(U);
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+		await page.mouse.up();
+		expect(await markerDisplay(page)).toBe('inline');
+	});
+
+	test('the name stays shown as the title gains its first letter and loses its last', async ({
+		page
+	}) => {
+		const editor = await loadWithCaretInBody(page, U, [0, 1]);
+		await page.keyboard.press('ArrowUp');
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+		await page.keyboard.type(' T');
+		await editor.waitForRenderFlush();
+		expect(await sourceOf(page)).toBe(':::tip T\nbody\n:::\n');
+		expect(await markerDisplay(page)).toBe('inline');
+		await page.keyboard.press('Backspace');
+		await page.keyboard.press('Backspace');
+		await editor.waitForRenderFlush();
+		expect(await sourceOf(page)).toBe(U);
+		expect(await markerDisplay(page)).toBe('inline');
+	});
+});
+
+test.describe('a tap on a :::tip row not showing its name', () => {
+	test.use({ hasTouch: true });
+
+	// At the word's start, where WebKit puts a tap anywhere in the word.
+	test('a tap on a title word lands on that word', async ({ page }) => {
+		skipUnlessSupported(page, 'touch');
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await before(page, 'words');
+		await page.touchscreen.tap(at.x, at.y);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:13');
+		expect(await typeX(page, editor)).toBe(':::tip Title xwords\nbody\n:::\n');
+	});
+
+	test('a double tap selects the title word under it', async ({ page, browserName }) => {
+		skipUnlessSupported(page, 'touch');
+		test.skip(browserName === 'webkit', 'desktop WebKit sends two taps as two single clicks');
+		await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await textRunCenter(page, 'words', { path: ROW });
+		await page.touchscreen.tap(at.x, at.y);
+		await page.touchscreen.tap(at.x, at.y);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:13..[0,0]:18');
+	});
 });

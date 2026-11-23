@@ -14,6 +14,8 @@ const FOCUS_LOSS: FileRule = {
 	id: 'G4.219 a focus-loss listener serves a focus need, never a popover close',
 	matches: FOCUS_LOSS_LISTENER,
 	allowed: {
+		'src/lib/browser/caret-writer.ts':
+			'the `:::` row a caret may step inside is forgotten as focus leaves it',
 		'src/lib/caret/drawn-caret.svelte.ts': 'the drawn caret repaints as focus leaves its block',
 		'src/lib/components/Editor.svelte': 'caret memory forgets as focus leaves the editor',
 		'src/lib/components/GapCaret.svelte': 'the gap caret ends as its hidden input loses focus',

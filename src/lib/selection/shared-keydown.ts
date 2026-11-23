@@ -195,10 +195,21 @@ function collapseRangeForArrow(
 	const range = browserRangeIn(el);
 	if (!range || range.start === null || range.end === null) return false;
 	const at =
-		e.key === 'ArrowLeft' ? range.start : e.key === 'ArrowRight' ? range.end : ctx.getFocusOffset();
+		e.key === 'ArrowLeft'
+			? leftEdgeArrival(range.start, range.end, ctx)
+			: e.key === 'ArrowRight'
+				? range.end
+				: ctx.getFocusOffset();
 	if (at === null) return false;
 	// Reading mode declines the caret and drops the range, leaving the arrow at the block's edge.
 	return ctx.caretWriter.placeCaretAtRaw(el, at, { clamp: 'reachable' });
+}
+
+/** Where ArrowLeft collapses a range `[start, end]` to: a range reaching past the block's arrival
+ *  start (a `:::` row's title start) lands there, and one wholly before it stays where it begins. */
+function leftEdgeArrival(start: number, end: number, ctx: SharedKeydownContext): number {
+	const floor = ctx.arrivalStart?.() ?? 0;
+	return end > floor ? Math.max(start, floor) : start;
 }
 
 /** ArrowDown with no caret in a block running past the editor's bottom edge scrolls one line
