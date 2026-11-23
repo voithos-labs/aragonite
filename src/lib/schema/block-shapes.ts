@@ -106,9 +106,9 @@ export type LeafCommon<D> = BlockCommon<D> & {
 export type LeafDraw<D> =
 	| ({
 			edit?: 'text' | 'source';
-			/** Draws the shown text as DOM (fence lines to hide, highlight tokens through `paint`);
-			 *  the fragment's `textContent` must stay `text`. */
-			renderSource?(text: string, paint: CodePainter): DocumentFragment;
+			/** Paints the block's text as DOM (highlight tokens through `paint`), its `textContent`
+			 *  staying `text`; a fenced block's is its body, the editor drawing its fence lines. */
+			renderSource?(text: string, paint: CodePainter): Node;
 			/** The text as the block type keeps it, asked on show and after each edit, with the caret
 			 *  carried; an added line takes `lineEnding`. Null keeps it. */
 			reshapeSource?(
@@ -241,8 +241,7 @@ export function leafDrawing(
 	const { depends } = spec;
 	const draw = spec.draw as Drawing['draw'];
 	if (spec.edit === 'box') return { type, edit: 'box', singleLine, draw, depends };
-	const { renderSource, reshapeSource } = spec;
-	return { type, edit: editOf(spec), singleLine, draw, depends, renderSource, reshapeSource };
+	return { type, edit: editOf(spec), singleLine, draw, depends };
 }
 
 /** The completer a block type's `complete` makes, refusing what `claims` wouldn't read as it. */

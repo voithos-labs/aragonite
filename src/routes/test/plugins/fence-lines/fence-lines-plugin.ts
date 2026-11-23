@@ -1,16 +1,11 @@
 /**
  * Fenced block types for the e2e suite that holds how the editor draws a fenced block's fence
- * lines: a `%%%` block whose text is always shown, painted by `renderSource`; a
+ * lines: a `%%%` block whose text is always shown, its body painted by `renderSource`; a
  * ```` ```math ```` block drawn as a picture that opens its text; and a `%%plain` block with no
  * `draw`. Dev and e2e harness only.
  */
 
-import {
-	definePlugin,
-	fencedBlock,
-	renderFencedSource,
-	type TextDrawContext
-} from '#lib/plugin.js';
+import { definePlugin, fencedBlock, type TextDrawContext } from '#lib/plugin.js';
 
 export const fenceLinesPlugin = definePlugin({
 	name: 'fence-lines',
@@ -26,7 +21,7 @@ export const fenceLinesPlugin = definePlugin({
 				insert: { none: 'a test block type' },
 				edit: 'text',
 				draw: (_block, ctx) => placed('fence-fixed', ctx),
-				renderSource: paintWhole
+				renderSource: paintBody
 			}),
 			fencedBlock({
 				name: 'math',
@@ -66,21 +61,6 @@ function pictured(body: string, ctx: TextDrawContext) {
 	};
 	show(body);
 	return { dom, update: (next: { body: string }) => show(next.body) };
-}
-
-// The fence lines painted by hand, the way the code block paints its own.
-function paintWhole(text: string): DocumentFragment {
-	const first = text.indexOf('\n');
-	const last = text.lastIndexOf('\n');
-	const source =
-		first < 0
-			? { opener: text, body: '', closer: '' }
-			: {
-					opener: text.slice(0, first + 1),
-					body: text.slice(first + 1, last + 1),
-					closer: text.slice(last + 1)
-				};
-	return renderFencedSource(source, paintBody);
 }
 
 function paintBody(body: string): HTMLElement {

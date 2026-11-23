@@ -220,8 +220,8 @@ export type {
 	CodePainter,
 	CodeToken
 } from './schema/code-highlighter';
-// The code block's own drawing of a fenced source, for a kind that holds its own fence: split
-// with `sliceFencedSource`, draw with `renderFencedSource` and your body painter.
+// The code block's own drawing of a fenced source, for a kind a Svelte component draws: split with
+// `sliceFencedSource`, draw with `renderFencedSource` and your body painter.
 export {
 	sliceFencedSource,
 	renderFencedSource,

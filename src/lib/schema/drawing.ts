@@ -91,7 +91,10 @@ export interface Drawing {
 	readonly singleLine: boolean;
 	draw(block: Block<unknown>, ctx: DrawContext): Drawn<unknown, DrawContext>;
 	depends?(block: Block): string;
+	/** Paints the shown text: the editor's markers around the block type's painting of its text. */
 	renderSource?(text: string, paint: CodePainter): DocumentFragment;
+	/** The block type paints its text itself, so a shown source keeps its own undo steps. */
+	paintsText?: boolean;
 	reshapeSource?(
 		text: string,
 		caret: number,

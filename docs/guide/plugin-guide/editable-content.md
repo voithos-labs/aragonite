@@ -83,21 +83,19 @@ const label = lineBlock({
 });
 ```
 
-**A painted source.** By default the text is one text node. Give the spec a `renderSource(text, paint)` and it paints the text as DOM instead: fence lines the marker-hiding modes collapse, highlight tokens, whatever your block draws. `renderFencedSource` draws a fenced source the way the code block does, the body through `paint.code(body, language)`, which highlights with whatever highlighter the editor lists and paints plain without one. The editor checks `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
+**A painted source.** A `fencedBlock`'s fence lines are the editor's: it draws them as the code block draws its own, dimmed, and hidden in the modes that hide markers. By default the body between them is one text node. Give the spec a `renderSource(body, paint)` and it paints the body as DOM instead: highlight tokens, whatever your block draws. `paint.code(body, language)` highlights with whatever highlighter the editor lists, and paints plain without one. The editor checks `textContent === body` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
 
-A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint. Undo inside the open text walks those edits back before it reaches the document's history, whether you pressed the undo key or picked Undo from the browser's menu. An edit the browser makes itself (an IME commit) gets repainted too. Two more pieces go with a painter:
+The fence lines come with two shapes the shown text keeps while it's edited. A closed block with no body line gets an empty one, for the caret to sit on once the fence lines hide. A line break typed into a one-line block's text (a fence with `oneLine`) puts its fences on lines of their own at once:
 
-- **`ctx.typed`** is the shown text as typed and not yet written (null while the picture shows), and `update` runs after every change to it (yours, the browser's, an undo's), so a live preview can follow the text before it's committed. It stays quiet mid-composition.
-- **`reshapeSource(text, caret, lineEnding)`**, next to `renderSource` on the spec, lets your block put an edited text back in the shape it keeps. It's asked as the text is shown and again after every edit, the browser's included, with `caret` where the caret sits in `text` right then. Answer the new text and the caret's place in it, or null to leave both alone.
-
-Block math uses `reshapeSource` twice:
-
-```ts
-reshapeSource('$$\n$$', 2, '\n'); // { text: '$$\n\n$$', caret: 3 }: an empty body line for the caret
-reshapeSource('$$x\n^2$$', 4, '\n'); // { text: '$$\nx\n^2\n$$', caret: 5 }: Enter in a one-line block
+```
+$$\n$$     is shown as $$\n\n$$, the caret on the empty line
+$$x^|2$$   with Enter at the caret, is shown as $$\nx^\n2\n$$
 ```
 
-The first means a one-line `$$x^2$$` that loses its `x^2` never shows bare fences, and the second turns a one-line block you press Enter in into the multi-line form right away. Keep it in step with the rule every write of your bytes goes through (the commit on leaving included), so what the user sees while typing is what lands. A line you add with no ending to copy (a one-line `$$$$` has none) takes the `lineEnding` you're handed, the block's own or else the document's, so a CRLF file stays CRLF.
+A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint. With a `renderSource`, undo inside the open text walks those edits back before it reaches the document's history, whether you pressed the undo key or picked Undo from the browser's menu. An edit the browser makes itself (an IME commit) gets repainted too. Two more pieces go with a painter:
+
+- **`ctx.typed`** is the shown text as typed and not yet written (null while the picture shows), and `update` runs after every change to it (yours, the browser's, an undo's), so a live preview can follow the text before it's committed. It stays quiet mid-composition.
+- **`reshapeSource(text, caret, lineEnding)`**, next to `renderSource` on the spec, lets your block put an edited text back in a shape of its own. It's handed the whole shown text as it's shown and again after every edit, the browser's included, with `caret` where the caret sits in `text` right then, and runs before the fence's own shapes above. Answer the new text and the caret's place in it, or null to leave both alone. Keep it in step with the rule every write of your bytes goes through (the commit on leaving included), so what the user sees while typing is what lands. A line you add with no ending to copy takes the `lineEnding` you're handed, the block's own or else the document's, so a CRLF file stays CRLF.
 
 A `lineBlock` is one line, so Enter ends the block, as the quickstart showed. A `fencedBlock`'s text spans lines, so there Enter types a newline in the block's own line ending.
 

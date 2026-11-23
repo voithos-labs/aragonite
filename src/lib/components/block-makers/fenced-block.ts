@@ -2,18 +2,18 @@
 import type { BlockType } from '../../schema/plugin-unit';
 import { madeBlockType } from '../../schema/block-type';
 import { drawnView } from '../drawn-block/drawn-view';
+import { renderFencedSource } from '../blocks/code/code-renderer';
+import { framedDrawing, type SourceFrame } from './framed-source';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { fenceShape } from '../../schema/fence-shape';
 import {
 	checkLocalName,
 	completerOf,
-	leafDrawing,
 	leafRegistration,
 	priorityBefore,
 	type FencedBlockSpec,
 	type LeafCommon
 } from '../../schema/block-shapes';
-import { textBlockView } from '../blocks/text/text-block-view';
 
 /** Makes a fenced block type; the editor finds its closer, grows a code fence's closer past a body
  *  line that would close it, and keeps every write of its bytes legal. */
@@ -27,7 +27,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		takesCodeFences ? OPENER_PRIORITIES.fencedCode - 1 : Infinity
 	);
 	const shape = fenceShape(fences, priority, spec.interrupts ?? false);
-	const drawing = leafDrawing(spec, () => type, false);
+	const drawing = framedDrawing(spec, () => type, false, fenceLines(shape));
 	const type: BlockType<never> = madeBlockType<never>({
 		local: spec.name,
 		label: spec.label,
@@ -37,11 +37,25 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		actions: spec.actions,
 		priority,
 		registration: leafRegistration(spec as LeafCommon<unknown>, shape),
-		view: drawing ? drawnView(drawing) : textBlockView(),
+		view: drawnView(drawing),
 		openers: shape.openers,
 		completer: completerOf(spec.complete, shape.claims),
 		bodyRange: shape.range,
 		oneLine: shape.oneLine
 	});
 	return type;
+}
+
+// The fence lines drawn as the code block draws its own, through the one reading of the fence; text
+// no fence of the type opens is all body, and what follows the closer plain text.
+function fenceLines(shape: ReturnType<typeof fenceShape>): SourceFrame {
+	return {
+		paint(text, paintText) {
+			const shown = shape.split(text) ?? { opener: '', body: text, closer: '', after: '' };
+			const frag = renderFencedSource(shown, paintText);
+			if (shown.after) frag.append(shown.after);
+			return frag;
+		},
+		reshape: shape.reshape
+	};
 }

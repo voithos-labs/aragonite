@@ -14,6 +14,7 @@ import {
 	trailingLineEnding,
 	trimTrailingLineEnding,
 	type DisplayLine,
+	type LineEnding,
 	type ParsedLine
 } from '../core/lines';
 import { joinRaw } from '../core/parser';
@@ -62,9 +63,36 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 			: { start: 0, end: raw.length };
 	};
 
+	// A shown text splits as the write holds it, so a body line an `escape` will rewrite stays body.
+	const split = (text: string): ShownFence | null => {
+		const anatomy = opensInfo(text) && fenceAnatomy(text);
+		if (anatomy) {
+			const { bodyStart, closerStart } = anatomy;
+			const [opener, body] = [text.slice(0, bodyStart), text.slice(bodyStart, closerStart)];
+			return { opener, body, closer: text.slice(closerStart), after: '' };
+		}
+		const fixedSplit = splitFixed(fixed, text, true);
+		if (!fixedSplit) return null;
+		const { bodyStart, closerStart, closerEnd } = fixedSplit;
+		return {
+			opener: text.slice(0, bodyStart),
+			body: text.slice(bodyStart, closerStart),
+			closer: text.slice(closerStart, closerEnd),
+			after: text.slice(closerEnd)
+		};
+	};
+
 	return {
 		range: (node: NodeView) => range(node.raw),
 		multiLine: true,
+		split,
+		/** The shown text in the shape the block keeps while it's edited: a one-line block a line
+		 *  break went into on lines of its own, and a closed block with no body line given one. */
+		reshape(text: string, caret: number, lineEnding: LineEnding): CaretText | null {
+			const broken = brokenOneLine(fixed, text);
+			const ownLines = broken?.closed ? onOwnLines(text, broken, caret) : null;
+			return withBodyLine(split(ownLines?.text ?? text), lineEnding) ?? ownLines;
+		},
 		oneLine: fixed.some((f) => f.oneLine)
 			? (line: string) => openFixed(fixed, line)?.oneLine === true
 			: undefined,
@@ -129,6 +157,31 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 			};
 			return [...(infoMatchers.length > 0 ? [info] : []), ...(fixed.length > 0 ? [own] : [])];
 		}
+	};
+}
+
+/** A shown text split at its fence lines, each keeping its own ending, and what follows the closer. */
+interface ShownFence {
+	opener: string;
+	body: string;
+	closer: string;
+	after: string;
+}
+
+interface CaretText {
+	text: string;
+	caret: number;
+}
+
+// Its fence lines hide where markers do, so a closed block with no body line gains an empty one,
+// ended like its opener line, and the caret goes there.
+function withBodyLine(shown: ShownFence | null, lineEnding: LineEnding): CaretText | null {
+	if (!shown || shown.closer === '' || shown.body !== '') return null;
+	const openerLine = trimTrailingLineEnding(shown.opener);
+	const ending = ownTrailingLineEnding(shown.opener) || lineEnding;
+	return {
+		text: openerLine + ending + ending + shown.closer + shown.after,
+		caret: openerLine.length + ending.length
 	};
 }
 
@@ -246,7 +299,23 @@ interface FixedSplit extends FixedRead {
 	closerEnd: number;
 }
 
+// The shown text is split by its reshape, its paint and its write in a row, so the last split is kept.
+let lastSplit: {
+	fixed: readonly FixedFence[];
+	text: string;
+	held: boolean;
+	split: FixedSplit | null;
+} | null = null;
+
 function splitFixed(fixed: readonly FixedFence[], text: string, held: boolean): FixedSplit | null {
+	const last = lastSplit;
+	if (last && last.fixed === fixed && last.held === held && last.text === text) return last.split;
+	const split = splitWhole(fixed, text, held);
+	lastSplit = { fixed, text, held, split };
+	return split;
+}
+
+function splitWhole(fixed: readonly FixedFence[], text: string, held: boolean): FixedSplit | null {
 	// Line 0 first, so a block no fixed fence opens is never split whole.
 	const open = openFixed(fixed, firstDisplayLine(text).text);
 	const lines = open ? splitLines(text) : [];
@@ -338,7 +407,7 @@ function mendOneLine(
 	text: string,
 	caret: number,
 	mode: WriteContext['mode']
-): { text: string; caret: number } | null {
+): CaretText | null {
 	const broken = brokenOneLine(fixed, text);
 	if (!broken) return null;
 	const { first, closer } = broken;
@@ -359,7 +428,7 @@ function onOwnLines(
 	text: string,
 	{ first, openEnd, closer, closed }: BrokenOneLine,
 	caret: number
-): { text: string; caret: number } {
+): CaretText {
 	const body = text.slice(openEnd, closed ? text.length - closer.length : text.length);
 	const bodyEnd = openEnd + body.length;
 	const { ending } = first;

@@ -19,14 +19,14 @@ const LANDS: Record<'source' | 'live', Record<keyof typeof BLOCKS, string[]>> = 
 		'code block': [
 			'0.125L [1]@0', '0.125R [1]@5', '0.375L [1]@6', '0.375R [1]@16',
 			'0.625L [1]@17', '0.625R [1]@28', '0.875L [1]@29', '0.875R [1]@32',
-			'down [1]@11', 'down [1]@22', 'down [1]@32', 'down [2]@6', 'down [3]@3',
+			'down [1]@11', 'down [1]@22', 'down [1]@32', 'down [2]@6',
 			'up [1]@17', 'up [1]@6', 'up [1]@0', 'up [0]@0', 'up [0]@0',
 			'end [0]@6', 'start [0]@0'
 		],
 		'%%% block': [
 			'0.125L [3]@1', '0.125R [3]@3', '0.375L [3]@5', '0.375R [3]@14',
 			'0.625L [3]@16', '0.625R [3]@26', '0.875L [3]@28', '0.875R [3]@30',
-			'down [3]@3', 'down [3]@7', 'down [3]@18', 'down [3]@30', 'down [4]@5',
+			'down [3]@3', 'down [3]@7', 'down [3]@18', 'down [3]@30',
 			'up [3]@27', 'up [3]@15', 'up [3]@4', 'up [3]@0', 'up [2]@0',
 			'end [2]@7', 'start [2]@0'
 		]
@@ -35,14 +35,14 @@ const LANDS: Record<'source' | 'live', Record<keyof typeof BLOCKS, string[]>> = 
 		'code block': [
 			'0.125L [1]@6', '0.125R [1]@16', '0.375L [1]@6', '0.375R [1]@16',
 			'0.625L [1]@17', '0.625R [1]@28', '0.875L [1]@17', '0.875R [1]@28',
-			'down [1]@11', 'down [1]@22', 'down [2]@6', 'down [3]@10', 'down [3]@21',
+			'down [1]@11', 'down [1]@22', 'down [2]@6', 'down [3]@10',
 			'up [1]@17', 'up [1]@6', 'up [0]@0', 'up [0]@0', 'up [0]@0',
 			'end [0]@6', 'start [0]@0'
 		],
 		'%%% block': [
 			'0.125L [3]@5', '0.125R [3]@14', '0.375L [3]@5', '0.375R [3]@14',
 			'0.625L [3]@16', '0.625R [3]@26', '0.875L [3]@16', '0.875R [3]@26',
-			'down [3]@11', 'down [3]@22', 'down [4]@5', 'down [5]@15', 'down [5]@21',
+			'down [3]@11', 'down [3]@22', 'down [4]@5', 'down [5]@15',
 			'up [3]@15', 'up [3]@4', 'up [2]@0', 'up [1]@17', 'up [1]@6',
 			'end [1]@16', 'start [1]@6'
 		]
@@ -79,7 +79,8 @@ async function clicks(page: Page, path: number): Promise<string[]> {
 async function walks(page: Page, path: number): Promise<string[]> {
 	const landed: string[] = [];
 	await page.evaluate((p) => (window as any).__test.placeCaret([p - 1], 'end'), path);
-	for (let i = 0; i < 5; i++) {
+	// Four steps down, short of the `%%plain` block's closing line, which no row here reads.
+	for (let i = 0; i < 4; i++) {
 		await page.keyboard.press('ArrowDown');
 		landed.push(`down ${await caret(page)}`);
 	}
@@ -110,3 +111,36 @@ for (const mode of ['source', 'live'] as const) {
 		});
 	}
 }
+
+test('```math typed key by key in live mode keeps the caret off its info line', async ({
+	page
+}) => {
+	const editor = new PluginsPage(page);
+	await editor.gotoPlugins('fence-lines');
+	await editor.setPresentationMode('live');
+	await page.evaluate(() => (window as any).__test.placeCaret([4], 'end'));
+	await page.keyboard.press('Enter');
+	const landed: { key: string; kind: string; offset: number | null }[] = [];
+	for (const key of ['`', '`', '`', 'm', 'a', 't', 'h', 'Enter', 'x']) {
+		await page.keyboard.press(key);
+		landed.push({
+			key,
+			...(await page.evaluate(() => {
+				const selection = (window as any).__test.getSelection();
+				const at = selection?.focus.path[0] ?? 5;
+				return {
+					kind: (window as any).__test.getBlockKind(at) as string,
+					offset: selection ? (selection.focus.offset as number) : null
+				};
+			}))
+		});
+	}
+	const typedInto = landed.filter((row) => row.kind === 'fence-lines/math');
+	expect(typedInto.map((row) => row.key)).toEqual(['Enter', 'x']);
+	// Past "```math\n", the info line and its ending.
+	for (const row of typedInto) expect(row.offset).toBeGreaterThanOrEqual(8);
+
+	await page.evaluate(() => (window as any).__test.placeCaret([0], 'end'));
+	await expect.poll(() => editor.bridge.getSource()).toContain('\nafter\n\n```math\nx\n```\n');
+	expect(await capturedErrors(page)).toEqual([]);
+});

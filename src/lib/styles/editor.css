@@ -801,6 +801,16 @@
 	display: none;
 }
 
+/* A drawn block's text element dims the markers the editor draws in it as a code block does. */
+:where(.editor) [data-view-text] .md-marker {
+	opacity: var(--syntax-marker-dim, 0.65);
+}
+
+:where(.editor) [data-view-text] .md-marker.md-lang {
+	color: var(--color-accent);
+	opacity: 0.7;
+}
+
 /* A focused construct whose only bytes are its markers shows them, having nothing else to show,
    and so does a source-at-caret row (a `:::` opener line); mirrored in `browser/painted.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])

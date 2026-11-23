@@ -190,6 +190,12 @@ export interface EditableLeaf {
 }
 
 export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
+	return createSourceLeaf(deps, deps.renderSource !== undefined);
+}
+
+/** {@link createEditableLeaf} for a source the editor paints: `kindPaints` says whether the block
+ *  type paints its text too, which a shown source's own undo and markers-only Backspace follow. */
+export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): EditableLeaf {
 	const mode: EditableLeafMode = deps.mode ?? 'plain';
 	const singleLine = deps.singleLine ?? false;
 	if (
@@ -566,7 +572,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	 *  the document's history. */
 	function stepSourceHistory(e: Event, undo: boolean): boolean {
 		const el = deps.getEl();
-		if (!el || !deps.renderSource || !isRevealed()) return false;
+		if (!el || !kindPaints || !isRevealed()) return false;
 		const [from, to] = undo ? [sourceUndo, sourceRedo] : [sourceRedo, sourceUndo];
 		if (from.length === 0) return false;
 		e.preventDefault();
@@ -606,7 +612,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			isAtMostOneCharacter(text.slice(start, end)) &&
 			isAtMostOneCharacter(insert) &&
 			!/[\r\n]/.test(insert);
-		if (deps.renderSource) recordSourceEdit(text, backend.getRaw() ?? start, keystroke);
+		if (kindPaints) recordSourceEdit(text, backend.getRaw() ?? start, keystroke);
 		const spliced = text.slice(0, start) + insert + text.slice(end);
 		// Every edit gets the reshape showing the source does: an emptied body is the same bare
 		// source a new block arrives as.
@@ -616,7 +622,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		reportSourceEdit(next);
 		setCaret(reshaped?.caret ?? start + insert.length);
 		// Started after the edit, so the pause measured is the one the user leaves.
-		if (deps.renderSource && keystroke) sourceBatch.armPause();
+		if (kindPaints && keystroke) sourceBatch.armPause();
 		if (mode === 'plain') editableSurface.commitInput();
 	}
 
@@ -662,7 +668,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 		// Undo inside a shown painted source steps through its own edits; the document sees them as
 		// one entry written on blur.
-		if (deps.renderSource && isRevealed()) {
+		if (kindPaints && isRevealed()) {
 			const command = wiring.resolveChord(e, deps.getNode().kind);
 			if (command === 'history.undo' || command === 'history.redo') {
 				if (stepSourceHistory(e, command === 'history.undo')) return;
@@ -672,7 +678,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// Backspace in a markers-only painted source deletes the block, but only with whitespace or
 		// nothing before the caret, so a Backspace right after a visible marker still edits it.
 		if (e.key === 'Backspace' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-			const offset = deps.renderSource ? backend.getRaw() : null;
+			const offset = kindPaints ? backend.getRaw() : null;
 			const text = el.textContent ?? '';
 			if (
 				offset !== null &&

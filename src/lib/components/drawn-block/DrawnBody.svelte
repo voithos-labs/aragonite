@@ -58,7 +58,7 @@
 	import { VIEW_TEXT_ATTR, VIEW_TEXT_HOST_ATTR } from '../../caret/block-content-selector';
 	import { editorXOf } from '../../caret/sticky-measure';
 	import { checkDomViewContent } from '../../invariants/dom-view-content';
-	import { createEditableLeaf } from '../blocks/editable/editable-leaf';
+	import { createSourceLeaf } from '../blocks/editable/editable-leaf';
 	import { bindLeafSurface } from './leaf-surface-binding.svelte';
 	import { createDrawnBox } from './drawn-box.svelte';
 	import { createContainerBlock } from '../../editor-actions/plugin/container';
@@ -116,23 +116,27 @@
 		renderSource: view.renderSource,
 		onSourceEdit: (text: string) => (typed = text)
 	};
+	const kindPaints = view.paintsText ?? view.renderSource !== undefined;
 	const leaf =
 		view.edit === 'source'
-			? createEditableLeaf({
-					...leafDeps,
-					mode: 'render-primary',
-					reshapeSource: view.reshapeSource,
-					isRevealed: () => revealed,
-					setRevealed: (value) => {
-						revealed = value;
-						// At once, not in an effect: the leaf focuses the text next, and a hidden
-						// element takes no focus.
-						source.hidden = !value;
-						if (!value) typed = null;
-					}
-				})
+			? createSourceLeaf(
+					{
+						...leafDeps,
+						mode: 'render-primary',
+						reshapeSource: view.reshapeSource,
+						isRevealed: () => revealed,
+						setRevealed: (value) => {
+							revealed = value;
+							// At once, not in an effect: the leaf focuses the text next, and a hidden
+							// element takes no focus.
+							source.hidden = !value;
+							if (!value) typed = null;
+						}
+					},
+					kindPaints
+				)
 			: view.edit === 'text'
-				? createEditableLeaf(leafDeps)
+				? createSourceLeaf(leafDeps, kindPaints)
 				: null;
 	if (leaf) {
 		bindLeafSurface({
@@ -243,6 +247,8 @@
 				keys ??= services.read.keys(view.depends, dependsReport(services, node.kind));
 				heard = keys.version();
 			}
+			// A redraw finds the text the editor painted already in place, which is no drawing's.
+			const painted = devChecksOn && text ? [...source.children] : [];
 			const made = view.draw(read(), ctx);
 			if (devChecksOn && keys && !made.update) warnUnheard(view, node.kind);
 			drawn = made;
@@ -251,7 +257,7 @@
 			const host = el.parentElement as (HTMLElement & { [CARET_AT]?: unknown }) | null;
 			if (host) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
 			seen = watched();
-			if (text) assertInvariant('dom-view-content', () => checkDomViewContent(el, source));
+			if (text) assertInvariant('dom-view-content', () => checkDomViewContent(el, source, painted));
 			const offs = [
 				...(container ? [on(el, 'keydown', container.handleKeydown)] : []),
 				on(el, 'focusin', () => (focusedWithin = true)),
