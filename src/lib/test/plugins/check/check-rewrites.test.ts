@@ -73,6 +73,18 @@ describe('rewriteLands', () => {
 		expect(await rowOf(check(split))).toMatchObject({ subject: 'heading', status: 'passed' });
 	});
 
+	// Miss: no fixture's `into` threw; the editor keeps the block and reports it, and the row heard
+	// only the kept block, so it read as a rewrite with nothing to do.
+	it('fails a rewrite that throws, which the editor reports and keeps the block for', async () => {
+		const throws = rewriting('throws', () => {
+			throw new Error('no answer for you');
+		});
+		expect(await rowOf(check(throws))).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/the editor reported your plugin.*no answer for you/)
+		});
+	});
+
 	it('reads not-applicable for a rewrite that keeps every sample', async () => {
 		const keeps = rewriting('keeps', () => null);
 		expect(await rowOf(check(keeps))).toMatchObject({ status: 'not-applicable' });

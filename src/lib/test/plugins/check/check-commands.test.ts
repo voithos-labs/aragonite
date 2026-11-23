@@ -124,6 +124,34 @@ describe('waitingWrite over commands', () => {
 		});
 	});
 
+	// Miss: no fixture's `when` threw; the editor reports it and greys the command, and each row
+	// read the greyed command as one that declines.
+	it('fails each row whose `when` throws, on the row that asked it', async () => {
+		const shout = command<Block<never>>({
+			id: 'shout',
+			title: 'Shout',
+			when: () => {
+				throw new Error('no answer for you');
+			},
+			run: () => true
+		});
+		const memo = lineBlock({
+			name: 'memo',
+			label: 'Memo',
+			sample: '%%a memo',
+			insert: { none: 'a fixture of the check suite' },
+			match: /^%%(?<text>.*)$/,
+			actions: [{ label: 'Shout', command: shout }]
+		});
+		const report = await reportOf(check(pluginOf('when-throws', () => ({ blocks: [memo] }))));
+		for (const name of ['waitingWrite', 'actionTarget']) {
+			expect(rowOf(report, 'when-throws/shout', name)).toMatchObject({
+				status: 'failed',
+				detail: expect.stringMatching(/the editor reported your plugin.*no answer for you/)
+			});
+		}
+	});
+
 	it('reads not-applicable for a command that answers with no promise', async () => {
 		const now = commanding('now', () => true);
 		expect(rowOf(await check(now), 'now/go', 'waitingWrite')).toMatchObject({

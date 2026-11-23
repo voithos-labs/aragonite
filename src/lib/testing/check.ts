@@ -168,10 +168,14 @@ async function rowsOf(
 	options: CheckOptions<object>,
 	warnings: Warnings
 ): Promise<CheckRow[]> {
-	const { row, run } = install(plugin, options, warnings);
+	// What the editor reports for the plugin, taken by the row it was heard in.
+	const said: string[] = [];
+	const { row, run } = install(plugin, options, warnings, said);
 	if (!run) return [row];
 	try {
 		const rows: CheckRow[] = [row];
+		const push = (of: CheckRow['of'], subject: string, check: CheckName, outcome: Outcome) =>
+			rows.push({ of, subject, check, ...heard(outcome, said) });
 		const own = run.units.find((unit) => unit.name === plugin.name)?.contribution;
 		// A type the install left out is in `install`'s row, and nowhere else.
 		const kinds = run.kinds.filter((kind) => kind.startsWith(`${plugin.name}/`));
@@ -181,12 +185,12 @@ async function rowsOf(
 			if (kindRows[0].status === 'failed') continue;
 			const samples = run.context.descriptor(kind).samples ?? [];
 			for (const [check, outcome] of await blockReadOutcomes(run, own, kind, samples)) {
-				rows.push({ of: 'block', subject: kind, check, ...outcome });
+				push('block', kind, check, outcome);
 			}
 		}
 		for (const subject of inlineSubjects(own?.inlines, run.inlines)) {
 			for (const [check, outcome] of inlineOutcomes(run, subject)) {
-				rows.push({ of: 'inline', subject: subject.name, check, ...outcome });
+				push('inline', subject.name, check, outcome);
 			}
 		}
 		const samples = kinds.flatMap((kind) => run.context.descriptor(kind).samples ?? []);
@@ -195,41 +199,47 @@ async function rowsOf(
 		let setup: Outcome;
 		try {
 			for (const entry of commandSubjects(run, plugin.name, own)) {
-				for (const [check, outcome] of await commandOutcomes(run, entry, mounted)) {
-					rows.push({ of: 'command', subject: entry.id, check, ...outcome });
+				for await (const [check, outcome] of commandOutcomes(run, entry, mounted)) {
+					push('command', entry.id, check, outcome);
 				}
 			}
 			for (const [trigger, menus] of menuSubjects(run, plugin.name)) {
-				const outcome = await menuOutcome(trigger, menus, mounted);
-				rows.push({ of: 'menu', subject: trigger, check: 'waitingWrite', ...outcome });
+				push('menu', trigger, 'waitingWrite', await menuOutcome(trigger, menus, mounted));
 			}
 			for (const [from, entries] of rewriteSubjects(run, plugin.name)) {
-				const outcome = rewriteOutcome(run, mounted, from, entries);
-				rows.push({ of: 'rewrite', subject: from, check: 'rewriteLands', ...outcome });
+				push('rewrite', from, 'rewriteLands', rewriteOutcome(run, mounted, from, entries));
 			}
 			const painted = await paintOutcomes(run, mounted, plugin.name, own, warnings);
-			for (const [check, outcome] of painted) {
-				rows.push({ of: 'plugin', subject: plugin.name, check, ...outcome });
-			}
+			for (const [check, outcome] of painted) push('plugin', plugin.name, check, outcome);
 		} finally {
 			setup = mounted.end();
 		}
-		rows.push({ of: 'plugin', subject: plugin.name, check: 'setup', ...setup });
+		push('plugin', plugin.name, 'setup', setup);
 		return rows.map(advisory);
 	} finally {
 		run.release();
 	}
 }
 
+/** `outcome`, failed where the editor reported the plugin while its row ran: a throw the editor
+ *  contains (a `when`, a rewrite's `into`) otherwise reads to the row as a decline. */
+function heard(outcome: Outcome, said: string[]): Outcome {
+	if (said.length === 0) return outcome;
+	const reported = `the editor reported your plugin (${said.splice(0).join('; ')})`;
+	const detail = outcome.status === 'failed' ? `${outcome.detail}; ${reported}` : reported;
+	return { status: 'failed', detail };
+}
+
 /** `install`: the plugin with its defaults and with `options`, held at once as two editors would
- *  hold them, so a fact that differs by option warns. No run comes back where installing threw. */
+ *  hold them, so a fact that differs by option warns. No run comes back where installing threw.
+ *  What the editor reports for the plugin from then on lands in `said`. */
 function install(
 	plugin: Plugin<object>,
 	{ options, warningsFail, timeout }: CheckOptions<object>,
-	warnings: Warnings
+	warnings: Warnings,
+	said: string[]
 ): { row: CheckRow; run: PluginCheckRun | null } {
-	const problems: string[] = [];
-	const report = ({ doing, cause }: PluginError) => problems.push(`${doing}: ${messageOf(cause)}`);
+	const report = ({ doing, cause }: PluginError) => said.push(`${doing}: ${messageOf(cause)}`);
 	const before = warnings.length;
 	let run: PluginCheckRun | null = null;
 	try {
@@ -240,8 +250,9 @@ function install(
 			if (run !== defaults) defaults.release();
 		}
 	} catch (error) {
-		problems.push(`installing threw: ${messageOf(error)}`);
+		said.push(`installing threw: ${messageOf(error)}`);
 	}
+	const problems = said.splice(0);
 	if (warningsFail !== false) {
 		for (const { tag, message } of warnings.slice(before))
 			problems.push(`dev warning [${tag}]: ${message}`);

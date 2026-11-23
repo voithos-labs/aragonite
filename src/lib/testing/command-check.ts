@@ -92,37 +92,34 @@ export function mount(run: PluginCheckRun, setup: Contribution['setup'], source:
 	};
 }
 
-/** `waitingWrite` and `actionTarget` over `entry`; a command its block types place is handed a
- *  block of the first of them with a sample. */
-export async function commandOutcomes(
+/** `waitingWrite` and `actionTarget` over `entry`, each answered before the next is driven; a
+ *  command its block types place is handed a block of the first of them with a sample. */
+export async function* commandOutcomes(
 	run: PluginCheckRun,
 	entry: ContributedCommand,
 	mounted: Mount
-): Promise<[CommandCheck, Outcome][]> {
+): AsyncGenerator<[CommandCheck, Outcome]> {
 	const placing = placingSample(run, entry);
 	if (entry.placedBy.size > 0 && !placing) {
 		const none: Outcome = {
 			status: 'not-applicable',
 			detail: 'no block type placing it has a sample'
 		};
-		return [
-			['waitingWrite', none],
-			['actionTarget', none]
-		];
+		yield ['waitingWrite', none];
+		yield ['actionTarget', none];
+		return;
 	}
 	const waiting = await mounted.drive(placing?.sample ?? 'A note.\n', (stage) => {
 		const block = placing && blocksOf(stage, placing.kind)[0];
 		return waitingCommand(run, stage, entry, block ?? undefined);
 	});
+	yield ['waitingWrite', waiting];
 	const target = placing
 		? await mounted.drive(`${placing.sample}\n${placing.sample}`, (stage) =>
 				actionTarget(run, stage, entry, placing.kind)
 			)
 		: { status: 'not-applicable' as const, detail: 'takes no block, so none is handed to it' };
-	return [
-		['waitingWrite', waiting],
-		['actionTarget', target]
-	];
+	yield ['actionTarget', target];
 }
 
 /** `waitingWrite` over the menus sharing `trigger`: each picks its first row for an empty query. */
