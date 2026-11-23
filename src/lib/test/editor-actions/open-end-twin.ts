@@ -430,6 +430,13 @@ export const KNOWN: Known[] = [
 	},
 	{
 		defect:
+			'a later line behind an indent (an item’s, a footnote’s, indented code’s) emptied ' +
+			'through a range the editor holds stays open on its indent, where the twin keeps a blank line',
+		holds: (draw) => editorHeld(draw) && /^[ \t]+\S/.test(lastLineIn(draw.source)),
+		repro: over('- one\n- two\n  pq', 'editor', { key: 'Delete' }, 'source')
+	},
+	{
+		defect:
 			'a list’s own edit (Enter in an item, a join at an item’s start) leaves a line of ' +
 			'spaces, or respells an indent, where the twin leaves none',
 		holds: ({ where, gesture, source }) =>

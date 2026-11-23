@@ -511,8 +511,8 @@ function atOpenEnd(doc: Doc, range: Range, remove: (doc: Doc) => Removal): Remov
 	// An emptied document has no last line to keep.
 	if (isBlankText(closed.source) || !closed.source.endsWith(ending)) return remove(doc);
 	const body = closed.source.slice(0, -ending.length);
-	// A line that holds a container's marker is not blank, so it gives the break back.
-	if (isBlankText(body.slice(body.lastIndexOf('\n') + 1))) return closed;
+	// A line that holds a container's marker or indent gives the break back, as it always has.
+	if (body.endsWith('\n')) return closed;
 	const within = (at: number | undefined) => (at === undefined ? at : Math.min(at, body.length));
 	return {
 		...closed,

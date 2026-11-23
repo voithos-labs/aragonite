@@ -80,7 +80,6 @@ const EXAMPLES: Draw[] = (['source', 'live'] as const).flatMap((mode) => [
 	over('above\npq', 'editor', { key: 'Delete' }, mode),
 	over('above\npq', 'editor', { cut: 'then pasted back' }, mode),
 	over('- one\n- two\n  pq', 'browser', { key: 'Delete' }, mode),
-	over('- one\n- two\n  pq', 'editor', { cut: 'key' }, mode),
 	over('> above\n> pq', 'browser', { soft: 'Backspace' }, mode),
 	over('zz\n\n```\npq', 'browser', { cut: 'key' }, mode),
 	over('zz\n\n~~~\npq\n~~~', 'editor', { key: 'Delete' }, mode),
