@@ -9,6 +9,9 @@ order of rewrites, their depth, an empty answer and their cost are held by
 Miss-analysis: paste rewrites were process-wide text transforms run on each route by hand, and no
 spec pasted the editor's own copy through Replace with clipboard, which rewrote it.
 
+Miss-analysis: an insert row went in through the paste's entry point, and no spec picked a row whose own Markdown
+a listed rewrite reads, so the alert's row inserted a callout.
+
 ## Happy paths
 
 - An alert pasted mid-paragraph lands as the callout its rewrite writes
@@ -20,6 +23,7 @@ spec pasted the editor's own copy through Replace with clipboard, which rewrote 
 - One alert line pasted after text stays text
 - The editor's own alert, copied with Ctrl+C and pasted with Ctrl+V, keeps its bytes
 - The editor's own alert pasted in a table cell keeps its bytes
+- The alert's own insert row lands the alert it wrote, not the callout its rewrite writes
 - Replace with clipboard keeps the editor's own copy as it was
 
 ## Error cases

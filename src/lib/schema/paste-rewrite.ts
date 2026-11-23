@@ -4,7 +4,8 @@ import type { Block } from './doc-view';
 import type { BlockType, Editor } from './plugin-unit';
 
 /** Rewrites pasted blocks of one type wherever a paste lands as blocks; never on plain text, one
- *  line pasted into text, or the editor's own copy. */
+ *  line pasted into text, the editor's own copy, or Markdown a draft, a pick or an insert row
+ *  puts in. */
 export interface PasteRewrite<D = never> {
 	from: BlockType<D>;
 	/** Markdown for the block's place ('' leaves it out), or null to keep it; positions in `block`

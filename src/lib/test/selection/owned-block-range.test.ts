@@ -107,7 +107,7 @@ describe('what acts on a finger range inside one block', () => {
 		const took =
 			typeof text === 'string'
 				? await handlers.handleBeforeInput(makeBeforeInputEvent(text))
-				: await handlers.pasteOverRange({ text: text.paste, plain: false });
+				: await handlers.pasteOverRange({ text: text.paste, plain: false, asksRewrites: true });
 		expect(took).toBe(true);
 		expect(serialize(env.h.deps.doc)).toBe(`${row}\n| --- | --- |\n`);
 	});

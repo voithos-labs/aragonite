@@ -139,7 +139,8 @@ async function perform(gesture: Gesture, shape: Shape, pasted = 'P') {
 		await handlers.handleKeyDown(press(gesture));
 	} else if (gesture === 'cut') await handlers.performCrossBlockCut();
 	else if (gesture === 'type') await handlers.handleBeforeInput(makeBeforeInputEvent('x'));
-	else if (gesture === 'paste') await handlers.pasteOverRange({ text: pasted, plain: false });
+	else if (gesture === 'paste')
+		await handlers.pasteOverRange({ text: pasted, plain: false, asksRewrites: true });
 	else handlers.handleCompositionStart();
 	await settleEditor();
 	return env;

@@ -1,8 +1,8 @@
 /**
  * The one place a paste's rewrites run, wherever a paste lands as blocks (the range-edit core's
  * host, a table cell, the block menu's Replace with clipboard): each plugin value's rewrites by
- * block type, outermost block first, then the process-wide paste transforms. Plain text and the
- * editor's own copy are never rewritten.
+ * block type, outermost block first, then the process-wide paste transforms. Plain text, the
+ * editor's own copy and a program's own insert are never rewritten.
  */
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
@@ -15,12 +15,14 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import { cloneNode } from '../clone';
 import { applyPasteTransforms } from './paste-transforms';
 
-/** A clipboard as a paste brings it: its text, whether it goes in as plain text, and the editor's
- *  own entry where it carries one. */
+/** What a paste brings: LF text, whether it goes in as plain text, and the editor's own entry
+ *  where the clipboard carried one. */
 export interface PastedClip {
 	readonly text: string;
 	readonly plain: boolean;
 	readonly own?: string;
+	/** Whether the plugins' paste rewrites read it: false for Markdown a program inserts itself. */
+	readonly asksRewrites: boolean;
 }
 
 /** `clip`'s text as the rewrites of the plugins `activation` runs leave it; `read` is the clipboard
@@ -31,7 +33,7 @@ export function rewrittenPaste(
 	activation: PluginActivation,
 	grammar: GrammarView
 ): string {
-	if (clip.plain || clip.own !== undefined) return clip.text;
+	if (!clip.asksRewrites || clip.plain || clip.own !== undefined) return clip.text;
 	return applyPasteTransforms(byType(clip.text, read, activation, grammar), activation);
 }
 

@@ -331,7 +331,7 @@ describe('where a paste is aimed', () => {
 
 		const aimed = h.paste.aim();
 		expect(preparePaste).not.toHaveBeenCalled();
-		await aimed?.({ text: '!', plain: false });
+		await aimed?.({ text: '!', plain: false, asksRewrites: true });
 		// Text in one block is that block's own write, never the splice.
 		expect(h.leafWrites).toEqual([{ path: [0], raw: 'hello!\n' }]);
 		expect(h.commits).toEqual([]);
@@ -344,7 +344,9 @@ describe('where a paste is aimed', () => {
 		el.focus();
 
 		// The harness opens none, so nothing is pasted: the paste goes nowhere else.
-		expect(await h.paste.paste({ text: '- item', plain: false }, { below: true })).toBe(false);
+		expect(
+			await h.paste.paste({ text: '- item', plain: false, asksRewrites: true }, { below: true })
+		).toBe(false);
 		expect(h.opened).toEqual([3]);
 		expect(h.steps).toEqual([[2]]);
 		expect(h.commits).toEqual([]);
@@ -360,7 +362,7 @@ describe('where a paste is aimed', () => {
 		el.tabIndex = 0;
 		el.focus();
 
-		expect(await h.paste.paste({ text: 'x', plain: false })).toBe(true);
+		expect(await h.paste.paste({ text: 'x', plain: false, asksRewrites: true })).toBe(true);
 		expect(drafted).toEqual(['x']);
 		expect(h.commits).toEqual([]);
 		expect(h.leafWrites).toEqual([]);
@@ -372,7 +374,7 @@ describe('where a paste is aimed', () => {
 		el.tabIndex = 0;
 		el.focus();
 
-		expect(await h.paste.paste({ text: 'x', plain: false })).toBe(false);
+		expect(await h.paste.paste({ text: 'x', plain: false, asksRewrites: true })).toBe(false);
 		expect(h.commits).toEqual([]);
 	});
 });
@@ -395,15 +397,20 @@ describe('a paste whose document a swap replaced on the way', () => {
 		const { h, swap } = swappable();
 		const aimed = h.paste.aim()!;
 		swap();
-		expect(await aimed({ text: 'x', plain: false })).toBe(false);
+		expect(await aimed({ text: 'x', plain: false, asksRewrites: true })).toBe(false);
 		expect([h.commits, h.leafWrites]).toEqual([[], []]);
 	});
 
 	it.each([
-		['a menu', (h: ReturnType<typeof harness>) => h.paste.aim()!({ text: 'x', plain: false })],
+		[
+			'a menu',
+			(h: ReturnType<typeof harness>) =>
+				h.paste.aim()!({ text: 'x', plain: false, asksRewrites: true })
+		],
 		[
 			'insertMarkdown',
-			(h: ReturnType<typeof harness>) => h.paste.paste({ text: 'x', plain: false })
+			(h: ReturnType<typeof harness>) =>
+				h.paste.paste({ text: 'x', plain: false, asksRewrites: true })
 		]
 	])('from %s, answers false once the swap came while it landed', async (_, paste) => {
 		const { h } = swappable((swap) => ({ during: swap }));
@@ -413,7 +420,9 @@ describe('a paste whose document a swap replaced on the way', () => {
 
 	it('below a block, pastes nothing once the swap came while the paragraph opened', async () => {
 		const { h } = swappable((swap) => ({ opens: true, during: swap }), [1]);
-		expect(await h.paste.paste({ text: 'x', plain: false }, { below: true })).toBe(false);
+		expect(
+			await h.paste.paste({ text: 'x', plain: false, asksRewrites: true }, { below: true })
+		).toBe(false);
 		expect(h.opened).toEqual([2]);
 		expect([h.commits, h.leafWrites]).toEqual([[], []]);
 	});
@@ -424,7 +433,9 @@ describe('a paste whose document a swap replaced on the way', () => {
 			(swap) => ({ opens: true, during: () => (opened ? swap() : (opened = true)) }),
 			[1]
 		);
-		expect(await h.paste.paste({ text: 'x', plain: false }, { below: true })).toBe(false);
+		expect(
+			await h.paste.paste({ text: 'x', plain: false, asksRewrites: true }, { below: true })
+		).toBe(false);
 		expect(h.commits.length + h.leafWrites.length).toBe(1);
 	});
 

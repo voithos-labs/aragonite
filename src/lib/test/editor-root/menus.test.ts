@@ -67,7 +67,7 @@ function harness(
 		replaceRaw: vi.fn(async () => true)
 	};
 	const placeMenuCaret = vi.fn(() => true);
-	const insertMarkdown = vi.fn(async () => true);
+	const insertBelow = vi.fn(async () => true);
 	const aimedInserts: string[] = [];
 	const aimInsertAtFocus = vi.fn(
 		() => async (clip: { text: string; plain: boolean }) => (
@@ -93,7 +93,7 @@ function harness(
 		rangeAtContextPress: () => opts.rangeAtPress ?? !(window.getSelection()?.isCollapsed ?? true),
 		selection,
 		finger: () => opts.finger ?? false,
-		insertMarkdown,
+		insertBelow,
 		clipboard: { take: () => null, pasteTarget: aimInsertAtFocus },
 		openDraft: (spec, path) => idleDraftRegistry().open(spec, path),
 		inserts: () => insertRows(everyInstalledPlugin),
@@ -130,7 +130,7 @@ function harness(
 		menus,
 		blockEdit,
 		placeMenuCaret,
-		insertMarkdown,
+		insertBelow,
 		aimInsertAtFocus,
 		aimedInserts,
 		rightClick,
@@ -188,7 +188,7 @@ describe('editor-root menus: the right-click', () => {
 		expect(h.menu()!.items[0].disabled).toBe(true);
 		// A flyout pick inserts below the block the press placed the caret in.
 		h.menu()!.pick('bullet');
-		expect(h.insertMarkdown).toHaveBeenCalledWith('- ', { placement: 'below' });
+		expect(h.insertBelow).toHaveBeenCalledWith('- ');
 	});
 
 	it('Paste aims at the focused block as it is picked, then inserts the clipboard text there', async () => {
@@ -203,7 +203,7 @@ describe('editor-root menus: the right-click', () => {
 		expect(h.aimInsertAtFocus).toHaveBeenCalledOnce();
 		expect(h.aimedInserts).toEqual([]);
 		await vi.waitFor(() => expect(h.aimedInserts).toEqual(['pasted']));
-		expect(h.insertMarkdown).not.toHaveBeenCalled();
+		expect(h.insertBelow).not.toHaveBeenCalled();
 	});
 
 	it('over a link, prose leads with Edit link, asked after the caret lands, and runs it', () => {

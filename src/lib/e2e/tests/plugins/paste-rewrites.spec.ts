@@ -54,6 +54,13 @@ test.describe('a paste rewrite by block type', () => {
 		expect(await editor.bridge.getSource()).not.toContain('[!TIP]');
 	});
 
+	test("the alert's own insert row lands the alert it wrote", async ({ page }) => {
+		await page.getByText('after', { exact: true }).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Insert block' }).hover();
+		await page.getByRole('menuitem', { name: 'Alert', exact: true }).click();
+		await expect.poll(() => editor.bridge.getSource()).toBe(`${ALERT}\n%> [!NOTE]\n%> new\n`);
+	});
+
 	test('one alert line pasted after text stays text', async () => {
 		await caretAfter('intro');
 		await editor.seedClipboard('%> [!TIP]');

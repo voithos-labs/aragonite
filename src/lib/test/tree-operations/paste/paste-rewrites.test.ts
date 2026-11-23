@@ -37,7 +37,7 @@ function listing(...rewrites: [kind: string, into: (node: NodeView) => string | 
 	};
 }
 
-const outside = (text: string) => ({ text, plain: false });
+const outside = (text: string) => ({ text, plain: false, asksRewrites: true });
 const QUOTE = 'a\n\n> q\n\nb\n';
 
 describe('a paste rewrite by block type', () => {
@@ -128,8 +128,9 @@ describe('a paste rewrite by block type', () => {
 
 describe('a paste no rewrite runs on', () => {
 	it.each([
-		['plain text', { text: QUOTE, plain: true }],
-		["the editor's own copy", { text: QUOTE, plain: false, own: 'entry' }]
+		['plain text', { text: QUOTE, plain: true, asksRewrites: true }],
+		["the editor's own copy", { text: QUOTE, plain: false, own: 'entry', asksRewrites: true }],
+		["a program's own insert", { text: QUOTE, plain: false, asksRewrites: false }]
 	])('%s is never read or rewritten', (_, clip) => {
 		const { activation, answer } = listing(['blockquote', () => 'QUOTE']);
 		const read = reader(QUOTE);

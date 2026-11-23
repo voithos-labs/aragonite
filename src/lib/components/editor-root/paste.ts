@@ -19,7 +19,6 @@ import type { PasteImageHook } from '../../host-hooks';
 import {
 	pasteInBlock,
 	pasteThroughCore,
-	type Clip,
 	type PasteContext
 } from '../../selection/cross-block/range-paste';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
@@ -28,6 +27,7 @@ import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { createImagePasteArm } from '../paste-image-arm';
+import type { PastedClip } from '../../tree-operations/paste/paste-rewrites';
 
 export interface RootPasteDeps {
 	/** A getter, never a value: the root binds after construction. */
@@ -36,7 +36,7 @@ export interface RootPasteDeps {
 	/** What the paste reads and commits through; its controller is the editor's own. */
 	context: PasteContext;
 	/** Pastes over the range the editor holds (`CrossBlockHandlers.pasteOverRange`). */
-	pasteOverRange(clip: Clip): Promise<boolean>;
+	pasteOverRange(clip: PastedClip): Promise<boolean>;
 	/** Makes an empty top-level paragraph at `boundary`. */
 	insertParagraph(boundary: number, text: string): Promise<boolean>;
 	getBlockComponent(path: number[]): BlockComponent | null;
@@ -52,14 +52,14 @@ export interface RootPasteDeps {
 
 /** A paste aimed at the place the editor held when it was made; true once it was taken: bytes
  *  moved into the document, or a shown source drafted them. */
-export type AimedPaste = (clip: Clip) => Promise<boolean>;
+export type AimedPaste = (clip: PastedClip) => Promise<boolean>;
 
 export interface RootPaste {
 	/** `root` is the element the installing effect captured, not a live binding. */
 	onPasteEvent(event: ClipboardEvent, root: HTMLElement): void;
 	/** Pastes `clip` at the editor's caret or range; `below` makes it a block of its own (see
 	 *  `onEmptyParagraph`). True as an `AimedPaste` is. */
-	paste(clip: Clip, options?: { below?: boolean }): Promise<boolean>;
+	paste(clip: PastedClip, options?: { below?: boolean }): Promise<boolean>;
 	/** A paste aimed now, for a caller that waits on something first (a menu's clipboard read);
 	 *  null with nowhere to aim. */
 	aim(): AimedPaste | null;
@@ -171,7 +171,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 
 	/** The paste into a paragraph opened under top-level block `top`, both one undo entry: the
 	 *  clipboard lands there as on any empty line, so a list beside a list of its type joins it. */
-	async function below(top: number, clip: Clip): Promise<boolean> {
+	async function below(top: number, clip: PastedClip): Promise<boolean> {
 		const madeFor = deps.stamps.current();
 		const opened = docPathFrom([top + 1]);
 		let landed = false;
@@ -189,7 +189,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		path: number[],
 		block: BlockComponent,
 		answer: PreparedPaste | null,
-		clip: Clip
+		clip: PastedClip
 	): Promise<boolean> {
 		if (!answer) return false;
 		const { start, end } = answer;
@@ -214,11 +214,11 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		const images = imageArm.filesOf(clip.files);
 		if (images.length === 0) return void (await aimed(clip));
 		const madeFor = deps.stamps.current();
-		const markdown = scriptedClip(await imageArm.run(images));
+		const markdown = scriptedClip(await imageArm.run(images), true);
 		const overRange = !!markdown.text && madeFor.live && deps.selection.ownsRange;
 		// The aim is still asked, with nothing, so a block it prepared lets its records go.
 		const landed = overRange
-			? !(await aimed(scriptedClip(''))) && (await deps.pasteOverRange(markdown))
+			? !(await aimed(scriptedClip('', true))) && (await deps.pasteOverRange(markdown))
 			: await aimed(markdown);
 		if (landed || !markdown.text) return;
 		// The asset is imported and nothing shows it, which only the host can clean up.

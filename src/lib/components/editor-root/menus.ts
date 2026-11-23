@@ -11,7 +11,6 @@ import type { BlockEditActions } from '../../action-contracts';
 import { BLOCK_ACTIONS_LABEL } from '../../a11y-strings';
 import type { NodeView } from '../../core/node-views';
 import type { DocumentGetter } from '../../editor-keys';
-import type { InsertMarkdownOptions } from '../../editor-props';
 import type { PresentationMode } from '../../presentation-mode';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { Draft, DraftSpec } from '../../schema/drafts';
@@ -76,8 +75,9 @@ export interface RootMenusDeps {
 	/** Whether the last press was a finger's (`selection/pointer-gesture.ts`), whose long press
 	 *  the editor takes over, its toolbar the one menu over the word. */
 	finger(): boolean;
-	/** The public insert entry point; a flyout row inserts `below` the block the caret is in. */
-	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
+	/** A flyout row's insert, as a block of its own below the caret's block: the editor's own
+	 *  Markdown, which no paste rewrite reads. */
+	insertBelow(markdown: string): Promise<boolean>;
 	/** What the clipboard rows cut, copy and paste through. */
 	clipboard: MenuClipboard;
 	/** The insert rows this editor lists, read fresh per menu. */
@@ -303,7 +303,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			const typeRow = flyout?.rows.find((r) => r.id === id);
 			if (typeRow) return void (typeRow.disabled || typeRow.run());
 			const row = rows.find((r) => r.id === id);
-			if (row && withInsert) void deps.insertMarkdown(rowMarkdown(row), { placement: 'below' });
+			if (row && withInsert) void deps.insertBelow(rowMarkdown(row));
 		});
 	}
 

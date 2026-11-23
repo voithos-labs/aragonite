@@ -558,7 +558,8 @@
 		writes: () => ({
 			commitSource: controller.commitSource,
 			undoStep: (seed, run) => controller.undoStep(seed, run),
-			insert: (md, below) => rootPaste.paste(scriptedClip(md), { below })
+			insert: (md, below, asksRewrites) =>
+				rootPaste.paste(scriptedClip(md, asksRewrites), { below })
 		})
 	});
 	const shownSource = createShownSourceState();
@@ -1260,7 +1261,7 @@
 			editorEl ? rootGestures.placeMenuCaret(editorEl, x, y) : false,
 		rangeAtContextPress: () => (editorEl ? rootGestures.rangeAtContextPress(editorEl) : false),
 		selection: selectionState,
-		insertMarkdown,
+		insertBelow: async (md) => (await drafts.edit().insertBelow(md).commit()).ok,
 		clipboard: menuClipboard,
 		openDraft: (spec, path) => drafts.open(spec, path),
 		inserts: () => inserts,
@@ -1645,9 +1646,7 @@
 		md: string,
 		options?: InsertMarkdownOptions
 	): Promise<boolean> {
-		const draft = drafts.edit();
-		if (options?.placement === 'below') draft.insertBelow(md);
-		else draft.insert(md);
+		const draft = drafts.edit().insertAsPaste(md, options?.placement === 'below');
 		return (await draft.commit()).ok;
 	}
 

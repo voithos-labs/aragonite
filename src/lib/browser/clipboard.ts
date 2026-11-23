@@ -25,6 +25,8 @@ export interface ClipboardRead {
 	text: string;
 	plain: boolean;
 	own?: string;
+	/** Whether the plugins' paste rewrites read it: a clipboard's text always. */
+	asksRewrites: boolean;
 	/** Every string type of a paste event's data, as written. */
 	types: Readonly<Record<string, string>>;
 	files: readonly File[];
@@ -57,10 +59,16 @@ export async function readClipboard(plain = false): Promise<ClipboardRead | null
 	}
 }
 
-/** Text a caller hands over as a paste would bring it, with no clipboard read and no entry. */
-export const scriptedClip = (text: string, plain = false): ClipboardRead => ({
+/** Text a caller hands over as a paste would bring it, with no clipboard read and no entry;
+ *  `asksRewrites` is false for Markdown a program inserts itself. */
+export const scriptedClip = (
+	text: string,
+	asksRewrites: boolean,
+	plain = false
+): ClipboardRead => ({
 	text: normalizeLineEndings(text),
 	plain,
+	asksRewrites,
 	types: {},
 	files: []
 });
@@ -73,7 +81,7 @@ function clipOf(
 ): ClipboardRead {
 	const text = normalizeLineEndings(raw);
 	const own = types[OWN_CLIPBOARD_TYPE] || ownEntryFor(text);
-	return { text, plain, ...(own && { own }), types, files };
+	return { text, plain, ...(own && { own }), asksRewrites: true, types, files };
 }
 
 /** Writes `write` into a copy or cut event's clipboard, the editor's own entry included. */

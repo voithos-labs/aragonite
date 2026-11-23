@@ -31,7 +31,7 @@ const GESTURES: [name: string, insertion: RangeInsertion, warns: boolean][] = [
 	['Enter', { kind: 'command', chord: 'Enter', place: null }, true],
 	['a composition', { kind: 'composition' }, true],
 	['a cut', { kind: 'none', gesture: 'cut' }, false],
-	['a paste', { kind: 'paste', clip: { text: 'P', plain: false } }, false]
+	['a paste', { kind: 'paste', clip: { text: 'P', plain: false, asksRewrites: true } }, false]
 ];
 
 describe('the range replace in reading mode', () => {

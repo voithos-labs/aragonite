@@ -25,7 +25,12 @@ export function heardOutside(error: PluginError): void {
 
 /** `text` pasted from outside the editor, read as `context` reads it. */
 export const pasted = (context: CheckContext, activation: PluginActivation, text: string) =>
-	rewrittenPaste({ text, plain: false }, () => context.parse(text), activation, context.grammar);
+	rewrittenPaste(
+		{ text, plain: false, asksRewrites: true },
+		() => context.parse(text),
+		activation,
+		context.grammar
+	);
 
 // ── The row ──────────────────────────────────────────────────────────────────
 

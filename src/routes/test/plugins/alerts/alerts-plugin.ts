@@ -25,7 +25,7 @@ export const alertType = container<AlertData>({
 	label: 'Alert',
 	icon: 'text-quote',
 	sample: '%> [!NOTE]\n%> x',
-	insert: { none: 'a test block type' },
+	insert: { label: 'Alert', icon: 'text-quote', insert: '%> [!NOTE]\n%> new\n' },
 	lines: {
 		shape: 'marked',
 		first: '%> ',
