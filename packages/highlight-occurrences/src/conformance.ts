@@ -1,7 +1,7 @@
 // The conformance suite a plugin listing runs over this package, published as `./conformance`.
-import type { PluginConformanceSuite } from '@voithos-labs/aragonite/testing';
-import { highlightOccurrencesPlugin } from './index';
+import type { Conformance } from '@voithos-labs/aragonite/testing';
+import { highlightOccurrences } from './index';
 
-const suite: PluginConformanceSuite = { plugins: [highlightOccurrencesPlugin()] };
+const suite: Conformance = { plugin: highlightOccurrences };
 
 export default suite;

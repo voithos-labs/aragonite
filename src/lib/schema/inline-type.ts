@@ -9,6 +9,7 @@ import type { InlineHandler } from '../core/inline/scan/plugin-syntax';
 import type { WidgetEntry } from '../core/inline/inline-widgets';
 import type { Mode } from '../presentation-mode';
 import type { Block, InlineType } from './doc-view';
+import type { CaretPoint } from './drawing';
 import type { Contribution, Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { qualifiedName } from './plugin-name';
 import { claimCommand, type Command } from './plugin-command';
@@ -82,6 +83,8 @@ export type InlineArm<D> =
 			/** A key pressed while the widget is selected whole: true takes it. Write through
 			 *  `props.editor.edit()`; the key's target is the editable it sits in. */
 			key?(event: KeyboardEvent, props: WidgetProps<D>): boolean;
+			/** What a reader reads it as (`block.textContent`, an outline's label); its bytes without it. */
+			textContent?(data: D): string;
 	  }
 	| ({
 			as: 'image';
@@ -106,7 +109,7 @@ export type InlineArm<D> =
 	  } & DrawsNothing);
 
 /** What only a widget's drawing uses, refused on the arms that draw nothing of their own. */
-type DrawsNothing = { draw?: never; key?: never; depends?: never };
+type DrawsNothing = { draw?: never; key?: never; depends?: never; textContent?: never };
 
 /** A built-in image or link follows and is styled as one, so the claim's own are refused too. */
 type DrawnBuiltIn = DrawsNothing & { follow?: never; class?: never };
@@ -126,8 +129,9 @@ export interface Widget {
 	height?: 'line' | 'tall';
 	/** Where the caret may sit in the shown bytes (`$x$` gives `{ start: 1, end: 2 }`). */
 	inner?(source: string): { start: number; end: number } | null;
-	/** The offset into the bytes a click at `point` names, for a drawing only the plugin can map. */
-	caret?(el: HTMLElement, point: { x: number; y: number }): number | null;
+	/** The offset into `source`, the claim's bytes, a click at `point` names, for a drawing only the
+	 *  plugin can map; null keeps the editor's own landing. */
+	caret?(el: HTMLElement, point: CaretPoint, source: string): number | null;
 }
 
 /** What a widget's drawing gets, updated when its bytes, position, mode or theme change. `from` and

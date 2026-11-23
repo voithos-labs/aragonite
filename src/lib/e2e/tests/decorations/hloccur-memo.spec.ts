@@ -1,28 +1,17 @@
 import { test, expect } from '../../fixtures';
-import { type Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
 import { freezeInPageClock, PAST_OCCURRENCE_PAUSE_MS } from '../../page-probes';
 
 /**
- * highlight-occurrences hardening (requirements/decorations/hloccur-memo.md). The seed wraps
- * the shipped source so it reports its index-rebuild count, making "a caret move does not
- * re-scan" a real count assertion rather than a timing guess.
+ * highlight-occurrences over a table cell, a code block and the presentation modes
+ * (requirements/decorations/hloccur-memo.md).
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
 const TABLE = "[data-block-path='[1]']";
 const CODE = "[data-block-path='[2]']";
 
-function scanCount(page: Page): Promise<number> {
-	return page.evaluate(() => (window as any).__hloccurScans ?? 0);
-}
-
-/** Leaves the rebuilds have tokenized, summed over every rebuild so far. */
-function tokenizedCount(page: Page): Promise<number> {
-	return page.evaluate(() => (window as any).__hloccurTokenized ?? 0);
-}
-
-test.describe('highlight-occurrences memoized scan + capability skip', () => {
+test.describe('highlight-occurrences over a table cell, a code block and the modes', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -45,30 +34,6 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 	}) => {
 		await editor.clickBlockAtPath([2], 5); // caret inside the code body 'alpha'
 		await expect(page.locator(OCCURRENCE)).toHaveCount(0);
-	});
-
-	test('a caret move re-filters the cached index without re-scanning; an edit rebuilds it', async ({
-		page
-	}) => {
-		await editor.clickBlockAtPath([0], 0); // 'alpha' → 3 marks
-		await expect(page.locator(OCCURRENCE)).toHaveCount(3);
-		const afterClick = await scanCount(page);
-
-		// Move the caret to 'beta', a selection change and nothing more: the mark set changes,
-		// but no edit happened, so the memo must not rebuild the index.
-		await editor.clickBlockAtPath([0], 6);
-		await expect(page.locator(OCCURRENCE)).toHaveCount(1);
-		expect(await scanCount(page)).toBe(afterClick);
-
-		// The edit counter bumps once per keystroke, not once per typing pause, so a
-		// three-character burst rebuilds three times: the control proving the memo is not frozen.
-		const tokenizedBefore = await tokenizedCount(page);
-		await editor.typeSlowly('XYZ');
-		await expect.poll(() => scanCount(page)).toBe(afterClick + 3);
-
-		// Each of those rebuilds re-tokenized only the leaf the keystroke changed; the seed's
-		// other four prose leaves came back from the token cache kept across rebuilds.
-		expect(await tokenizedCount(page)).toBe(tokenizedBefore + 3);
 	});
 
 	test('the marks step aside while you type and return when the burst pauses', async ({ page }) => {

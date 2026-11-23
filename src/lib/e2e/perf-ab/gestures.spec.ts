@@ -66,6 +66,10 @@ const ROWS = {
 	},
 	'footnote-letter': {
 		label: 'a letter typed in prose dense with footnote references and [[wiki]] links'
+	},
+	'emoji-letter': { label: 'a letter typed at the end of a paragraph of fifty :shortcode: emoji' },
+	'occurrence-letter': {
+		label: 'a letter typed into a marked word in the middle of 2,000 paragraphs'
 	}
 } as const;
 
@@ -799,6 +803,42 @@ test.describe('perf a/b: a letter typed into other documents', () => {
 		const [length] = await bringIntoView(page, middle, middle);
 		await editor.focusBlockAtPath([middle], length);
 		await letterRow(editor, 'footnote-letter', { path: [middle] }, TYPED_KEYS);
+	});
+
+	test('emoji-letter', async ({ page }) => {
+		const shortcodes = Array.from({ length: 50 }, () => ':smile:').join(' ');
+		const source = `lead\n\n${shortcodes} end\n\ntail\n`;
+		const editor = await load(page, 'emoji-letter', source, () =>
+			gotoReady(page, '/test/plugins?seed=emoji')
+		);
+		// The emoji plugin draws each shortcode; none drawn means it isn't on this route.
+		if ((await page.locator('.md-emoji-widget').count()) === 0)
+			absent('emoji-letter', 'no emoji was drawn on /test/plugins?seed=emoji');
+		await editor.focusBlockAtPath([1], Number.MAX_SAFE_INTEGER);
+		await letterRow(editor, 'emoji-letter', { path: [1] }, TYPED_KEYS);
+	});
+
+	test('occurrence-letter', async ({ page }) => {
+		const paragraphs = Array.from({ length: 2000 }, (_, i) => `alpha beta gamma ${i}`);
+		const source = `${paragraphs.join('\n\n')}\n`;
+		const editor = await load(page, 'occurrence-letter', source, () =>
+			gotoReady(page, '/test/plugins?seed=hloccur')
+		);
+		const middle = 1000;
+		await bringIntoView(page, middle, middle);
+		// After `alpha`, so each key types into the word whose occurrences are marked.
+		await editor.focusBlockAtPath([middle], 'alpha'.length);
+		const marked = await page
+			.locator('.hl-occurrence')
+			.first()
+			.waitFor({ timeout: 2000 })
+			.then(
+				() => true,
+				() => false
+			);
+		if (!marked)
+			absent('occurrence-letter', 'no occurrence was marked on /test/plugins?seed=hloccur');
+		await letterRow(editor, 'occurrence-letter', { path: [middle] }, TYPED_KEYS);
 	});
 });
 

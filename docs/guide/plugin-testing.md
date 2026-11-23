@@ -129,7 +129,7 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 | `claims` | every construct | Every sample holds a claim of your construct, starting at its prefix. A failing `claims` stops the rest | no |
 | `roundTrip` | every construct | Your samples, and each line holding a claim beside any neighbour, read back to their bytes | no |
 | `inlineDecline` | all but a mark | A claim of yours at a bracket gives way where the editor's own link or image closes inside it | no |
-| `widget` | a widget | Your widget is one unit over exactly its bytes, and they read alone | yes |
+| `widget` | a widget | Your widget is one unit over exactly its bytes, they read alone, and its `textContent` is text | yes |
 | `editingPolicy` | a widget | Your widget edits as its fields say, and deleting it whole leaves bytes that read back | yes |
 | `dependsContent` | a widget with `depends` | `depends` answers from the block alone, the same wherever the block stands | no |
 | `inlineWriter` | `as: 'image'` or `'link'` | Your `write` gives a claim's bytes back from what was read out of them | no |

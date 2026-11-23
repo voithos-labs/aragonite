@@ -148,4 +148,11 @@ test.describe('plugin inline emoji shortcodes', () => {
 		expect(copied).not.toContain('😄');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
+
+	// The outline above reads the heading's glyph, not its shortcode, as the editor draws it.
+	test('an outline lists a heading holding a shortcode by its glyph', async ({ page }) => {
+		await editor.loadContent('[[toc]]\n\n# Mood :smile: today\n');
+		await expect(page.locator('.toc-block-item')).toHaveText(['Mood 😄 today']);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
 });

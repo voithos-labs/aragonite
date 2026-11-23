@@ -55,11 +55,6 @@ export function fencedBodyRange(
 	return { start, end: start + displayLength(source.body) };
 }
 
-/** A code block's {@link fencedBodyRange}. */
-export function codeBodyRange(node: NodeView): { start: number; end: number } | null {
-	return fencedBodyRange(sliceFencedSource(node.raw, codeFenceRun(node)));
-}
-
 export function sliceFencedCode(node: NodeView): FencedCodeSlice {
 	const infoString = metadataOf(node, 'fencedCode').info ?? '';
 	const source = sliceFencedSource(node.raw, codeFenceRun(node));

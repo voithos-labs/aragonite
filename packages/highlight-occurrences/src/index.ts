@@ -1,4 +1,1 @@
-export {
-	highlightOccurrencesPlugin,
-	type HighlightOccurrencesOptions
-} from './highlight-occurrences-plugin';
+export { highlightOccurrences } from './highlight-occurrences-plugin';

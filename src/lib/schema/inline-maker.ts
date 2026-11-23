@@ -3,6 +3,7 @@ import type { ImageFields, InlineNode, PluginInlineKind } from '../core/nodes';
 import { isBuiltInTrigger } from '../core/inline/scan/plugin-syntax';
 import type { WidgetEditing } from '../core/inline/inline-widgets';
 import { checkLocalName } from './block-shapes';
+import type { CaretPoint } from './drawing';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import {
 	madeInline,
@@ -69,7 +70,8 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 					draw: spec.draw as never,
 					follow: spec.follow as never,
 					key: spec.key as never,
-					depends: spec.depends
+					depends: spec.depends,
+					textContent: spec.textContent as never
 				}
 			}
 		});
@@ -231,8 +233,14 @@ function widgetEditing(
 		claimsActivationClick: widget.click === 'follow',
 		...(inner && { revealContentSpan: inner }),
 		...(caret && {
-			revealOffsetAtPoint: (el: HTMLElement, _source: string, x: number, y: number) =>
-				caret(el, { x, y })
+			// The editor's click hands the point; a caller with none keeps the editor's own landing.
+			revealOffsetAtPoint: (
+				el: HTMLElement,
+				source: string,
+				_x: number,
+				_y: number,
+				point?: CaretPoint
+			) => (point ? caret(el, point, source) : null)
 		})
 	};
 }

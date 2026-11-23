@@ -22,9 +22,9 @@ Btw, the plugin's version should match the editor's version.
 ## Use it
 
 ```ts
-import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-occurrences';
+import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
 
-const plugins = [highlightOccurrencesPlugin()];
+const plugins = [highlightOccurrences];
 ```
 
 Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. Then give the highlight a color. Each match gets a see-through box with the classes `decoration-overlay hl-occurrence`:

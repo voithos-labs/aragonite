@@ -32,6 +32,13 @@ A ` ```shown ` fenced block (`fencedBlock`, same harness) draws a preview of its
 - Clicking the preview shows the fence's text in its place and hides the preview.
 - Typing in the shown text and clicking away writes it, and one Ctrl+Z takes all of it back.
 
+## The drag ghost's name
+
+Miss-analysis: only the old block descriptor named a ghost, so no maker's type had a drag row.
+
+- Dragging the ` ```field ` box by its handle shows the name its type declares (`dragLabel: 'A field box'`), not its body.
+- Dragging the ` ```shown ` fence, whose type declares none, shows its first words, `preview: hello`.
+
 ## A container drawn as a box (`container`)
 
 A `%>` container (`container`, same harness) draws a bordered box and places the editor's children inside it.

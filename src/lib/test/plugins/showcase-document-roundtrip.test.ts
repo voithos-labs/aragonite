@@ -8,7 +8,6 @@ import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
-import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
 import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
@@ -27,7 +26,6 @@ beforeEach(() => {
 		tocPlugin(),
 		footnotesPlugin(),
 		emojiPlugin(),
-		highlightOccurrencesPlugin(),
 		latexPlugin(),
 		mermaidPlugin()
 	]);

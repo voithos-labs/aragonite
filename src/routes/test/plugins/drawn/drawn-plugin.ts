@@ -33,6 +33,7 @@ export const drawnPlugin = definePlugin({
 			fencedBlock({
 				name: 'field',
 				label: 'Field',
+				dragLabel: 'A field box',
 				fence: { info: 'field' },
 				sample: '```field\nfirst line here\nsecond line here\n```',
 				insert: { none: 'a test block type' },

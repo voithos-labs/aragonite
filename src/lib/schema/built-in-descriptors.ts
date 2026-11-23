@@ -20,7 +20,7 @@ import {
 	tableLastLineChild
 } from './container-rebuilders';
 import { tableCellWrite } from './table-cell-raw';
-import { fencedCodeWrite } from './fenced-code-raw';
+import { codeBodyRange, fencedCodeWrite } from './fenced-code-raw';
 import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { registerAsCore } from './plugin-install';
@@ -270,6 +270,7 @@ function registerBuiltIns(): void {
 		// Enter inside the fence writes a code newline, so neither edge can grow a sibling.
 		gapEdges: 'both',
 		rawWrite: fencedCodeWrite,
+		bodyRange: codeBodyRange,
 		keymap: [
 			{ chord: 'Enter', command: 'code.newline' },
 			{ chord: 'Shift+Enter', command: 'code.softBreak' },

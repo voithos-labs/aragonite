@@ -236,7 +236,9 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 	},
 	widget: {
 		excusable: true,
-		contract: inline('your widget is one unit over exactly its bytes, and they read alone')
+		contract: inline(
+			'your widget is one unit over exactly its bytes, they read alone, and its textContent is text'
+		)
 	},
 	editingPolicy: {
 		excusable: true,

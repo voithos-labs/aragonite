@@ -8,7 +8,6 @@ import { detailsPlugin } from '#packages/details/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
-import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrot, parrotPlugin } from '#packages/parrot/src/index.js';
@@ -47,7 +46,6 @@ const demoRouteSet = (): EditorPlugin[] => [
 	tocPlugin(),
 	footnotesPlugin(),
 	emojiPlugin(),
-	highlightOccurrencesPlugin(),
 	stubLatex(),
 	stubMermaid()
 ];

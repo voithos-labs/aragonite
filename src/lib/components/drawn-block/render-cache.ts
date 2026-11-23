@@ -1,7 +1,7 @@
 /**
- * `ctx.render` for one drawn block: what a renderer makes, cached per block bytes and theme, and the
- * block's source with the error when it throws or rejects. A promise keeps what the element shows
- * until it settles.
+ * `ctx.render` for one drawn block: what a renderer makes, cached per theme and bytes (as typed while
+ * the source is open), and those bytes with the error when it throws or rejects. A promise keeps
+ * what the element shows until it settles.
  */
 import { createBoundedMemo } from '../../bounded-memo';
 

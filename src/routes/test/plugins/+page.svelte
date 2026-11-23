@@ -16,7 +16,6 @@
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
 	import { chordCountPlugin } from './chord-count/chord-count-plugin';
-	import { hloccurScanProbePlugin } from './hloccur-scan/hloccur-scan-plugin';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
 	import { blockBadgePlugin } from './block-badge/block-badge-plugin';
@@ -101,9 +100,8 @@
 		// The multi-line block math with the highlight package listed, for a grammar that lands while the
 		// source is selected. Kept to its own seed: the package's languages fill every code picker.
 		'mathblock-highlight': [DEMO_HIGHLIGHT],
-		// A counting wrapper around the same shipped createOccurrenceSource, so the suite can
-		// read off `window` how often the index rebuilds.
-		'hloccur-memo': [hloccurScanProbePlugin],
+		// The same plugin over a document with a table cell and a code block.
+		'hloccur-memo': [DEMO_HIGHLIGHT_OCCURRENCES],
 		ghost: [ghostTextPlugin],
 		fold: [foldPlugin],
 		'fold-table': [foldPlugin],

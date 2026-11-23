@@ -197,11 +197,10 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'no registry read-back: a widget kind registers its component but never reads it, and ' +
 			'the read takes a grammar no entry point publishes'
 	},
-	'src/lib/test/plugins/highlight-occurrences/wiring.test.ts': {
-		specifiers: ['#lib/schema/plugin-install.js'],
+	'src/lib/test/plugins/highlight-occurrences/paint-wiring.svelte.test.ts': {
+		specifiers: ['#lib/perf/instruments.js'],
 		reason:
-			'no registry read-back: `onEditor` callbacks can be registered but not enumerated, so a ' +
-			'per-instance wiring test cannot run one without mounting an editor'
+			'the perf instruments are unpublished, and they are what counts the blocks a paint was asked for'
 	},
 	'src/lib/test/plugins/latex/block.test.ts': {
 		specifiers: ['#lib/core/inline/scan/plugin-syntax.js'],

@@ -4,22 +4,22 @@ A consumer that reads `getSource()`, transforms the Markdown and writes the resu
 back through the `source` prop replaces the whole document. That is a document
 change like any other, so the edit epoch (`editEpoch`, the counter bumped once per
 document change) must advance and every registered decoration source must
-re-provide against the new document. Otherwise a source that caches on `editEpoch`,
-the shape the plugin guide publishes as the recipe, keeps serving the previous
-document's decorations, painting marks into blocks that no longer hold the word.
+re-provide against the new document. Otherwise a source that caches on `editEpoch`
+keeps serving the previous document's decorations, and the occurrence marks paint into
+blocks that no longer hold the word.
 
 Scenarios run on `/test/plugins?seed=hloccur-memo` with highlight-occurrences
 active, driving the swap through `window.__test.setSource`, the real prop write a
-consumer performs. `window.__hloccurScans` publishes the plugin's index-rebuild
-count, so "the swap rebuilt the index" is a counter assertion, not a timing guess.
+consumer performs. A probe source registered through `window.__test.decorations` records
+each epoch it's handed, so "the swap bumped the epoch" is a count, not a timing guess.
 
 ## Happy paths
 
 - swap to a document whose matching word lives in a different block, then click
   into that word: every mark paints in the new document's blocks, none in the block
   the old document had them in
-- the swap rebuilds the cached index (`__hloccurScans` increases), so the marks
-  come from a scan of the new document rather than the cached one
+- the swap hands a decoration source a new epoch, so a source caching on it reads the
+  new document rather than the cached one
 
 ## Edge cases
 

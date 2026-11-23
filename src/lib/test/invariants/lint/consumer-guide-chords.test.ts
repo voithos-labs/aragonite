@@ -30,7 +30,6 @@ import { ADMONITION } from '#packages/admonitions/src/kinds.js';
 import { detailsPlugin, DETAILS_SUMMARY } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
@@ -46,7 +45,6 @@ const BUNDLED_PLUGINS = [
 	detailsPlugin(),
 	emojiPlugin(),
 	footnotesPlugin(),
-	highlightOccurrencesPlugin(),
 	// The sweep reads keymaps only, so no formula is ever rendered.
 	latexPlugin({
 		renderer: () => {

@@ -12,6 +12,7 @@ import type { DocumentView, NodeView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import { resolvedInlineContent, type InlineReading } from '../../core/inline/inline-cache';
+import { widgetOf } from '../../core/inline/inline-widgets';
 import {
 	documentByteMap,
 	type DocumentByteMap,
@@ -220,6 +221,7 @@ export function createDocumentRead(deps: {
 		byteOf: (path, offset) => layout().map.byteOf(path, offset),
 		ownEnd: (path) => layout().map.ownEnd(path),
 		inline: (node) => resolvedInlineContent(node, deps.reading),
+		widgetText: (node) => widgetOf(node.kind, deps.reading.grammar)?.own?.textContent?.(node.data),
 		version: deps.version
 	};
 

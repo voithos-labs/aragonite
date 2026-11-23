@@ -1,12 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
-import { freezeInPageClock, PAST_OCCURRENCE_PAUSE_MS } from '../../page-probes';
+import { freezeInPageClock, PAST_OCCURRENCE_PAUSE_MS, watchEditEpochs } from '../../page-probes';
 
 /**
- * The edit counter bumps once per keystroke (requirements/decorations/epoch-per-keystroke.md).
- * The clock is frozen after setup, so the occurrence plugin's typing pause elapses only when the spec
- * advances it: the marks step aside on the keystroke and the advance is what brings them back.
+ * The edit epoch bumps once per keystroke (requirements/decorations/epoch-per-keystroke.md), read
+ * off a probe source the bridge registers. The clock is frozen after setup, so the occurrence
+ * plugin's typing pause elapses only when the spec advances it: the marks step aside on the
+ * keystroke and the advance is what brings them back.
  */
 
 const WORD = 'alpha';
@@ -54,10 +55,6 @@ async function coverage(page: Page): Promise<Omit<Probe, 'wordLefts'>> {
 	return { aligned, painted, words };
 }
 
-function scanCount(page: Page): Promise<number> {
-	return page.evaluate(() => (window as any).__hloccurScans ?? 0);
-}
-
 test.describe('decoration refresh per keystroke, not per typing batch', () => {
 	let editor: PluginsPage;
 
@@ -88,12 +85,13 @@ test.describe('decoration refresh per keystroke, not per typing batch', () => {
 		await expect.poll(() => coverage(page)).toEqual({ aligned: 2, painted: 2, words: 2 });
 	});
 
-	test('a typed space rebuilds the memoized index without the batch flushing', async ({ page }) => {
-		const before = await scanCount(page);
+	test('a typed space bumps the edit epoch once, without the batch flushing', async ({ page }) => {
+		const epochs = await watchEditEpochs(page);
+		const before = await epochs();
 
 		await freezeInPageClock(page);
 		await page.keyboard.type(' ');
 
-		await expect.poll(() => scanCount(page)).toBe(before + 1);
+		await expect.poll(epochs).toBe(before + 1);
 	});
 });

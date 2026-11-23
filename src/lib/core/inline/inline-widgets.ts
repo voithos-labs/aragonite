@@ -19,6 +19,7 @@ import type { PluginView } from '../../plugin-view';
 import type { WidgetProps } from '../../schema/inline-type';
 import type { Editor } from '../../schema/plugin-unit';
 import type { Block } from '../../schema/doc-view';
+import type { CaretPoint } from '../../schema/drawing';
 
 /** The inline-widget element whose source starts at `start`, or null. The only place this
  *  selector is written: a mistyped copy would fail silently as a null `querySelector`. */
@@ -145,8 +146,18 @@ export interface InlineWidgetDescriptor {
 }
 
 /** A widget's editing policy as the editor reads it: `revealOn` names the one route that shows the
- *  source, where an `inline()` widget shows it on an arrow or on a click alone. */
-export type WidgetEditing = InlineWidgetEditingPolicy & { revealOn?: 'arrows' | 'click' };
+ *  source, where an `inline()` widget shows it on an arrow or on a click alone, and the point a
+ *  click names comes as one that turns itself into an offset as well. */
+export type WidgetEditing = Omit<InlineWidgetEditingPolicy, 'revealOffsetAtPoint'> & {
+	revealOn?: 'arrows' | 'click';
+	revealOffsetAtPoint?: (
+		widgetEl: HTMLElement,
+		source: string,
+		clientX: number,
+		clientY: number,
+		point?: CaretPoint
+	) => number | null;
+};
 
 /** The editor's own kinds draw without a view: a builder here, or none for the image, which the
  *  render builds per block. An `inline()` widget draws through `own`, which gets `WidgetProps`. */
@@ -159,6 +170,7 @@ export interface WidgetEntry extends Omit<InlineWidgetDescriptor, 'view' | 'edit
 		follow?(data: unknown, editor: Editor): void;
 		key?(event: KeyboardEvent, props: WidgetProps<unknown>): boolean;
 		depends?(block: Block): string;
+		textContent?(data: unknown): string;
 		/** The plugin whose editor the drawing gets. */
 		plugin: string;
 	};

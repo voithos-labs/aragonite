@@ -20,7 +20,7 @@ function headingsIn(block: Block): string {
 	let lines = '';
 	for (const inside of block.walk()) {
 		if (inside.is(builtin.blocks.heading) || inside.is(builtin.blocks.setextHeading))
-			lines += `${inside.data.level} ${inside.body}\n`;
+			lines += `${inside.data.level} ${inside.textContent}\n`;
 	}
 	return lines;
 }

@@ -612,7 +612,7 @@ function existingEntry(entry: string, kind: AnyBlockKind): KindEntry {
 }
 
 // A blank label would render as an empty `aria-label`, leaving the block's textbox unnamed.
-function rejectBlankLabel(
+export function rejectBlankLabel(
 	entry: string,
 	kind: AnyBlockKind,
 	field: 'label' | 'dragLabel',

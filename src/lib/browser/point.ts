@@ -30,6 +30,16 @@ export function caretOffsetAtPoint(
 	return offsetFromViewportPoint(el, probe.x, probe.y);
 }
 
+/** A viewport point handed to a plugin's `caret`, which turns itself into an offset in an element
+ *  of the plugin's own. */
+export function caretPointAt(clientX: number, clientY: number) {
+	return {
+		x: clientX,
+		y: clientY,
+		offsetIn: (el: HTMLElement) => caretOffsetAtPoint(el, clientX, clientY)
+	};
+}
+
 /**
  * The exact counterpart: null for a point outside `el`, which a hit test must decline rather
  * than round into the nearest offset. A point inside `el` is first moved level with its lines.

@@ -23,8 +23,8 @@ export interface DrawContext {
 	/** Your block type's `depends` answer per top-level block, in `editor.doc.blocks`' order,
 	 *  never changed after it's handed to you. */
 	readonly depends: readonly string[];
-	/** Fills `el` with what `produce` makes, cached per block bytes and theme; a throw or a rejection
-	 *  shows the block's source with the error instead. */
+	/** Fills `el` with what `produce` makes, cached per theme and block bytes (as typed while its source
+	 *  is open); a throw or a rejection shows those bytes with the error instead. */
 	render(el: HTMLElement, produce: (theme: string) => Node | Promise<Node>): void;
 	/** Read the scroll position before your drawing changes height on its own (an expander's
 	 *  click); await the returned restore once it has. Around `update` the editor does it for you. */
@@ -61,7 +61,7 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 	dom: HTMLElement;
 	/** Where a click on a picture of the text lands: an element whose text is the block's text, or a
 	 *  point to an offset in that text. */
-	caret?: HTMLElement | ((point: { x: number; y: number }) => number);
+	caret?: HTMLElement | ((point: CaretPoint) => number);
 	/** The bytes, position, mode, theme, focus, typed text or `depends` answers changed; false draws
 	 *  it again. Without it, what `draw` drew stays. */
 	update?(block: Block<D>, ctx: C): boolean | void;
@@ -70,6 +70,15 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 	/** A box with an editing surface of its own takes the caret through this. */
 	focus?: BoxFocus;
 	destroy?(): void;
+}
+
+/** A viewport point a click names, for a drawing that maps it to an offset itself. */
+export interface CaretPoint {
+	readonly x: number;
+	readonly y: number;
+	/** The character offset in `el`'s own text nearest the point, clamped into its box; null where
+	 *  `el` holds no text. */
+	offsetIn(el: HTMLElement): number | null;
 }
 
 /** The caret entering a box with its own editing surface: at an edge, with the column an up or

@@ -47,7 +47,7 @@
 		type TextDrawContext
 	} from '../../schema/drawing';
 	import { getContentRange } from '../../core/inline';
-	import { caretOffsetAtPoint } from '../../browser/point';
+	import { caretOffsetAtPoint, caretPointAt } from '../../browser/point';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
@@ -184,7 +184,8 @@
 
 	const render = createRenderCache({
 		theme: () => policies.theme(),
-		bytes: () => node.raw,
+		// The bytes as typed while the source is open, so a live preview through it follows the keys.
+		bytes: () => typed ?? node.raw,
 		keepScroll: () => keepScroll()
 	});
 
@@ -288,7 +289,9 @@
 		if (!caret) return null;
 		// An element with no text to measure (an empty caption) lands at the text's start.
 		const at =
-			typeof caret === 'function' ? caret({ x, y }) : (caretOffsetAtPoint(caret, x, y) ?? 0);
+			typeof caret === 'function'
+				? caret(caretPointAt(x, y))
+				: (caretOffsetAtPoint(caret, x, y) ?? 0);
 		return at === null ? null : getContentRange(node).start + at;
 	}
 
