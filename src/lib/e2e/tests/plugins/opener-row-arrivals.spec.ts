@@ -5,13 +5,15 @@ import { edgeKey, extendKey } from '../../platform-keys';
 import { multiClick } from '../../multi-click';
 import { skipUnlessSupported } from '../../browser-engine';
 import { textRunCenter, textRunStart } from '../../text-runs';
+import { attachIme } from '../../simulation/ime';
 
 /**
  * Where a caret arriving on a `:::` container's opener row rests in live mode: at the title's
  * start (the row's end when untitled), for the arrivals that read `browser/offsets.ts ::
  * arrivalRawStart` (a landing from another line, Home, a click, ArrowLeft over a range, a page
  * step, a host's `navigateTo`). One row per route, then the routes left as they were: a step, a
- * selection, source mode, a restore, a `<details>` summary.
+ * selection, source mode, a restore, a `<details>` summary. Then the carets the browser leaves
+ * (Tab, a script's `focus()`, a line step), which the caret writer moves unless they are steps.
  * Then the presses: a titled row shows its `:::name` when the press ends, so a click, a
  * double-click and a drag read the text where the user saw it. The requirement file lists the
  * arrivals the rule does not reach.
@@ -405,6 +407,108 @@ test.describe('the opener row gestures left as they were', () => {
 			if (row.bytes) expect(await sourceOf(page)).toBe(row.bytes);
 		});
 	}
+});
+
+// ── A caret the browser leaves on the row ────────────────────────────────────
+
+const WRAPPED = `:::tip ${'Title words that run on '.repeat(12).trim()}\nbody\n:::\n`;
+
+async function loadLive(page: Page, source: string): Promise<PluginsPage> {
+	const editor = new PluginsPage(page);
+	await editor.gotoPlugins('admonitions');
+	await editor.loadContent(source);
+	await editor.setPresentationMode('live');
+	return editor;
+}
+
+/** Presses `key` until focus is in the block at `path`, as a user tabbing through the page does. */
+async function tabUntil(page: Page, key: string, path: string): Promise<void> {
+	for (let i = 0; i < 20; i++) {
+		await page.keyboard.press(key);
+		const at = await page.evaluate(() =>
+			document.activeElement?.closest('[data-block-path]')?.getAttribute('data-block-path')
+		);
+		if (at === path) return;
+	}
+	throw new Error(`${key} never reached ${path}`);
+}
+
+test.describe('a caret the browser leaves on a :::tip row in live mode', () => {
+	test('Tab into the editor lands at the title start', async ({ page }) => {
+		const editor = await loadLive(page, T);
+		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+		await tabUntil(page, 'Tab', '[0,0]');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		expect(await typeX(page, editor)).toBe(':::tip xTitle\nbody\n:::\n');
+	});
+
+	test('Shift+Tab from the body lands at the title start', async ({ page }) => {
+		const editor = await loadLive(page, T);
+		await editor.focusBlockAtPath([0, 1], 2);
+		await tabUntil(page, 'Shift+Tab', '[0,0]');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		expect(await typeX(page, editor)).toBe(':::tip xTitle\nbody\n:::\n');
+	});
+
+	test("the row's own focus() lands at the title start", async ({ page }) => {
+		const editor = await loadLive(page, T);
+		await page.evaluate(() =>
+			document
+				.querySelector<HTMLElement>('[data-block-path="[0,0]"] [contenteditable="true"]')!
+				.focus()
+		);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		expect(await typeX(page, editor)).toBe(':::tip xTitle\nbody\n:::\n');
+	});
+
+	test('ArrowUp inside a wrapped title onto its first line lands at the title start', async ({
+		page
+	}) => {
+		const editor = await loadLive(page, WRAPPED);
+		await editor.focusBlockAtPath([0, 1], 0);
+		await page.keyboard.press('ArrowUp');
+		const lines = await page.evaluate(() => {
+			const el = document.querySelector<HTMLElement>(
+				'[data-block-path="[0,0]"] [contenteditable="true"]'
+			)!;
+			return Math.round(
+				el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)
+			);
+		});
+		expect(lines).toBeGreaterThan(1);
+		for (let i = 1; i < lines; i++) await page.keyboard.press('ArrowUp');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+	});
+
+	test('a letter typed inside the name stays there', async ({ page }) => {
+		const editor = new PluginsPage(page);
+		await run(page, editor, { name: '', source: T, steps: arrowBack(8), caret: '' });
+		expect(await typeX(page, editor)).toBe(':::txip Title\nbody\n:::\n');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:5');
+	});
+
+	test('Backspace inside the name stays there', async ({ page, browserName }) => {
+		test.skip(browserName === 'webkit', 'WebKit lands a rename by Backspace at the title start');
+		const editor = new PluginsPage(page);
+		await run(page, editor, {
+			name: '',
+			source: T,
+			steps: [...arrowBack(8), { key: 'Backspace' }],
+			caret: ''
+		});
+		await expect.poll(() => sourceOf(page)).toBe(':::ip Title\nbody\n:::\n');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:3');
+	});
+
+	test('a composition inside the name stays there', async ({ page }) => {
+		const editor = new PluginsPage(page);
+		await run(page, editor, { name: '', source: T, steps: arrowBack(8), caret: '' });
+		const ime = await attachIme(page);
+		await ime.compose('か');
+		await ime.commit('か');
+		await expect.poll(() => sourceOf(page)).toBe(':::tかip Title\nbody\n:::\n');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:5');
+	});
 });
 
 // ── A press on a row not showing its `:::name` ───────────────────────────────

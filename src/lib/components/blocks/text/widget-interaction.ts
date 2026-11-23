@@ -824,7 +824,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// The snap below places a caret, so it does nothing while this block shows a selected
 		// range, which it would collapse; `clampOutOfMarkerPrefix` already holds that rule.
 		if (surfaceHoldsRange(el)) return;
-		const floor = arrivalRawStart(el, deps.node);
+		const floor = arrivalRawStart(el);
 		const below = floor > 0 && (deps.cursor.getRaw() ?? floor) < floor;
 		if (below) deps.cursor.setRaw(asRawOffset(floor), { clamp: 'reachable' });
 		if (clickCount === 1 && reading.showsSourceOnRelease && !press.moved) {

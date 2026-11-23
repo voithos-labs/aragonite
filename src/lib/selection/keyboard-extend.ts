@@ -28,7 +28,7 @@ import {
 	previousCaretPath,
 	findCellPathForElement
 } from './path-lookup';
-import { blockNodeAt, nodeAt } from '../tree-operations/node-primitives';
+import { nodeAt } from '../tree-operations/node-primitives';
 import { comparePaths, pathsEqual } from './path-math';
 import { displayLength } from '../core/lines';
 
@@ -221,8 +221,7 @@ export function moveByPage(
 /** A page step's hit is an arrival, so on a `:::` row it rests no earlier than the title's start. */
 function pageArrival(ctx: PageExtendContext, hit: SelectionPoint): SelectionPoint {
 	const el = ctx.getBlockElByPath(hit.path);
-	const node = el && blockNodeAt(ctx.getDoc(), hit.path);
-	return node ? { ...hit, offset: Math.max(hit.offset, arrivalRawStart(el, node)) } : hit;
+	return el ? { ...hit, offset: Math.max(hit.offset, arrivalRawStart(el)) } : hit;
 }
 
 /** Runs `step` from the moving end once the step before it is done, the end shown first: a wheel

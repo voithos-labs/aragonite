@@ -66,6 +66,8 @@ Reading mode runs the same walk. There's no caret to write there, so the block i
 
 Firefox leaves a caret in two more spots Chromium never does: inside an inline widget (a click right of a formula), and on the far side of a marker run live mode hides (ArrowLeft out of ` text` after `**bold**`). Neither is a spot the editor writes, and inside a widget no key even types. So the caret writer's `canonicalizeCaret` (`browser/caret-writer.ts`) moves a caret like that, and the one in a CRLF pair, to where the editor would put it for that pixel, on the `selectionchange` and again at the next keydown, since a fast key can beat the event. A caret the editor wrote itself stays where it is, far side included, and so does a range.
 
+The same pass catches a caret the browser puts before a `:::` opener line's title in live mode: Tab or Shift+Tab onto the line (Firefox and WebKit land at byte 0), a script's `focus()` on it, ArrowUp inside a title that wraps. That caret moves to the title's start, as an arrival does (§ 3). It stays where it is only when the caret before it was already on that line at or before the title's start, so ArrowLeft, a letter and Backspace still work inside the name. The writer remembers that line, one per editor, and forgets it when focus leaves the line.
+
 The probe, for the curious:
 
 - `caretOffsetAtPoint` clamps the point into the element's box and hands it to the exact probe, `offsetFromViewportPoint`. A shift-click and stage 1's two presses call the exact one directly.
@@ -90,7 +92,7 @@ Below the verbs:
 - A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `place-caret.ts`, which ends what the editor had selected the way `focus` does.
 - The two selections the editor keeps without a caret on screen have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a lint fails any other file that writes either.
 - A lint (G4.270) fails any native selection write outside the caret writer, `browser/caret-writer.ts`.
-- A caret put down with no byte in hand is an arrival: a landing, Home, a click, ArrowLeft over a selection, a page step, a host's `navigateTo` with no offset. On a `:::` opener line in live mode an arrival rests no earlier than the title's start, so each of those sites reads `arrivalRawStart`. A step (ArrowLeft into the name) and a byte in hand (undo, `setSelection`) are left alone. A lint (G4.389) fails a caret write nobody has said is which.
+- A caret put down with no byte in hand is an arrival: a landing, Home, a click, ArrowLeft over a selection, a page step, a host's `navigateTo` with no offset. On a `:::` opener line in live mode an arrival rests no earlier than the title's start, so each of those sites reads `arrivalRawStart`, and the caret writer moves one the browser puts there (§ 2). A step (ArrowLeft into the name) and a byte in hand (undo, `setSelection`) are left alone. A lint (G4.389) fails a caret write nobody has said is which.
 
 ## 4. The snap
 

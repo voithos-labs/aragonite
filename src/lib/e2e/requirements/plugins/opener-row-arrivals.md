@@ -50,6 +50,18 @@ While the caret is on a `:::tip Title` row, live mode shows its `:::tip` dimmed,
 - The host's `setSelection` at byte 4 of the row while the caret is on it: the caret is put exactly there.
 - A `<details>` summary, Home from inside it: the summary's start, byte 0, which is its title's start.
 
+## A caret the browser leaves on the row
+
+The browser puts these carets down itself; the caret writer moves one that lands before the title's start, unless the caret before it was already on the row at or before that start.
+
+- Tab into the editor, then `x`: the title's start, `:::tip xTitle`. Firefox and WebKit put that caret at byte 0.
+- Shift+Tab from the body, then `x`: the title's start, `:::tip xTitle`.
+- The row element's own `focus()`, then `x`: the title's start, `:::tip xTitle`.
+- ArrowUp inside a title that wraps, onto its first line: the title's start.
+- ArrowLeft into the name, then `x`: `:::txip Title`, the caret after the `x`.
+- ArrowLeft into the name, then Backspace: `:::ip Title`, the caret where the `t` was. Not on WebKit, which lands that caret at the title's start with or without the rule.
+- ArrowLeft into the name, then a composition of `か`: `:::tかip Title`, the caret after it.
+
 ## A press on a row not showing its name
 
 A row with a title shows its `:::tip` when the press that focused it ends, so the title stays where the user saw it while the browser reads the press. `:::tip Title words`, the caret in the body:
@@ -74,10 +86,4 @@ A row with a title shows its `:::tip` when the press that focused it ends, so th
 - Home in a callout's title, ArrowUp from its body, or a click at its row's left edge put the caret before the `:::` in live mode, and the next letter turned the callout into a paragraph. Miss-analysis: every arrival spec landed on prose or a heading, whose markers live mode hides at the caret; the one row that shows its markers at the caret had no arrival row at all.
 - The padding press and the right-click ran on a titled row, where the browser lands at the title's start by itself, so neither row could fail with the rule removed. On an untitled row the rule decides both. Miss-analysis: each row was watched pass on the fix and never watched fail without it.
 - ArrowLeft over a selection of the row, a second PageUp at the top, and the host's `navigateTo` with no offset put the caret before the `:::`, and the next letter turned the callout into a paragraph. Each is a caret the editor writes itself, at an offset a key or a caller computed, and none read the rule. Miss-analysis: the arrival rows covered the carets the block's landing places, and no list said which other caret writes were arrivals, so three were never given a row.
-
-## Limits
-
-The rule reaches the carets the editor puts down. These put a caret before the title's start in live mode and are not held:
-
-- Tab or Shift+Tab moving focus onto the row.
-- ArrowUp inside a title that wraps, onto its first line.
+- Tab or Shift+Tab onto the row on Firefox and WebKit, the row's own `focus()` and ArrowUp inside a wrapped title left the caret at byte 0. The browser placed each one, and the caret writer passed over a caret it had not written only to fix a spot it never writes. Miss-analysis: the arrival rows ran on Chromium and through the editor's own landings; no row moved focus the way the browser does by itself.
