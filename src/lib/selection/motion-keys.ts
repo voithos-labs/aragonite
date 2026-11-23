@@ -40,6 +40,9 @@ export interface MotionKeyContext {
 	/** What the block's delete reads at `caret`, which a word or edge key lands by too; null where
 	 *  the block leaves those keys to the browser. */
 	unitContext(caret: number): DeleteContext | null;
+	/** The first offset a caret put down on the block rests at (`browser/offsets.ts ::
+	 *  arrivalRawStart`), where Home and Mod+Home stop. */
+	arrivalStart?(): number;
 }
 
 /** A horizontal caret key the editor lands itself, its Shift twin selecting what the matching
@@ -71,11 +74,16 @@ export function handleMotion(
 		if (el.getClientRects().length === 0) return false;
 		e.preventDefault();
 		moveToLineEdge(key, ctx, el, from, context.text, () => motionTarget(key, motion));
+		const floor = arrivalFloor(key, ctx);
+		if (floor > 0 && (ctx.getCursorOffset() ?? floor) < floor) {
+			ctx.caretWriter.placeCaretAtRaw(el, floor, { clamp: 'reachable' });
+		}
 		decided(ctx, el);
 		return true;
 	}
-	const target = motionTarget(key, motion);
-	if (target === null) return false;
+	const reached = motionTarget(key, motion);
+	if (reached === null) return false;
+	const target = Math.max(reached, arrivalFloor(key, ctx));
 	e.preventDefault();
 	if (key.extend) extendWithinBlock(ctx, el, target);
 	else
@@ -105,6 +113,13 @@ export function stepBesideWidget(
 }
 
 // ── Internals ──────────────────────────────────────────────────────────────
+
+/** Where a plain Home or Mod+Home stops at the earliest: such a key puts the caret down at the
+ *  line's or the block's start, an arrival; every other key steps, and 0 leaves it alone. */
+function arrivalFloor(key: MotionKey, ctx: MotionKeyContext): number {
+	const startKey = key.unit === 'line-edge' || key.unit === 'block-edge';
+	return startKey && key.direction === 'backward' && !key.extend ? (ctx.arrivalStart?.() ?? 0) : 0;
+}
 
 /** A caret key the editor landed: the check that the browser's own move didn't run as well, and
  *  the scroll that move would have made to show the caret. */
