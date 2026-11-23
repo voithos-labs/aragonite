@@ -21,9 +21,11 @@ import { show } from './conformance-core';
 
 // ── The paste ────────────────────────────────────────────────────────────────
 
-// With no editor to hear it, a plugin left out or a rewrite that threw says so in a dev build.
+// With no editor to hear it, what the editor reports of a plugin says so in a dev build, in the
+// cause's own words, so a plugin that still runs never reads as one that failed.
 export function heardOutside(error: PluginError): void {
-	devWarn('plugin-error', `plugin '${error.plugin}' failed (${error.doing})`, error.cause);
+	const said = (error.cause as Error | undefined)?.message ?? String(error.cause);
+	devWarn('plugin-error', `plugin '${error.plugin}' (${error.doing}): ${said}`, error.cause);
 }
 
 /** `text` pasted from outside the editor, read as `context` reads it. */

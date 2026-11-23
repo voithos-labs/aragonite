@@ -16,6 +16,7 @@ import {
 import type { Doc } from '#lib/schema/doc-view.js';
 import { check, isCheckFailure, type CheckReport, type Excuses } from '#lib/testing/check.js';
 import { rewritePaste } from '#lib/testing.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 function rewriting(name: string, ...into: ((body: string) => string | null)[]): Plugin {
 	return definePlugin({
@@ -279,6 +280,32 @@ describe('rewritePaste', () => {
 			})
 		});
 		expect(rewritePaste('# quiet\n\nand more\n', [both])).toBe('# QUIET of 2\n\nAND MORE\n');
+	});
+
+	// Miss-analysis: the version-range row pinned an `install` report, which every other `install`
+	// report gives for a plugin left out, and counted no reports per call.
+	it('reports a plugin made for another editor once a call, as running anyway', () => {
+		const old = definePlugin({
+			name: 'old',
+			version: '1.0.0',
+			editor: '^99.0.0',
+			contributes: () => ({
+				blockRewrites: [
+					blockRewrite({ from: builtin.blocks.heading, into: (block) => block.text.toUpperCase() })
+				]
+			})
+		});
+		for (let call = 0; call < 2; call++) {
+			expect(rewritePaste('# quiet please\n', [old])).toBe('# QUIET PLEASE\n');
+			expect(takeDevWarns().map(({ tag, message }) => [tag, message])).toEqual([
+				[
+					'plugin-error',
+					expect.stringMatching(
+						/^plugin 'old' \(version check\): plugin 'old' asks for editor \^99\.0\.0, and this is .+; it runs anyway$/
+					)
+				]
+			]);
+		}
 	});
 
 	it('runs a plugin value’s rewrites over a clipboard that reads as blocks', () => {

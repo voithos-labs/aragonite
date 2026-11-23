@@ -471,7 +471,7 @@ rewritePaste('# quiet please\n', [boom]); // '# quiet please\n', untouched
 fires[0];
 // {
 //   tag: 'plugin-error',
-//   message: "plugin 'boom' failed (rewrite paste)",
+//   message: "plugin 'boom' (rewrite paste): boom",
 //   details: Error('boom')
 // }
 ```

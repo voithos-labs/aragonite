@@ -233,8 +233,14 @@ export function installPluginList(
 		assertInvariant('plugin-one-core-copy', () =>
 			checkDefinedByThisCopy(spec.name, definingCopy(plugin), THIS_COPY)
 		);
+		// Told, never refused: a production build never reads the range, so both builds run the plugin.
 		if (devChecksOn && !satisfiesRange(ARAGONITE_VERSION, spec.editor)) {
-			installError(report, spec.name, `runs on editor ${spec.editor}, not ${ARAGONITE_VERSION}`);
+			const asks = `asks for editor ${spec.editor}, and this is ${ARAGONITE_VERSION}; it runs anyway`;
+			report({
+				plugin: spec.name,
+				doing: 'version check',
+				cause: new Error(`plugin '${spec.name}' ${asks}`)
+			});
 		}
 		const kept = previous.find((p) => p.plugin === plugin);
 		const contribution = kept?.contribution ?? contribute(spec, options, report);

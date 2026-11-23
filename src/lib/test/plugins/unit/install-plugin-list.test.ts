@@ -185,11 +185,15 @@ describe('options and contributes', () => {
 		expect(messages(errors)).toEqual(['bad contributes: boom']);
 	});
 
-	it('reports a plugin made for another editor version, in a dev build', () => {
+	// Miss-analysis: the row pinned the plugin kept and the words of an `install` report, which
+	// every other report under that name gives for a plugin left out.
+	it('reports a plugin made for another editor version as running anyway, in a dev build', () => {
 		const { names, errors } = install([unit('old', { editor: '^0.1.0' })]);
 		expect(names).toEqual(['old']);
 		expect(messages(errors)).toEqual([
-			expect.stringMatching(/^old install: plugin 'old' runs on editor \^0\.1\.0, not /)
+			expect.stringMatching(
+				/^old version check: plugin 'old' asks for editor \^0\.1\.0, and this is .+; it runs anyway$/
+			)
 		]);
 	});
 
