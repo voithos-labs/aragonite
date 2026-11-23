@@ -125,7 +125,7 @@ export function parrotPlugin() {
 Most of the spec reads the way it sounds. A few fields don't:
 
 - `label` is what a screen reader and the block menu call your block.
-- `sample` is Markdown holding one of your blocks. The conformance kit ([plugin-testing.md](plugin-testing.md)) parses it and drives it, which is why it's required.
+- `sample` is Markdown holding one of your blocks. `check` ([plugin-testing.md](plugin-testing.md)) reads it and runs every check over it, which is why it's required.
 - `insert` is your block's row in the insert menus (`{ label, icon, markdown }`), or `{ none }` with the reason it has none. A toy parrot doesn't need a menu row, and writing the reason down makes leaving it out a decision rather than an accident.
 - `interrupts: true` lets a `%%parrot` line cut a paragraph short, the way a heading does. Leave it off and the line joins the paragraph above it.
 
@@ -296,7 +296,7 @@ it('parrot conforms', async () => {
 });
 ```
 
-The kit's per-block cells (round trip, copy, undo and the rest) run over kinds registered with `registerBlockKind`, and a block type isn't one, so for the parrot it checks the install. Your own tests and a look in the browser cover the rest.
+For the parrot that's the install, then the round trip, copy, undo and the rest over its one sample ([the full list](plugin-testing.md#the-checks)). A few checks need a browser and come back `unchecked`. Your own tests and a look in the browser cover those.
 
 That's the loop: describe the block, draw it, install it, verify it. Everything after this is the same four moves at more interesting shapes.
 
@@ -401,6 +401,10 @@ Breaks follow a schedule you can pin a peer range to:
 - After the freeze at 1.0, a breaking change to a frozen surface rides a **major** version, and additive needs ship as **minors**.
 
 A break is anything the changelog files under its breaking entries for plugins.
+
+The checks keep the same schedule. [`check`](plugin-testing.md#checking-a-plugin-value-check) and `aragonite-plugin-check` come with the editor, so your plugin is held to the checks of the editor it's installed beside. A new check, or one made stricter, is a break like any other, and lands in a minor. So a plugin that peers on `^0.12.0` and passes keeps passing through every 0.12 patch.
+
+One exception: a check that stops a plugin corrupting a document can't wait for a minor. It may land in a patch as **advisory**: its row is reported and the run still passes. It fails from the next minor, so fix it or [excuse it](plugin-testing.md#excuses) before then.
 
 ## What draws your plugin, and where it runs
 

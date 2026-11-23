@@ -2,61 +2,489 @@
 
 A plugin can look perfect on screen and still be quietly eating bytes. Screenshots prove nothing here. Verify the damn bytes.
 
-The proof comes in three layers, cheapest first, and this doc walks them in order:
+One call does most of it: `check(plugin)` holds your plugin to the checks every built-in block passes. Start there. The rest of the page is what that call can't see: your built package, a whole document, your block mounted, a paste.
 
-1. **Round-trip checks you write yourself.** Parse, serialize, compare. A few lines, no editor mounted.
-2. **The editor's own warnings, turned into failures.** A dev build already watches your plugin for contract violations, and your suite can go red on them.
-3. **The conformance kits.** The same checks every built-in block kind is held to, pointed at your kind. You supply fixtures; the kit supplies the suspicion.
-
-Everything test-specific imports from one subpath, `@voithos-labs/aragonite/testing`, and each export gets its section below. The running examples are the plugin guide's `%%parrot` block and `:::conspiracy` container. Three neighbouring docs carry what this one leans on:
+Everything test-specific imports from one subpath, `@voithos-labs/aragonite/testing`. The running example is the plugin guide's `%%parrot` block. Three neighbouring docs carry what this one leans on:
 
 - [plugin-guide.md](plugin-guide.md): building the plugin in the first place.
 - [plugin-api.md](plugin-api.md): the catalog of every authoring export, if a name below reads unfamiliar.
 - [consumer-guide.md](consumer-guide.md): the editor's props and instance methods, which the mounting section uses.
 
-And a map, so you can jump straight at your question:
+A map, so you can jump straight at your question:
 
 | Section | What it covers |
 | --- | --- |
-| [Round-trip is the contract](#round-trip-is-the-contract) | The three byte checks to write first: without an editor, in a live one, and with your plugin uninstalled |
-| [A blank slate per test](#a-blank-slate-per-test) | Why a plugin registers only once per process, and the reset that lets a test suite live with that |
-| [Turning warnings into failures](#turning-warnings-into-failures) | Making the editor's dev-mode warnings fail your suite instead of scrolling by |
-| [Proving a paste rewrite is wired](#proving-a-paste-rewrite-is-wired-rewritepaste) | Driving the real paste over a string, no clipboard involved |
-| [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom) | Rendering your component in a simulated browser, and the helper that fills the gaps |
-| [One tab stop in reading mode](#one-tab-stop-in-reading-mode-taborder) | Checking your mounted block leaves reading mode's Tab to the links and the editor's one stop |
-| [Checking a plugin value](#checking-a-plugin-value-check) | Every check over every sample of every block type and inline construct a plugin value lists, a row each, and excuses |
-| [The conformance kits](#the-conformance-kits) | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share |
-| [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
-| [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
-| [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for a `setup` plugin's recognizer: claiming your own bytes, declining everyone else's |
-| [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your `setup` plugin declares |
+| [Checking a plugin value](#checking-a-plugin-value-check) | `check`: the call, every check it runs, excuses, options, failures |
 | [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
+| [Round-trip is the contract](#round-trip-is-the-contract) | Two byte checks over a whole document: in a live editor, and with your plugin left out |
+| [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom) | `headless`: rendering your block in a simulated browser |
+| [One tab stop in reading mode](#one-tab-stop-in-reading-mode-taborder) | `tabOrder`: your mounted block leaves reading mode's Tab to the links and the editor's one stop |
+| [Proving a paste rewrite is wired](#proving-a-paste-rewrite-is-wired-rewritepaste) | `rewritePaste`: the real paste over a string, no clipboard involved |
+| [Turning warnings into failures](#turning-warnings-into-failures) | Making the editor's dev warnings fail your own mounted tests |
+
+`check` takes a plugin value, the thing `definePlugin({ name, version, editor, contributes })` returns. A plugin that registers kinds in a `setup` (`definePlugin({ name, setup })`) has kits of its own, from [the conformance kits](#the-conformance-kits) down.
 
 ## Verifying your plugin
 
-The checks, cheapest first, one section each.
+### Checking a plugin value: `check`
+
+**`check(plugin, options?)`**
+
+It installs your plugin the way an editor does, then runs every check over every sample of everything the plugin lists: block types, inline constructs, commands, menus, paste rewrites, paint, a highlighter. One call is the whole test:
+
+```ts
+import { check } from '@voithos-labs/aragonite/testing';
+import { parrotPlugin } from './parrot-plugin';
+
+it('the parrot passes every check', async () => {
+	const report = await check(parrotPlugin());
+	report.rows.map((row) => `${row.subject} ${row.check}: ${row.status}`);
+	// [
+	//   'parrot install: passed',
+	//   'parrot/parrot sample: passed',
+	//   'parrot/parrot roundTrip: passed',
+	//   'parrot/parrot focus: unchecked',    // needs a browser
+	//   ...
+	//   'parrot/parrot docPositions: passed',
+	//   'parrot setup: not-applicable'       // the parrot lists no setup
+	// ]
+});
+```
+
+Three things to get right:
+
+- **Await it.** A failed row rejects the promise, and that's what fails your test.
+- **Hand it the plugin value.** If a function of yours makes it, call that first (`parrotPlugin()`).
+- **Dev checks have to be on.** They are under Vitest. Anywhere else, [turn them on](#outside-vitest) first.
+
+It needs no DOM, so it runs in plain Node. Give it one (jsdom) and your `setup` runs too.
+
+#### What a row says
+
+A row is one check on one subject: `{ of, subject, check, status, detail }`. `of` is the subject's kind, `subject` is the name you gave it, and `detail` says what ran, or why nothing did.
+
+| Status | What it means | Fails the run |
+| --- | --- | --- |
+| `passed` | The check ran and held | no |
+| `failed` | It ran and didn't hold; `detail` says why | yes |
+| `excused` | It failed, and an [excuse](#excuses) of yours covers it | no |
+| `advisory` | It didn't hold, and this release only reports it. It fails from the next minor ([What is stable](plugin-guide.md#what-is-stable-what-is-not)) | no |
+| `not-applicable` | Your plugin has nothing for it to check, like a type with no `complete` | no |
+| `unchecked` | It needs something the run lacks, a browser or a DOM; `detail` says which | no |
+
+An `unchecked` row isn't a pass. Covering it is your own browser tests' job.
+
+A type with several samples gets one row per check. It fails if any sample fails, and the detail names the sample.
+
+#### The checks
+
+You declare nothing: a subject gets the checks its shape can take. One table per kind of subject.
+
+**Your plugin.** `of: 'plugin'`, and the subject is the plugin's name.
+
+| Check | Runs for | What it holds you to | Excuse |
+| --- | --- | --- | --- |
+| `install` | every plugin | It installs with its defaults and with your `options`, with no problem reported and no dev warning | no |
+| `paintRanges` | a plugin with `paint` or `paintContainer` | Each paint you answer for a block lands inside it, where the editor can draw it. It's asked over every built-in sample and yours | no |
+| `codeTokens` | a plugin with `code` | Your tokens for each language you list stay inside the body. They may nest, not cross | no |
+| `setup` | a plugin with `setup` | Your `setup` runs against an editor, and so does the function it returns. It needs a DOM | no |
+
+- `install` runs first. If installing throws, it fails and nothing else runs.
+- An option with no valid default is fine: hand it through `options`. Once your own `validate` refuses the defaults, what the defaults-only install reports goes in the row's detail and doesn't fail it. With no `options`, that refusal fails.
+- A paint or a highlighter that answers later (a dictionary still loading) has nothing on the first ask, so its row reads `not-applicable`. Hand it a source that answers at once, through `options`.
+
+**A block type.** `of: 'block'`, and the subject is the type's full name (`parrot/parrot`).
+
+| Check | Runs for | What it holds you to | Excuse |
+| --- | --- | --- | --- |
+| `sample` | every type | It has a sample, and each sample reads as the type first. A failing `sample` stops the type's other rows | no |
+| `roundTrip` | every type | Each sample serializes back to its exact bytes | no |
+| `mergeBackspace` | every type | Backspace merges into your block only as its `role` says | yes |
+| `undo` | every type | One edit to your block is one undo step | yes |
+| `clipboard` | every type | Copying your block copies its bytes and nothing else | yes |
+| `search` | a type search skips | Search finds nothing in a block it skips | no |
+| `rawWrite` | every type | Any bytes written into your block leave the blocks around it alone. Cutting your closing line can't swallow the block below | no |
+| `unfinishedReading` | a type whose opener waits on a closer | An opener still waiting for its closer gives the document back when it closes | no |
+| `completion` | a type with `complete` | Some prefix of a sample's first line completes into lines that read as your type, the caret inside them | yes |
+| `dataWriteback` | a type with a `write` for its data | The data read from a block writes back to the same bytes | no |
+| `docPositions` | every type | Each block of your type sits at the bytes it reads in the `Doc`, its text inside its line, its pieces inside it | no |
+| `focus`, `selectionPaint`, `searchPaint`, `reorder`, `simOracle` | every type | Browser only, so `unchecked` here: a caret enters and leaves your block, a selection and a search match paint what they cover, a move takes the bytes whole, a long random editing session leaves the document sound | no |
+
+**A container.** A type made by `container()` gets the block rows, then these, all from the same sample.
+
+| Check | What it holds you to | Excuse |
+| --- | --- | --- |
+| `localIndex` | Children are addressed by their index inside your container, not by a document-wide count | yes |
+| `ancestry` | An edit deep inside rebuilds every container above it | no |
+| `focusBubble` | A caret leaving your top edge reaches the document once | yes |
+| `openerLine` | Typing your opener above a block keeps the caret on a line it can type in. `not-applicable` unless a prefix of your first line waits on a closer below | yes |
+| `containerCopy` | A copy into or out of your container reads back inside it, your markers on every line it holds | no |
+| `containerDeclared` | Your line shape reads back every marker and line it writes | no |
+
+**An inline construct.** `of: 'inline'`, and the subject is its full name (`wikilinks/note`). A marker pair is one subject, both its sides.
+
+| Check | Runs for | What it holds you to | Excuse |
+| --- | --- | --- | --- |
+| `sample` | every construct | It has a sample | no |
+| `claims` | every construct | Every sample holds a claim of your construct, starting at its prefix. A failing `claims` stops the rest | no |
+| `roundTrip` | every construct | Your samples, and each line holding a claim beside any neighbour, read back to their bytes | no |
+| `inlineDecline` | all but a mark | A claim of yours at a bracket gives way where the editor's own link or image closes inside it | no |
+| `widget` | a widget | Your widget is one unit over exactly its bytes, and they read alone | yes |
+| `editingPolicy` | a widget | Your widget edits as its fields say, and deleting it whole leaves bytes that read back | yes |
+| `dependsContent` | a widget with `depends` | `depends` answers from the block alone, the same wherever the block stands | no |
+| `inlineWriter` | `as: 'image'` or `'link'` | Your `write` gives a claim's bytes back from what was read out of them | no |
+| `inlinePlace` | an inline or a mark with `after` | `after` names a construct it can follow: an inline's names one on its own character, a mark's names a mark | no |
+| `pairSides` | a marker pair | Each side reads alone in a block, and both sides of one pair read one `key` | no |
+
+**A command.** `of: 'command'`, and the subject is `plugin/id`. Every command you list gets one, and so does one a block type places as a chord or an action. A mark's toggle doesn't: the mark's own rows cover it.
+
+| Check | Runs for | What it holds you to | Excuse |
+| --- | --- | --- | --- |
+| `waitingWrite` | every command | A command that waits writes nothing once the host loads another note | yes |
+| `actionTarget` | a command a block type places | A block's command writes the block it's handed, not the one at the caret | yes |
+
+**A caret menu.** `of: 'menu'`, and the subject is its trigger (`/`). Menus that share a trigger are one subject.
+
+| Check | Runs for | What it holds you to | Excuse |
+| --- | --- | --- | --- |
+| `waitingWrite` | every menu | A pick that waits writes nothing once the host loads another note | yes |
+
+**A paste rewrite.** `of: 'rewrite'`, and the subject is the full name of the type it rewrites (`heading`, `alerts/alert`). Rewrites that share a `from` are one subject.
+
+| Check | Runs for | What it holds you to | Excuse |
+| --- | --- | --- | --- |
+| `rewriteLands` | every rewrite | Its answer lands as blocks of its own, leaving the block after it and the container around it, and a paste of the answer isn't rewritten again | no |
+
+**How commands, menus and rewrites are run.** Against one editor, with nothing on screen:
+
+- With a DOM, your `setup` runs on that editor first, and the function it returns runs last. With no DOM, a plugin that lists `setup` gets its command and menu rows `unchecked`.
+- `waitingWrite` runs your command over a sample, or picks your menu's first row for an empty query. Once the call waits, the host loads another note. Any write after that fails the row.
+- A call that returns no promise has no wait to check, so its row is `not-applicable`. If your command writes later, return its promise: a write the check sees after a call that returned none fails the row.
+- `actionTarget` hands your command the second of two sample blocks while the caret sits in the first. Writing the first block, or inserting at the caret, fails it. A command that only asked the screen for something (a box, a menu) reads `unchecked`.
+- `rewriteLands` pastes each sample of the `from` type with a block after it, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails.
+
+The `waitingWrite` failure has one fix. Open the draft before the wait: a draft refuses on its own once its note is gone, and so does a menu's `MenuPick`.
+
+```ts
+// fails: the draft is opened after the wait, over whatever note is there by then
+command({
+	id: 'title',
+	title: 'Fetch the title',
+	run: async (editor) => {
+		const title = await fetchTitle();
+		await editor.edit().replace({ from: 0, to: 0 }, title).commit();
+	}
+});
+
+// passes: the draft was opened in the note the command ran on
+command({
+	id: 'title',
+	title: 'Fetch the title',
+	run: async (editor) => {
+		const draft = editor.edit();
+		const title = await fetchTitle();
+		await draft.replace({ from: 0, to: 0 }, title).commit();
+	}
+});
+```
+
+#### Excuses
+
+An excuse covers a check a subject of yours can't pass, with the reason:
+
+```ts
+await check(memos, {
+	excuse: {
+		commands: {
+			'move-up': { actionTarget: 'Move up swaps the memo with the block above it, so it writes both.' }
+		}
+	}
+});
+// the row: { of: 'command', subject: 'memos/move-up', check: 'actionTarget', status: 'excused',
+//   detail: 'Move up swaps the memo ... (it found: handed the second block, it wrote the first block, where the caret was)' }
+```
+
+Each group is keyed by a name you wrote:
+
+| Group | Keyed by | Checks it takes |
+| --- | --- | --- |
+| `blocks` | the type's own name (`memo`, not `memos/memo`) | `mergeBackspace`, `undo`, `clipboard`, `completion`, and a container's `localIndex`, `focusBubble`, `openerLine` |
+| `inlines` | the construct's own name | `widget`, `editingPolicy` |
+| `commands` | the command's own id | `waitingWrite`, `actionTarget` |
+| `menus` | the trigger | `waitingWrite` |
+
+`plugin` and `rewrites` exist too, and take nothing: none of their checks can be excused.
+
+An excuse is a claim, not a waiver, and the run checks it:
+
+- The reason is a sentence. `'n/a'` fails the run.
+- An excuse over a check that passed fails the run. So does one over a check that doesn't apply, and one for a subject you don't list. Drop it when you fix the thing.
+- A misspelt check, or one the table says takes no excuse, doesn't compile. From plain JavaScript it fails the run.
+- A row that timed out takes no excuse.
+- An `advisory` row takes one, so you can excuse a check before the release that makes it fail.
+
+#### Options
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `options` | none | Your plugin's own options, laid over its defaults for every check. `install` also installs the plugin without them |
+| `excuse` | none | The [excuses](#excuses) above |
+| `timeout` | `2000` | How long each wait of your plugin's may last, in milliseconds, before its row fails |
+| `warningsFail` | `true` | Whether a dev warning raised during the run fails it |
+
+**`timeout`.** It bounds a command's or a pick's promise, a menu's `rows` and a highlighter's answer. The fix for a row that timed out is usually `options`, not a longer wait: stub the fetch, hand over a dictionary that's already loaded. If you do raise it, keep it under your test runner's own (Vitest's is five seconds), or you read "Test timed out" where the row would have been.
+
+**`warningsFail`.** A dev warning means the editor contained a contract violation instead of crashing on it, so one fails the run even when every row passed. `warningsFail: false` lets the run pass, and `report.warnings` still lists each one. `paintRanges` fails either way on a paint the editor left out.
+
+#### When it fails
+
+A failed row, or a dev warning, rejects with a `CheckFailure`. Its message names each failed row and the promise it breaks, and its `report` holds every row:
+
+```
+CheckFailure: check failed for plugin 'memos':
+  - block memos/memo sample: "not a memo\n" reads as a "paragraph" first, not as "memos/memo"
+    breaks: each block type has a sample, and each reads as that type first (plugin-testing.md#checking-a-plugin-value-check)
+```
+
+`isCheckFailure(error)` tells one from any other error. Use it over `instanceof`, which misses a failure thrown by another copy of the editor.
+
+#### Outside Vitest
+
+`check` refuses to run with the editor's dev checks off, since a contract warning would pass unseen. Vitest turns them on. Under another runner, or a bundler that resolves no export conditions, `configureEditorEnv` turns them on and `resetEditorEnv()` puts the detected defaults back:
+
+```ts
+import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/testing';
+
+beforeAll(() => configureEditorEnv({ isDev: true }));
+afterAll(() => resetEditorEnv());
+```
+
+It can't turn them on in a build that resolves the `production` condition, since that build doesn't carry the checks at all.
+
+#### The same run as data: `Conformance`
+
+Your package's `./conformance` export is the `check` call written down, for [the command a listing runs](#the-check-a-listing-runs-aragonite-plugin-check). Its default export is a `Conformance`:
+
+```ts
+// src/conformance.ts
+import type { Conformance } from '@voithos-labs/aragonite/testing';
+import { parrotPlugin } from './index';
+
+const suite: Conformance = { plugin: parrotPlugin() };
+
+export default suite;
+```
+
+`plugin` is the plugin value. Its options go in `options` and its excuses in `excuse`, never into a call of the plugin. Your own test then runs what the listing runs:
+
+```ts
+import { check } from '@voithos-labs/aragonite/testing';
+import suite from '../src/conformance';
+
+it('the parrot passes every check', async () => {
+	await check(suite.plugin, suite);
+});
+```
+
+The file ships in your package, so keep its imports to your plugin's own plus `import type` from `@voithos-labs/aragonite/testing`. A host never loads it, and it shouldn't drag the checks into anyone's install.
+
+### The check a listing runs: `aragonite-plugin-check`
+
+**`npx aragonite-plugin-check [package | directory] [--json file]`**
+
+The same run from outside your test suite, over your built package the way a host installs it, in plain Node. It reads your package's `./conformance` export: a [`Conformance`](#the-same-run-as-data-conformance), or for a `setup` plugin a [`PluginConformanceSuite`](#the-whole-plugin-at-once-runpluginconformance). The command comes with the editor, so it runs the checks of whichever editor version you installed. Pass a directory to check the package it holds (`.` is the default), or a package name to check one installed beside the editor:
+
+```
+$ npx aragonite-plugin-check .
+checking aragonite-parrot@0.1.0 against @voithos-labs/aragonite@0.12.0
+  passed parrot install
+  passed parrot/parrot sample
+  ...
+  not-applicable parrot setup: lists no setup
+  18 rows: 8 passed, 5 unchecked, 5 not-applicable
+aragonite-plugin-check: passed
+```
+
+Each row gets a line, with its detail where it didn't pass, then a count of each status.
+
+| Exit code | When |
+| --- | --- |
+| 0 | Nothing failed. Unchecked rows are counted, not failed |
+| 1 | A check failed, or a dev warning was raised. The message `check` threw is printed |
+| 2 | Nothing to run: the package has no `./conformance` export, or its default export holds no plugin |
+
+`--json` also writes the result to a file: `{ package, version, editor, result, rows, warnings }`, where `result` is `pass` or `fail`. The command takes no `timeout` and no `warningsFail`, so each wait gets `check`'s two seconds and a warning fails. It exits once it has answered, whatever timer your plugin left running.
+
+In CI, call the editor's reusable workflow instead of wiring this up yourself. It packs your repository's package, installs it beside the editor in an empty project with your package's install scripts off, runs the check and writes the result to the job summary:
+
+```yaml
+jobs:
+  conformance:
+    uses: voithos-labs/aragonite/.github/workflows/plugin-check.yml@v0.11.5
+```
+
+Pin the tag to the editor release you build against. With no inputs it checks your package against the newest editor release your peer range accepts; `editor` takes an npm spec to check another one (a `next` build, say), and `working-directory` points at a package that isn't at your repository's root. The [plugin template](plugin-guide.md#the-first-fifteen-minutes) already calls it.
 
 ### Round-trip is the contract
 
-The one promise your plugin has to keep is the one the README makes: `serialize(parse(source)) === source`. Check it three ways.
+The one promise your plugin has to keep is the one the README makes: `serialize(parse(source)) === source`. `check`'s `roundTrip` rows hold it over your samples. Two more checks want a whole document, and those are yours to write.
 
-**Headless.** `parse` and `serialize` both ship on `@voithos-labs/aragonite/plugin`, so the core check needs no editor at all:
+**Live.** Mount an editor over a document that uses your syntax (the [mounting section](#mounting-the-editor-under-jsdom) shows how), read it back with `editor.getSource()`, and compare with what you authored.
+
+**Left out.** Author a document using your syntax, then read it with your plugin nowhere in sight, and check it comes back unchanged. `parse` and `serialize` on `@voithos-labs/aragonite/plugin` read a document with no plugin value's types, so two lines do it:
 
 ```ts
 import { parse, serialize } from '@voithos-labs/aragonite/plugin';
 
-expect(serialize(parse(MY_SOURCE))).toBe(MY_SOURCE);
+const MY_SOURCE = '%%parrot party responsibly\n';
+expect(parse(MY_SOURCE).children[0].kind).toBe('paragraph'); // no dancing
+expect(serialize(parse(MY_SOURCE))).toBe(MY_SOURCE); // but no damage
 ```
 
-**Live.** Mount an editor over a document that uses your syntax (the [mounting section](#mounting-the-editor-under-jsdom) shows how), read it back with `editor.getSource()`, and compare with what you authored.
+While you iterate, keep a dev build running (`vite dev`) and watch the console. The editor's contract warnings ([misuse outcomes](plugin-guide.md#misuse-outcomes)) only fire there. A clean dev console over a green round-trip is a decent sign your plugin's sound, and a suite can hold that line for you ([turning warnings into failures](#turning-warnings-into-failures)).
 
-**Uninstalled.** Author a document using your syntax, then load it with your plugin **not** registered, and check it comes back unchanged. A `%%parrot` file opened without the parrot plugin renders as plain text: no dancing, but no damage.
+### Mounting the editor under jsdom
 
-While you iterate, keep a dev build running (`vite dev`) and watch the console. The editor's shape checks ([misuse outcomes](plugin-guide.md#misuse-outcomes)) only fire there: a `rebuildRaw` byte mismatch, an opener that disagrees with the lines it consumed, a descriptor whose is-this-collapsed answer contradicts the rest of it. A clean dev console over a green round-trip is a decent sign your plugin's sound, and a suite can hold that line for you ([turning warnings into failures](#turning-warnings-into-failures)).
+A drawing is only really verified mounted, and a jsdom mount is a supported way to do it. Two things stand in the way. The first is the browser APIs a mounted editor calls and jsdom doesn't have (`ResizeObserver`, `scrollIntoView`, and a text range's rects, which the editor reads to keep the caret on screen). `headless()` fills those in, each only where it's missing, so the call does nothing in a real browser. It makes no DOM, so a test with none (Vitest's `node` environment) brings jsdom first. Call it once, before the first mount:
+
+```ts
+// @vitest-environment jsdom
+import { mount, flushSync } from 'svelte';
+import { Editor } from '@voithos-labs/aragonite/svelte';
+import { headless } from '@voithos-labs/aragonite/testing';
+
+headless();
+
+const target = document.body.appendChild(document.createElement('div'));
+const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, scrollMode: 'host' } });
+flushSync(); // the first render has to land before you can assert on it
+```
+
+The stubs leave `document.elementFromPoint` alone, since the editor copes without it. If your own code asks it what's under a press, stub it yourself before the mount (jsdom lays nothing out, so no point has an element under it anyway):
+
+```ts
+document.elementFromPoint ??= () => null;
+```
+
+`scrollMode: 'host'` is the second thing: it drops the editor's own scroll container and the chrome a jsdom box can't size anyway ([host scroll mode](consumer-guide.md#host-scroll-mode)). And keep the fixture document short. The editor stops mounting blocks past an estimated-height budget in either scroll mode, jsdom reports a zero-height viewport, and a fixture tall enough to trip that unmounts the very block you're asserting on.
+
+From there `target.querySelector` reaches your own markup, and `editor.getSource()` hands you the bytes to compare:
+
+```ts
+expect(target.querySelector('.parrot-block')).not.toBeNull(); // your drawing, not the raw-text fallback
+expect(editor.getSource()).toBe(MY_SOURCE);
+```
+
+### One tab stop in reading mode: `tabOrder`
+
+In reading mode Tab is the page's: it walks the document's links and buttons, and the whole editor is one stop in that walk (the block the reader was last in). A block that puts its own element in the tab order makes Tab stop on it like a link. The editor already gives the text you type in and a block focused whole their stop, so this only bites when your markup adds a `tabindex` of its own somewhere that isn't a control.
+
+**`tabOrder(root: HTMLElement): string | null`**
+
+Mount your block with `presentationMode: 'reading'` and hand it the editor's root, not your block. `null` means only controls and the editor's one stop are in the tab order; otherwise you get the problem, naming every extra stop:
+
+```ts
+import { tabOrder } from '@voithos-labs/aragonite/testing';
+
+const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, presentationMode: 'reading', scrollMode: 'host' } });
+flushSync();
+expect(tabOrder(target.querySelector('.editor')!)).toBeNull();
+// a stray tabindex="0" on your wrapper instead gives:
+// "reading mode has 2 tab stops that aren't controls (div.text-editable-block at [0], div.parrot-box at [1]): ..."
+```
+
+### Proving a paste rewrite is wired: `rewritePaste`
+
+**`rewritePaste(text, plugins)`**
+
+The function every paste that lands as blocks runs, over a string, so a test proves your rewrite is **wired**, not merely that your `into` works. `plugins` is what you'd hand an editor's `plugins` prop.
+
+```ts
+import { builtin, definePlugin, rewrite } from '@voithos-labs/aragonite/plugin';
+import { rewritePaste } from '@voithos-labs/aragonite/testing';
+
+const shout = definePlugin({
+	name: 'shout',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		rewrites: [rewrite({ from: builtin.blocks.heading, into: (block) => block.text.toUpperCase() })]
+	})
+});
+
+rewritePaste('# quiet please\n', [shout]); // '# QUIET PLEASE\n'
+rewritePaste('quiet please\n', [shout]); // 'quiet please\n' (a paragraph, so nothing changed)
+```
+
+It answers for a paste from outside the editor that reads as blocks, and nothing else. Plain text and the editor's own copy are never rewritten, so it's not the route for testing those.
+
+`check` runs the same function over each type your plugin rewrites, with a block after it (`rewriteLands`, in [the checks](#the-checks)). `rewritePaste` is for the cases a sample doesn't hold.
+
+For a `setup` plugin, `plugins` takes the unit, and `undefined` runs every installed `setup` plugin's paste transforms, as an editor with no prop does. A unit you list is installed for the process, so reset between cases ([a blank slate per test](#a-blank-slate-per-test)).
+
+### Turning warnings into failures
+
+`check` fails on a dev warning by itself. Your own mounted tests don't, unless you ask. The editor reports the contract violations it can contain, rather than crash on, as dev warnings under an `[aragonite:…]` console head, and a suite that wants those red registers a callback for them:
+
+```ts
+import { setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
+
+const fires = [];
+beforeEach(() => setDevWarnSink((entry) => fires.push(entry)));
+afterEach(() => {
+	setDevWarnSink(null);
+	expect(fires.splice(0)).toEqual([]); // a guard fired and nobody claimed it
+});
+```
+
+While a callback is registered it takes over reporting completely (nothing reaches the console), and every entry is a small object. A rewrite whose `into` throws, for instance, is contained as a decline and reported like this:
+
+```ts
+import { builtin, definePlugin, rewrite } from '@voithos-labs/aragonite/plugin';
+import { rewritePaste } from '@voithos-labs/aragonite/testing';
+
+const boom = definePlugin({
+	name: 'boom',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		rewrites: [
+			rewrite({
+				from: builtin.blocks.heading,
+				into: () => {
+					throw new Error('boom');
+				}
+			})
+		]
+	})
+});
+rewritePaste('# quiet please\n', [boom]); // '# quiet please\n', untouched
+
+fires[0];
+// {
+//   tag: 'plugin-error',
+//   message: "plugin 'boom' failed (rewrite paste)",
+//   details: Error('boom')
+// }
+```
+
+`setDevWarnSink` returns the callback it replaced, so a nested harness restores rather than clears.
+
+One prerequisite: warnings only run while the editor believes it's in a dev build, and a callback over a production build stays empty for the wrong reason. Vitest gets the dev flag by itself; another runner turns it on as [outside Vitest](#outside-vitest) shows.
+
+### The conformance kits
+
+Everything from here down is for a `setup` plugin: one made with `definePlugin({ name, setup })`, whose kinds register for the whole process. A plugin value needs none of it, since [`check`](#checking-a-plugin-value-check) runs these checks with nothing to declare.
+
+Conformance here means: your kind behaves the way the built-in kinds are required to behave, under the same checks. Three kits ship on the subpath, one per tier (block kind, container, inline syntax), and they share a vocabulary:
+
+- Each kit runs **cells**, one check per behavior, and each cell is covered one of three ways. `assert` runs the real check. `exempt` means the invariant has nothing to bite on for your kind (there's no such operation to test). `boundary` means checking it needs something headless code can't reach (a browser, a mounted component).
+- You declare an excused cell rather than skipping it, and both excuse modes want a reason that's a real sentence (a bare token like `'n/a'` fails the run). An excuse the kit can falsify, it falsifies.
+- Every kit resolves with a report, and all three write a cell the same way: its `cell` name, its `status` (`asserted`, `exempt` or `boundary`), and usually a `detail` saying what ran or why nothing did (`CellReport`, if you want the type). A failing run throws a plain `Error` naming every failed cell instead, so a run drops straight into a test case under any runner.
 
 ### A blank slate per test
 
-The plugin platform is register-once: setup writes into process-global registries that throw on a duplicate and never unregister. A test runner reuses one process across cases, so a plugin installed in a second `beforeEach` would collide with the first. That's what the reset is for.
+A `setup` plugin registers once: its setup writes into process-global registries that throw on a duplicate and never unregister. A test runner reuses one process across cases, so a plugin installed in a second `beforeEach` would collide with the first. That's what the reset is for.
 
 **`resetPluginPlatformForTests()`**
 
@@ -100,188 +528,13 @@ beforeAll(() => configureEditorEnv({ isTest: true })); // "yes, this really is a
 afterAll(() => resetEditorEnv());
 ```
 
+Add `isDev: true` beside it to get the dev warnings too. `isTest` keeps the test-process rules, so the reset works and a register call outside a plugin's setup doesn't throw.
+
 **Install the unit, not your register function.** Your registrations answer to your plugin only when its setup runs them, and that's how an editor's `plugins` list turns your kind on or off. Call `registerConspiracy(view)` yourself and the kind belongs to no plugin at all, so every editor shows it and your activation tests pass against a setup no user runs. Three more identity rules keep a suite honest:
 
 - Installing the **same unit instance** twice (the `beforeEach` above plus an editor's `plugins` prop, say) is a no-op, which is why the sample builds `conspiracy` once at module scope.
 - A **different instance under the same name** is kept out by a first-wins rule, with a dev warning naming the loser.
 - Calling your register function directly **beside** a unit install makes the unit's setup re-register your kind, which **throws**. The register-once throw stays live under test on purpose, so the collision fails your suite instead of silently winning.
-
-### Turning warnings into failures
-
-The editor reports contract violations it can contain, rather than crash on, as dev warnings under an `[aragonite:…]` console head. A suite that wants those red rather than scrolling past registers a callback for them:
-
-```ts
-import { setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
-
-const fires = [];
-beforeEach(() => setDevWarnSink((entry) => fires.push(entry)));
-afterEach(() => {
-	setDevWarnSink(null);
-	expect(fires.splice(0)).toEqual([]); // a guard fired and nobody claimed it
-});
-```
-
-While a callback is registered it takes over reporting completely (nothing reaches the console), and every entry is a small object. A paste transform that throws, for instance, is contained as a decline and reported like this:
-
-```ts
-registerPasteTransform({
-	name: 'boom',
-	transform: () => {
-		throw new Error('boom');
-	}
-});
-rewritePaste('body\n', undefined); // 'body\n', untouched
-
-fires[0];
-// {
-//   tag: 'paste-transform',
-//   message: "transform 'boom' threw in the paste pipeline; declining, so the running text is untouched",
-//   details: Error('boom')
-// }
-```
-
-`setDevWarnSink` returns the callback it replaced, so a nested harness restores rather than clears.
-
-One prerequisite: warnings and invariant checks only run while the editor believes it's in a dev build, and a callback over a production build stays empty for the wrong reason. A Vitest suite gets the dev flag automatically, because its build resolves it. Under another runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true, isTest: true })` in your setup and `resetEditorEnv()` in teardown. `isDev` alone turns both on; `isTest` beside it keeps the test-process rules, so the reset works and a register call outside a plugin's setup doesn't throw. It can't turn them on in a build that resolves the `production` condition, though, since that build doesn't carry the checks at all.
-
-### Proving a paste rewrite is wired: `rewritePaste`
-
-**`rewritePaste(text, plugins)`**
-
-The function every paste that lands as blocks runs, over a string, so a test proves your rewrite is **wired**, not merely that your `into` works. `plugins` is what you'd hand an editor's `plugins` prop: plugin values with their `rewrites`, and `setup` plugins with their paste transforms. `undefined` runs as an editor with no prop does, every installed `setup` plugin's transforms.
-
-It answers for a paste from outside the editor that reads as blocks, and nothing else. Plain text and the editor's own copy are never rewritten, so it's not the route for testing those. A `setup` plugin you list is installed for the process, as an editor's prop installs it, so reset between cases as [a blank slate per test](#a-blank-slate-per-test) does.
-
-```ts
-import { builtin, definePlugin, rewrite } from '@voithos-labs/aragonite/plugin';
-import { rewritePaste } from '@voithos-labs/aragonite/testing';
-
-const shout = definePlugin({
-	name: 'shout',
-	version: '1.0.0',
-	editor: '^0.12.0',
-	contributes: () => ({
-		rewrites: [rewrite({ from: builtin.blocks.heading, into: (block) => block.text.toUpperCase() })]
-	})
-});
-
-rewritePaste('# quiet please\n', [shout]); // '# QUIET PLEASE\n'
-rewritePaste('quiet please\n', [shout]); // 'quiet please\n' (a paragraph, so nothing changed)
-```
-
-`check` runs the same function over each type your plugin rewrites (`rewriteLands`, in [checking a plugin value](#checking-a-plugin-value-check)).
-
-### Mounting the editor under jsdom
-
-A component is only really verified mounted, and a jsdom mount is a supported way to do it. Two things stand in the way. The first is the browser APIs a mounted editor calls and jsdom doesn't have (`ResizeObserver`, `scrollIntoView`, and a text range's rects, which the editor reads to keep the caret on screen). `headless()` fills those in, each only where it's missing, so the call does nothing in a real browser. It makes no DOM, so a test with none (Vitest's `node` environment) brings jsdom first:
-
-```ts
-// @vitest-environment jsdom
-import { mount, flushSync } from 'svelte';
-import { Editor } from '@voithos-labs/aragonite/svelte';
-import { headless } from '@voithos-labs/aragonite/testing';
-
-headless();
-
-const target = document.body.appendChild(document.createElement('div'));
-const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, scrollMode: 'host' } });
-flushSync(); // the first render has to land before you can assert on it
-```
-
-The stubs leave `document.elementFromPoint` alone, since the editor copes without it. If your own code asks it what's under a press, stub it yourself before the mount (jsdom lays nothing out, so no point has an element under it anyway):
-
-```ts
-document.elementFromPoint ??= () => null;
-```
-
-`scrollMode: 'host'` is the second thing: it drops the editor's own scroll container and the chrome a jsdom box can't size anyway ([host scroll mode](consumer-guide.md#host-scroll-mode)). And keep the fixture document short. The editor stops mounting blocks past an estimated-height budget in either scroll mode, jsdom reports a zero-height viewport, and a fixture tall enough to trip that unmounts the very block you're asserting on.
-
-From there `target.querySelector` reaches your component's own markup, and `editor.getSource()` hands you the bytes to compare:
-
-```ts
-expect(target.querySelector('.parrot-block')).not.toBeNull(); // your component, not the raw-text fallback
-expect(editor.getSource()).toBe(MY_SOURCE);
-```
-
-### One tab stop in reading mode: `tabOrder`
-
-In reading mode Tab is the page's: it walks the document's links and buttons, and the whole editor is one stop in that walk (the block the reader was last in). A block that puts its own element in the tab order makes Tab stop on it like a link. The editable leaf's spread and the whole-block host already take their stop from the editor, so this only bites when your markup adds a `tabindex` of its own somewhere that isn't a control.
-
-**`tabOrder(root: HTMLElement): string | null`**
-
-Mount your kind with `presentationMode: 'reading'` and hand it the editor's root. `null` means only controls and the editor's one stop are in the tab order; otherwise you get the problem, naming every extra stop:
-
-```ts
-import { tabOrder } from '@voithos-labs/aragonite/testing';
-
-const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, presentationMode: 'reading', scrollMode: 'host' } });
-flushSync();
-expect(tabOrder(target.querySelector('.editor')!)).toBeNull();
-// a stray tabindex="0" on your wrapper instead gives:
-// "reading mode has 2 tab stops that aren't controls (div.text-editable-block at [0], div.parrot-box at [1]): ..."
-```
-
-### Checking a plugin value: `check`
-
-**`check(plugin, { options?, excuse?, warningsFail?, timeout? })`**
-
-For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of everything it lists (block types, inline constructs, commands, menus, rewrites, paint, a highlighter), read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and needs no DOM; with one, your `setup` runs too.
-
-```ts
-import { check } from '@voithos-labs/aragonite/testing';
-
-it('the parrot passes every check', async () => {
-	const report = await check(parrotPlugin());
-	report.rows.map((r) => `${r.subject} ${r.check}: ${r.status}`);
-	// ['parrot install: passed', 'parrot/parrot sample: passed', 'parrot/parrot roundTrip: passed',
-	//  'parrot/parrot focus: unchecked', ..., 'parrot setup: not-applicable']
-});
-```
-
-A row is `passed`, `failed`, `excused`, `advisory` (it didn't hold, and this release only reports it), `not-applicable` (your shape has nothing for it to drive) or `unchecked` (it needs something the run lacks, a browser or, for your `setup`, a DOM; its detail says which). Unchecked rows are counted, never failed.
-
-A failed row, or a dev warning unless you pass `warningsFail: false`, rejects with a `CheckFailure`: its message names each failed row and the contract it breaks, and its `report` holds every row. `isCheckFailure(error)` tells one apart, even one thrown by another copy of the editor.
-
-`install` holds your plugin with its defaults and with `options` at once. An option with no valid default is fine: hand it through `options`, and defaults your own `validate` refuses are said in the row's detail without failing it. With no `options`, that refusal fails.
-
-A block type gets `sample` first; a failing one stops the rest. Beside the editing checks, three read what your type reads and writes besides its bytes:
-
-- `completion`, for a type with `complete`: some prefix of a sample's first line completes, into lines that read as your type, the caret inside them. One no prefix reaches fails, since a completion the editor refuses never runs; that one takes an excuse.
-- `dataWriteback`, for a type with a `write`: the data read from each sample, written back through a draft, gives the same bytes.
-- `docPositions`: every block of your type, and each inside one, sits at the bytes it reads in the `Doc`, its text range inside its line, its pieces inside it.
-
-An inline construct is one subject, and so is a marker pair, both its sides. Each gets `sample`, `claims` (every sample holds a claim, starting at its prefix) and `roundTrip` (each sample, and each line holding a claim beside any neighbour, reads back to its bytes). The rest follow its shape:
-
-- `inlineDecline`, for all but a mark: a claim at a bracket gives way where the editor's own link or image closes inside it.
-- `widget`, `editingPolicy` and `dependsContent`, for a widget: one unit over bytes that read alone; its fields, `inner` and a whole delete as the editor reads them; `depends` answering the same wherever the block stands.
-- `inlineWriter`, for `as: 'image'` or `'link'`: your `write` gives a claim's bytes back from what was read out of them.
-- `inlinePlace`, for an inline or a mark with `after`: an inline's names a construct on its own character, a mark's names a mark.
-- `pairSides`, for a marker pair: each side reads alone in a block, and both sides of one pair read one `key`.
-
-Each command is a subject under `plugin/id`, a block action's command included; a mark's toggle is the mark's business. Menus are one subject per trigger. The check runs them against an editor over a sample, with nothing on screen and the caret in the note (in the block a placed command is handed, after a menu's trigger):
-
-- `waitingWrite`, for a command and for a menu's first row picked on an empty query: once the call waits, the host loads another note, and any write after that fails. The `MenuPick` and a draft opened before the wait are refused on their own, so write through those. A call that returns no promise has no wait, so the row is `not-applicable`.
-- `actionTarget`, for a command a block type places: it runs on the second of two sample blocks with the caret in the first, and fails if it writes the first or inserts at the caret. A command that only asked the screen reads `unchecked`.
-
-These share one editor, as a mounted editor is shared: your `setup` runs on it once before them where there's a DOM, and the function it returns after them and the rows below, which ask your rewrites and your paint of that same editor. With no DOM, a plugin that lists a `setup` gets them `unchecked`.
-
-Each wait of yours gets `timeout` milliseconds, 2000 unless you say: a command's or a pick's promise, a menu's `rows`, a highlighter's answer. One that outlasts it fails its row and says so. Answer the wait at once through `options` (a stubbed fetch), or raise `timeout`. Your `setup` is called and never awaited, so it has no wait to bound.
-
-The rest are read, not driven:
-
-- `rewriteLands`, one subject per type you rewrite, by its full name (`paragraph`, `alerts/alert`): each of its samples is pasted with a block after it, at the top and inside a container. The answer has to leave both standing, and a paste of the answer can't be rewritten again, or each paste grows it. An unclosed fence fails it.
-- `paintRanges`, for `paint` or `paintContainer`: what you answer for every built-in sample and yours, asked through the editor's own paint source, lands inside its block; one the editor leaves out fails the row even with `warningsFail: false`. A paint that answers later (a dictionary still loading) paints nothing on the first ask, so hand a source that answers at once through `options`.
-- `codeTokens`, for `code`: your tokens for each language you list nest inside the body. Runs may nest; two that cross fail. A highlighter that answers no token is `not-applicable`, so hand one that answers at once through `options`.
-
-An excuse covers a check your block type or inline can't pass, with a reason of a sentence: `excuse: { blocks: { memo: { undo: '…' } } }`, `{ inlines: { formula: { widget: '…' } } }`, `{ commands: { fetch: { waitingWrite: '…' } } }` by the command's own id, or `{ menus: { '@': { waitingWrite: '…' } } }` by trigger; `rewrites` is keyed by the type's full name and takes none yet. It's a claim, not a waiver. One over a check that passed, a check that doesn't apply, or a subject you don't list fails the run, and a misspelt check or one no excuse covers doesn't compile. Your package's `./conformance` export is the same call as data, a `Conformance`: `{ plugin, options?, excuse? }`, the plugin value itself rather than a call of it.
-
-### The conformance kits
-
-Conformance here means: your kind behaves the way the built-in kinds are required to behave, under the same checks. Three kits ship on the subpath, one per tier (block kind, container, inline syntax), and they share a vocabulary:
-
-- Each kit runs **cells**, one check per behavior, and each cell is covered one of three ways. `assert` runs the real check. `exempt` means the invariant has nothing to bite on for your kind (there's no such operation to test). `boundary` means checking it needs something headless code can't reach (a browser, a mounted component).
-- You declare an excused cell rather than skipping it, and both excuse modes want a reason that's a real sentence (a bare token like `'n/a'` fails the run). An excuse the kit can falsify, it falsifies.
-- Every kit resolves with a report, and all three write a cell the same way: its `cell` name, its `status` (`asserted`, `exempt` or `boundary`), and usually a `detail` saying what ran or why nothing did (`CellReport`, if you want the type). A failing run throws a plain `Error` naming every failed cell instead, so a run drops straight into a test case under any runner.
 
 ### The kind checkup: `runKindConformance`
 
@@ -301,15 +554,9 @@ Takes your kind (the value `declaredPluginKind` returns) and runs one cell per e
   - It's `boundary` for a kind with the rule and no top-level fixture (none at all, or one sitting inside a container), and `exempt` for a kind with neither the rule nor a top-level fixture.
 - The unfinished-reading cell, last. If your opener declares `readingNotFinal`, because it backs out without its closer or reads on like a fence ([A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final)), it takes your fixture's last line off and checks `mayClose` says yes to that line, the closer that finishes it, and that `closer` hands back a line that closes the rest into your kind again. It also asks `notFinal` of your fixture a line at a time: once it says final, it has to stay final. A reading no line closes (`closer: null`) is held another way: `notFinal` has to say it waits for the first line alone and for every run of lines short of the whole fixture (a `notFinal` written for the block's own bytes fails here), then call the whole fixture final; a `crosses` you declared has to accept every line of your fixture under the first, and your opener must not read on across a blank line put above the fixture's last line, since a block that does needs a `closer`. It's `exempt` for a one-line fixture, and for a reading that names a closer when your fixture minus its last line doesn't read as waiting, which covers every kind that neither backs out nor reads on. One catch: if your fixture is a fence and your opener declares no `readingNotFinal`, the cell fails and asks for `fenceReading`.
 
-Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one: [`check`](#checking-a-plugin-value-check) runs these checks over it. For the bundled `[[toc]]` block, the whole checkup is one call:
+Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one: [`check`](#checking-a-plugin-value-check) runs these checks over it.
 
-```ts
-it('toc conforms', async () => {
-	await runKindConformance(declaredPluginKind('toc'));
-});
-```
-
-It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the toc as it ships:
+The whole checkup is one call. It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the bundled `[[toc]]` block:
 
 ```ts
 const report = await runKindConformance(declaredPluginKind('toc'));
@@ -477,7 +724,7 @@ Two rules of thumb from that container. Ask the **grammar**, not your own spelli
 
 **`runInlineKindConformance(profile)`**
 
-This kit checks a `setup` plugin's recognizer, the `registerInlineSyntax` call. A construct made by `inline()`, `mark()` or `markerPair()` reads only in an editor running your plugin, which the kit doesn't mount yet, so test one by mounting an editor with your plugin ([Mounting the editor under jsdom](#mounting-the-editor-under-jsdom)) and checking its bytes and what it draws.
+This kit checks a `setup` plugin's recognizer, the `registerInlineSyntax` call. A construct made by `inline()`, `mark()` or `markerPair()` isn't one: [`check`](#checking-a-plugin-value-check) runs its rows.
 
 The same idea one layer down: register your recognizer (one of possibly several asked in priority order at your trigger character), then point the kit at it and it drives the behaviors a recognizer can break without moving a byte. The profile's fields, before the cells:
 
@@ -551,13 +798,7 @@ The other three declared cells are yours to excuse, since only you know whether 
 
 One thing worth knowing about `widget`: it asserts your claimed slice is **self-delimiting**. Re-scanning the slice alone must re-form the same kind over its whole length, because that slice is exactly what the widget's `data-source-*` attributes (the ones saying which bytes it stands for) hand the clipboard and a source reveal. Those attributes sit on the span the editor makes for your view, not on anything you build, so there's nothing about the span left for you to get wrong and the cell needs no DOM.
 
-`registration` is the thinnest cell. It checks three things:
-
-- yours is the only registration at its prefix and priority;
-- on a reserved trigger, your prefix is two or more characters and your priority sits below `INLINE_PRIORITIES.builtin`;
-- on a trigger no built-in owns, the scan actually visits that character.
-
-`registerInlineSyntax` already refuses most of that up front, so those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your recognizer not being there at all (a setup step that ran under the wrong guard, say), and that one doesn't wait for the cell: the run throws before any cell starts, telling you to register the plugin first.
+`registration` is the thinnest cell: yours is the only registration at its prefix and priority, and the scan visits your trigger. `registerInlineSyntax` already refuses most of what it checks. What you _can_ get wrong is your recognizer not being there at all (a setup step that ran under the wrong guard, say), and that one doesn't wait for the cell: the run throws before any cell starts, telling you to register the plugin first.
 
 ### The whole plugin at once: `runPluginConformance`
 
@@ -593,35 +834,3 @@ Error: plugin conformance failed for "memo":
 ```
 
 A kind left without its profile fails the same way (`container kind "conspiracy" has no profile in the suite's containers`), and so does a profile naming a kind your plugins never declared.
-
-### The check a listing runs: `aragonite-plugin-check`
-
-**`npx aragonite-plugin-check [package | directory] [--json file]`**
-
-The same run from outside your test suite, over your built package the way a host installs it, in plain Node. Your package publishes its suite as a `./conformance` export (a module whose default export is a [`Conformance`](#checking-a-plugin-value-check), or for `setup` plugins the `PluginConformanceSuite` above), and the command comes with the editor, so it runs the checks of whichever editor version you installed. Pass a directory to check the package it holds (`.` is the default), or a package name to check one installed beside the editor:
-
-```
-$ npx aragonite-plugin-check .
-checking aragonite-parrot@0.1.0 against @voithos-labs/aragonite@0.12.0
-  passed parrot install
-  passed parrot/parrot sample
-  ...
-  15 rows: 7 passed, 5 unchecked, 3 not-applicable
-aragonite-plugin-check: passed
-```
-
-Each row gets a line, with its detail where it didn't pass, then a count of each status.
-
-It exits 0 when nothing failed (unchecked rows are counted, not failed), 1 when a check failed (with the message the run threw), and 2 when the package publishes no suite. `--json` also writes the result and its rows to a file. Each wait gets `check`'s two seconds, and the command exits once it has answered, whatever timer your plugin left running.
-
-The suite ships in your package, so keep its source to your plugin's own imports plus `import type` from `@voithos-labs/aragonite/testing`: a host never loads it, and it shouldn't drag the test kits into anyone's install.
-
-In CI, call the editor's reusable workflow instead of wiring this up yourself. It packs your repository's package, installs it beside the editor in an empty project with your package's install scripts off, runs the check and writes the result to the job summary:
-
-```yaml
-jobs:
-  conformance:
-    uses: voithos-labs/aragonite/.github/workflows/plugin-check.yml@v0.11.5
-```
-
-Pin the tag to the editor release you build against. With no inputs it checks your package against the newest editor release your peer range accepts; `editor` takes an npm spec to check another one (a `next` build, say), and `working-directory` points at a package that isn't at your repository's root. The [plugin template](plugin-guide.md#the-first-fifteen-minutes) already calls it.
