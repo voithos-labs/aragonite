@@ -11,7 +11,7 @@ Plugins other people wrote for aragonite, plus the bundled ones. Every one is an
 
 ## What "passed" means
 
-"Passed on 0.12.3" means one thing: on editor release 0.12.3, the plugin was installed beside the editor, `aragonite-plugin-check` ran the suite its package publishes, and nothing failed. A plugin value's suite runs through [`check`](plugin-testing.md#checking-a-plugin-value-check), and a `setup` plugin's through the [conformance kits](plugin-testing.md#the-conformance-kits). Both hold the plugin to the checks every built-in block is held to: the bytes round-trip, one edit is one undo step, a copy invents nothing, and the rest of [the list](plugin-testing.md#the-checks). The ones that need a browser don't run there.
+"Passed on 0.12.3" means one thing: on editor release 0.12.3, the plugin was installed beside the editor, `aragonite-plugin-check` ran the editor's checks over the suite its package publishes, and nothing failed. Those are the checks every built-in block is held to: the bytes round-trip, one edit is one undo step, a copy invents nothing, and the rest of [the list](plugin-testing.md#the-checks). The ones that need a browser or a DOM don't run there.
 
 It isn't a code review, and it isn't a security check. The plugin's own code runs during the check, so a plugin out to fool it could. A plugin runs inside your app with everything your app can do, the way any npm package does, so read what you install. A plugin that fails at the next release, or whose peer range leaves that release out, says so in the table instead of "passed".
 
