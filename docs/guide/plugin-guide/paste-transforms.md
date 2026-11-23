@@ -22,6 +22,8 @@ definePlugin({ name: 'shout', /* ... */ contributes: () => ({ pasteRewrites: [sh
 
 Every paste that lands as Markdown is read, one line after text, a table cell and a title row included. A paste into a code block's body, a shown math source or a block type whose `body` is `literal` (a leaf's default) is code, and goes in as written. The whole-paste rewrites of every listed plugin chain in list order, each reading the paste as the one before left it, so `pasted.text` is the clipboard's own text only for the first. A rewrite that throws reaches `onError` as `rewrite paste` and keeps the paste; the rest still run. An answer of `''` ends the chain, and nothing is pasted.
 
+`ctx.editor.selection` is still the caret or range the paste replaces, so a rewrite that cares where it lands can read it. A paste into an inline code span is read like any other, which a rewrite of prose (straightening quotes, say) should check for. Read the editor in a rewrite, never write to it: the paste lands by positions taken before your rewrite ran.
+
 **A plugin value's `blockRewrites`**
 
 A rewrite by type names a block type in `from`, and `into` answers the Markdown that takes a pasted block's place: `''` leaves it out, with a list item or quote that then holds nothing, and `null` keeps it. A paste whose every block is left out writes nothing, even over a selection.
