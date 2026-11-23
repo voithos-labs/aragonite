@@ -40,12 +40,7 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // Every bundled plugin, so its kinds' keymaps and its global chords join the sweep. Third-party
 // chords stay out: the gate only sees code this repo ships.
-const BUNDLED_PLUGINS = [
-	admonitionsPlugin(),
-	detailsPlugin(),
-	footnotesPlugin(),
-	mermaidPlugin()
-];
+const BUNDLED_PLUGINS = [admonitionsPlugin(), detailsPlugin(), footnotesPlugin(), mermaidPlugin()];
 // Installed as the file loads too, so the row tables below can name the bundled kinds.
 installPlugins(BUNDLED_PLUGINS);
 

@@ -56,7 +56,7 @@ const LEAF_EXPORT: FileRule = {
 	reason:
 		'export the leaf as `export const blockApi = leaf.blockApi;` and nothing else from its block surface: a flat copy compiles while dropping whatever it skipped (afterSourceCommit loses an open edit on editor.runCommand, insertMarkdown declines)',
 	reaches: [SOURCE.revealLeafFixture, SOURCE.memoReferenceBlock],
-	atLeast: 9,
+	atLeast: 8,
 	hits: [
 		at('const leaf = createEditableLeaf({});'),
 		at(

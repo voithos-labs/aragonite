@@ -17,12 +17,7 @@ import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md
  */
 
 beforeEach(() => {
-	installPlugins([
-		admonitionsPlugin(),
-		detailsPlugin(),
-		footnotesPlugin(),
-		mermaidPlugin()
-	]);
+	installPlugins([admonitionsPlugin(), detailsPlugin(), footnotesPlugin(), mermaidPlugin()]);
 });
 
 describe('showcase document', () => {

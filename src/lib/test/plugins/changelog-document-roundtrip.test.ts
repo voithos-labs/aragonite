@@ -22,12 +22,7 @@ import {
 const DETAILS_PLUGIN = detailsPlugin();
 
 beforeEach(() => {
-	installPlugins([
-		admonitionsPlugin(),
-		DETAILS_PLUGIN,
-		footnotesPlugin(),
-		mermaidPlugin()
-	]);
+	installPlugins([admonitionsPlugin(), DETAILS_PLUGIN, footnotesPlugin(), mermaidPlugin()]);
 });
 afterEach(destroyMountedEditors);
 
