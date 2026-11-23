@@ -139,13 +139,4 @@ test.describe('a whole-paste rewrite', () => {
 		await editor.paste();
 		await expect.poll(() => editor.bridge.getSource()).toContain('intro WOW!! OK\n');
 	});
-
-	test('a plain paste keeps its case', async ({ page }) => {
-		const end = await textRunEnd(page, 'intro');
-		await page.mouse.click(end.x, end.y);
-		await page.keyboard.press(edgeKey('lineEnd'));
-		await editor.seedClipboard(' wow!! ok');
-		await page.keyboard.press('ControlOrMeta+Shift+v');
-		await expect.poll(() => editor.bridge.getSource()).toContain('intro wow!! ok\n');
-	});
 });

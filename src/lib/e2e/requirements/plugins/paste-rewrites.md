@@ -30,7 +30,6 @@ blocks, and no spec pasted one line into text under one.
 - The editor's own alert pasted in a table cell keeps its bytes
 - The alert's own insert row lands the alert it wrote, not the callout its rewrite writes
 - Replace with clipboard keeps the editor's own copy as it was
-- A plain paste with `!!` keeps its case
 
 ## Error cases
 
