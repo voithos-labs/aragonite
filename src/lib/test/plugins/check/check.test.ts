@@ -258,6 +258,53 @@ describe('check over the plugin', () => {
 		});
 	});
 
+	// Miss: the forgiving row's plugin read nothing of its refused defaults, so only the `validate`
+	// line was forgiven, and a `contributes` reading the option unguarded still failed `install`.
+	it('forgives everything the refused defaults report, with the option handed', async () => {
+		const required = definePlugin<{ server: string }>({
+			name: 'required',
+			version: '1.0.0',
+			editor: '*',
+			defaults: { server: '' },
+			validate: ({ server }) => (server ? undefined : 'server names the host to ask'),
+			contributes: ({ server }) => {
+				if (!server) throw new Error('no server to ask');
+				return { commands: [command({ id: 'go', title: `Ask ${server}`, run: () => true })] };
+			}
+		});
+		const report = await check(required, { options: { server: 'a.example' } });
+		expect(rowOf(report, 'install')).toMatchObject({
+			status: 'passed',
+			detail:
+				'installs with your options; its defaults alone are refused (validate: server names the host to ask; contributes: no server to ask)'
+		});
+		const bare = await reportOf(check(required));
+		expect(rowOf(bare, 'install')).toMatchObject({
+			status: 'failed',
+			detail: 'validate: server names the host to ask; contributes: no server to ask'
+		});
+	});
+
+	// A dev warning is the run's, not a report of the install, so the refused defaults keep it.
+	it('still fails on a dev warning raised by the refused defaults', async () => {
+		const warns = definePlugin<{ server: string }>({
+			name: 'warns-bare',
+			version: '1.0.0',
+			editor: '*',
+			defaults: { server: '' },
+			validate: ({ server }) => (server ? undefined : 'server names the host to ask'),
+			contributes: ({ server }) => (server || devWarn('no-server', 'asked with no server'), {})
+		});
+		const report = await reportOf(check(warns, { options: { server: 'a.example' } }));
+		expect(rowOf(report, 'install')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(
+				/^dev warning \[no-server\]: asked with no server; its defaults/
+			)
+		});
+		expect(report.warnings).toEqual([{ tag: 'no-server', message: 'asked with no server' }]);
+	});
+
 	it('still fails install where the options handed are refused, or anything else is wrong', async () => {
 		const refused = await reportOf(check(strict, { options: { level: -1 } }));
 		expect(rowOf(refused, 'install')).toMatchObject({

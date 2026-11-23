@@ -267,12 +267,11 @@ function install(
 	} catch (error) {
 		said.push(`installing threw: ${messageOf(error)}`);
 	}
-	// A required option has no valid default: with it handed, that refusal is said, not failed.
-	const refused = bare.filter(({ doing }) => doing === 'validate').map(text);
-	const problems = [
-		...bare.filter(({ doing }) => doing !== 'validate').map(text),
-		...said.splice(0)
-	];
+	// A required option has no valid default: once the plugin's own `validate` refuses the defaults,
+	// all they are told is said, not failed, with the option handed.
+	const refusedAlone = bare.some(({ doing }) => doing === 'validate');
+	const refused = refusedAlone ? bare.map(text) : [];
+	const problems = [...(refusedAlone ? [] : bare.map(text)), ...said.splice(0)];
 	if (warningsFail !== false) {
 		for (const { tag, message } of warnings.slice(before))
 			problems.push(`dev warning [${tag}]: ${message}`);

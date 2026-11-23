@@ -116,7 +116,7 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		excusable: false,
 		contract: {
 			plugin: promise(
-				'your plugin installs with its defaults and with your options, with no problem and no dev warning'
+				'your plugin installs with its defaults and with your options, with no problem and no dev warning; where you hand options, its defaults may fail its own validate'
 			)
 		}
 	},
