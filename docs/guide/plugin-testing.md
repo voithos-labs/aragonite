@@ -2,7 +2,7 @@
 
 A plugin can look perfect on screen and still be quietly eating bytes. Screenshots prove nothing here. Verify the damn bytes.
 
-One call does most of it. `check(plugin)` holds your plugin to the checks every built-in block passes, and it's the check a plugin listing runs. Start there. The rest of the page is what one call can't see: your built package, a whole document read back, your block mounted, a paste.
+One call does most of it: `check(plugin)` holds your plugin to the checks every built-in block passes. Start there. The rest of the page is what that call can't see: your built package, a whole document, your block mounted, a paste.
 
 Everything test-specific imports from one subpath, `@voithos-labs/aragonite/testing`. The running example is the plugin guide's `%%parrot` block. Three neighbouring docs carry what this one leans on:
 
@@ -14,24 +14,15 @@ A map, so you can jump straight at your question:
 
 | Section | What it covers |
 | --- | --- |
-| [Checking a plugin value](#checking-a-plugin-value-check) | `check`: the call, what a row says, every check it runs, excuses, its options, and what a failure looks like |
+| [Checking a plugin value](#checking-a-plugin-value-check) | `check`: the call, every check it runs, excuses, options, failures |
 | [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
-| [Round-trip is the contract](#round-trip-is-the-contract) | The two byte checks that want a whole document: in a live editor, and with your plugin left out |
+| [Round-trip is the contract](#round-trip-is-the-contract) | Two byte checks over a whole document: in a live editor, and with your plugin left out |
 | [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom) | `headless`: rendering your block in a simulated browser |
 | [One tab stop in reading mode](#one-tab-stop-in-reading-mode-taborder) | `tabOrder`: your mounted block leaves reading mode's Tab to the links and the editor's one stop |
 | [Proving a paste rewrite is wired](#proving-a-paste-rewrite-is-wired-rewritepaste) | `rewritePaste`: the real paste over a string, no clipboard involved |
 | [Turning warnings into failures](#turning-warnings-into-failures) | Making the editor's dev warnings fail your own mounted tests |
 
-`check` takes a plugin value, the thing `definePlugin({ name, version, editor, contributes })` returns. A plugin that registers kinds in a `setup` (`definePlugin({ name, setup })`) has kits of its own, at the bottom of the page:
-
-| Section | What it covers |
-| --- | --- |
-| [The conformance kits](#the-conformance-kits) | The three kits for a `setup` plugin, and the vocabulary they share |
-| [A blank slate per test](#a-blank-slate-per-test) | Why a `setup` plugin registers only once per process, and the reset that lets a suite live with that |
-| [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass |
-| [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a kind that holds other blocks, starring the body line that ends the container early |
-| [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for a recognizer: claiming your own bytes, declining everyone else's |
-| [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your `setup` plugin declares |
+`check` takes a plugin value, the thing `definePlugin({ name, version, editor, contributes })` returns. A plugin that registers kinds in a `setup` (`definePlugin({ name, setup })`) has kits of its own, from [the conformance kits](#the-conformance-kits) down.
 
 ## Verifying your plugin
 
@@ -39,7 +30,7 @@ A map, so you can jump straight at your question:
 
 **`check(plugin, options?)`**
 
-It installs your plugin the way an editor does, then runs every check over every sample of everything the plugin lists: block types, inline constructs, commands, menus, paste rewrites, paint, a highlighter. Each is read the way your plugin's own editor reads it. One call is the whole test:
+It installs your plugin the way an editor does, then runs every check over every sample of everything the plugin lists: block types, inline constructs, commands, menus, paste rewrites, paint, a highlighter. One call is the whole test:
 
 ```ts
 import { check } from '@voithos-labs/aragonite/testing';
@@ -62,44 +53,32 @@ it('the parrot passes every check', async () => {
 
 Three things to get right:
 
-- **Await it.** A failed row rejects the promise, so a call nobody asserts on still fails its test.
-- **Hand it the plugin value.** That's what `definePlugin` returned, so call a function that makes one first (`parrotPlugin()`).
+- **Await it.** A failed row rejects the promise, and that's what fails your test.
+- **Hand it the plugin value.** If a function of yours makes it, call that first (`parrotPlugin()`).
 - **Dev checks have to be on.** They are under Vitest. Anywhere else, [turn them on](#outside-vitest) first.
 
 It needs no DOM, so it runs in plain Node. Give it one (jsdom) and your `setup` runs too.
 
-The report is data:
-
-```ts
-report.plugin; // 'parrot'
-report.version; // '0.1.0', your plugin's own
-report.editor; // the version of the editor whose checks ran
-report.rows[1];
-// { of: 'block', subject: 'parrot/parrot', check: 'sample', status: 'passed',
-//   detail: '1 sample(s) read as the type' }
-report.warnings; // every dev warning raised during the run, as { tag, message }
-```
-
 #### What a row says
 
-A row is one check on one subject. `of` says what kind of thing the subject is, `subject` is the name you gave it, and `detail` says what ran, or why nothing did.
+A row is one check on one subject: `{ of, subject, check, status, detail }`. `of` is the subject's kind, `subject` is the name you gave it, and `detail` says what ran, or why nothing did.
 
 | Status | What it means | Fails the run |
 | --- | --- | --- |
 | `passed` | The check ran and held | no |
 | `failed` | It ran and didn't hold; `detail` says why | yes |
-| `excused` | It failed, and an [excuse](#excuses) of yours covers it; `detail` holds your reason and what the check found | no |
+| `excused` | It failed, and an [excuse](#excuses) of yours covers it | no |
 | `advisory` | It didn't hold, and this release only reports it. It fails from the next minor ([What is stable](plugin-guide.md#what-is-stable-what-is-not)) | no |
-| `not-applicable` | Your plugin has nothing for it to drive: a type with no `complete` has no completion to check | no |
+| `not-applicable` | Your plugin has nothing for it to check, like a type with no `complete` | no |
 | `unchecked` | It needs something the run lacks, a browser or a DOM; `detail` says which | no |
 
-An `unchecked` row is counted, never green. Covering it is your own browser tests' job.
+An `unchecked` row isn't a pass. Covering it is your own browser tests' job.
 
-A type with several samples still gets one row per check. It fails if any sample fails, and the detail names the sample.
+A type with several samples gets one row per check. It fails if any sample fails, and the detail names the sample.
 
 #### The checks
 
-Nothing here is declared. A subject gets the rows its shape can take, so a type with no `complete` never has to say so. One table per kind of subject.
+You declare nothing: a subject gets the checks its shape can take. One table per kind of subject.
 
 **Your plugin.** `of: 'plugin'`, and the subject is the plugin's name.
 
@@ -107,12 +86,12 @@ Nothing here is declared. A subject gets the rows its shape can take, so a type 
 | --- | --- | --- | --- |
 | `install` | every plugin | It installs with its defaults and with your `options`, with no problem reported and no dev warning | no |
 | `paintRanges` | a plugin with `paint` or `paintContainer` | Each paint you answer for a block lands inside it, where the editor can draw it. It's asked over every built-in sample and yours | no |
-| `codeTokens` | a plugin with `code` | Your tokens for each language you list nest inside the body. Runs may nest; two that cross fail | no |
+| `codeTokens` | a plugin with `code` | Your tokens for each language you list stay inside the body. They may nest, not cross | no |
 | `setup` | a plugin with `setup` | Your `setup` runs against an editor, and so does the function it returns. It needs a DOM | no |
 
-- `install` runs first, never runs your `setup`, and never needs a DOM. If installing throws, `install` fails and nothing else runs.
-- An option with no valid default is fine: hand it through `options`. What the defaults-only install reports once your own `validate` refused them goes in the row's detail, and doesn't fail it. With no `options`, that refusal fails.
-- A paint or a highlighter that answers later (a dictionary still loading) answers nothing on the first ask, and the row reads `not-applicable`. Hand it a source that answers at once through `options`.
+- `install` runs first. If installing throws, it fails and nothing else runs.
+- An option with no valid default is fine: hand it through `options`. Once your own `validate` refuses the defaults, what the defaults-only install reports goes in the row's detail and doesn't fail it. With no `options`, that refusal fails.
+- A paint or a highlighter that answers later (a dictionary still loading) has nothing on the first ask, so its row reads `not-applicable`. Hand it a source that answers at once, through `options`.
 
 **A block type.** `of: 'block'`, and the subject is the type's full name (`parrot/parrot`).
 
@@ -131,14 +110,14 @@ Nothing here is declared. A subject gets the rows its shape can take, so a type 
 | `docPositions` | every type | Each block of your type sits at the bytes it reads in the `Doc`, its text inside its line, its pieces inside it | no |
 | `focus`, `selectionPaint`, `searchPaint`, `reorder`, `simOracle` | every type | Browser only, so `unchecked` here: a caret enters and leaves your block, a selection and a search match paint what they cover, a move takes the bytes whole, a long random editing session leaves the document sound | no |
 
-**A container.** A type made by `container()` gets the block rows, then these. Their fixtures (a second child, a copy nested in a quote) are grown from your sample, so there's no profile to write.
+**A container.** A type made by `container()` gets the block rows, then these, all from the same sample.
 
 | Check | What it holds you to | Excuse |
 | --- | --- | --- |
 | `localIndex` | Children are addressed by their index inside your container, not by a document-wide count | yes |
 | `ancestry` | An edit deep inside rebuilds every container above it | no |
 | `focusBubble` | A caret leaving your top edge reaches the document once | yes |
-| `openerLine` | Typing your opener above a block keeps the caret on a line it can type in. `not-applicable` unless a start of your first line waits on a closer below | yes |
+| `openerLine` | Typing your opener above a block keeps the caret on a line it can type in. `not-applicable` unless a prefix of your first line waits on a closer below | yes |
 | `containerCopy` | A copy into or out of your container reads back inside it, your markers on every line it holds | no |
 | `containerDeclared` | Your line shape reads back every marker and line it writes | no |
 
@@ -176,13 +155,13 @@ Nothing here is declared. A subject gets the rows its shape can take, so a type 
 | --- | --- | --- | --- |
 | `rewriteLands` | every rewrite | Its answer lands as blocks of its own, leaving the block after it and the container around it, and a paste of the answer isn't rewritten again | no |
 
-**How the last three are driven.** They run your code against one editor, as a mounted editor is shared, with nothing on screen:
+**How commands, menus and rewrites are run.** Against one editor, with nothing on screen:
 
-- Where there's a DOM, your `setup` runs on that editor once before them, and the function it returns runs after. With no DOM, a plugin that lists `setup` gets its command and menu rows `unchecked`.
+- With a DOM, your `setup` runs on that editor first, and the function it returns runs last. With no DOM, a plugin that lists `setup` gets its command and menu rows `unchecked`.
 - `waitingWrite` runs your command over a sample, or picks your menu's first row for an empty query. Once the call waits, the host loads another note. Any write after that fails the row.
 - A call that returns no promise has no wait to check, so its row is `not-applicable`. If your command writes later, return its promise: a write the check sees after a call that returned none fails the row.
 - `actionTarget` hands your command the second of two sample blocks while the caret sits in the first. Writing the first block, or inserting at the caret, fails it. A command that only asked the screen for something (a box, a menu) reads `unchecked`.
-- `rewriteLands` pastes each sample of the `from` type with a block after it, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails. So does an answer your rewrite would change again, since every paste would grow it.
+- `rewriteLands` pastes each sample of the `from` type with a block after it, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails.
 
 The `waitingWrite` failure has one fix. Open the draft before the wait: a draft refuses on its own once its note is gone, and so does a menu's `MenuPick`.
 
@@ -253,9 +232,9 @@ An excuse is a claim, not a waiver, and the run checks it:
 | `timeout` | `2000` | How long each wait of your plugin's may last, in milliseconds, before its row fails |
 | `warningsFail` | `true` | Whether a dev warning raised during the run fails it |
 
-**`timeout`.** It bounds a command's or a pick's promise, a menu's `rows` and a highlighter's answer. One that outlasts it fails its row, and the detail says so. The fix is usually `options`, not a longer wait: stub the fetch, hand over a dictionary that's already loaded. Raise `timeout` when the wait is honest, and keep it under your test runner's own (Vitest's is five seconds), or you read "Test timed out" where the row would have been. Your `setup` is called and never awaited, so it has no wait to bound.
+**`timeout`.** It bounds a command's or a pick's promise, a menu's `rows` and a highlighter's answer. The fix for a row that timed out is usually `options`, not a longer wait: stub the fetch, hand over a dictionary that's already loaded. If you do raise it, keep it under your test runner's own (Vitest's is five seconds), or you read "Test timed out" where the row would have been.
 
-**`warningsFail`.** A dev warning is the editor containing a contract violation instead of crashing on it, so one fails the run even with every row green. `warningsFail: false` lets the run pass, and `report.warnings` still lists each one. It doesn't soften `paintRanges`: a paint the editor left out fails that row either way.
+**`warningsFail`.** A dev warning means the editor contained a contract violation instead of crashing on it, so one fails the run even when every row passed. `warningsFail: false` lets the run pass, and `report.warnings` still lists each one. `paintRanges` fails either way on a paint the editor left out.
 
 #### When it fails
 
@@ -267,24 +246,11 @@ CheckFailure: check failed for plugin 'memos':
     breaks: each block type has a sample, and each reads as that type first (plugin-testing.md#checking-a-plugin-value-check)
 ```
 
-`isCheckFailure(error)` tells one from any other error. It reads a marker, not `instanceof`, so it holds for a failure thrown by another copy of the editor:
-
-```ts
-import { check, isCheckFailure } from '@voithos-labs/aragonite/testing';
-
-try {
-	await check(memos);
-} catch (error) {
-	if (!isCheckFailure(error)) throw error;
-	error.report.rows.filter((row) => row.status === 'failed');
-}
-```
-
-Two mistakes throw a plain `Error` before any row runs: a first argument that isn't a plugin value, and dev checks that are off.
+`isCheckFailure(error)` tells one from any other error. Use it over `instanceof`, which misses a failure thrown by another copy of the editor.
 
 #### Outside Vitest
 
-`check` refuses to run with the editor's dev checks off, since a contract warning would pass unseen. Vitest's build turns them on. Under another runner, or a bundler that resolves no export conditions, `configureEditorEnv` turns them on and `resetEditorEnv()` puts the detected defaults back:
+`check` refuses to run with the editor's dev checks off, since a contract warning would pass unseen. Vitest turns them on. Under another runner, or a bundler that resolves no export conditions, `configureEditorEnv` turns them on and `resetEditorEnv()` puts the detected defaults back:
 
 ```ts
 import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/testing';
@@ -309,7 +275,7 @@ const suite: Conformance = { plugin: parrotPlugin() };
 export default suite;
 ```
 
-`plugin` is the plugin value. Its options go in `options` and its excuses in `excuse`, never into a call of the plugin. Your own test then runs the same thing the listing does:
+`plugin` is the plugin value. Its options go in `options` and its excuses in `excuse`, never into a call of the plugin. Your own test then runs what the listing runs:
 
 ```ts
 import { check } from '@voithos-labs/aragonite/testing';
