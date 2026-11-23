@@ -16,7 +16,7 @@ import { isBlankParagraph, readBlocks } from '../../../core/parser';
 import { pasteTableGrid } from '../../../editor-actions/table-context';
 import { normalizeClipboardForBody } from '../../../tree-operations/paste/body-write';
 import { escapeMarkdownLiteral } from '../../../tree-operations/paste/markdown-literal';
-import { rewrittenPaste } from '../../../tree-operations/paste/paste-rewrites';
+import { rewrittenClip } from '../../../selection/cross-block/range-paste';
 import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ async function pasteBlocksAround(input: ClipPasteInput): Promise<boolean> {
 	if (isText(read(raw))) return false;
 	const { grammar } = reading;
 	const clipboard = () => readBlocks(raw, { grammar, scope: 'fragment' });
-	const text = rewrittenPaste({ ...clip, text: raw }, clipboard, input.activePlugins, grammar);
+	const text = rewrittenClip(reading, input.activePlugins, { ...clip, text: raw }, clipboard);
 	const blocks = text === raw ? read(raw) : read(text);
 	// Blocks the rewrites left nothing of land nothing: never their own lines as the cell's text.
 	if (blocks.length === 0) return true;

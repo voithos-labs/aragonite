@@ -153,7 +153,7 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 
 | Check | Runs for | What it holds you to | Excuse |
 | --- | --- | --- | --- |
-| `rewriteLands` | every rewrite | Its answer lands as blocks of its own, leaving the block after it and the container around it, and a paste of the answer isn't rewritten again | no |
+| `rewriteLands` | every rewrite | Its answer lands as blocks of its own, leaving the blocks above and after it byte for byte and the container around it, and a paste of the answer isn't rewritten again | no |
 
 **How commands, menus and rewrites are run.** Against one editor, with nothing on screen:
 
@@ -161,7 +161,7 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 - `waitingWrite` runs your command over a sample, or picks your menu's first row for an empty query. Once the call waits, the host loads another note. Any write after that fails the row.
 - A call that returns no promise has no wait to check, so its row is `not-applicable`. If your command writes later, return its promise: a write the check sees after a call that returned none fails the row.
 - `actionTarget` hands your command the second of two sample blocks while the caret sits in the first. Writing the first block, or inserting at the caret, fails it. A command that only asked the screen for something (a box, a menu) reads `unchecked`.
-- `rewriteLands` pastes each sample of the `from` type with a block after it, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails.
+- `rewriteLands` pastes each sample of the `from` type with a block right after it, then with one right above it too, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails.
 
 The `waitingWrite` failure has one fix. Open the draft before the wait: a draft refuses on its own once its note is gone, and so does a menu's `MenuPick`.
 
@@ -418,7 +418,7 @@ rewritePaste('quiet please\n', [shout]); // 'quiet please\n' (a paragraph, so no
 
 It answers for a paste from outside the editor that reads as blocks, and nothing else. Plain text and the editor's own copy are never rewritten, so it's not the route for testing those.
 
-`check` runs the same function over each type your plugin rewrites, with a block after it (`rewriteLands`, in [the checks](#the-checks)). `rewritePaste` is for the cases a sample doesn't hold.
+`check` runs the same function over each type your plugin rewrites, with a block above and after it (`rewriteLands`, in [the checks](#the-checks)). `rewritePaste` is for the cases a sample doesn't hold.
 
 For a `setup` plugin, `plugins` takes the unit, and `undefined` runs every installed `setup` plugin's paste transforms, as an editor with no prop does. A unit you list is installed for the process, so reset between cases ([a blank slate per test](#a-blank-slate-per-test)).
 

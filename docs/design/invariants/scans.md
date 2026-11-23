@@ -286,7 +286,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.10 · Retired upward.** Each bundled plugin is a package of its own now, whose manifest and pack G4.277 and `scripts/pack/verify-plugin-package.mjs` check.
 
-**G4.11 · Paste-rewrite site parity.** Exactly the allowed routes that land a paste as blocks call `rewrittenPaste`, since a new route without it drops plugin rewrites, and `applyPasteTransforms` runs only inside it. A route that never names the symbol is caught too: every clipboard or drop read must reach an allowed route. `lint/manifest-rules.test.ts`.
+**G4.11 · Paste-rewrite site parity.** One file calls `rewrittenPaste`, `selection/cross-block/range-paste.ts`: the core's host, and `rewrittenClip` for every other route that lands a paste as blocks, so each hands in the core's join question. A new route without it drops plugin rewrites, and `applyPasteTransforms` runs only inside it. A route that never names the symbol is caught too: every clipboard or drop read must reach an allowed route. `lint/manifest-rules.test.ts`.
 
 **G4.12 · Caret-edge destructive keys.** Every plain Backspace or Delete intercepted at a caret edge in a prose block routes through the one edge-policy dispatch, which resolves what sits at the edge against declarative policies and commits through `surface-write.ts :: writeText` or `updateBlockContent`. The only other interceptors are the selected-widget second-press delete and the pending break's Backspace (`pending-break-keys.ts`). `lint/manifest-rules.test.ts`.
 

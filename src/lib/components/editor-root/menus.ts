@@ -14,7 +14,7 @@ import type { DocumentGetter } from '../../editor-keys';
 import type { PresentationMode } from '../../presentation-mode';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { Draft, DraftSpec } from '../../schema/drafts';
-import { rewrittenPaste } from '../../tree-operations/paste/paste-rewrites';
+import { rewrittenClip } from '../../selection/cross-block/range-paste';
 import { readBlocks } from '../../core/parser';
 import { rowMarkdown, type InsertRow } from '../../schema/insert-catalogue';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
@@ -326,7 +326,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 					transformPaste: (clip) => {
 						const { grammar } = deps.reading;
 						const read = () => readBlocks(clip.text, { grammar, scope: 'document' });
-						return rewrittenPaste(clip, read, deps.activation, grammar);
+						return rewrittenClip(deps.reading, deps.activation, clip, read);
 					},
 					lineEnding: documentLineEnding(deps.getDoc())
 				},

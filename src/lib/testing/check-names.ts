@@ -279,7 +279,7 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		excusable: false,
 		contract: {
 			rewrite: promise(
-				'a rewrite’s answer lands as blocks of its own, leaving the block after it and the container around it, and a paste of it is not rewritten again'
+				'a rewrite’s answer lands as blocks of its own, leaving the blocks above and after it and the container around it, and a paste of it is not rewritten again'
 			)
 		}
 	}

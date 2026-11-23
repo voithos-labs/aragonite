@@ -6,6 +6,7 @@
  */
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
+import { readBlocks } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { ownTrailingLineEnding } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
@@ -25,26 +26,50 @@ export interface PastedClip {
 	readonly asksRewrites: boolean;
 }
 
+/** One of two blocks left touching: its bytes, and its kind where the asker knows it. */
+interface JoinSide {
+	readonly raw: string;
+	readonly kind?: string;
+	readonly children?: readonly unknown[];
+}
+
+/** The range-edit core's join question (`RangeHost.parts`): whether children `index` and
+ *  `index + 1` of `parent`, left touching, need a blank line to keep their readings. */
+export type PartsApart = (
+	doc: DocumentView,
+	parent: readonly number[],
+	index: number,
+	upper: JoinSide,
+	lower: JoinSide,
+	placed: boolean,
+	stood: number | null
+) => boolean;
+
 /** `clip`'s text as the rewrites of the plugins `activation` runs leave it; `read` is the clipboard
- *  read as blocks, asked only where a rewrite is listed. */
+ *  read as blocks, asked only where a rewrite is listed, and `parts` the core's join question. */
 export function rewrittenPaste(
 	clip: PastedClip,
 	read: () => DocumentView,
 	activation: PluginActivation,
-	grammar: GrammarView
+	grammar: GrammarView,
+	parts: PartsApart
 ): string {
 	if (!clip.asksRewrites || clip.plain || clip.own !== undefined) return clip.text;
-	return applyPasteTransforms(byType(clip.text, read, activation, grammar), activation);
+	return applyPasteTransforms(byType(clip.text, read, activation, grammar, parts), activation);
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/** The clipboard being rewritten: its top-level blocks copied, each written block copied whole. */
+type Rewritten = Omit<DocumentView, 'children'> & { children: CstNode[] };
 
 /** `text` with each block a rewrite claims written as its answer; `text` itself where none does. */
 function byType(
 	text: string,
 	read: () => DocumentView,
 	activation: PluginActivation,
-	grammar: GrammarView
+	grammar: GrammarView,
+	parts: PartsApart
 ): string {
 	const contributions = activation.contributions;
 	const listed = contributions?.rewrites ?? [];
@@ -66,20 +91,22 @@ function byType(
 	};
 	clip.children.forEach((node, i) => visit(node, [i]));
 	if (claims.length === 0) return text;
-	const tops = [...clip.children] as CstNode[];
+	const rewritten: Rewritten = { ...clip, children: [...clip.children] as CstNode[] };
 	// The last claim first, so taking a block out leaves the paths of those before it standing.
-	for (const { path, out } of claims.reverse()) written(tops, path, out, grammar);
-	return serialize({ prefix: clip.prefix, children: tops, suffix: clip.suffix });
+	for (const { path, out } of claims.reverse()) written(rewritten, path, out, grammar, parts);
+	return serialize(rewritten);
 }
 
-/** Writes `out` over the block at `path` in `tops`, the clipboard's top-level blocks copied, with its
- *  line ending and its containers' markers; '' takes it out, and each container then left empty. */
+/** Writes `out` over the block at `path` in `clip`, with its line ending and its containers'
+ *  markers; '' takes it out, and each container then left empty. */
 function written(
-	tops: CstNode[],
+	clip: Rewritten,
 	path: readonly number[],
 	out: string,
-	grammar: GrammarView
+	grammar: GrammarView,
+	parts: PartsApart
 ): void {
+	const tops = clip.children;
 	const top = (tops[path[0]] = cloneNode(tops[path[0]]));
 	const chain = path.slice(1).reduce((nodes, i) => [...nodes, nodes.at(-1)!.children![i]], [top]);
 	let depth = path.length;
@@ -94,6 +121,16 @@ function written(
 	} else {
 		const node = siblings[at];
 		node.raw = out.replace(/(?:\r?\n)+$/, '') + ownTrailingLineEnding(node.raw);
+		const answer = readBlocks(node.raw, { grammar, scope: 'fragment' }).children;
+		const [above, below] = [siblings[at - 1], siblings[at + 1]];
+		const parent = path.slice(0, depth - 1);
+		const blank = ownTrailingLineEnding(node.raw) || '\n';
+		const reads = (index: number, upper: JoinSide | undefined, lower: JoinSide | undefined) =>
+			!!upper && !!lower && parts(clip, parent, index, upper, lower, true, null);
+		// An answer that would read into the block flush beside it stays a block of its own.
+		if (!node.leadingTrivia && reads(at - 1, above, answer[0])) node.leadingTrivia = blank;
+		if (below && !below.leadingTrivia && reads(at, answer.at(-1), below))
+			siblings[at + 1] = { ...below, leadingTrivia: blank };
 	}
 	if (depth > 1) rebuildAncestryRaw(top, path.slice(1, depth), grammar);
 }

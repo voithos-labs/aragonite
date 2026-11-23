@@ -116,6 +116,17 @@ export async function answeredAhead(
 	});
 }
 
+/** `clip`'s text as the plugins' paste rewrites leave it, `read` the clipboard read as blocks:
+ *  the one call of every route that lands a paste as blocks outside the core's own answer. */
+export function rewrittenClip(
+	reading: Reading,
+	plugins: PluginActivation,
+	clip: PastedClip,
+	read: () => DocumentView
+): string {
+	return rewrittenPaste(clip, read, plugins, reading.grammar, rangeHost(reading).parts);
+}
+
 /** Pastes `clip` at the place `aim` finds in one commit, whose undo puts the caret back at `undo`;
  *  `spend` is the step of the block it lands in. False where it changed nothing or was refused. */
 export async function pasteThroughCore(
@@ -149,12 +160,13 @@ function pasteAnswer(
 	spend: SpendInsertion | null
 ): RangeEditResult | null {
 	let emptied = false;
-	const host = textHost(ctx.reading, doc, spend, (text, blocks) => {
+	const host: PasteHost = textHost(ctx.reading, doc, spend, (text, blocks) => {
 		const out = rewrittenPaste(
 			{ ...clip, text },
 			() => blocks,
 			ctx.activePlugins,
-			ctx.reading.grammar
+			ctx.reading.grammar,
+			host.parts
 		);
 		emptied = isBlankText(out) && !isBlankText(text);
 		return out;
