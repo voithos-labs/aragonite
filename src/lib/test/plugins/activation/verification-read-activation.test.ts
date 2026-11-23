@@ -3,7 +3,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { EMOJI_KIND, emojiPlugin } from '#packages/emoji/src/index.js';
-import { MATH_INLINE, latexPlugin } from '#packages/latex/src/index.js';
+import { MATH_INLINE, registeredMath } from '#lib/test/harness/registered-math.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { screenVisibility } from '#lib/core/inline/visibility.js';
 import { canWrapRangeAsLink } from '#lib/core/inline/link-source-bytes.js';
@@ -15,10 +15,7 @@ import { grammarListing } from './grammar-listing';
 import { fixtureReading, topLevelStore } from '#lib/test/harness/fixture-grammar.js';
 
 beforeEach(() => {
-	installPlugins([
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		emojiPlugin()
-	]);
+	installPlugins([registeredMath(), emojiPlugin()]);
 });
 
 /** An editor that lists neither latex nor emoji, so it draws `$x$` and `:smile:` as text. */

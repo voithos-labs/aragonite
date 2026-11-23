@@ -4,7 +4,7 @@
 // Miss-analysis (GH #566): every fence replace test drove the built-in code block alone.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
-import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import type { Document } from '#lib/core/nodes.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';

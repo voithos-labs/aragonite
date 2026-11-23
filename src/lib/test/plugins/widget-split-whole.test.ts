@@ -7,7 +7,7 @@ import { parse } from '#lib/core/parser.js';
 import { rebalanceLiveSplit } from '#lib/core/inline/live-edit/live-split.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { topLevelSplit } from '#lib/test/harness/fixture-grammar.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 
 /** The halves a live Enter at `offset` writes, or null for the literal cut. */
@@ -29,10 +29,7 @@ describe('a live Enter inside a plugin widget’s shown source', () => {
 		['a formula', '$x^q2$ tail\n', 4, { firstRaw: '$x^q2$\n', secondRaw: ' tail\n' }],
 		['a footnote reference', 'a [^nn] z\n', 5, { firstRaw: 'a [^nn]\n', secondRaw: ' z\n' }]
 	])('cuts at the nearer edge of %s', (_name, source, offset, halves) => {
-		installPlugins([
-			latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-			footnotesPlugin()
-		]);
+		installPlugins([registeredMath(), footnotesPlugin()]);
 		expect(liveEnter(source, offset)).toEqual(halves);
 	});
 });

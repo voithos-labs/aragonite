@@ -6,7 +6,7 @@ import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
-import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
+import { registeredMath, MATH_BLOCK } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
 import { arbPluginGfmDoc, arbPluginInlineSource, freshOrFixedSeed } from './arbitraries';
@@ -28,7 +28,7 @@ beforeEach(() => {
 	installPlugins([
 		footnotesPlugin(),
 		emojiPlugin(),
-		latexPlugin(),
+		registeredMath(),
 		admonitionsPlugin(),
 		detailsPlugin()
 	]);

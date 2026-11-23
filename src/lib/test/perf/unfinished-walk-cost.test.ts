@@ -14,7 +14,7 @@ import { readBack } from '#lib/core/inline/live-edit/read-back.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { installPlugins } from '#lib';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import {
@@ -67,7 +67,7 @@ const askedNear = (blocks: string[], index: number, written = '') =>
 	);
 
 beforeEach(() => {
-	installPlugins([latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
+	installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
 	resetPerfInstruments();
 });
 afterEach(() => disablePerfInstruments());

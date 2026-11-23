@@ -6,7 +6,7 @@ import { isInlineKindDeclared } from '../../schema/plugin-kind';
 import { installPlugins, parseInline } from '#lib';
 import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
 import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
-import { latexPlugin, MATH_INLINE } from '#packages/latex/src/index.js';
+import { registeredMath, MATH_INLINE } from '#lib/test/harness/registered-math.js';
 import {
 	arbInlineSource,
 	arbLargeDoc,
@@ -87,7 +87,7 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 	it('holds with the bundled inline syntax handlers installed', () => {
 		// Registries register once, so the handlers install once for the whole property, and
 		// the scan reads no state the cases mutate.
-		installPlugins([footnotesPlugin(), emojiPlugin(), latexPlugin()]);
+		installPlugins([footnotesPlugin(), emojiPlugin(), registeredMath()]);
 		// Without this a failed setup leaves the bare grammar running and the case passes
 		// for the wrong reason.
 		for (const kind of [FOOTNOTE_REF_KIND, EMOJI_KIND, MATH_INLINE]) {

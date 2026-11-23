@@ -9,7 +9,7 @@ import type { Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
@@ -24,7 +24,7 @@ import { spliceReading } from '#lib/tree-operations/byte-splice.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 beforeEach(() => {
-	installPlugins([latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
+	installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
 });
 
 /** Each opener, the block below it, the closer it gets, and a cut whose two halves open nothing. */

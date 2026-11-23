@@ -11,7 +11,7 @@ import { fixtureReading } from '../../../harness/fixture-grammar';
 import { testView } from '../../../harness/test-view';
 import { installPlugins } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 
 function at(source: string, path: number[]) {
 	const doc = parse(source);

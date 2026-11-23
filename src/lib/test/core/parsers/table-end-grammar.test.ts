@@ -9,7 +9,7 @@ import type { GrammarView } from '#lib/schema/block-openers.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
-import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';

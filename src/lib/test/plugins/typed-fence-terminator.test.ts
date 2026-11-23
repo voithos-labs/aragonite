@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
-import { registerMathFence, MATH_FENCE } from '#packages/latex/src/latex-kind.js';
+import { registerMathFence, MATH_FENCE } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';

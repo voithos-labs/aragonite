@@ -3,17 +3,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { parseInline } from '#lib/core/inline/index.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { grammarListing } from './grammar-listing';
 
 beforeEach(() => {
-	installPlugins([
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		footnotesPlugin(),
-		emojiPlugin()
-	]);
+	installPlugins([registeredMath(), footnotesPlugin(), emojiPlugin()]);
 });
 
 const ALL = ['latex', 'footnotes', 'emoji'];

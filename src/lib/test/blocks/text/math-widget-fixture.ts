@@ -4,7 +4,7 @@
 // (Svelte plus KaTeX) is the e2e's job.
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { afterEach, beforeEach } from 'vitest';
-import { registerMathInline } from '#packages/latex/src/latex-kind.js';
+import { registerMathInline } from '#lib/test/harness/registered-math.js';
 import { parse } from '#lib/core/parser.js';
 import { computeInlineContent } from '#lib/core/inline/index.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';

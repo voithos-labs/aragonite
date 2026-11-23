@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { registerDetailsKind } from '#packages/details/src/details-kind.js';

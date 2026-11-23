@@ -10,7 +10,7 @@ import { legalizeWrite, type WriteTarget } from '#lib/tree-operations/content-wr
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { installPlugins } from '#lib';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import {
@@ -104,7 +104,7 @@ const BODY = lines((i) => `line ${i}\n`);
 // block's own bytes, never a parse of them.
 describe('a block above that only looks unfinished costs the same one line', () => {
 	beforeEach(() => {
-		installPlugins([latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
+		installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
 	});
 
 	it.each([

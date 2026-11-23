@@ -3,7 +3,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { EMOJI_KIND, emojiPlugin } from '#packages/emoji/src/index.js';
-import { MATH_INLINE, latexPlugin } from '#packages/latex/src/index.js';
+import { MATH_INLINE, registeredMath } from '#lib/test/harness/registered-math.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { toggleInlineFormat } from '#lib/core/inline/format-toggle.js';
 import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
@@ -11,10 +11,7 @@ import { grammarListing } from './grammar-listing';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 beforeEach(() => {
-	installPlugins([
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		emojiPlugin()
-	]);
+	installPlugins([registeredMath(), emojiPlugin()]);
 });
 
 /** The bytes a toggle writes in an editor that lists neither latex nor emoji. */

@@ -24,7 +24,7 @@ import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { judge, type Edit } from '#lib/test/exhaustive/edit-driver.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 
@@ -40,7 +40,7 @@ function typedOverSecond(source: string, text: string, index = 1): string[] {
 
 describe('a construct backed out above a join completes once a write below closes it', () => {
 	beforeEach(() => {
-		installPlugins([latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
+		installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
 	});
 
 	it.each([
@@ -229,7 +229,7 @@ const ROUTES: [string, Route][] = [
 
 describe.each(ROUTES)('a closer written blocks below the construct it finishes, %s', (_, route) => {
 	beforeEach(() => {
-		installPlugins([latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
+		installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
 	});
 
 	it.each([
@@ -307,7 +307,7 @@ describe.each(ROUTES)('a closer written blocks below the construct it finishes, 
 // A body below the document closes a written opener the same way, through the keystroke's own route.
 describe('an opener made by a write inside a quote', () => {
 	beforeEach(() => {
-		installPlugins([latexPlugin(), admonitionsPlugin()]);
+		installPlugins([registeredMath(), admonitionsPlugin()]);
 	});
 
 	it.each([

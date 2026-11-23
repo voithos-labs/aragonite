@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { spliceFixedUp } from '#lib/tree-operations/fix-up/apply.js';

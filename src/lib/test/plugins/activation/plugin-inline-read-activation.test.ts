@@ -5,7 +5,7 @@ import { parse, type DocumentView } from '#lib';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
-import { latexPlugin } from '#packages/latex/src/index.js';
+import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import {
 	assignFootnoteNumbers,
@@ -30,11 +30,7 @@ import {
 import { grammarListing } from './grammar-listing';
 
 beforeEach(() => {
-	installPlugins([
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		footnotesPlugin(),
-		tocPlugin()
-	]);
+	installPlugins([registeredMath(), footnotesPlugin(), tocPlugin()]);
 });
 afterEach(disablePerfInstruments);
 

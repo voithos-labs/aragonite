@@ -3,7 +3,7 @@ import { parse } from '#lib';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
-import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import {
 	getAllRegisteredKinds,
