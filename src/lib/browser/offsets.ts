@@ -30,8 +30,11 @@ import {
 	revealsNoMarkers,
 	type LandingSegment,
 	type OpaqueSegment,
-	isInVisibleText
+	isInVisibleText,
+	SOURCE_AT_CARET_ATTR
 } from './painted';
+import { getContentRange } from '../core/inline';
+import type { NodeView } from '../core/node-views';
 import {
 	type RawOffset,
 	type DomTextOffset,
@@ -471,6 +474,13 @@ export function reachableRawBounds(el: HTMLElement): RawRange | null {
 		start: toClampedRawOffset(bounds.start, prefixLength),
 		end: toClampedRawOffset(bounds.end, prefixLength)
 	};
+}
+
+/** Where a caret put down on `node` (an arrow from another line, Home, a click; never a step) rests at
+ *  the earliest: past a source-at-caret row's marker where the mode hides markers, else 0. */
+export function arrivalRawStart(el: HTMLElement, node: NodeView): number {
+	if (!el.hasAttribute(SOURCE_AT_CARET_ATTR) || !revealsNoMarkers(el)) return 0;
+	return getContentRange(node).start;
 }
 
 /** Clamp a caret offset into the range the caret can sit in; a no-op wherever the markers paint. */
