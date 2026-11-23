@@ -34,6 +34,7 @@
 	import { docLinkMenu, docLinkMenuPlugin } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { drawnPlugin } from './drawn/drawn-plugin';
+	import { fenceLinesPlugin } from './fence-lines/fence-lines-plugin';
 	import { outlinePlugin } from './outline/outline-plugin';
 	import { noteNumbersPlugin } from './note-numbers/note-numbers-plugin';
 	import { noteRefsPlugin } from './note-refs/note-refs-plugin';
@@ -58,6 +59,8 @@
 	// One instance across the two seeds that want it: a second call would define the same plugin
 	// name twice in the process-global registry, which warns on every page load.
 	const tagMarks = tagMarksPlugin();
+	// Seeds that run on their own plugins alone.
+	const SEEDS_WITHOUT_BASE = ['fence-lines'];
 
 	// The decoration examples annotate whatever text is there, so each installs only under its
 	// own seed: leaking into the others, their decorations would disturb those suites.
@@ -107,6 +110,9 @@
 		badge: [blockBadgePlugin],
 		// Blocks drawn by a block type's `draw`; their types open only in this seed.
 		drawn: [drawnPlugin],
+		// Fenced blocks whose fence lines the editor draws; without the base plugins, whose math block
+		// would take the ```math fence.
+		'fence-lines': [fenceLinesPlugin],
 		// A container whose type takes a key and offers a menu row of its own.
 		alerts: [alertsPlugin],
 		// A table of contents on `depends`; its type opens only in this seed.
@@ -251,6 +257,9 @@
 		// A field box between two lines to walk in from and out to, a fence drawn as a preview, and
 		// a container drawn as a box.
 		alerts: 'intro\n\n%> [!NOTE]\n%> inside\n\nafter\n',
+		// A code block and a `%%%` block between paragraphs, then a `%%plain` block with no `draw`.
+		'fence-lines':
+			'before\n\n```js\nfirst line\nsecond line\n```\n\nbetween\n\n%%%\nfirst line\nsecond line\n%%%\n\nafter\n\n%%plain\nplain body\n%%\n',
 		drawn:
 			'above the field, a line\n\n```field\nfirst line here\nsecond line here\n```\n\nbelow the field, a line\n\n```shown\nhello\n```\n\n%> aside text\n',
 		// Three headings under an outline, the last far enough down that the outline leaves the
@@ -312,7 +321,10 @@
 			'Filed under #project and #work/admin and #project\n\n#inbox leads\n\nType here\n\n- item\n\nIn `code` span\n\nSee [the docs](https://example.com/) here\n'
 	};
 	// svelte-ignore state_referenced_locally
-	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
+	const plugins = [
+		...(SEEDS_WITHOUT_BASE.includes(data.seed ?? '') ? [] : basePlugins),
+		...(seedPlugins[data.seed ?? ''] ?? [])
+	];
 	// svelte-ignore state_referenced_locally
 	const source = new HarnessSource(SEEDS[data.seed ?? ''] ?? SEEDS.callout);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
@@ -320,7 +332,7 @@
 	// The seeds whose suites switch mode or theme for real through the header controls. Kept
 	// per seed, so no other suite's DOM gains extra buttons.
 	const MODE_TOGGLE_SEEDS = ['mathblock', 'details'];
-	const THEME_TOGGLE_SEEDS = ['mermaid'];
+	const THEME_TOGGLE_SEEDS = ['mermaid', 'fence-lines'];
 	// The seeds whose links follow on a plain click, as a host that opts in, with a toggle to
 	// switch the gesture back after mount.
 	const PLAIN_LINK_CLICK_SEEDS = ['wikilinks'];
