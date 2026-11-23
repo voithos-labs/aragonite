@@ -86,8 +86,8 @@ export function rowKeepingTitleTo(container: NodeView, row: NodeView, to: number
 	return trimTrailingLineEnding(row.raw).slice(0, Math.max(to, rowMarker(container, row).length));
 }
 
-/** The space text typed onto `row`, child `index`, to read `written` needs in front to start a title:
- *  at an untitled row's end, where it would lengthen a held name into one no held name starts. */
+/** The space to put before text typed at the end of an untitled row's held name, so it starts the
+ *  title instead of a longer name no held one starts with; empty everywhere else. */
 export function typedTitleGap(
 	row: NodeView,
 	index: number,
