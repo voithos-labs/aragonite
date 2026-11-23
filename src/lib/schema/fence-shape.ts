@@ -7,7 +7,12 @@ import type { CstNode, PluginBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLines, joinDisplayLines, splitLines } from '../core/lines';
 import { joinRaw } from '../core/parser';
-import { fenceAnatomy, matchFenceInfo, type FenceOpen } from '../core/parsers/fence-syntax';
+import {
+	fenceAnatomy,
+	fenceReading,
+	matchFenceInfo,
+	type FenceOpen
+} from '../core/parsers/fence-syntax';
 import { scanFence } from '../core/parsers/fenced-code';
 import type { BlockOpener, OpenContext, UnfinishedReading } from './block-openers';
 import type { WriteRule } from './block-kind-descriptor';
@@ -61,8 +66,8 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 				priority,
 				interruptsParagraph: (text) =>
 					infoOpen(text) !== null || (interrupts && fixedOpen(text) !== null),
-				// An info fence waits as the code fence does, which the built-in fence declares.
-				...(fixed.length ? { readingNotFinal: fixedReading(fixedOpen, fixed) } : {}),
+				// An info fence waits as the code fence does, so it declares that fence's own reading.
+				readingNotFinal: fixed.length ? fixedReading(fixedOpen, fixed) : fenceReading,
 				tryOpen(ctx) {
 					const info = infoOpen(ctx.line.text);
 					if (info) {

@@ -218,6 +218,8 @@ describe('recording a check', () => {
 		expect(resultProblem(result({ version: '1.0.0" && curl x' }))).toMatch(/version/);
 		expect(resultProblem(result({ result: 'fail' }))).toMatch(/names what failed/);
 		expect(resultProblem(result({ rows: failure }))).toMatch(/names what failed/);
+		expect(resultProblem(result({ rows: [] }))).toMatch(/checked nothing/);
+		expect(resultProblem(result({ result: 'out-of-range', version: null, rows: [] }))).toBeNull();
 		expect(resultProblem(result({ rows: undefined, failures: 'x' }))).toMatch(/before rows/);
 		expect(resultProblem(result({ rows: [{ of: 'block', status: 'failed' }] }))).toMatch(/subject/);
 		expect(resultProblem(result({ rows: [row('a/memo', 'undo', 'fine')] }))).toMatch(/status/);

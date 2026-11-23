@@ -8,7 +8,7 @@
 
 import { devChecksOn, setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
 import type { AnyBlockKind } from '../core/nodes';
-import { THIS_COPY, type Plugin, type PluginError } from '../schema/plugin-unit';
+import { isPluginValue, THIS_COPY, type Plugin, type PluginError } from '../schema/plugin-unit';
 import { qualifiedName } from '../schema/plugin-name';
 import { pluginCheckContext, type CheckContext, type PluginCheckRun } from './check-context';
 import {
@@ -53,6 +53,12 @@ export async function check<O extends object>(
 	plugin: Plugin<O>,
 	options: CheckOptions<O> = {}
 ): Promise<CheckReport> {
+	if (!isPluginValue(plugin)) {
+		throw new Error(
+			'check: its first argument is no plugin value: hand it what definePlugin returned, ' +
+				'calling a function that makes one first'
+		);
+	}
 	if (!devChecksOn) {
 		throw new Error(
 			`check(${plugin.name}): dev checks are off, so a contract warning would pass unseen; call ` +
@@ -434,12 +440,14 @@ function excused(rows: CheckRow[], excuse: Excuses | undefined, plugin: string):
 			(row) => row.of === claim.of && row.subject === claim.subject && row.check === claim.check
 		);
 		const refused = (detail: string) => {
+			// A refused excuse over a failure keeps the failure, or the author fixes the excuse blind.
+			const found = out[at]?.status === 'failed' ? ` (it found: ${out[at].detail})` : '';
 			const row: CheckRow = {
 				of: claim.of,
 				subject: claim.subject ?? claim.local,
 				check: claim.check as CheckName,
 				status: 'failed',
-				detail: `excused, but ${detail}`
+				detail: `excused, but ${detail}${found}`
 			};
 			if (at < 0) out.push(row);
 			else out[at] = row;

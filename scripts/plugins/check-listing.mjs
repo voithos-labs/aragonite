@@ -72,6 +72,7 @@ export function resultProblem(value) {
 	if (!Array.isArray(rows)) return 'rows is no list, so a check before rows wrote it';
 	const bad = rows.map(rowProblem).find((problem) => problem !== null);
 	if (bad) return bad;
+	if (result !== 'out-of-range' && rows.length === 0) return 'a run with no rows checked nothing';
 	if (!Array.isArray(warnings) || warnings.some((w) => !TAG.test(w?.tag)))
 		return 'warnings is no list of tagged warnings';
 	if ((result === 'fail') !== failuresOf(/** @type {CheckResult} */ (value)).length > 0)

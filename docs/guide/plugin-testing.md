@@ -225,7 +225,7 @@ expect(tabOrder(target.querySelector('.editor')!)).toBeNull();
 
 **`check(plugin, { options?, excuse?, warningsFail?, timeout? })`**
 
-For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of everything it lists (block types, inline constructs, commands, menus, rewrites, paint, a highlighter), read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and no DOM.
+For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of everything it lists (block types, inline constructs, commands, menus, rewrites, paint, a highlighter), read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and needs no DOM; with one, your `setup` runs too.
 
 ```ts
 import { check } from '@voithos-labs/aragonite/testing';
@@ -581,7 +581,7 @@ it('the plugin conforms', async () => {
 });
 ```
 
-It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`, and each cell as a row in `rows`), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
+It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`, and in `rows` a row for the install and one per cell), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
 
 ```
 Error: plugin conformance failed for "memo":

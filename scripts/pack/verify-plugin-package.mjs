@@ -160,7 +160,7 @@ function passesItsConformanceSuite(pkg, dir) {
 		);
 		if (run.status !== 0) return [`${pkg.name} fails its conformance suite:\n${run.stderr}`];
 		const { rows } = JSON.parse(readFileSync(json, 'utf8'));
-		return Array.isArray(rows) ? [] : [`${pkg.name}'s check recorded no rows`];
+		return Array.isArray(rows) && rows.length > 0 ? [] : [`${pkg.name}'s check recorded no rows`];
 	} finally {
 		rmSync(out, { recursive: true, force: true });
 	}

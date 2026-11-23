@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { collectEditorSources, stripComments } from './scan-source';
+import { collectEditorSources, importSpecifiers, stripComments } from './scan-source';
 import { SOURCE_DIR } from './source-paths';
 
 /** The files that may name a default read, each with why. */
@@ -21,7 +21,15 @@ const ALLOWED: Record<string, string> = {
 const OWN_READ =
 	/\b(?:defaultGrammarView|defaultCheckContext|kitReading|getBlockKindDescriptor|tryGetBlockKindDescriptor|createHeadlessActions|assertParseConverged)\b|(?<![\w.])parse(?:Inline)?\(/g;
 
-const ownReads = (code: string): string[] => code.match(OWN_READ) ?? [];
+// The parser read under another name (an alias, a namespace) names none of the reads above.
+const DEFAULT_READER = /(?:^|\/)core\/(?:parser|inline)(?:\.js)?$/;
+
+const ownReads = (code: string): string[] => [
+	...(code.match(OWN_READ) ?? []),
+	...importSpecifiers(code)
+		.filter((found) => !found.typeOnly && DEFAULT_READER.test(found.specifier))
+		.map((found) => `import of ${found.specifier}`)
+];
 
 describe('G4.374 a conformance cell reads through its context', () => {
 	const files = collectEditorSources().filter((file) =>
@@ -54,6 +62,13 @@ describe('G4.374 a conformance cell reads through its context', () => {
 			'runKindCells(defaultCheckContext, kind)'
 		];
 		for (const code of planted) expect(ownReads(code), code).toHaveLength(1);
+		const renamed = [
+			"import { parse as read } from '../core/parser';\nread(fixture);",
+			"import * as inline from '../core/inline';\ninline.parseInline(raw, 0, 1);"
+		];
+		for (const code of renamed) expect(ownReads(code), code).toHaveLength(1);
+		expect(ownReads("import type { Document } from '../core/parser';")).toEqual([]);
+		expect(ownReads("import { inlineTable } from '../core/inline/scan/inline-table';")).toEqual([]);
 		const clean = stripComments(
 			'// parse(fixture) reads the default grammar\ncontext.parse(fixture); context.parseInline(raw, 0, 1); JSON.parse(text);',
 			'script'

@@ -42,9 +42,18 @@ describe('aragonite-plugin-check', () => {
 		expect(value.result).toBe('pass');
 		expect(value.rows.map((r) => `${r.subject} ${r.check}`)).toContain('parrot/parrot roundTrip');
 		const empty = definePlugin({ name: 'bin-empty', setup: () => {} });
+		// A setup plugin declaring no kind still installed, and the run says so in a row.
 		expect(await runSuite({ plugins: [empty] })).toEqual({
 			result: 'pass',
-			rows: [],
+			rows: [
+				{
+					of: 'plugin',
+					subject: 'bin-empty',
+					check: 'install',
+					status: 'passed',
+					detail: 'installs'
+				}
+			],
 			warnings: [],
 			message: null
 		});

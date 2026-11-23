@@ -143,9 +143,19 @@ describe('runPluginConformance', () => {
 
 	it('fails on a dev warning raised while the plugin installs', async () => {
 		const noisy = plugin('noisy', () => devWarn('noisy-tag', 'something the author should see'));
-		await expect(runPluginConformance({ plugins: [noisy] })).rejects.toThrow(
-			'dev warning [noisy-tag]: something the author should see'
-		);
+		const failure = (await runPluginConformance({ plugins: [noisy] }).catch(
+			(error: unknown) => error
+		)) as Error & { rows: LegacyRow[] };
+		expect(failure.message).toContain('dev warning [noisy-tag]: something the author should see');
+		expect(failure.rows).toEqual([
+			{
+				of: 'plugin',
+				subject: 'noisy',
+				check: 'install',
+				status: 'failed',
+				detail: 'raised a dev warning while installing'
+			}
+		]);
 	});
 
 	it('refuses to run with dev checks off, since a warning would pass unseen', async () => {
@@ -154,14 +164,22 @@ describe('runPluginConformance', () => {
 		await expect(runPluginConformance({ plugins: [quiet] })).rejects.toThrow('dev checks are off');
 	});
 
-	it('passes a plugin that declares no kind, with an empty report', async () => {
+	it('passes a plugin that declares no kind, its install the one row', async () => {
 		const empty = plugin('empty-kinds', () => {});
 		expect(await runPluginConformance({ plugins: [empty] })).toEqual({
 			plugins: ['empty-kinds'],
 			kinds: [],
 			containers: [],
 			inline: [],
-			rows: []
+			rows: [
+				{
+					of: 'plugin',
+					subject: 'empty-kinds',
+					check: 'install',
+					status: 'passed',
+					detail: 'installs'
+				}
+			]
 		});
 	});
 });

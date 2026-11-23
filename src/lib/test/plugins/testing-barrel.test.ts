@@ -228,43 +228,89 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 		expect(typeof configureEditorEnv).toBe('function');
 		expect(typeof resetEditorEnv).toBe('function');
 	});
-
-	// Pinned by name, so nothing joins the section for `setup` plugins.
-	it('holds the section for setup plugins to the names it has', () => {
-		const { text } = readSource('src/lib/testing.ts');
-		const section = text.slice(text.indexOf('// ── Kits for setup plugins'));
-		const names = [...section.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)]
-			.flatMap((found) => found[1].split(','))
-			.map((name) => name.trim())
-			.filter(Boolean);
-		expect(names.sort()).toEqual(LEGACY.toSorted());
-	});
 });
 
-const LEGACY = [
+// ── The names that leave with `setup` plugins ────────────────────────────────
+// Miss-analysis: nothing listed the entry's names, so one more name for `setup` plugins would
+// have joined the ones that leave with them, unseen.
+
+/** What stays on the entry: `check`, its result, its helpers and the environment switch it asks for. */
+const STAYS = [
+	'check',
+	'CheckFailure',
+	'isCheckFailure',
+	'CheckName',
+	'CheckOptions',
+	'CheckReport',
+	'CheckRow',
+	'CheckStatus',
+	'Conformance',
+	'Excuses',
+	'configureEditorEnv',
+	'headless',
+	'tabOrder',
+	'rewritePaste'
+];
+
+/** What leaves: the kits for `setup` plugins, their types and the reset of their registries. */
+const LEAVES = [
 	'resetPluginPlatformForTests',
-	'runContainerConformance',
-	'runInlineKindConformance',
-	'runKindConformance',
-	'runPluginConformance',
-	'PluginConformanceReport',
-	'PluginConformanceSuite',
+	'resetEditorEnv',
 	'CellReport',
 	'CellStatus',
 	'ConformanceCoverage',
+	'runContainerConformance',
 	'ConformanceCell',
 	'ContainerConformanceProfile',
 	'ContainerConformanceReport',
 	'LocalIndexFixture',
+	'runKindConformance',
 	'KindCell',
 	'KindCellCheck',
 	'KindCellContext',
 	'KindConformanceProfile',
 	'KindConformanceReport',
+	'runInlineKindConformance',
 	'InlineConformanceCell',
 	'InlineConformanceProfile',
-	'InlineConformanceReport'
+	'InlineConformanceReport',
+	'runPluginConformance',
+	'PluginConformanceReport',
+	'PluginConformanceSuite'
 ];
+
+/** Every name `code` exports, by a list or a declaration. */
+function exportedNames(code: string): string[] {
+	const listed = [...code.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)].flatMap(([, body]) =>
+		body.split(',').map((name) =>
+			name
+				.trim()
+				.split(/\s+as\s+/)
+				.pop()!
+		)
+	);
+	const declared = [...code.matchAll(/export\s+(?:async\s+)?(?:function|const|class)\s+(\w+)/g)];
+	return [...listed, ...declared.map(([, name]) => name)].filter((name) => name !== '');
+}
+
+describe('@voithos-labs/aragonite/testing names that leave with setup plugins', () => {
+	const names = exportedNames(readSource('src/lib/testing.ts').code);
+
+	it('gain no member: a new name stays, or the entry does not take it', () => {
+		const reason =
+			'a name for plugin values joins STAYS; nothing new is built for `setup` plugins, and a ' +
+			'name that left the entry leaves its list';
+		const unlisted = names.filter((name) => !STAYS.includes(name) && !LEAVES.includes(name));
+		const gone = [...STAYS, ...LEAVES].filter((name) => !names.includes(name));
+		expect({ unlisted, gone }, reason).toEqual({ unlisted: [], gone: [] });
+	});
+
+	it('reads a name from a list, an alias and a declaration', () => {
+		const code =
+			"export { a, b as c } from './x';\nexport type { T } from './y';\nexport function f() {}";
+		expect(exportedNames(code)).toEqual(['a', 'c', 'T', 'f']);
+	});
+});
 
 // ── What the published `@voithos-labs/aragonite/testing` code may depend on ────────────────
 
