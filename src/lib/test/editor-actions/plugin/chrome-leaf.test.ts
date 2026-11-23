@@ -27,12 +27,13 @@ describe('registerChromeLeaf', () => {
 		expect(blockViewFor(kind, everyInstalledPlugin)).toBeDefined();
 	});
 
-	it('defaults the keymap to descend-on-Enter plus the two merge chords', () => {
+	it('defaults the keymap to descend-on-Enter, the refused break and the two merge chords', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');
 		registerChromeLeaf(kind);
 
 		expect(getBlockKindDescriptor(kind).keymap).toEqual([
 			{ chord: 'Enter', command: 'chrome.descendToBody' },
+			{ chord: 'Shift+Enter', command: 'block.hardBreak' },
 			{ chord: 'Backspace', command: 'block.mergePrev' },
 			{ chord: 'Delete', command: 'block.mergeNext' }
 		]);
@@ -45,9 +46,10 @@ describe('registerChromeLeaf', () => {
 		});
 
 		const keymap = getBlockKindDescriptor(kind).keymap;
-		expect(keymap).toHaveLength(3);
+		expect(keymap).toHaveLength(4);
 		expect(keymapByChord(keymap)).toEqual({
 			Enter: 'block.split',
+			'Shift+Enter': 'block.hardBreak',
 			Backspace: 'block.mergePrev',
 			Delete: 'block.mergeNext'
 		});

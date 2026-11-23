@@ -6,7 +6,13 @@
  * everything pasted, its last line ending too.
  */
 
-import { displayLines, isBlankText, trimTrailingLineEnding, withLineEnding } from '../core/lines';
+import {
+	displayLines,
+	isBlankText,
+	oneLine,
+	trimTrailingLineEnding,
+	withLineEnding
+} from '../core/lines';
 import type { NodeView } from '../core/node-views';
 import { metadataIfKind } from '../core/nodes';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
@@ -760,7 +766,7 @@ function landed(
 	if (titled) return intoTitle(doc, titled, leaf, from, to, clip, plain);
 	const escaped = () => plainText(doc, leaf, clip);
 	// A cell holds one line, so its own write takes the text whatever it would read as alone.
-	if (isCell(doc, leaf)) return write(oneLine(plain ? escaped() : clip));
+	if (isCell(doc, leaf)) return write(oneLine(plain ? escaped() : clip).text);
 	// Literal text takes the paste as written, plain or not; a line that could close its fence goes
 	// through the block's write rule, which grows the fence past it.
 	if (factsOf(doc, leaf).body === 'literal') {
@@ -790,8 +796,8 @@ function landed(
 		if (fence && displayLines(body!).some((line) => fence.mayClose(line.text))) return write(clip);
 		// A one-line source shown while it's edited, given a line break, takes the shape typing gives
 		// it: a one-line `$$` given two lines takes fence lines of its own.
-		const oneLine = !/\n/.test(trimTrailingLineEnding(raw)) && /\n/.test(clip);
-		const shown = oneLine && factsOf(doc, leaf).textPosition === 'while-source-shows';
+		const gainsLines = !/\n/.test(trimTrailingLineEnding(raw)) && /\n/.test(clip);
+		const shown = gainsLines && factsOf(doc, leaf).textPosition === 'while-source-shows';
 		const shaped = shown ? doc.host.leaf.typed(doc.tree, leaf.path, own, caret) : null;
 		if (shaped && shaped.bytes !== own)
 			return writtenText(doc, leaf, shaped, target.from, target.to);
@@ -1134,9 +1140,6 @@ function openingBlock(pasted: Doc, first: LaidBlock, levels: number): LaidBlock 
 	return undefined;
 }
 
-/** Text for a block that holds one line: each run of line breaks a space, a last one dropped. */
-const oneLine = (text: string) => text.replace(/\n+$/, '').replace(/\n+/g, ' ');
-
 /** One line pasted after text on the caret's line reads as that line reads. */
 function afterText(doc: Doc, leaf: LaidBlock, offset: number, clip: string): boolean {
 	if (clip.includes('\n')) return false;
@@ -1224,7 +1227,7 @@ function insertBytes(
 	};
 }
 
-/** A title row holds one line: the paste goes in with each run of line breaks turned to a space,
+/** A title row holds one line: the paste goes in on it as the row's own write rule puts text there,
  *  after a space of its own where the caret stands at the end of the row's name. */
 function intoTitle(
 	doc: Doc,
@@ -1235,7 +1238,7 @@ function intoTitle(
 	text: string,
 	plain: boolean
 ): Edit {
-	const flat = oneLine(text);
+	const flat = oneLine(text).text;
 	const title = plain ? plainText(doc, row, flat) : flat;
 	const line = (joinsName(doc, owner, row, from) && title !== '' ? ' ' : '') + title;
 	return {

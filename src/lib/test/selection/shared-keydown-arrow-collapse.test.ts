@@ -22,7 +22,7 @@ vi.mock('../../browser/visual-lines', async (original) => ({
 	isAtLastVisualLine: () => true
 }));
 
-function mount() {
+function mount(arrivalStart?: number) {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
 	el.textContent = 'abcdef';
@@ -54,7 +54,8 @@ function mount() {
 		focus: { moveFocus: vi.fn(async () => {}) } as unknown as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,
 		unitContext: () => null,
-		caretUnits: { beside: () => null, crossed: () => {} }
+		caretUnits: { beside: () => null, crossed: () => {} },
+		...(arrivalStart === undefined ? {} : { arrivalStart: () => arrivalStart })
 	};
 	const select = (anchor: number, focus: number) =>
 		window.getSelection()!.setBaseAndExtent(text, anchor, text, focus);
@@ -89,6 +90,31 @@ describe('handleSharedKeydown: a plain arrow over a range collapses it first', (
 			expect(h.read()).toEqual({ anchor: at, focus: at });
 		});
 	}
+
+	// Miss-analysis: the opener row's arrival rows were all carets, and no row collapsed a range there.
+	for (const { key, anchor, focus, at } of [
+		{ key: 'ArrowLeft', anchor: 5, focus: 1, at: 3 },
+		{ key: 'ArrowLeft', anchor: 0, focus: 6, at: 3 },
+		{ key: 'ArrowLeft', anchor: 3, focus: 1, at: 3 },
+		{ key: 'ArrowLeft', anchor: 6, focus: 4, at: 4 },
+		{ key: 'ArrowRight', anchor: 5, focus: 1, at: 5 },
+		{ key: 'ArrowDown', anchor: 5, focus: 1, at: 1 }
+	]) {
+		it(`${key} over ${anchor}..${focus} with the arrival start at 3 leaves a caret at ${at}`, async () => {
+			const h = mount(3);
+			h.select(anchor, focus);
+			await handleSharedKeydown(press(key), h.ctx);
+			expect(h.read()).toEqual({ anchor: at, focus: at });
+		});
+	}
+
+	it('ArrowLeft rests at a start before the arrival start that steps left there', async () => {
+		const h = mount(3);
+		h.ctx.caretWriter = { ...testCaretWriter, stepsLeftStartAt: (_, start) => start === 1 };
+		h.select(5, 1);
+		await handleSharedKeydown(press('ArrowLeft'), h.ctx);
+		expect(h.read()).toEqual({ anchor: 1, focus: 1 });
+	});
 
 	// Option and Cmd arrows on macOS, and Ctrl and Alt arrows elsewhere, are motions of their own.
 	// Cmd+Up and Cmd+Down jump to the block's edge instead, which the edge-key rows cover.

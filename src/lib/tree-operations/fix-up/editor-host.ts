@@ -5,6 +5,7 @@ import { tableTakesLine } from '../../core/parsers/table';
 import {
 	unfinishedReadings,
 	waitRunsPast,
+	closedWaitsOf,
 	waitingAboveClosedBy,
 	waitingInto,
 	type GrammarView
@@ -36,8 +37,9 @@ function createHost(grammar: GrammarView): Host {
 			return lines.length > 0 && tableTakesLine(lines, 0, lines.length, grammar);
 		},
 		readingsThatMayChange: () => unfinishedReadings(grammar),
-		waitingAboveClosedBy: (written, rawAbove, count) =>
-			waitingAboveClosedBy(written, rawAbove, count, unfinishedReadings(grammar)),
+		closedWaitsOf,
+		waitingAboveClosedBy: (written, above, count) =>
+			waitingAboveClosedBy(written, above, count, unfinishedReadings(grammar)),
 		waitingInto: (block, at, floor) => waitingInto(block, at, floor, unfinishedReadings(grammar)),
 		waitRunsPast: (read, block, from, last) =>
 			waitRunsPast(read, block, from, last, unfinishedReadings(grammar)),

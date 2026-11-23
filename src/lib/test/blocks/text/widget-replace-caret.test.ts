@@ -33,6 +33,7 @@ function keyWrite(
 		getNode,
 		getIndex: () => 0,
 		getPath: () => [0],
+		getDoc: () => parse(''),
 		blockEdit,
 		kindCue: NO_CUE,
 		getPreEditOffset: () => -1,

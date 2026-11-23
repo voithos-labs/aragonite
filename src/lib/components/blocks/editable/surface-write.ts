@@ -17,6 +17,9 @@ import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../../core/lin
 import { writtenSpan } from '../../../core/written-span';
 import { mayHoldReference, spellReferenceLabels } from '../../../core/inline/link-source-bytes';
 import type { Reading } from '../../../schema/reading';
+import type { DocumentGetter } from '../../../editor-keys';
+import { typedTitleGap } from '../../../schema/reserved-chrome';
+import { blockNodeAt } from '../../../tree-operations/node-primitives';
 
 /** `typed` is a keystroke's own edit, which can name a new block kind and complete its line;
  *  `command` is a chord, a menu row, a clipboard edit or a shown source's commit, and `repair`
@@ -53,6 +56,8 @@ export interface SurfaceWriteDeps {
 	getNode(): NodeView;
 	getIndex(): number;
 	getPath(): number[];
+	/** The document, where the write finds the container the block stands in. */
+	getDoc: DocumentGetter;
 	blockEdit: BlockEditActions;
 	kindCue: KindCue;
 	getPreEditOffset(): number;
@@ -82,8 +87,9 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		// The caret the input began at: undo puts it back, and the browser can have put the text
 		// across a hidden run from it.
 		const began = write.sessionAnchor ?? deps.getPreEditOffset();
+		const own = typed && changed ? startingTitle(write, display, index) : write;
 		const spend = (text: string): TextEdit =>
-			write.inPlace ? held.spendInPlace(text, write) : held.spend(text, write, began);
+			own.inPlace ? held.spendInPlace(text, own) : held.spend(text, own, began);
 		const spent = typed && changed ? spend(display) : write;
 		const edit = changed ? keepingReferenceLabels(node, display, spent, deps.reading) : spent;
 		// The block's own ending only: a last line saved without one stays that way.
@@ -115,6 +121,16 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		if (typed) void deps.kindCue.afterTypedWrite(written, deps.getPath(), before);
 		return written;
 	};
+
+	/** `write` with the space in front of text typed at a title row's `:::name` end that would
+	 *  lengthen the name, so the text starts the title (`schema/reserved-chrome.ts`). */
+	function startingTitle(write: TextWrite, display: string, index: number): TextWrite {
+		const owner = () => blockNodeAt(deps.getDoc(), deps.getPath().slice(0, -1)) ?? undefined;
+		const gap = typedTitleGap(deps.getNode(), index, write.text, owner, deps.reading.grammar);
+		if (!gap) return write;
+		const text = display + gap + write.text.slice(display.length);
+		return { ...write, text, caretAfter: write.caretAfter + gap.length };
+	}
 }
 
 /** `edit` with the label of each reference whose text it changed spelled out, since a caret's

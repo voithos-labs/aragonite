@@ -133,7 +133,7 @@ function readAgain(
 		const lo = windowStart(children, first, 0, readings);
 		// A closer the change writes finishes a block above it that waits on one.
 		const lines = writtenLines(before, change);
-		const waiting = waitingAboveClosedBy(lines, (i) => children[i].raw, lo, readings);
+		const waiting = waitingAboveClosedBy(lines, (i) => children[i], lo, readings);
 		const hi = Math.max(first, starts.holding(Math.max(change.to - 1, change.from)));
 		let span: Span = { lo: waiting >= 0 ? waiting : lo, hi, top: first === 0, changes: [change] };
 		while (pending.length > 0 && span.lo <= pending[pending.length - 1].hi) {

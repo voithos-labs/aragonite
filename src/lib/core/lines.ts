@@ -167,6 +167,33 @@ export function lineEndingAt(text: string, offset: number): '' | LineEnding {
 	return text.startsWith('\r\n', offset) ? '\r\n' : '';
 }
 
+/** Text as a one-line block holds it (a title row, a table cell's paste): each run of line breaks
+ *  becomes one space and a run at the end goes, with `at` placing an offset of `text` in it. */
+export function oneLine(text: string): { text: string; at(offset: number): number } {
+	const cuts: { from: number; to: number; by: number }[] = [];
+	let out = '';
+	let last = 0;
+	for (const match of text.matchAll(/(?:\r?\n)+/g)) {
+		const to = match.index + match[0].length;
+		const by = to === text.length ? 0 : 1;
+		out += text.slice(last, match.index) + ' '.repeat(by);
+		cuts.push({ from: match.index, to, by });
+		last = to;
+	}
+	return {
+		text: out + text.slice(last),
+		at: (offset) => {
+			let shift = 0;
+			for (const cut of cuts) {
+				if (offset <= cut.from) break;
+				if (offset < cut.to) return cut.from + shift + Math.min(offset - cut.from, cut.by);
+				shift += cut.by - (cut.to - cut.from);
+			}
+			return offset + shift;
+		}
+	};
+}
+
 export interface ParsedLine {
 	raw: string;
 	text: string;

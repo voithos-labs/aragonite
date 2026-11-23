@@ -516,23 +516,28 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.245 a kind’s write rule runs through kindWriteRule',
-		matches: /\.rawWrite\b|\{[^}=]*\brawWrite\b[^}=]*\}\s*=[^=>]/,
+		id: 'G4.245 a write rule runs through kindWriteRule or writeRuleAt',
+		matches: /\.rawWrite\b|\{[^}=]*\brawWrite\b[^}=]*\}\s*=[^=>]|(?<!const\s)\btitleRowWrite\b/,
 		allowed: {
 			'src/lib/tree-operations/node-primitives.ts':
-				'`kindWriteRule`: the one reader, which checks that a rule deletes no byte the write left alone',
+				'`kindWriteRule` and `writeRuleAt` (a title row’s one line by position): the readers, which check that a rule deletes no byte the write left alone',
 			'src/lib/invariants/leaf-text.ts': 'reads the rule’s `text`, a block’s text, not a write',
 			'src/lib/testing/kind-conformance.ts':
 				'the conformance kit drives a plugin kind’s rule directly against its fixture'
 		},
 		reason:
-			'a rule run outside `kindWriteRule` skips the dev check that it deletes no byte outside the written span (G1.143); read it through `kindWriteRule`',
+			'a rule run outside `kindWriteRule` skips the dev check that it deletes no byte outside the written span (G1.143), and a title row run outside `writeRuleAt` misses its one-line rule or its kind’s; read a rule through one of them',
 		hits: [
 			'const rule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;',
 			'getBlockKindDescriptor(kind).rawWrite!.normalize(raw, ctx)',
-			'const { rawWrite } = descriptor;'
+			'const { rawWrite } = descriptor;',
+			'const stored = titleRowWrite.normalize(raw, ctx);'
 		],
-		misses: ['registerBlockKind(kind, { rawWrite: fencedCodeWrite });', 'rawWrite: mathBlockWrite,']
+		misses: [
+			'registerBlockKind(kind, { rawWrite: fencedCodeWrite });',
+			'rawWrite: mathBlockWrite,',
+			'export const titleRowWrite: WriteRule = {'
+		]
 	},
 	{
 		id: 'G4.194 a block reaches the clipboard steps through its surface',
@@ -3248,10 +3253,10 @@ const CONSTRUCT_REVEAL = `${SOURCE_DIR.textBlock}construct-reveal.ts`;
 const TEXT_MOVES: FileRule = {
 	id: 'G4.165 every write of a marker-visibility hook reports the moved text',
 	matches:
-		/\b(?:set|remove|toggle)Attribute\(\s*['"`]data-(?:focused|presentation|editor-theme)['"`]|\bdataset\.(?:focused|presentation|editorTheme)\s*=(?!=)|(?<![[\w-])data-(?:focused|presentation|editor-theme)=\{|\bclassList\.(?:add|remove|toggle|replace)\([^)]*(?:CONSTRUCT_REVEAL_CLASS\b|['"`]md-construct-reveal['"`])|\bclass(?:Name)?\s*=(?!=)[^;\n]*(?:md-construct-reveal|CONSTRUCT_REVEAL_CLASS)|\bclass:md-construct-reveal\b/,
+		/\b(?:set|remove|toggle)Attribute\(\s*(?:['"`]data-(?:focused|presentation|editor-theme|press-held)['"`]|PRESS_HELD_ATTR\b)|\bdataset\.(?:focused|presentation|editorTheme)\s*=(?!=)|(?<![[\w-])data-(?:focused|presentation|editor-theme)=\{|\bclassList\.(?:add|remove|toggle|replace)\([^)]*(?:CONSTRUCT_REVEAL_CLASS\b|['"`]md-construct-reveal['"`])|\bclass(?:Name)?\s*=(?!=)[^;\n]*(?:md-construct-reveal|CONSTRUCT_REVEAL_CLASS)|\bclass:md-construct-reveal\b/,
 	allowed: {
 		[FOCUS_ATTRIBUTION]:
-			'moves `data-focused` between hosts and reports both through `textMoves.movedWithin`, as it does a block of bare markers focus enters or leaves',
+			'moves `data-focused` between hosts and reports both through `textMoves.movedWithin`, as it does a block of bare markers focus enters or leaves; its held-press mark on the root shows or hides nothing until the release moves `data-focused`',
 		[CONSTRUCT_REVEAL]:
 			'toggles the reveal class on marker spans and reports the block through `textMoves.movedWithin`',
 		[`${SOURCE_DIR.components}Editor.svelte`]:
@@ -3270,7 +3275,8 @@ const TEXT_MOVES: FileRule = {
 		at(`${SOURCE_DIR.blocks}X.svelte`, '<div data-focused={focused ? "" : undefined}>'),
 		at(`${SOURCE_DIR.textBlock}X.svelte`, '<span class:md-construct-reveal={shown}>'),
 		at(`${SOURCE_DIR.textBlock}x.ts`, 'span.className = `md-marker ${CONSTRUCT_REVEAL_CLASS}`;'),
-		at(`${SOURCE_DIR.blocks}x.ts`, "host.dataset.focused = '';")
+		at(`${SOURCE_DIR.blocks}x.ts`, "host.dataset.focused = '';"),
+		at(`${SOURCE_DIR.components}x.ts`, 'root.toggleAttribute(PRESS_HELD_ATTR, held);')
 	],
 	misses: [
 		at(

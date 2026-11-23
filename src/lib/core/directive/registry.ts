@@ -90,6 +90,12 @@ export function resolveDirective(
 	return definitions.get(keyOf(tier, name), grammar.activation);
 }
 
+/** Whether a container name the editor's grammar holds starts with `prefix`, the name itself counting. */
+export function startsContainerName(prefix: string, grammar: GrammarView): boolean {
+	const key = keyOf('container', prefix);
+	return definitions.entries(grammar.activation).some(([held]) => held.startsWith(key));
+}
+
 /**
  * Pre-narrowed: registration guarantees a block node for these tiers, so the union narrowing
  * happens here once instead of a cast per opener call site.

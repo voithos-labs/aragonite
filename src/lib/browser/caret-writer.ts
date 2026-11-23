@@ -6,6 +6,7 @@
 
 import {
 	type DomPosition,
+	arrivalRawStart,
 	caretPointAtRaw,
 	clampToReachableRaw,
 	containerDomTextLength,
@@ -62,9 +63,15 @@ export interface CaretWriter {
 	selectSurfaceContent(el: HTMLElement): boolean;
 	/** The nodes `range` already spans, as a node-level writer holds them (a widget whole). */
 	selectDomRange(range: Range): boolean;
-	/** Moves a collapsed caret the browser left where the editor never puts one (inside a widget,
-	 *  on a hidden run's far side, inside a CRLF pair) to the spot it writes for that pixel. */
+	/** Moves a collapsed caret the browser left where the editor never puts one (inside a widget, on
+	 *  a hidden run's far side, inside a CRLF pair, arrived before a `:::` title) to where it would. */
 	canonicalizeCaret(el: HTMLElement): boolean;
+	/** A Shift key's step (a character or a word) is about to move the selection in `el`, by the
+	 *  editor or by the browser; the next look at the selection reads where it took the start. */
+	noteStep(el: HTMLElement): void;
+	/** Whether raw `start`, a selection's start before a `:::` row's title in `el`, got there by a
+	 *  caret standing there or by steps, not by an arrival: ArrowLeft over it rests there only then. */
+	stepsLeftStartAt(el: HTMLElement, start: number): boolean;
 	/** Writes this writer's own caret in `el` again, where it stands, after something beside it
 	 *  shows or hides: WebKit keeps a caret resolved against the layout it was placed in. */
 	rewriteCaret(el: HTMLElement): boolean;
@@ -108,6 +115,58 @@ export function createCaretWriter(
 	let unshown = false;
 	// The selection a decided caret key wrote, as the browser holds it, until it is checked.
 	let decided: { anchor: DomPosition; focus: DomPosition } | null = null;
+	// The `:::` row the last caret stood on at or before its title's start, and where that caret or
+	// steps from it left the selection's start; a path, since a renamed row is drawn in a new element.
+	let rowEntered: { path: string; start: number } | null = null;
+	// The selection's start on a row before a Shift key's step, until a look at the selection reads it.
+	let stepFrom: { path: string | null; start: number } | null = null;
+
+	// Every pass, since a row drawn again under the same path is a new element; a repeat is a no-op.
+	function enterRow(el: HTMLElement | null, start: number): void {
+		el?.addEventListener('focusout', leaveRow, { once: true });
+		const path = el && blockPathOf(el);
+		rowEntered = path === null ? null : { path, start };
+	}
+
+	function recordOn(el: HTMLElement): { start: number } | null {
+		return rowEntered?.path === blockPathOf(el) ? rowEntered : null;
+	}
+
+	// A step that moved the selection's start keeps the row's record from a start it held, or from the
+	// title; any other move of that start leaves the record behind, so it reads as an arrival.
+	function settleStep(el: HTMLElement): void {
+		const step = stepFrom;
+		stepFrom = null;
+		const to = step?.path === blockPathOf(el) ? selectionStartIn(el) : null;
+		if (!step || to === null || to === step.start) return;
+		const floor = arrivalRawStart(el);
+		const held = step.start >= floor || recordOn(el)?.start === step.start;
+		enterRow(to <= floor && held ? el : null, to);
+	}
+
+	// Focus coming back by Tab or a script is an arrival again, wherever the caret stood. The window
+	// losing focus leaves the row focused, and its caret comes back where it was.
+	function leaveRow(e: Event): void {
+		const row = e.currentTarget as HTMLElement;
+		if (row !== row.ownerDocument.activeElement) rowEntered = null;
+		else row.addEventListener('focusout', leaveRow, { once: true });
+	}
+
+	// A caret the browser left before a row's title arrived there unless the last caret stood on that
+	// row at or before the title's start (`docs/design/caret-placement.md` § 3); it goes to the start.
+	function movesArrivalOffRowName(el: HTMLElement, caret: DomPosition, own: boolean): boolean {
+		const floor = arrivalRawStart(el);
+		if (floor === 0) {
+			rowEntered = null;
+			return false;
+		}
+		const raw = rawOffsetAt(el, caret.node, caret.offset);
+		const arrived = raw < floor && !own && !recordOn(el);
+		enterRow(arrived || raw <= floor ? el : null, arrived ? floor : raw);
+		if (!arrived) return false;
+		const point = caretPointAtRaw(el, floor);
+		return writeSelection(point, point, el);
+	}
 
 	// A caret goes only where something shows it (`docs/design/caret-placement.md` § 3).
 	function writeSelection(
@@ -253,12 +312,23 @@ export function createCaretWriter(
 			);
 		},
 		canonicalizeCaret(el) {
+			settleStep(el);
 			const caret = liveCaretIn(el);
 			if (!caret) return false;
-			if (written?.node === caret.node && written.offset === caret.offset) return false;
+			const own = written?.node === caret.node && written.offset === caret.offset;
+			if (movesArrivalOffRowName(el, caret, own)) return true;
+			if (own) return false;
 			written = null;
 			const target = canonicalCaretPoint(el, caret.node, caret.offset);
 			return target !== null && writeSelection(target, target, el);
+		},
+		noteStep(el) {
+			const start = arrivalRawStart(el) > 0 ? selectionStartIn(el) : null;
+			stepFrom = start === null ? null : { path: blockPathOf(el), start };
+		},
+		stepsLeftStartAt(el, start) {
+			settleStep(el);
+			return recordOn(el)?.start === start;
 		},
 		rewriteCaret(el) {
 			const caret = liveCaretIn(el);
@@ -313,10 +383,26 @@ function beforeWidgetOf(el: HTMLElement, at: DomPosition): DomPosition | null {
 	return { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, widget) };
 }
 
+/** The `data-block-path` of the block `el` draws, or null outside one. */
+function blockPathOf(el: HTMLElement): string | null {
+	return el.closest('[data-block-path]')?.getAttribute('data-block-path') ?? null;
+}
+
 /** The focused element holding `node`, for a write that names no element: a caret's editable. */
 function editableHolding(node: Node): HTMLElement | null {
 	const active = document.activeElement;
 	return active instanceof HTMLElement && active.contains(node) ? active : null;
+}
+
+/** The raw offset where the browser's selection starts, when both its ends sit inside `el`. */
+function selectionStartIn(el: HTMLElement): number | null {
+	const sel = window.getSelection();
+	const { anchorNode, focusNode } = sel ?? {};
+	if (!sel || !anchorNode || !focusNode || !el.contains(anchorNode) || !el.contains(focusNode)) {
+		return null;
+	}
+	const anchor = rawOffsetAt(el, anchorNode, sel.anchorOffset);
+	return Math.min(anchor, rawOffsetAt(el, focusNode, sel.focusOffset));
 }
 
 /** The browser's collapsed caret, when it sits inside `el`. */

@@ -49,6 +49,11 @@ colon is the row's key, and `mobile-rows-lockstep.test.ts` holds the two lists t
   menu, and Chrome draws no menu of its own.
   - Miss-analysis: the takeover row ran in a paragraph only, and the cell row pinned the old
     behaviour, so a cell's word lost the handles a finger grows it into a rectangle with.
+- a long press on a callout's title takes the word pressed: a long press on `words` in
+  `:::tip Title words`, the caret elsewhere, selects that word (bytes 13 to 18 of the title row)
+  and leaves the bytes alone. The row shows its `:::tip` only once the press ends, so the title
+  stays under the finger.
+  - Miss-analysis: no phone row pressed a block whose own text moves when it takes the caret.
 - the cell menu button deletes a row: a tap in a table cell shows the cell menu's button at that
   cell; tapping it opens the cell menu, and its Delete row takes the row. It's a finger's only
   way to the row and column actions.

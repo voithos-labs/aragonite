@@ -45,6 +45,21 @@ export function byteOfLeaf(
 	return documentByteMap(measured).byteOf(path, offset);
 }
 
+/** The byte of `node`'s raw that offset `offset` of its leaf at `path` sits at, the same map as
+ *  {@link byteOfLeaf} over one block. */
+export function blockByteOfLeaf(
+	node: NodeView,
+	path: readonly number[],
+	offset: number
+): number | null {
+	return byteIn(node, path, offset, false, bodyMap);
+}
+
+/** The leaf and offset byte `rawOffset` of `node`'s raw sits at: {@link leafAtByte} over one block. */
+export function leafAtBlockByte(node: NodeView, rawOffset: number): LeafPosition | null {
+	return leafIn(node, rawOffset, false, bodyMap);
+}
+
 /** One document's byte map, each container's lines paired once for the map's life, so a caller
  *  asking many positions of one unchanged document pays for each container once. */
 export interface DocumentByteMap {
@@ -169,8 +184,7 @@ export function leafAtRawOffset(node: NodeView, rawOffset: number): LeafPosition
 	return leafIn(node, rawOffset, true, bodyMap);
 }
 
-/** The inverse of {@link leafAtRawOffset}. Interim: `leaf-commit.ts` and the conformance kit move
- *  with the plugin-interface migration. */
+/** The inverse of {@link leafAtRawOffset}. Interim: `node-ops.ts` moves at stage 3. */
 export function rawOffsetOfLeaf(
 	node: NodeView,
 	path: readonly number[],
@@ -306,12 +320,15 @@ function lineMap(node: NodeView, titled: boolean): ContainerMap {
 		body += text;
 		endsLine = text.endsWith('\n') || text.endsWith('\r');
 	};
+	// An opener line row spans the container's own first line, which a widened fence rewrites
+	// before the row is read again.
+	const openerLine = titled && rowIsOpenerLine(node.kind) ? firstRawLine(node.raw) : null;
 	const add = (i: number) => {
 		// A grid's rebuild may put the line break between rows that their own bytes leave out.
 		if (body !== '' && !endsLine && !/^[\r\n]/.test(children[i].leadingTrivia)) append('\n');
 		append(children[i].leadingTrivia);
 		childStarts[i] = body.length;
-		append(children[i].raw);
+		append(i === 0 && openerLine !== null ? openerLine : children[i].raw);
 	};
 	if (titled) add(0);
 	append(node.innerPrefix ?? '');
@@ -322,6 +339,11 @@ function lineMap(node: NodeView, titled: boolean): ContainerMap {
 		...throughBody(children, pairing),
 		lineAt: (rawOffset) => pairedLineAt(pairing, rawOffset)
 	};
+}
+
+function firstRawLine(raw: string): string {
+	const end = raw.indexOf('\n');
+	return end < 0 ? raw : raw.slice(0, end + 1);
 }
 
 /** Whether a quote's or a table's spans can be asked: one per child. A span that doesn't hold its
