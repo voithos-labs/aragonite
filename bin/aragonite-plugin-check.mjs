@@ -186,7 +186,7 @@ export async function main(argv, cwd) {
 // npm links the bin, so the path it was started by is compared once the link is resolved.
 const startedAs = process.argv[1] ? pathToFileURL(realpathSync(process.argv[1])).href : '';
 if (import.meta.url === startedAs) {
-	const code = await main(process.argv.slice(2), process.cwd());
+	process.exitCode = await main(process.argv.slice(2), process.cwd());
 	// Once both streams are written: a timer or a socket the plugin left open must not hold the run.
-	process.stdout.write('', () => process.stderr.write('', () => process.exit(code)));
+	process.stdout.write('', () => process.stderr.write('', () => process.exit()));
 }
