@@ -60,6 +60,10 @@ const ROWS = {
 	'ordered-enter': { label: 'Enter at an item end, giant ordered list' },
 	'ordered-paste-ending': { label: 'a paste of "x\\n" at an item end', key: ['ordered-enter'] },
 	'fence-letter': { label: 'a letter typed at the end of a 60-line code fence, live mode' },
+	'code-letter-500': { label: 'a letter typed at the end of a 500-line code fence, live mode' },
+	'fixed-fence-letter': {
+		label: 'a letter typed at the end of a 500-line `%%%` block a plugin draws, live mode'
+	},
 	'footnote-letter': {
 		label: 'a letter typed in prose dense with footnote references and [[wiki]] links'
 	}
@@ -701,7 +705,7 @@ test.describe('perf a/b: at a caret, 1 MB of small blocks', () => {
 
 /* ---- Letters typed into other documents ---- */
 
-/** Sixty lines of JavaScript in a fence, the shape the highlighting rows type into. */
+/** Lines of JavaScript in a fence, the shape the highlighting rows type into. */
 function codeFence(lines: number): string {
 	const body = Array.from({ length: lines }, (_, i) => `const value${i} = compute(${i}, "row");`);
 	return '```js\n' + body.join('\n') + '\n```\n\nafter\n';
@@ -749,6 +753,37 @@ test.describe('perf a/b: a letter typed into other documents', () => {
 			lastLineEnd
 		);
 		await letterRow(editor, 'fence-letter', { path: [0] }, TYPED_KEYS);
+	});
+
+	test('code-letter-500', async ({ page }) => {
+		const fence = codeFence(500);
+		const live = (editor: EditorPage) => editor.goto('?presentationMode=live');
+		const needs = [...BRIDGE, 'parkCaretInBlockComponent'];
+		const editor = await load(page, 'code-letter-500', fence, live, needs);
+		await page.evaluate(
+			(offset) => (window as any).__test.parkCaretInBlockComponent([0], offset),
+			fence.indexOf('\n```\n')
+		);
+		await letterRow(editor, 'code-letter-500', { path: [0] }, TYPED_KEYS);
+	});
+
+	// The fence lines the editor draws around a plugin's body, against the code block's own.
+	test('fixed-fence-letter', async ({ page }) => {
+		const fence = codeFence(500).replace('```js\n', '%%%\n').replace('\n```\n', '\n%%%\n');
+		const open = async () => {
+			await gotoReady(page, '/test/plugins?seed=fence-lines');
+			await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		};
+		const needs = [...BRIDGE, 'parkCaretInBlockComponent', 'setPresentationMode'];
+		const editor = await load(page, 'fixed-fence-letter', fence, open, needs);
+		const kind = await page.evaluate(() => (window as any).__test.getDocument().children[0].kind);
+		if (kind !== 'fence-lines/fixed')
+			absent('fixed-fence-letter', 'no `%%%` block type on /test/plugins?seed=fence-lines');
+		await page.evaluate(
+			(offset) => (window as any).__test.parkCaretInBlockComponent([0], offset),
+			fence.indexOf('\n%%%\n')
+		);
+		await letterRow(editor, 'fixed-fence-letter', { path: [0] }, TYPED_KEYS);
 	});
 
 	test('footnote-letter', async ({ page }) => {
