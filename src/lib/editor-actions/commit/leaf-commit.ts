@@ -8,7 +8,7 @@ import type { InPlaceResult, Relanding } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { documentLineEnding } from '../../core/lines';
-import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { assertInvariant, type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { assertLeafLineEndingPairsKept, assertWrittenUnshared } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { caretTargetFor } from '../../selection/caret-target';
@@ -32,7 +32,7 @@ import {
 	widenRunOver,
 	type TopLevelChange
 } from '../../tree-operations/top-level-starts';
-import { rawOffsetOfLeaf } from '../../tree-operations/container-offsets';
+import { blockByteOfLeaf, leafAtBlockByte } from '../../tree-operations/container-offsets';
 import { keepOneBlock, keepOpenTail } from '../../tree-operations/fix-up/apply';
 import { spliceMany } from '../../tree-operations/splice-many';
 import {
@@ -281,38 +281,67 @@ function relandingAfter(deps: EditorActionsDeps, written: InPlaceWritten): Relan
 	const parentPath = leafPath.slice(0, -1);
 	const leafAt = settledCaretPosition(settled, leafPath.at(-1)!, caret, written.body.children);
 	const settledPath = [...parentPath, leafAt.index];
-	const byteIn = (level: number) =>
-		rawOffsetOfLeaf(written.chain[level], settledPath.slice(level + 1), leafAt.offset);
+	// The leaf's byte in the ancestor as it now stands, an opaque body included (G1.237).
+	const byteIn = (depth: number): number => {
+		const byte = blockByteOfLeaf(written.chain[depth], settledPath.slice(depth + 1), leafAt.offset);
+		assertInvariant('relanding-byte', () => checkRelandingByte(byte, settledPath, depth));
+		return byte ?? 0;
+	};
 
 	// A container that read its bytes again holds the caret by its byte position, the leaf's offset
 	// having moved with whatever the re-read took (a space a widened marker swallowed).
 	const fold = written.folds.at(-1);
 	const foldLanding = foldLandingFor(written.folds, parentPath);
 	if (fold && foldLanding) {
-		return resolved(deps, foldLanding.path, foldLanding.offset + (byteIn(fold.depth) ?? 0), 1);
+		return relandAt(deps, foldLanding.path, foldLanding.offset + byteIn(fold.depth));
 	}
 	const outermost = written.reclassified.at(-1);
 	const level = outermost ? written.chain.indexOf(outermost.previous) : -1;
-	if (level >= 0) return resolved(deps, leafPath.slice(0, level + 1), byteIn(level) ?? 0, 1);
+	if (level >= 0) return relandAt(deps, leafPath.slice(0, level + 1), byteIn(level));
 
 	const { change } = settled;
 	const window = change.op === 'replace' ? { at: change.at, count: change.newCount } : null;
-	return resolved(deps, settledPath, leafAt.offset, window?.count ?? 1, window?.at);
+	return {
+		caret: caretAt(deps, settledPath, leafAt.offset),
+		window: windowAt(settledPath, window?.count ?? 1, window?.at)
+	};
 }
 
-/** The position at `path` resolved to a leaf, with the window of `count` blocks from `at` (the
- *  path's own index by default) in the list that holds it. */
-function resolved(
-	deps: EditorActionsDeps,
-	path: readonly number[],
-	offset: number,
-	count: number,
-	at = path[path.length - 1]
-): Relanding {
+/** The caret at byte `byte` of the block at `path`, found through the map that gave the byte, with
+ *  that block as the window. */
+function relandAt(deps: EditorActionsDeps, path: readonly number[], byte: number): Relanding {
+	const node = blockNodeAt(deps.doc, path);
+	const inner = node?.children?.length ? leafAtBlockByte(node, byte) : null;
+	return {
+		caret: inner
+			? caretAt(deps, [...path, ...inner.path], inner.offset)
+			: caretAt(deps, path, byte),
+		window: windowAt(path, 1)
+	};
+}
+
+/** The position at `path` resolved to a leaf. */
+function caretAt(deps: EditorActionsDeps, path: readonly number[], offset: number): CaretPosition {
 	const block: CaretPosition = { path: docPathFrom(path), offset };
 	const leaf = caretTargetFor(deps.doc, block);
+	return leaf ? { path: leaf.leafPath, offset: leaf.offset } : block;
+}
+
+/** `count` blocks from `at` (the path's own index by default) in the list that holds `path`. */
+function windowAt(path: readonly number[], count: number, at = path[path.length - 1]) {
+	return { list: docPathFrom(path.slice(0, -1)), at, count };
+}
+
+/** G1.237: a relanding found the leaf's byte in its ancestor; null means the settled path is not
+ *  in that ancestor, and the caret would go to the ancestor's first byte. */
+function checkRelandingByte(
+	byte: number | null,
+	settledPath: readonly number[],
+	depth: number
+): InvariantViolation | null {
+	if (byte !== null) return null;
 	return {
-		caret: leaf ? { path: leaf.leafPath, offset: leaf.offset } : block,
-		window: { list: docPathFrom(path.slice(0, -1)), at, count }
+		code: 'relanding-byte',
+		message: `relandingAfter: no byte for the leaf at [${settledPath.join(',')}] in its ancestor at depth ${depth}`
 	};
 }
