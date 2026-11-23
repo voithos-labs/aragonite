@@ -11,7 +11,7 @@ import { isThenable, type ContributedCommand } from '../schema/editor-contributi
 import type { ContributedMenu } from '../schema/caret-menu';
 import type { AnyBlockKind } from '../core/nodes';
 import type { CommandCheck } from './check-names';
-import type { PluginCheckRun, Stage } from './check-context';
+import { Unsettled, type PluginCheckRun, type Stage } from './check-context';
 import type { Outcome } from './inline-check';
 
 /** The commands `plugin` runs; a mark's toggle is left out, since it is the mark's own. */
@@ -71,7 +71,7 @@ export function mount(run: PluginCheckRun, setup: Contribution['setup'], source:
 			try {
 				return await drive(stage);
 			} catch (error) {
-				return failed(`threw: ${messageOf(error)}`);
+				return failed(error instanceof Unsettled ? error.message : `threw: ${messageOf(error)}`);
 			}
 		},
 		end() {
@@ -178,7 +178,10 @@ async function waitingCommand(
 
 async function waitingPick(stage: Stage, menu: ContributedMenu['menu']): Promise<Outcome> {
 	const ctx = { editor: stage.editor };
-	const rows = menu.accepts && !menu.accepts('', ctx) ? [] : await menu.rows('', ctx);
+	const rows =
+		menu.accepts && !menu.accepts('', ctx)
+			? []
+			: await stage.within(menu.rows('', ctx), 'its rows for an empty query');
 	if (rows.length === 0) {
 		return {
 			status: 'not-applicable',
@@ -192,7 +195,7 @@ async function waitingPick(stage: Stage, menu: ContributedMenu['menu']): Promise
 	try {
 		const answer = menu.pick(row, pick);
 		if (!isThenable(answer)) {
-			await stage.idle();
+			await stage.idle(picked);
 			return { status: 'not-applicable', detail: `${picked} answers at once, with no wait` };
 		}
 		return await outlives(stage, answer, picked);
@@ -208,16 +211,17 @@ async function outlives(
 	answer: PromiseLike<unknown>,
 	what: string
 ): Promise<Outcome> {
-	if (stage.busy()) await stage.idle();
+	if (stage.busy()) await stage.idle(what);
 	const before = stage.writes.length;
 	stage.swap(ANOTHER_NOTE);
 	let rejected: { cause: unknown } | null = null;
 	try {
-		await answer;
+		await stage.within(answer, what);
 	} catch (cause) {
+		if (cause instanceof Unsettled) throw cause;
 		rejected = { cause };
 	}
-	await stage.idle();
+	await stage.idle(what);
 	const late = stage.writes.slice(before);
 	if (late.length > 0) {
 		return failed(
@@ -252,8 +256,8 @@ async function actionTarget(
 		return { status: 'not-applicable', detail: 'its `when` declines the sample' };
 	}
 	const answer = entry.spec.run(stage.editor, second);
-	if (isThenable(answer)) await answer;
-	await stage.idle();
+	if (isThenable(answer)) await stage.within(answer, 'it');
+	await stage.idle('it');
 	const inserted = stage.writes.find((write) => write.startsWith('an insert'));
 	if (!stage.source().startsWith(kept) || inserted) {
 		const how = inserted ? `made ${inserted} at the caret` : 'wrote the first block';

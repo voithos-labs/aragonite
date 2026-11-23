@@ -467,7 +467,9 @@ const RULES: FileRule[] = [
 			'packages/highlight-occurrences/src/highlight-occurrences-plugin.ts':
 				'setTimeout typing pause before the occurrence marks return, a pause detection tick() cannot express',
 			'src/lib/search/regex-executor.ts':
-				'setTimeout regex-scan cancellation deadline: nothing waits on the timer, and no main-thread budget can interrupt one RegExp.exec'
+				'setTimeout regex-scan cancellation deadline: nothing waits on the timer, and no main-thread budget can interrupt one RegExp.exec',
+			'src/lib/testing/check-context.ts':
+				"setTimeout deadline on a plugin's own promise under `check`: a row fails once it passes, and nothing is ordered by it"
 		},
 		reason:
 			'`await tick()` is the only sequencing primitive; a timing primitive that is a cadence or a wall-clock deadline joins the allowlist with why',

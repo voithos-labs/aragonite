@@ -223,7 +223,7 @@ expect(tabOrder(target.querySelector('.editor')!)).toBeNull();
 
 ### Checking a plugin value: `check`
 
-**`check(plugin, { options?, excuse?, warningsFail? })`**
+**`check(plugin, { options?, excuse?, warningsFail?, timeout? })`**
 
 For a plugin made with `definePlugin({ name, version, editor, contributes })`. It installs your plugin the way an editor does, with its defaults and with `options`, then runs every check over every sample of everything it lists (block types, inline constructs, commands, menus, rewrites, paint, a highlighter), read the way your plugin's own editor reads it. It wants dev checks on (they are under Vitest) and no DOM.
 
@@ -262,6 +262,8 @@ Each command is a subject under `plugin/id`, a block action's command included; 
 - `actionTarget`, for a command a block type places: it runs on the second of two sample blocks with the caret in the first, and fails if it writes the first or inserts at the caret. A command that only asked the screen reads `unchecked`.
 
 These share one editor, as a mounted editor is shared: your `setup` runs on it once before them where there's a DOM, and the function it returns after them and the rows below. With no DOM, a plugin that lists a `setup` gets them `unchecked`.
+
+Each wait of yours gets `timeout` milliseconds, 2000 unless you say: a command's or a pick's promise, a menu's `rows`, a highlighter's answer. One that outlasts it fails its row and says so. Answer the wait at once through `options` (a stubbed fetch), or raise `timeout`. Your `setup` is called and never awaited, so it has no wait to bound.
 
 The rest are read, not driven:
 
@@ -608,7 +610,7 @@ aragonite-plugin-check: passed
 
 Each row gets a line, with its detail where it didn't pass, then a count of each status.
 
-It exits 0 when nothing failed (unchecked rows are counted, not failed), 1 when a check failed (with the message the run threw), and 2 when the package publishes no suite. `--json` also writes the result and its rows to a file.
+It exits 0 when nothing failed (unchecked rows are counted, not failed), 1 when a check failed (with the message the run threw), and 2 when the package publishes no suite. `--json` also writes the result and its rows to a file. Each wait gets `check`'s two seconds, and the command exits once it has answered, whatever timer your plugin left running.
 
 The suite ships in your package, so keep its source to your plugin's own imports plus `import type` from `@voithos-labs/aragonite/testing`: a host never loads it, and it shouldn't drag the test kits into anyone's install.
 

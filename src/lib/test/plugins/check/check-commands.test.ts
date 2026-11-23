@@ -1,7 +1,7 @@
 // @vitest-environment node
 // `check` drives what a plugin runs: a command or a pick that waits writes nothing once the host
 // loads another note, and a block's command writes the block it is handed, not the caret's.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	command,
 	definePlugin,
@@ -269,5 +269,97 @@ describe('actionTarget', () => {
 		});
 		const idle = acting('idle', () => false);
 		expect(rowOf(await check(idle), 'idle/shout', 'actionTarget')?.status).toBe('not-applicable');
+	});
+});
+
+// Miss: every waiting fixture settled, so a wait that never ends hung `check` and no row said so.
+describe('a wait that outlasts the bound', () => {
+	afterEach(() => void vi.useRealTimers());
+
+	const never = () => new Promise<never>(() => {});
+	/** A promise the test settles by hand. */
+	function held() {
+		let release!: () => void;
+		const wait = new Promise<void>((resolve) => (release = resolve));
+		return { wait, release };
+	}
+
+	it('fails a command whose wait never ends, with a detail naming the bound', async () => {
+		const stuck = commanding('stuck', never);
+		const row = rowOf(await reportOf(check(stuck, { timeout: 30 })), 'stuck/go', 'waitingWrite');
+		expect(row).toMatchObject({ of: 'command', status: 'failed' });
+		expect(row?.detail).toMatch(/^it did not settle within 30 ms.*`timeout`/);
+	});
+
+	it('waits two seconds unless told, under a test runner’s own five', async () => {
+		vi.useFakeTimers();
+		let ended = false;
+		const run = reportOf(check(commanding('stuck-default', never))).finally(() => (ended = true));
+		await vi.advanceTimersByTimeAsync(1999);
+		expect(ended).toBe(false);
+		await vi.advanceTimersByTimeAsync(1);
+		expect(rowOf(await run, 'stuck-default/go', 'waitingWrite')?.status).toBe('failed');
+	});
+
+	it('refuses a bound that is no positive number of milliseconds', async () => {
+		const fine = commanding('fine', () => true);
+		await expect(check(fine, { timeout: 0 })).rejects.toThrow(/timeout/);
+		await expect(check(fine, { timeout: '5s' as never })).rejects.toThrow(/timeout/);
+	});
+
+	it('fails a menu whose rows never come', async () => {
+		const stuck = pluginOf('stuck-rows', () => ({
+			menus: [menu<MenuRow>({ label: 'Stuck', trigger: '@', rows: never, pick: () => {} })]
+		}));
+		const row = rowOf(await reportOf(check(stuck, { timeout: 30 })), '@', 'waitingWrite');
+		expect(row).toMatchObject({ of: 'menu', status: 'failed' });
+		expect(row?.detail).toMatch(/its rows for an empty query did not settle within 30 ms/);
+	});
+
+	it('fails a pick that never settles, and drives the menu after it alone', async () => {
+		const picking = (trigger: string, pick: () => unknown) =>
+			menu<MenuRow>({
+				label: trigger,
+				trigger,
+				rows: () => [{ label: 'Ada' }],
+				pick: pick as never
+			});
+		const both = pluginOf('stuck-pick', () => ({
+			menus: [picking('@', never), picking('%', async () => void (await Promise.resolve()))]
+		}));
+		const report = await reportOf(check(both, { timeout: 30 }));
+		expect(rowOf(report, '@', 'waitingWrite')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/^its pick of "Ada" did not settle within 30 ms/)
+		});
+		expect(rowOf(report, '%', 'waitingWrite')?.status).toBe('passed');
+	});
+
+	it('leaves a call that settles past the bound behind: the next row reads as it does alone', async () => {
+		vi.useFakeTimers();
+		const [first, second] = [held(), held()];
+		const slow = command({ id: 'slow', title: 'Slow', run: (() => first.wait) as never });
+		const early = command({
+			id: 'early',
+			title: 'Early',
+			run: (async (editor: Editor) => {
+				const draft = editor.edit().replace({ from: 0, to: 0 }, 'x');
+				await second.wait;
+				await draft.commit();
+			}) as never
+		});
+		const plugin = pluginOf('slow-then-early', () => ({ commands: [slow, early] }));
+		const run = reportOf(check(plugin, { timeout: 30 }));
+		await vi.advanceTimersByTimeAsync(30);
+		// `slow` settles while `early` is waiting, as a call just past its bound would.
+		first.release();
+		await vi.advanceTimersByTimeAsync(0);
+		second.release();
+		const report = await run;
+		expect(rowOf(report, 'slow-then-early/slow', 'waitingWrite')?.status).toBe('failed');
+		expect(rowOf(report, 'slow-then-early/early', 'waitingWrite')).toMatchObject({
+			status: 'passed',
+			detail: 'it waited, and wrote nothing into the next note'
+		});
 	});
 });

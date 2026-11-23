@@ -59,6 +59,10 @@ export async function check<O extends object>(
 				'configureEditorEnv({ isDev: true }) from @voithos-labs/aragonite/testing first'
 		);
 	}
+	const { timeout } = options;
+	if (timeout !== undefined && !(Number.isFinite(timeout) && timeout > 0)) {
+		throw new Error(`check(${plugin.name}): \`timeout\` is a positive number of milliseconds`);
+	}
 	const warnings: { tag: string; message: string }[] = [];
 	const previous = setDevWarnSink(({ tag, message }) => warnings.push({ tag, message }));
 	let rows: CheckRow[];
@@ -88,6 +92,9 @@ export interface CheckOptions<O extends object> {
 	excuse?: Excuses;
 	/** A dev warning raised during the run fails it. Default true. */
 	warningsFail?: boolean;
+	/** How long each wait of the plugin's may last, in milliseconds, before its row fails: a command's
+	 *  or a pick's promise, a menu's `rows`, a highlighter's answer. Default 2000. */
+	timeout?: number;
 }
 
 export type CheckStatus =
@@ -219,7 +226,7 @@ async function rowsOf(
  *  hold them, so a fact that differs by option warns. No run comes back where installing threw. */
 function install(
 	plugin: Plugin<object>,
-	{ options, warningsFail }: CheckOptions<object>,
+	{ options, warningsFail, timeout }: CheckOptions<object>,
 	warnings: Warnings
 ): { row: CheckRow; run: PluginCheckRun | null } {
 	const problems: string[] = [];
@@ -227,9 +234,9 @@ function install(
 	const before = warnings.length;
 	let run: PluginCheckRun | null = null;
 	try {
-		const defaults = pluginCheckContext([plugin], report);
+		const defaults = pluginCheckContext([plugin], report, timeout);
 		try {
-			run = options ? pluginCheckContext([plugin(options)], report) : defaults;
+			run = options ? pluginCheckContext([plugin(options)], report, timeout) : defaults;
 		} finally {
 			if (run !== defaults) defaults.release();
 		}

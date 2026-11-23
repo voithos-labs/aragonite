@@ -115,6 +115,8 @@ export interface PluginCheckRun {
 	stage(source: string): Stage;
 	/** The list's own syntax read with the plugins `activation` turns on, `setup` plugins among them. */
 	readingWith(activation: PluginActivation): CheckContext;
+	/** `wait`, or a throw of {@link Unsettled} naming `what` once it outlasts the run's bound. */
+	within<T>(wait: T | PromiseLike<T>, what: string): Promise<T>;
 	release(): void;
 }
 
@@ -127,8 +129,11 @@ export interface Stage {
 	readonly screen: readonly string[];
 	/** Whether a write the plugin started through the editor is still going. */
 	busy(): boolean;
-	/** Settles once no write the plugin started through the editor is still going. */
-	idle(): Promise<void>;
+	/** Settles once no write `what` started through the editor is still going; throws
+	 *  {@link Unsettled} where one outlasts the run's bound. */
+	idle(what: string): Promise<void>;
+	/** `wait`, or a throw of {@link Unsettled} naming `what` once it outlasts the run's bound. */
+	within<T>(wait: T | PromiseLike<T>, what: string): Promise<T>;
 	/** Puts the caret at byte `at`. */
 	caret(at: number): void;
 	/** Loads `text` as a host's `load` does: every draft opened before it is refused. */
@@ -145,11 +150,32 @@ export interface Stage {
 	pick(trigger: string, query: string): MenuPick;
 }
 
+/** How long a wait of the plugin's may last unless `check` is told: under a test runner's own five
+ *  seconds, so an author reads the row and not the runner's timeout. */
+const BOUND_MS = 2000;
+
+/** A wait of the plugin's that outlasted the run's bound; the row driving it fails with its message. */
+export class Unsettled extends Error {}
+
+function within<T>(wait: T | PromiseLike<T>, ms: number, what: string): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const said =
+			`${what} did not settle within ${ms} ms, the longest \`check\` waits on one call: answer ` +
+			'the wait at once through `options`, or raise `timeout`';
+		// A deadline: nothing is ordered by it, and it is cleared the moment the wait settles.
+		const deadline = setTimeout(() => reject(new Unsettled(said)), ms);
+		Promise.resolve(wait)
+			.then(resolve, reject)
+			.finally(() => clearTimeout(deadline));
+	});
+}
+
 /** Installs `plugins` the way an editor's list does, in its order, each problem handed to
- *  `report`. */
+ *  `report`; a wait of theirs is given `bound` milliseconds. */
 export function pluginCheckContext(
 	plugins: PluginList,
-	report: (error: PluginError) => void
+	report: (error: PluginError) => void,
+	bound: number = BOUND_MS
 ): PluginCheckRun {
 	let current: (Stage & { read: DocumentRead }) | undefined;
 	const list = listGrammar(plugins, report, {
@@ -159,7 +185,7 @@ export function pluginCheckContext(
 	});
 	const context = checkContext(list.grammar);
 	const stage = (source: string) =>
-		(current = standIn(context, source, list.units, list.contributions));
+		(current = standIn(context, source, list.units, list.contributions, bound));
 	return {
 		context,
 		units: list.units,
@@ -176,6 +202,7 @@ export function pluginCheckContext(
 					inlines: () => list.inlines
 				})
 			),
+		within: (wait, what) => within(wait, bound, what),
 		release: list.release
 	};
 }
@@ -236,7 +263,8 @@ function standIn(
 	context: CheckContext,
 	source: string,
 	units: readonly InstalledPlugin[],
-	contributions: EditorContributions
+	contributions: EditorContributions,
+	bound: number
 ): Stage & { read: DocumentRead } {
 	let version = 0;
 	const headless = context.headless(source, { bumpContentVersion: () => version++ });
@@ -343,9 +371,11 @@ function standIn(
 		writes,
 		screen,
 		busy: () => going.size > 0,
-		async idle() {
-			while (going.size > 0) await Promise.allSettled([...going]);
+		async idle(what) {
+			const started = `a write ${what} started through the editor`;
+			while (going.size > 0) await within(Promise.allSettled([...going]), bound, started);
 		},
+		within: (wait, what) => within(wait, bound, what),
 		caret: (at) => void (caret = at),
 		swap(text) {
 			if (!startsAlone({ starts: deps.starts, events: headless.events })) return;

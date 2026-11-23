@@ -12,7 +12,7 @@ import { nestedTokens } from '../schema/code-highlighter';
 import type { Block } from '../schema/doc-view';
 import type { Contribution } from '../schema/plugin-unit';
 import type { PluginCheck } from './check-names';
-import type { PluginCheckRun } from './check-context';
+import { Unsettled, type PluginCheckRun } from './check-context';
 import type { Outcome } from './inline-check';
 import { show } from './conformance-core';
 
@@ -34,7 +34,7 @@ export async function paintOutcomes(
 	if (own?.paint || own?.paintContainer) {
 		out.push(['paintRanges', paintRanges(run, plugin, own, samples, warnings, warningsFail)]);
 	}
-	if (own?.code) out.push(['codeTokens', await codeTokens(own.code, samples.join('\n'))]);
+	if (own?.code) out.push(['codeTokens', await codeTokens(run, own.code, samples.join('\n'))]);
 	return out;
 }
 
@@ -117,14 +117,20 @@ function paintRanges(
 }
 
 /** `body` highlighted in each language the highlighter lists. */
-async function codeTokens(code: NonNullable<Contribution['code']>, body: string): Promise<Outcome> {
+async function codeTokens(
+	run: PluginCheckRun,
+	code: NonNullable<Contribution['code']>,
+	body: string
+): Promise<Outcome> {
 	const problems: string[] = [];
 	let tokens = 0;
 	for (const { name } of code.languages()) {
 		let answer;
 		try {
-			answer = await code.highlight(body, name);
+			answer = await run.within(code.highlight(body, name), name);
 		} catch (error) {
+			// One wait that never ends is likely every language's: the rest would each cost the bound.
+			if (error instanceof Unsettled) return failed(error.message);
 			problems.push(`${name} threw: ${messageOf(error)}`);
 			continue;
 		}

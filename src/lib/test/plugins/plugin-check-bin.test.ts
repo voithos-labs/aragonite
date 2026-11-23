@@ -1,7 +1,7 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
-import { definePlugin } from '#lib/plugin.js';
+import { command, definePlugin } from '#lib/plugin.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import {
 	manifestAbove,
@@ -51,6 +51,29 @@ describe('aragonite-plugin-check', () => {
 		const failed = await runSuite({ plugins: [parrotPlugin()] });
 		expect(failed.result).toBe('fail');
 		expect(failed.rows.map((r) => r.detail)).toEqual([expect.stringMatching(/check\(plugin\)/)]);
+	});
+
+	afterEach(() => void vi.useRealTimers());
+
+	// Miss: every suite the bin ran settled; one whose command never did ended Node with no row.
+	it('answers a failed row, not a hang, for a suite whose command never settles', async () => {
+		vi.useFakeTimers();
+		const stuck = definePlugin({
+			name: 'bin-stuck',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				commands: [command({ id: 'go', title: 'Go', run: () => new Promise<never>(() => {}) })]
+			})
+		});
+		const run = runSuite({ plugin: stuck });
+		await vi.advanceTimersByTimeAsync(2000);
+		const outcome = await run;
+		expect(outcome.result).toBe('fail');
+		expect(outcome.rows.find((row) => row.check === 'waitingWrite')).toMatchObject({
+			subject: 'bin-stuck/go',
+			status: 'failed'
+		});
 	});
 
 	it('checks the package a directory holds, or a name resolved from the working directory', () => {

@@ -94,6 +94,31 @@ describe('codeTokens', () => {
 		expect((await rowOf(check(past), 'codeTokens'))?.status).toBe('failed');
 	});
 
+	// Miss: no fixture's highlighter waited, so one that never answers hung the row.
+	it('fails a highlighter that never answers, and asks it no further language', async () => {
+		const asked: string[] = [];
+		const stuck = definePlugin({
+			name: 'stuck-code',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				code: {
+					languages: () => [{ name: 'toy' }, { name: 'other' }],
+					highlight: (_body: string, language: string) => (
+						asked.push(language),
+						new Promise<null>(() => {})
+					)
+				}
+			})
+		});
+		const row = await rowOf(check(stuck, { timeout: 30 }), 'codeTokens');
+		expect(row).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/^toy did not settle within 30 ms/)
+		});
+		expect(asked).toEqual(['toy']);
+	});
+
 	it('passes the bundled highlighter over every language it lists', async () => {
 		const row = await rowOf(
 			check(highlight, { options: { renderer: highlightJs() } }),
