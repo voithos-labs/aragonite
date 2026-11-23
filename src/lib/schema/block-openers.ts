@@ -11,7 +11,11 @@ import { flushPendingRegistrationChecks } from './registration-checks';
 import type { RegistryRecord } from './plugin-registry';
 import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
 import { pluginInstallGeneration } from './plugin-install';
-import { onBlockKindChange, openerRecords } from './block-kind-descriptor';
+import {
+	onBlockKindChange,
+	openerRecords,
+	tryGetBlockKindDescriptor
+} from './block-kind-descriptor';
 import { registerBuiltInDescriptors } from './built-in-descriptors';
 
 /** Created fresh for each block and read synchronously; never keep it past the call. */
@@ -201,7 +205,7 @@ export function waitingReading(
  *  block a closer typed below finishes, so that line opens nothing; -1 when there is none. */
 export function waitingAboveClosedBy(
 	written: readonly string[],
-	rawAbove: (index: number) => string,
+	above: (index: number) => Waiter,
 	count: number,
 	readings: readonly UnfinishedReading[]
 ): number {
@@ -211,22 +215,40 @@ export function waitingAboveClosedBy(
 	if (closing.length === 0) return -1;
 	let top = -1;
 	for (let i = count - 1; i >= 0; i--) {
-		if (closing.some((reading) => reading.notFinal(rawAbove(i)))) top = i;
+		if (closedWaitsOf(above(i), closing).length > 0) top = i;
 	}
 	return top;
 }
 
-/** A block's bytes and the blank lines above it, all the look for a wait reads of it. */
-interface Held {
+/** The readings of `readings` a line below closes, under which `block` waits. */
+export function closedWaitsOf(
+	block: Waiter,
+	readings: readonly UnfinishedReading[]
+): ClosedReading[] {
+	if (!readsItsOwnBytes(block)) return [];
+	return closed(readings).filter((reading) => reading.notFinal(block.raw));
+}
+
+/** A block's bytes and its kind, all a wait reads of it. */
+export interface Waiter {
 	readonly raw: string;
+	readonly kind: AnyBlockKind;
+}
+
+/** A block's bytes, kind and the blank lines above it, all the look for a wait reads of it. */
+interface Held extends Waiter {
 	readonly leadingTrivia: string;
 }
+
+// A kind with no reading of its own (a title row, a table cell) holds no opener, so it never waits.
+const readsItsOwnBytes = (block: Waiter): boolean =>
+	!tryGetBlockKindDescriptor(block.kind)?.contextDependentKind;
 
 const unclosed = (readings: readonly UnfinishedReading[]): UnclosedReading[] =>
 	readings.filter((reading): reading is UnclosedReading => reading.closer === null);
 
 /** Whether a wait under `reading` runs on into `below`, the block right under the waiting one. */
-function reaches(reading: UnclosedReading, below: Held): boolean {
+function reaches(reading: UnclosedReading, below: Pick<Held, 'raw' | 'leadingTrivia'>): boolean {
 	if (below.leadingTrivia !== '') return false;
 	const end = below.raw.indexOf('\n');
 	const line = (end < 0 ? below.raw : below.raw.slice(0, end)).replace(/\r$/, '');
@@ -257,7 +279,9 @@ export function waitingInto(
 	if (live.length === 0) return -1;
 	const above = waitingPast(block, at - 1, floor, live);
 	if (above >= 0) return above;
-	return live.some((reading) => reading.notFinal(block(at - 1).raw)) ? at - 1 : -1;
+	const upper = block(at - 1);
+	if (!readsItsOwnBytes(upper)) return -1;
+	return live.some((reading) => reading.notFinal(upper.raw)) ? at - 1 : -1;
 }
 
 /** What a block answered with the first line of the block under it, kept on that lower block. */
@@ -331,7 +355,7 @@ function waitingPast(
 		let bytes = aboveRaw;
 		// Asked with the next line alone, then with twice the blocks each time: a block a few lines
 		// settle stays settled with more under them, so it is never handed the whole run.
-		let waiting = first.waiting;
+		let waiting = readsItsOwnBytes(above) ? first.waiting : [];
 		for (let k = i, step = 1; k <= from && waiting.length > 0; step *= 2) {
 			for (const end = Math.min(from, k + step - 1); k <= end; k++) bytes += block(k).raw;
 			waiting = waiting.filter((reading) => reading.notFinal(bytes));

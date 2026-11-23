@@ -3,13 +3,14 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Typing that grows a `:::` fence, key by key in both modes: the caret stays where the
+ * Typing that grows or nests a `:::` fence, key by key in both modes: the caret stays where the
  * key typed, as an exact byte, and the tree reads as a reload would. Requirements:
  * e2e/requirements/plugins/opener-fence-growth.md.
  */
 
 const NEST = '::::note Outer\n:::tip Inner\nin\n:::\n::::\n';
 const GROWN = ':::::note Outer\n::::tip Inner\nin\n::::\n:::::\n';
+const CONTAINER = [':::tip', 'Enter', 'in', 'Enter', ':::'];
 
 interface Row {
 	name: string;
@@ -44,6 +45,22 @@ const ROWS: Row[] = [
 		keys: [':'],
 		bytes: GROWN,
 		caret: '[0,1,0]:4'
+	},
+	{
+		name: 'a container typed as a body first line is read at its closer',
+		source: '::::note\n\n::::\n',
+		at: [[0, 1], 0],
+		keys: CONTAINER,
+		bytes: '::::note\n\n:::tip\n\nin\n\n:::\n::::\n',
+		caret: '[0,1,1]:2'
+	},
+	{
+		name: 'a container typed after a body line is read at its closer',
+		source: '::::note\nbody\n::::\n',
+		at: [[0, 1], 4],
+		keys: ['Enter', ...CONTAINER],
+		bytes: '::::note\nbody\n\n:::tip\n\nin\n\n:::\n::::\n',
+		caret: '[0,2,1]:2'
 	}
 ];
 
@@ -57,7 +74,7 @@ async function caretText(page: Page): Promise<string> {
 }
 
 for (const mode of ['source', 'live'] as const) {
-	test.describe(`typing that grows a ::: fence, ${mode} mode`, () => {
+	test.describe(`typing that grows or nests a ::: fence, ${mode} mode`, () => {
 		for (const row of ROWS) {
 			test(row.name, async ({ page }) => {
 				const editor = new PluginsPage(page);

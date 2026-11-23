@@ -17,7 +17,7 @@ import { opened } from '#lib/test/exhaustive/edit-driver.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
-type Held = Pick<CstNode, 'raw' | 'leadingTrivia'>;
+type Held = Pick<CstNode, 'raw' | 'leadingTrivia' | 'kind'>;
 
 /** A reading no line closes, as a plugin declares one: a block opening with `mark` waits until a
  *  line ends in it. */
@@ -93,14 +93,18 @@ function apply(list: Held[], step: Step): void {
 		list.splice(step.to % (list.length + 1), 0, node);
 	} else if ('twin' in step) {
 		const i = pick(step.twin);
-		list.splice(i + 1, 0, { raw: list[i].raw, leadingTrivia: '' });
+		list.splice(i + 1, 0, { raw: list[i].raw, leadingTrivia: '', kind: list[i].kind });
 	}
 }
 
 /** Every join where the kept look and a look over fresh copies differ. */
 function differences(list: readonly Held[], readings: readonly UnfinishedReading[]): string[] {
 	const kept = (i: number) => list[i];
-	const fresh = (i: number) => ({ raw: list[i].raw, leadingTrivia: list[i].leadingTrivia });
+	const fresh = (i: number) => ({
+		raw: list[i].raw,
+		leadingTrivia: list[i].leadingTrivia,
+		kind: list[i].kind
+	});
 	const out: string[] = [];
 	for (let j = 1; j < list.length; j++) {
 		const into = [waitingInto(kept, j, 0, readings), waitingInto(fresh, j, 0, readings)];

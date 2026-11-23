@@ -210,8 +210,8 @@ function waitedOn(
 	grammar: GrammarView
 ): boolean {
 	const readings = unfinishedReadings(grammar);
-	const { leadingTrivia } = tops[index];
-	const as = (raw: string) => (i: number) => (i === index ? { raw, leadingTrivia } : tops[i]);
+	const { leadingTrivia, kind } = tops[index];
+	const as = (raw: string) => (i: number) => (i === index ? { raw, leadingTrivia, kind } : tops[i]);
 	return [tops[index].raw, ...(written === null ? [] : [written])].some(
 		(raw) => waitingInto(as(raw), index, 0, readings) >= 0
 	);
