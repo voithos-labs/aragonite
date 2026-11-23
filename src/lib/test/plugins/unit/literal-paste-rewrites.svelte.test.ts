@@ -176,6 +176,18 @@ describe('a paste into literal text asks no rewrite', () => {
 	});
 });
 
+describe('a paste at a link definition', () => {
+	it('is read by a whole-paste rewrite, since its lines land as blocks under it', async () => {
+		const { plugin, asked } = rewriting();
+		const editor = await mounted('[ref]: /url\n', [plugin]);
+		await select(editor, point([0], 11));
+		document.activeElement!.dispatchEvent(pasteEvent('one!!\n\ntwo'));
+		await editor.settle();
+		expect(asked[0]).toBe('whole one!!\n\ntwo');
+		expect(editor.source()).toContain('ONE!!');
+	});
+});
+
 describe('a paste into a title row', () => {
 	it('is read by a whole-paste rewrite, as inline Markdown', async () => {
 		const { plugin, asked } = rewriting();

@@ -26,7 +26,7 @@ import { placeAfterBlock, placeOfGap, type PasteAim } from '../../selection/rang
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import { blockFacts, holdsLiteralText } from '../../schema/block-facts';
+import { blockFacts, holdsLiteralBody } from '../../schema/block-facts';
 import { createImagePasteArm } from '../paste-image-arm';
 import {
 	wholeRewritten,
@@ -143,12 +143,12 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 			: rewritten(clip);
 	}
 
-	/** Whether the text block at `path` holds literal text: a code body, a shown source. */
+	/** Whether the text block at `path` holds a literal body: a code body, a shown source. */
 	function literalAt(path: number[]): boolean {
 		const doc = ctx.getDoc();
 		const node = blockNodeAt(doc, path);
 		const parent = path.length > 1 ? blockNodeAt(doc, path.slice(0, -1)) : null;
-		return !!node && holdsLiteralText(blockFacts, node.kind, parent?.kind);
+		return !!node && holdsLiteralBody(blockFacts, node.kind, parent?.kind);
 	}
 
 	/** `holder` read into a paste, or null where the editor takes no write; the whole-paste
