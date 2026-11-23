@@ -2,7 +2,7 @@
  * `check`'s rows over what a plugin lays over the document: `paintRanges` places each `Paint` its
  * `paint` answers for a sample the way the editor places it, and `codeTokens` nests each token its
  * highlighter answers the way the editor draws them. The editor's own rule decides both; a paint it
- * leaves out says so in a dev warning, which fails the row.
+ * leaves out says so in a dev warning, which fails the row whether or not warnings fail the run.
  */
 
 import { walkBlocks } from '../core/paths';
@@ -23,8 +23,7 @@ export async function paintOutcomes(
 	run: PluginCheckRun,
 	plugin: string,
 	own: Contribution | undefined,
-	warnings: Warnings,
-	warningsFail: boolean
+	warnings: Warnings
 ): Promise<[PluginCheck, Outcome][]> {
 	const out: [PluginCheck, Outcome][] = [];
 	const samples = [
@@ -32,7 +31,7 @@ export async function paintOutcomes(
 		...run.kinds.flatMap((kind) => run.context.descriptor(kind).samples ?? [])
 	];
 	if (own?.paint || own?.paintContainer) {
-		out.push(['paintRanges', paintRanges(run, plugin, own, samples, warnings, warningsFail)]);
+		out.push(['paintRanges', paintRanges(run, plugin, own, samples, warnings)]);
 	}
 	if (own?.code) out.push(['codeTokens', await codeTokens(run, own.code, samples.join('\n'))]);
 	return out;
@@ -49,8 +48,7 @@ function paintRanges(
 	plugin: string,
 	own: Contribution,
 	samples: readonly string[],
-	warnings: Warnings,
-	warningsFail: boolean
+	warnings: Warnings
 ): Outcome {
 	const before = warnings.length;
 	let painted = 0;
@@ -101,9 +99,7 @@ function paintRanges(
 	// The paint source warns where it leaves a paint out; any warning while it was asked counts.
 	const missed = warnings.slice(before);
 	if (threw.length > 0) return failed(threw.join('; '));
-	if (warningsFail && missed.length > 0) {
-		return failed(missed.map(({ message }) => message).join('; '));
-	}
+	if (missed.length > 0) return failed(missed.map(({ message }) => message).join('; '));
 	if (painted === 0) {
 		return {
 			status: 'not-applicable',
@@ -145,5 +141,11 @@ async function codeTokens(
 		}
 	}
 	if (problems.length > 0) return failed(problems.join('; '));
+	if (tokens === 0) {
+		return {
+			status: 'not-applicable',
+			detail: `answered no token in ${code.languages().length} language(s), so none was nested`
+		};
+	}
 	return { status: 'passed', detail: `${tokens} token(s) nest inside the text` };
 }

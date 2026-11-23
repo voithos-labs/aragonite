@@ -207,8 +207,7 @@ async function rowsOf(
 				const outcome = rewriteOutcome(run, from, entries);
 				rows.push({ of: 'rewrite', subject: from, check: 'rewriteLands', ...outcome });
 			}
-			const warningsFail = options.warningsFail !== false;
-			const painted = await paintOutcomes(run, plugin.name, own, warnings, warningsFail);
+			const painted = await paintOutcomes(run, plugin.name, own, warnings);
 			for (const [check, outcome] of painted) {
 				rows.push({ of: 'plugin', subject: plugin.name, check, ...outcome });
 			}

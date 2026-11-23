@@ -40,6 +40,16 @@ describe('paintRanges', () => {
 		expect(row?.detail).toMatch(/isn't its block's text/);
 	});
 
+	// Miss: the one-byte-past row ran with warnings failing, the only setting that read the drop.
+	it('fails a paint the editor leaves out, whether or not warnings fail the run', async () => {
+		const past = painting('past-quiet', (block) => [mark(block.from, block.to + 1)]);
+		const row = await rowOf(check(past, { warningsFail: false }), 'paintRanges');
+		expect(row).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/isn't its block's text/)
+		});
+	});
+
 	it('fails a paint that throws, naming the block', async () => {
 		const throws = painting('throws', () => {
 			throw new Error('no paint for you');
@@ -92,6 +102,26 @@ describe('codeTokens', () => {
 		expect((await rowOf(check(crossing), 'codeTokens'))?.detail).toMatch(/toy: 1 token/);
 		const past = highlighting('beyond', (body) => [{ from: 0, to: body.length + 1, class: 'a' }]);
 		expect((await rowOf(check(past), 'codeTokens'))?.status).toBe('failed');
+	});
+
+	// Miss: every fixture's highlighter answered tokens, so one that answers none read as passed.
+	it.each<[string, string[], () => readonly CodeToken[] | null]>([
+		['answers no token', ['toy'], () => null],
+		['answers an empty list', ['toy'], () => []],
+		['lists no language', [], () => [{ from: 0, to: 1, class: 'a' }]]
+	])('reads not-applicable for a highlighter that %s', async (_name, languages, answer) => {
+		const silent = definePlugin({
+			name: 'silent-code',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				code: { languages: () => languages.map((name) => ({ name })), highlight: answer }
+			})
+		});
+		expect(await rowOf(check(silent), 'codeTokens')).toMatchObject({
+			status: 'not-applicable',
+			detail: expect.stringMatching(/no token/)
+		});
 	});
 
 	// Miss: no fixture's highlighter waited, so one that never answers hung the row.

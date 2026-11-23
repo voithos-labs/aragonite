@@ -256,7 +256,7 @@ An inline construct is one subject, and so is a marker pair, both its sides. Eac
 - `inlinePlace`, for an inline or a mark with `after`: an inline's names a construct on its own character, a mark's names a mark.
 - `pairSides`, for a marker pair: each side reads alone in a block, and both sides of one pair read one `key`.
 
-Each command is a subject under `plugin/id`, a block action's command included; a mark's toggle is the mark's business. Menus are one subject per trigger. The check runs them against an editor over a sample, with nothing on screen:
+Each command is a subject under `plugin/id`, a block action's command included; a mark's toggle is the mark's business. Menus are one subject per trigger. The check runs them against an editor over a sample, with nothing on screen and the caret in the note (in the block a placed command is handed, after a menu's trigger):
 
 - `waitingWrite`, for a command and for a menu's first row picked on an empty query: once the call waits, the host loads another note, and any write after that fails. The `MenuPick` and a draft opened before the wait are refused on their own, so write through those. A call that returns no promise has no wait, so the row is `not-applicable`.
 - `actionTarget`, for a command a block type places: it runs on the second of two sample blocks with the caret in the first, and fails if it writes the first or inserts at the caret. A command that only asked the screen reads `unchecked`.
@@ -268,8 +268,8 @@ Each wait of yours gets `timeout` milliseconds, 2000 unless you say: a command's
 The rest are read, not driven:
 
 - `rewriteLands`, one subject per type you rewrite, by its full name (`paragraph`, `alerts/alert`): each of its samples is pasted with a block after it, at the top and inside a container. The answer has to leave both standing, and a paste of the answer can't be rewritten again, or each paste grows it. An unclosed fence fails it.
-- `paintRanges`, for `paint` or `paintContainer`: what you answer for every built-in sample and yours, asked through the editor's own paint source, lands inside its block. A paint that answers later (a dictionary still loading) paints nothing on the first ask, so hand a source that answers at once through `options`.
-- `codeTokens`, for `code`: your tokens for each language you list nest inside the body. Runs may nest; two that cross fail.
+- `paintRanges`, for `paint` or `paintContainer`: what you answer for every built-in sample and yours, asked through the editor's own paint source, lands inside its block; one the editor leaves out fails the row even with `warningsFail: false`. A paint that answers later (a dictionary still loading) paints nothing on the first ask, so hand a source that answers at once through `options`.
+- `codeTokens`, for `code`: your tokens for each language you list nest inside the body. Runs may nest; two that cross fail. A highlighter that answers no token is `not-applicable`, so hand one that answers at once through `options`.
 
 An excuse covers a check your block type or inline can't pass, with a reason of a sentence: `excuse: { blocks: { memo: { undo: '…' } } }`, `{ inlines: { formula: { widget: '…' } } }`, `{ commands: { fetch: { waitingWrite: '…' } } }` by the command's own id, or `{ menus: { '@': { waitingWrite: '…' } } }` by trigger; `rewrites` is keyed by the type's full name and takes none yet. It's a claim, not a waiver. One over a check that passed, a check that doesn't apply, or a subject you don't list fails the run, and a misspelt check or one no excuse covers doesn't compile. Your package's `./conformance` export is the same call as data, a `Conformance`: `{ plugin, options?, excuse? }`, the plugin value itself rather than a call of it.
 
