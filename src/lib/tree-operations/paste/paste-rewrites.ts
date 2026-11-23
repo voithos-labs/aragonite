@@ -1,10 +1,10 @@
 /**
- * The one place a paste's rewrites run. The whole-paste rewrites read every paste first, in plugin
- * list order, before anything reads where it lands (`wholeRewritten`, at the paste entry). Then,
+ * The one place a paste's rewrites run. The whole-paste rewrites read every paste the entry hands
+ * them first, in plugin list order, before anything reads where it lands (`wholeRewritten`). Then,
  * wherever the paste lands as blocks (the range-edit core's host, a table cell, the block menu's
  * Replace with clipboard), each plugin value's rewrites by block type, outermost block first, then
- * the process-wide paste transforms. Plain text, the editor's own copy and a program's own insert
- * are never rewritten.
+ * the process-wide paste transforms. Plain text, the editor's own copy, a paste into code and a
+ * program's own insert are never rewritten.
  */
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';

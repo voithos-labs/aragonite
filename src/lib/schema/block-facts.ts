@@ -67,6 +67,16 @@ export function blockFacts(kind: string): BlockFacts {
 	};
 }
 
+/** Whether a text block of `kind`, inside a block of `parent`, holds literal text (a code body, a
+ *  shown source), which a paste goes into as written; a container's title row reads inline Markdown. */
+export function holdsLiteralText(
+	facts: (kind: string) => BlockFacts,
+	kind: string,
+	parent: string | undefined
+): boolean {
+	return facts(kind).body === 'literal' && (!parent || facts(parent).titleRow?.type !== kind);
+}
+
 // ── Internals ────────────────────────────────────────────────────────────────
 
 // Shapes only these built-ins write, so no registration declares them.

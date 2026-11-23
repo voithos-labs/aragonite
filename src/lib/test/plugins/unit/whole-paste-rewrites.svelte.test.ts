@@ -3,7 +3,7 @@
 // once, before anything reads where the paste lands, and the paste lands as their answer pasted
 // with no plugin would; the editor's own copy and plain text ask none; they chain in list order.
 // Miss-analysis: a content rewrite existed only as a process-wide transform run where a paste lands
-// as blocks, so no row pasted one line into text, a cell or a code body under one.
+// as blocks, so no row pasted one line into text or a cell under one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	blockRewrite,
@@ -129,7 +129,6 @@ const LANDINGS: [string, string, Place, string, Into][] = [
 	['in a table cell', TABLE, select(point([0, 1, 0], 1)), 'wow!! ok', shout],
 	['in a table cell, a grid', TABLE, select(point([0, 1, 0], 1)), 'x!!\ty', shout],
 	['in a table cell, blocks', TABLE, select(point([0, 1, 0], 1)), '> q!!\n\nmore', shout],
-	['in a code body', '```\ncode\n```\n', select(point([0], 8)), 'wow!! ok', shout],
 	['one line answered as two blocks', TEXT, select(point([0], 5)), 'two', () => '# One\n\nTwo'],
 	[
 		'one line in a cell answered as blocks',

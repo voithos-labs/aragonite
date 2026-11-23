@@ -26,6 +26,7 @@ import { placeAfterBlock, placeOfGap, type PasteAim } from '../../selection/rang
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
+import { blockFacts, holdsLiteralText } from '../../schema/block-facts';
 import { createImagePasteArm } from '../paste-image-arm';
 import {
 	wholeRewritten,
@@ -134,11 +135,27 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 	const rewritten = (clip: PastedClip) =>
 		wholeRewritten(clip, ctx.activePlugins, ctx.reading.grammar);
 
+	/** The clip as it lands at `holder`: text pasted into literal text is code, which no rewrite of
+	 *  either form reads. */
+	function rewrittenAt(holder: Holder, clip: PastedClip): RewrittenClip {
+		return holder.at === 'block' && literalAt(holder.path)
+			? { ...clip, asksRewrites: false }
+			: rewritten(clip);
+	}
+
+	/** Whether the text block at `path` holds literal text: a code body, a shown source. */
+	function literalAt(path: number[]): boolean {
+		const doc = ctx.getDoc();
+		const node = blockNodeAt(doc, path);
+		const parent = path.length > 1 ? blockNodeAt(doc, path.slice(0, -1)) : null;
+		return !!node && holdsLiteralText(blockFacts, node.kind, parent?.kind);
+	}
+
 	/** `holder` read into a paste, or null where the editor takes no write; the whole-paste
 	 *  rewrites read the clip before the paste lands. */
 	function aimAt(holder: Holder, now: boolean): AimedPaste | null {
 		const land = landingAt(holder, now);
-		return land && ((clip) => land(rewritten(clip)));
+		return land && ((clip) => land(rewrittenAt(holder, clip)));
 	}
 
 	/** `holder` read into a landing. A paste event's block is asked `now`, before anything waits; a
@@ -233,12 +250,14 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		if (images.length === 0) return void (await aimed(clip));
 		const madeFor = deps.stamps.current();
 		const answered = scriptedClip(await imageArm.run(images), true);
-		const markdown = rewritten(answered);
-		const overRange = !!markdown.text && madeFor.live && deps.selection.ownsRange;
+		const overRange = madeFor.live && deps.selection.ownsRange;
+		const markdown = overRange ? rewrittenAt({ at: 'range' }, answered) : null;
 		// The aim is still asked, with nothing, so a block it prepared lets its records go.
-		const landed = overRange
-			? !(await aimed(scriptedClip('', true))) && (await deps.pasteOverRange(markdown))
-			: await aimed(markdown);
+		const landed = markdown
+			? !(await aimed(scriptedClip('', true))) &&
+				!!markdown.text &&
+				(await deps.pasteOverRange(markdown))
+			: await aimed(answered);
 		if (landed || !answered.text) return;
 		// The asset is imported and nothing shows it, which only the host can clean up.
 		emitClipboardError(deps.events, {

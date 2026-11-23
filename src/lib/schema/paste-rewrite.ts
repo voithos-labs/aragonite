@@ -4,7 +4,7 @@ import type { Block, Doc } from './doc-view';
 import type { BlockType, Editor } from './plugin-unit';
 
 /** Rewrites a whole paste before the editor reads where it lands; never plain text, the editor's
- *  own copy, or Markdown a draft, a pick or an insert row puts in. */
+ *  own copy, a paste into code, or Markdown a draft, a pick or an insert row puts in. */
 export interface PasteRewrite {
 	/** Names its `check` row and its excuse; unique in the plugin. */
 	name: string;

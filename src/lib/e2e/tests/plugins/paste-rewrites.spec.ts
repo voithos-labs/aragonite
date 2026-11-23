@@ -139,4 +139,35 @@ test.describe('a whole-paste rewrite', () => {
 		await editor.paste();
 		await expect.poll(() => editor.bridge.getSource()).toContain('intro WOW!! OK\n');
 	});
+
+	test('a line pasted in a title row shouts, as its text', async ({ page }) => {
+		await editor.loadContent(':::note Title\n\nbody\n:::\n');
+		const end = await textRunEnd(page, 'Title');
+		await page.mouse.click(end.x, end.y);
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await editor.seedClipboard(' wow!! ok');
+		await editor.paste();
+		await expect.poll(() => editor.bridge.getSource()).toContain(':::note Title WOW!! OK\n');
+	});
+
+	test('a line pasted in a code body goes in as written', async ({ page }) => {
+		await editor.loadContent(CODE);
+		const end = await textRunEnd(page, 'code here');
+		await page.mouse.click(end.x, end.y);
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await editor.seedClipboard(' wow!! ok');
+		await editor.paste();
+		await expect.poll(() => editor.bridge.getSource()).toBe('```\ncode here wow!! ok\n```\n');
+	});
+
+	test('a line pasted in a shown math source goes in as written', async ({ page }) => {
+		await editor.loadContent('intro\n\n$$x^2$$\n\nafter\n');
+		await page.locator('.math-block-render').click();
+		await expect(page.locator('.math-block-source')).toBeFocused();
+		await editor.seedClipboard(' wow!! ok');
+		await editor.paste();
+		await page.getByText('after', { exact: true }).click();
+		await expect.poll(() => editor.bridge.getSource()).toContain(' wow!! ok');
+		expect(await editor.bridge.getSource()).not.toContain('WOW');
+	});
 });
