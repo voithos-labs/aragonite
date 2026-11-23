@@ -72,6 +72,8 @@ async function judge(draw: Draw): Promise<Judged | null> {
 const unknown = (draw: Draw, lines: string[]) =>
 	lines.length > 0 && !KNOWN.some((known) => known.holds(draw)) ? lines : [];
 
+const AT_END = { back: 0, at: 'end', inside: 0 } as const;
+
 /** The shapes the open end lost a line break on, each a fixed draw the seed's few may miss. */
 const EXAMPLES: Draw[] = (['source', 'live'] as const).flatMap((mode) => [
 	over('above\npq', 'browser', { key: 'Backspace' }, mode),
@@ -84,7 +86,14 @@ const EXAMPLES: Draw[] = (['source', 'live'] as const).flatMap((mode) => [
 	over('zz\n\n~~~\npq\n~~~', 'editor', { key: 'Delete' }, mode),
 	over('zz\n\n# head', 'editor', { key: 'Backspace' }, mode),
 	over('above\npq', 'browser', { letter: ' ', route: 'hardware key' }, mode),
-	over('zz\n\n$$\nx\npq', 'browser', { letter: ' ', route: 'soft key' }, mode)
+	over('zz\n\n$$\nx\npq', 'browser', { letter: ' ', route: 'soft key' }, mode),
+	// A code block's whole text, which takes the block from under the line it touches.
+	{
+		source: 'a\n```\nx\n```',
+		mode,
+		where: { from: AT_END, to: AT_END, holder: 'editor' },
+		gesture: { key: 'Delete' }
+	}
 ]);
 
 const PARAMS = {
