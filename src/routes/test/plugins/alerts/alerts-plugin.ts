@@ -1,8 +1,16 @@
 // A plugin value whose `%> [!TYPE]` container takes Mod+7 and offers a menu row, both running one
 // command on the alert: the next type in the list, written into the head line; a `[!LOCKED]` alert
 // refuses it. Its `[[flag on]]` line is a block picked up whole, so its row sits in the block's own
-// menu. A pasted alert lands as a `:::type` callout.
-import { command, container, definePlugin, lineBlock, rewrite, type Block } from '#lib/plugin.js';
+// menu. A pasted alert lands as a `:::type` callout, and a paste with `!!` in it shouts.
+import {
+	blockRewrite,
+	command,
+	container,
+	definePlugin,
+	lineBlock,
+	pasteRewrite,
+	type Block
+} from '#lib/plugin.js';
 
 interface AlertData {
 	type: string;
@@ -25,7 +33,7 @@ export const alertType = container<AlertData>({
 	label: 'Alert',
 	icon: 'text-quote',
 	sample: '%> [!NOTE]\n%> x',
-	insert: { none: 'a test block type' },
+	insert: { label: 'Alert', icon: 'text-quote', insert: '%> [!NOTE]\n%> new\n' },
 	lines: {
 		shape: 'marked',
 		first: '%> ',
@@ -72,8 +80,15 @@ export const alertsPlugin = definePlugin({
 	editor: '*',
 	contributes: () => ({
 		blocks: [alertType, flagType],
-		rewrites: [
-			rewrite({
+		pasteRewrites: [
+			pasteRewrite({
+				name: 'shout',
+				sample: 'wow!! ok',
+				into: ({ text }) => (text.includes('!!') ? text.toUpperCase() : null)
+			})
+		],
+		blockRewrites: [
+			blockRewrite({
 				from: alertType,
 				into: (block) => {
 					const body = block.children.map((child) => child.text).join('');

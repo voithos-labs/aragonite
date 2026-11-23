@@ -7,7 +7,7 @@ import {
 	definePlugin,
 	lineBlock,
 	menu,
-	rewrite,
+	blockRewrite,
 	type Block,
 	type Editor,
 	type MenuPick,
@@ -172,8 +172,8 @@ describe('the rows that drive a plugin, with a DOM', () => {
 						? [{ type: 'mark' as const, from: mine.from, to: mine.to - 1, class: 'x' }]
 						: [];
 				},
-				rewrites: [
-					rewrite({
+				blockRewrites: [
+					blockRewrite({
 						from: builtin.blocks.paragraph,
 						into: (_block, { editor }) => (seen.push(editor === kept), null)
 					})

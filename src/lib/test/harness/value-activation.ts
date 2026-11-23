@@ -18,7 +18,12 @@ export function valueActivation(
 		report: thrown,
 		blocksAround: () => ({ blocks: [] }),
 		blockOf: (node) => DETACHED_READING.blockOf(node, null),
-		clipboardBlocks: () => (node) => DETACHED_READING.blockOf(node, null)
+		pastedReader: () => ({
+			doc: () => {
+				throw new Error('no clipboard is read here');
+			},
+			blockOf: (node) => DETACHED_READING.blockOf(node, null)
+		})
 	});
 	contributions.read(installPluginList(plugins, thrown));
 	return { isActive: base.isActive, contributions };

@@ -178,7 +178,7 @@ describe('an error raised while the editor mounts', () => {
 		await m.settle();
 		const fires = takeDevWarnsOf('plugin-error');
 		expect(fires.map((fire) => fire.message)).toEqual([
-			"plugin 'unit-throws' failed (contributes) and nothing heard it: pass onError"
+			"plugin 'unit-throws' (contributes): contributes failed; nothing heard it: pass onError"
 		]);
 	});
 

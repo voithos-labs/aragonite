@@ -67,6 +67,17 @@ export function blockFacts(kind: string): BlockFacts {
 	};
 }
 
+/** Whether a text block of `kind` inside `parent` holds a literal body (a code body, a shown source)
+ *  that takes pasted lines as written; a link definition and a title row hold none. */
+export function holdsLiteralBody(
+	facts: (kind: string) => BlockFacts,
+	kind: string,
+	parent: string | undefined
+): boolean {
+	const { body, holdsLines } = facts(kind);
+	return body === 'literal' && holdsLines && (!parent || facts(parent).titleRow?.type !== kind);
+}
+
 // ── Internals ────────────────────────────────────────────────────────────────
 
 // Shapes only these built-ins write, so no registration declares them.

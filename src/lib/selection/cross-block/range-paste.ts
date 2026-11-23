@@ -32,7 +32,11 @@ import type { Reading } from '../../schema/reading';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { getPasteSurface, type ClipPasteInput } from '../../tree-operations/paste-surfaces';
 import { splicedBytes } from '../../tree-operations/spliced-openers';
-import { rewrittenPaste } from '../../tree-operations/paste/paste-rewrites';
+import {
+	rewrittenPaste,
+	type PastedClip,
+	type RewrittenClip
+} from '../../tree-operations/paste/paste-rewrites';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretLanding } from '../caret-landing';
 import {
@@ -59,14 +63,6 @@ export type PasteContext = CommitContext & {
 	caretLanding: Pick<CaretLanding, 'restore'>;
 };
 
-/** What a paste brings: LF text, whether it goes in as plain text, and the editor's own entry
- *  where the clipboard carried one. */
-export interface Clip {
-	text: string;
-	plain: boolean;
-	own?: string;
-}
-
 /** The step of the block text lands in (`BlockComponent.holdInsertion`): its hidden edge and what
  *  the caret memory holds for it, spent on the block's text as a typed letter's write spends them. */
 export type SpendInsertion = (before: string, edit: TextEdit) => TextEdit;
@@ -83,7 +79,7 @@ export interface BlockSpan {
 export async function pasteInBlock(
 	ctx: PasteContext,
 	span: BlockSpan,
-	clip: Clip,
+	clip: RewrittenClip,
 	undo: CommitSnapshotArg,
 	spend: SpendInsertion | null
 ): Promise<boolean> {
@@ -95,7 +91,7 @@ export async function pasteInBlock(
 }
 
 /** `clip` as the kind of the text block at `path` takes text in. */
-function takenBy(ctx: PasteContext, path: readonly number[], clip: Clip): Clip {
+function takenBy(ctx: PasteContext, path: readonly number[], clip: RewrittenClip): RewrittenClip {
 	const node = blockNodeAt(ctx.getDoc(), path);
 	const text = node && getPasteSurface(node.kind, ctx.activePlugins)?.pastedText?.(clip.text);
 	return text === undefined || text === null ? clip : { ...clip, text };
@@ -106,7 +102,7 @@ function takenBy(ctx: PasteContext, path: readonly number[], clip: Clip): Clip {
 export async function answeredAhead(
 	ctx: PasteContext,
 	path: readonly number[],
-	clip: Clip,
+	clip: RewrittenClip,
 	cells: ClipPasteInput['cells']
 ): Promise<boolean> {
 	const doc = ctx.getDoc();
@@ -124,12 +120,23 @@ export async function answeredAhead(
 	});
 }
 
+/** `clip`'s text as the plugins' paste rewrites leave it, `read` the clipboard read as blocks:
+ *  the one call of every route that lands a paste as blocks outside the core's own answer. */
+export function rewrittenClip(
+	reading: Reading,
+	plugins: PluginActivation,
+	clip: PastedClip,
+	read: () => DocumentView
+): string {
+	return rewrittenPaste(clip, read, plugins, reading.grammar, rangeHost(reading).parts);
+}
+
 /** Pastes `clip` at the place `aim` finds in one commit, whose undo puts the caret back at `undo`;
  *  `spend` is the step of the block it lands in. False where it changed nothing or was refused. */
 export async function pasteThroughCore(
 	ctx: PasteContext,
 	aim: PasteAim,
-	clip: Clip,
+	clip: RewrittenClip,
 	undo: CommitSnapshotArg,
 	spend: SpendInsertion | null
 ): Promise<boolean> {
@@ -153,16 +160,17 @@ function pasteAnswer(
 	ctx: PasteContext,
 	doc: CurrentDocument,
 	place: PastePlace,
-	clip: Clip,
+	clip: RewrittenClip,
 	spend: SpendInsertion | null
 ): RangeEditResult | null {
 	let emptied = false;
-	const host = textHost(ctx.reading, doc, spend, (text, blocks) => {
+	const host: PasteHost = textHost(ctx.reading, doc, spend, (text, blocks) => {
 		const out = rewrittenPaste(
 			{ ...clip, text },
 			() => blocks,
 			ctx.activePlugins,
-			ctx.reading.grammar
+			ctx.reading.grammar,
+			host.parts
 		);
 		emptied = isBlankText(out) && !isBlankText(text);
 		return out;
@@ -278,7 +286,7 @@ async function landAnswer(
 
 /** `place`, or the last cut's own caret where the clipboard carries the entry that cut wrote, which
  *  fits only there; a plain paste declines the entry, so it goes where the caret is. */
-function puttingBack(place: PastePlace, clip: Clip, source: string): PastePlace {
+function puttingBack(place: PastePlace, clip: PastedClip, source: string): PastePlace {
 	const { back, ...rest } = place;
 	if (!back || clip.plain || clip.own === undefined) return rest;
 	if (!restored(source, back.at, back.at, clip.own)) return rest;

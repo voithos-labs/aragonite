@@ -49,7 +49,7 @@ async function removeFenceAfterSwitchToReading() {
 		rangeAtContextPress: () => false,
 		selection: createSelectionState(),
 		finger: () => false,
-		insertMarkdown: async () => true,
+		insertBelow: async () => true,
 		clipboard: { take: () => null, pasteTarget: () => null },
 		openDraft: (spec, path) => idleDraftRegistry().open(spec, path),
 		inserts: () => [],

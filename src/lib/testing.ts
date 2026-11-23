@@ -39,8 +39,8 @@ export { headless } from './testing/mount-dom-stubs';
 export { tabOrder } from './testing/reading-tab-order';
 
 /**
- * `text` as an editor listing `plugins` rewrites a paste from the clipboard that reads as blocks,
- * through the function every such paste runs; undefined lists every installed `setup` plugin. It
+ * `text` as an editor listing `plugins` rewrites a paste from the clipboard that reads as blocks:
+ * the whole-paste rewrites, then those by type; undefined lists every installed `setup` plugin. It
  * answers for that paste alone: plain text and the editor's own copy are never rewritten. A listed
  * `setup` plugin is installed in the process, as an editor's `plugins` prop installs it.
  */

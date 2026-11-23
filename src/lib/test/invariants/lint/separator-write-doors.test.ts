@@ -15,6 +15,8 @@ import { SOURCE } from './source-paths';
  * being created is a fresh node, not a separator anybody relied on, so it is not a write.
  */
 const TRIVIA_WRITERS: Record<string, string> = {
+	'src/lib/tree-operations/paste/paste-rewrites.ts':
+		'a rewrite’s answer, in a copy of the clipboard no document holds, takes the line the range-edit core’s join question asks for',
 	'src/lib/tree-operations/separator-writes.ts': 'the one separator write lives here',
 	'src/lib/tree-operations/node-ops.ts':
 		'the merge-installed leaf and the reparsed halves carry the slot’s own line',

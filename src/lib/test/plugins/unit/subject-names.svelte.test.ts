@@ -14,7 +14,7 @@ import {
 	type Plugin,
 	type PluginError
 } from '#lib/plugin.js';
-import { rewrite } from '#lib/schema/paste-rewrite.js';
+import { blockRewrite } from '#lib/schema/paste-rewrite.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import { listGrammar } from '#lib/schema/own-syntax.js';
 import { findOpening } from '#lib/inline-menu/inline-menu-session.js';
@@ -117,7 +117,7 @@ describe('two paste rewrites on one block type', () => {
 	/** A plugin whose rewrite answers every pasted paragraph with `answer`. */
 	const rewriting = (name: string, answer: string | null) =>
 		pluginOf(name, () => ({
-			rewrites: [rewrite({ from: builtin.blocks.paragraph, into: () => answer })]
+			blockRewrites: [blockRewrite({ from: builtin.blocks.paragraph, into: () => answer })]
 		}));
 
 	async function pasted(plugins: Plugin[]): Promise<string> {
@@ -154,13 +154,13 @@ describe('two paste rewrites on one block type', () => {
 
 	it('install from one plugin too', () => {
 		const twice = pluginOf('twice', () => ({
-			rewrites: [
-				rewrite({ from: builtin.blocks.paragraph, into: () => 'A' }),
-				rewrite({ from: builtin.blocks.paragraph, into: () => 'B' })
+			blockRewrites: [
+				blockRewrite({ from: builtin.blocks.paragraph, into: () => 'A' }),
+				blockRewrite({ from: builtin.blocks.paragraph, into: () => 'B' })
 			]
 		}));
 		const { problems, contributions } = installed([twice]);
 		expect(problems).toEqual([]);
-		expect(contributions.rewrites).toHaveLength(2);
+		expect(contributions.blockRewrites).toHaveLength(2);
 	});
 });

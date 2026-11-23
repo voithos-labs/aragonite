@@ -255,6 +255,8 @@ const BACKFILLS_HERE = /^(?:installs after backfill|opened reading): /;
 const BACKFILL_CALL = /\b(?:ensureEditableContainers|readAsOpened)\s*\(/;
 
 const PLAIN_READS: Record<string, string> = {
+	'src/lib/tree-operations/paste/paste-rewrites.ts':
+		'probe: reads a rewrite’s answer to name its first and last blocks for the join question; the answer lands as bytes',
 	'src/lib/components/editor-root/menus.ts':
 		'probe: reads the clipboard Replace with clipboard holds, so the paste rewrites see its blocks; the row writes the rewritten bytes through `replaceRaw`',
 	'src/lib/schema/opened-reading.ts':
@@ -442,17 +444,11 @@ const MANIFESTS: ManifestRule[] = [
 		id: 'G4.11 exactly the declared sites call rewrittenPaste',
 		matches: REWRITES_CALL,
 		declared: {
-			'src/lib/components/editor-root/menus.ts':
-				'the block menu hands its actions the paste rewrites, which "Replace with clipboard" runs before it replaces the block’s bytes',
 			'src/lib/selection/cross-block/range-paste.ts':
-				'the paste through the range-edit core hands the core the rewrites, which it runs where the clipboard lands as blocks',
-			'src/lib/components/blocks/table/table-cell-paste.ts':
-				'a clipboard of blocks pasted in a table cell slices the table, ahead of the core, and takes the same rewrite',
-			'src/lib/testing/rewrite-check.ts':
-				'the published checks paste a plugin’s rewrites over a string, as a paste from outside the editor that lands as blocks'
+				'the paste through the range-edit core hands the core the rewrites, and `rewrittenClip` is the call of every other route that lands blocks (a table cell, Replace with clipboard, the published checks); both hand in the core’s join question'
 		},
 		reason:
-			'every route that lands a paste as blocks runs rewrittenPaste; a new site routes through a declared one or joins the list with a call',
+			'every route that lands a paste as blocks runs rewrittenPaste with the core’s join question; a new site calls `rewrittenClip`',
 		hits: ['const out = rewrittenPaste(clip, read, activation, grammar);'],
 		misses: [
 			'export function rewrittenPaste(',

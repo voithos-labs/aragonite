@@ -4,7 +4,8 @@ import { textRunEnd, textRunStart } from '../../text-runs';
 import { edgeKey, extendKey } from '../../platform-keys';
 
 // The alerts plugin rewrites a pasted `%> [!TYPE]` alert to a `:::type` callout wherever a paste
-// lands as blocks, and never the editor's own copy (requirements/plugins/paste-rewrites.md).
+// lands as blocks, and shouts any paste with `!!` in it; neither reads the editor's own copy
+// (requirements/plugins/paste-rewrites.md).
 
 const ALERT = 'intro\n\n%> [!NOTE]\n%> inside\n\nafter\n';
 const TABLE = '| a | b |\n| --- | --- |\n| cell | d |\n';
@@ -52,6 +53,13 @@ test.describe('a paste rewrite by block type', () => {
 		await editor.paste();
 		await expect.poll(() => editor.bridge.getSource()).toContain(':::tip\npasted\n:::');
 		expect(await editor.bridge.getSource()).not.toContain('[!TIP]');
+	});
+
+	test("the alert's own insert row lands the alert it wrote", async ({ page }) => {
+		await page.getByText('after', { exact: true }).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Insert block' }).hover();
+		await page.getByRole('menuitem', { name: 'Alert', exact: true }).click();
+		await expect.poll(() => editor.bridge.getSource()).toBe(`${ALERT}\n%> [!NOTE]\n%> new\n`);
 	});
 
 	test('one alert line pasted after text stays text', async () => {
@@ -108,5 +116,58 @@ test.describe('a paste rewrite by block type', () => {
 		await expect.poll(() => editor.bridge.getSource()).not.toContain('code here');
 		expect((await editor.bridge.getSource()).match(/%> \[!NOTE\]/g)).toHaveLength(2);
 		expect(await editor.bridge.getSource()).not.toContain(':::');
+	});
+});
+
+test.describe('a whole-paste rewrite', () => {
+	let editor: PluginsPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('alerts');
+	});
+
+	test.afterEach(async () => {
+		expect(await capturedErrors(editor.page)).toEqual([]);
+	});
+
+	test('one line pasted after text shouts, as text on its line', async ({ page }) => {
+		const end = await textRunEnd(page, 'intro');
+		await page.mouse.click(end.x, end.y);
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await editor.seedClipboard(' wow!! ok');
+		await editor.paste();
+		await expect.poll(() => editor.bridge.getSource()).toContain('intro WOW!! OK\n');
+	});
+
+	test('a line pasted in a title row shouts, as its text', async ({ page }) => {
+		await editor.loadContent(':::note Title\n\nbody\n:::\n');
+		const end = await textRunEnd(page, 'Title');
+		await page.mouse.click(end.x, end.y);
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await editor.seedClipboard(' wow!! ok');
+		await editor.paste();
+		await expect.poll(() => editor.bridge.getSource()).toContain(':::note Title WOW!! OK\n');
+	});
+
+	test('a line pasted in a code body goes in as written', async ({ page }) => {
+		await editor.loadContent(CODE);
+		const end = await textRunEnd(page, 'code here');
+		await page.mouse.click(end.x, end.y);
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await editor.seedClipboard(' wow!! ok');
+		await editor.paste();
+		await expect.poll(() => editor.bridge.getSource()).toBe('```\ncode here wow!! ok\n```\n');
+	});
+
+	test('a line pasted in a shown math source goes in as written', async ({ page }) => {
+		await editor.loadContent('intro\n\n$$x^2$$\n\nafter\n');
+		await page.locator('.math-block-render').click();
+		await expect(page.locator('.math-block-source')).toBeFocused();
+		await editor.seedClipboard(' wow!! ok');
+		await editor.paste();
+		await page.getByText('after', { exact: true }).click();
+		await expect.poll(() => editor.bridge.getSource()).toContain(' wow!! ok');
+		expect(await editor.bridge.getSource()).not.toContain('WOW');
 	});
 });

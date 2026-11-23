@@ -58,14 +58,17 @@ export interface InternalDraft extends Draft {
 	now(at: number): number | null;
 	/** Ends it because the menu it was picked from closed, so a later commit says `closed`. */
 	close(): void;
+	/** `insertMarkdown`'s insert, at the caret or `below`: the one the plugins' paste rewrites read. */
+	insertAsPaste(markdown: string, below: boolean): this;
 }
 
 /** How a draft writes; read at its commit, so the editor can build the writers after the drafts. */
 export interface DraftWrites {
 	commitSource(splice: SourceSplice): Promise<boolean>;
 	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
-	/** Pastes at the caret, or as a block of its own; true when bytes landed. */
-	insert(markdown: string, below: boolean): Promise<boolean>;
+	/** Pastes at the caret, or as a block of its own; true when bytes landed. `asksRewrites` where
+	 *  the plugins' paste rewrites read the Markdown. */
+	insert(markdown: string, below: boolean, asksRewrites: boolean): Promise<boolean>;
 }
 
 /** `starts` and `events` refuse a commit started while another write is open. */
@@ -119,7 +122,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		const since = () => (open.has(opened) ? log.slice(opened.start - base) : []);
 		const writes: { range: PartRange; text: string }[] = [];
 		const datas: { block: Block<unknown>; data: unknown }[] = [];
-		const inserts: { markdown: string; below: boolean }[] = [];
+		const inserts: { markdown: string; below: boolean; asksRewrites: boolean }[] = [];
 		let lengths: number[] | null = null;
 		let illegal: string | null = null;
 		let ended = false;
@@ -227,8 +230,8 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 						snapshot: seed
 					});
 				}
-				for (const { markdown, below } of inserts)
-					if (landed) landed = await writer.insert(markdown, below);
+				for (const { markdown, below, asksRewrites } of inserts)
+					if (landed) landed = await writer.insert(markdown, below, asksRewrites);
 			};
 			if (seed && inserts.length > 0) await writer.undoStep(seed, run);
 			else await run();
@@ -238,9 +241,9 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		}
 
 		// A snippet's last line ending ends it, as a file's last line does; a second one is content.
-		const queue = (markdown: string, below: boolean): InternalDraft => {
+		const queue = (markdown: string, below: boolean, asksRewrites: boolean): InternalDraft => {
 			const text = trimTrailingLineEnding(markdown);
-			if (text !== '') inserts.push({ markdown: text, below });
+			if (text !== '') inserts.push({ markdown: text, below, asksRewrites });
 			return made;
 		};
 		const made: InternalDraft = {
@@ -267,8 +270,9 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 					});
 				return this;
 			},
-			insert: (markdown) => queue(markdown, false),
-			insertBelow: (markdown) => queue(markdown, true),
+			insert: (markdown) => queue(markdown, false, false),
+			insertBelow: (markdown) => queue(markdown, true, false),
+			insertAsPaste: (markdown, below) => queue(markdown, below, true),
 			data(block, data) {
 				datas.push({ block, data });
 				return this;

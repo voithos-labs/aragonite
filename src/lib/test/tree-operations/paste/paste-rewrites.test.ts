@@ -5,30 +5,33 @@
 import { describe, expect, it, vi } from 'vitest';
 import { rewrittenPaste } from '#lib/tree-operations/paste/paste-rewrites.js';
 import { readBlocks } from '#lib/core/parser.js';
+import { rangeHost } from '#lib/range-edit/host.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-activation.js';
 import type { NodeView } from '#lib/core/node-views.js';
 
-const { grammar } = fixtureReading();
+const reading = fixtureReading();
+const { grammar } = reading;
+const { parts } = rangeHost(reading);
 
 /** The clipboard read as blocks, counting each read. */
 function reader(text: string) {
 	return vi.fn(() => readBlocks(text, { grammar, scope: 'fragment' }));
 }
 
-/** An editor whose plugins list `rewrites`, each keyed by a kind and answering from the node. */
+/** An editor whose plugins list `blockRewrites`, each keyed by a kind and answering from the node. */
 function listing(...rewrites: [kind: string, into: (node: NodeView) => string | null][]) {
 	const answer = vi.fn(
 		(entry: { rewrite: { into(node: NodeView): string | null } }, node: NodeView) =>
 			entry.rewrite.into(node)
 	);
 	const contributions = {
-		rewrites: rewrites.map(([kind, into], i) => ({
+		blockRewrites: rewrites.map(([kind, into], i) => ({
 			plugin: `p${i}`,
 			rewrite: { from: { name: kind, label: kind }, into }
 		})),
 		// The rewrites here read the node itself.
-		clipboardBlocks: () => (node: NodeView) => node,
+		pastedReader: () => ({ blockOf: (node: NodeView) => node, doc: () => null }),
 		answer
 	};
 	return {
@@ -37,20 +40,22 @@ function listing(...rewrites: [kind: string, into: (node: NodeView) => string | 
 	};
 }
 
-const outside = (text: string) => ({ text, plain: false });
+const outside = (text: string) => ({ text, plain: false, asksRewrites: true });
 const QUOTE = 'a\n\n> q\n\nb\n';
 
 describe('a paste rewrite by block type', () => {
 	it('writes its answer in place of each block of its type, and keeps the rest', () => {
 		const { activation } = listing(['blockquote', () => 'QUOTE']);
-		expect(rewrittenPaste(outside(QUOTE), reader(QUOTE), activation, grammar)).toBe(
+		expect(rewrittenPaste(outside(QUOTE), reader(QUOTE), activation, grammar, parts)).toBe(
 			'a\n\nQUOTE\n\nb\n'
 		);
 	});
 
 	it('leaves a block out for an empty answer', () => {
 		const { activation } = listing(['blockquote', () => '']);
-		expect(rewrittenPaste(outside(QUOTE), reader(QUOTE), activation, grammar)).toBe('a\n\nb\n');
+		expect(rewrittenPaste(outside(QUOTE), reader(QUOTE), activation, grammar, parts)).toBe(
+			'a\n\nb\n'
+		);
 	});
 
 	// Miss-analysis: the empty answer was given at the top level only; inside a container its only
@@ -63,7 +68,46 @@ describe('a paste rewrite by block type', () => {
 		['every container up to the top, which empties the clipboard', '> - # h\n', '']
 	])('takes out with its block %s an empty answer leaves with no child', (_, text, landed) => {
 		const { activation } = listing(['heading', () => '']);
-		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(landed);
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar, parts)).toBe(landed);
+	});
+
+	// Miss-analysis: every row pasted its rewritten block between blank lines, so none saw an answer
+	// that reads on into the block flush above or below it.
+	it.each([
+		['a paragraph above', (h: string) => h, 'Above.\n# Title\n', 'Above.\n\nTitle\n'],
+		['a paragraph below', (h: string) => h, '# Title\nBelow.\n', 'Title\n\nBelow.\n'],
+		['a paragraph it would underline', () => '---', 'Above.\n# Title\n', 'Above.\n\n---\n'],
+		['a paragraph in a quote', (h: string) => h, '> Above.\n> # Title\n', '> Above.\n>\n> Title\n'],
+		[
+			'a paragraph in a tight list item',
+			(h: string) => h,
+			'- Above.\n  # Title\n- next\n',
+			'- Above.\n\n  Title\n- next\n'
+		],
+		[
+			'both neighbours',
+			(h: string) => `${h}\n\nmore`,
+			'Above.\n# Title\nBelow.\n',
+			'Above.\n\nTitle\n\nmore\n\nBelow.\n'
+		]
+	])('parts its answer from %s it would read into', (_, into, text, landed) => {
+		const { activation } = listing(['heading', (node) => into(node.raw.replace(/^# |\n$/g, ''))]);
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar, parts)).toBe(landed);
+	});
+
+	it.each([
+		[
+			'a quote under a paragraph',
+			(h: string) => `> ${h}`,
+			'Above.\n# Title\n',
+			'Above.\n> Title\n'
+		],
+		['a heading under a paragraph', (h: string) => `## ${h}`, 'Above.\n# Title\nBelow.\n'],
+		['an answer already apart', (h: string) => h, 'Above.\n\n# Title\n\nBelow.\n']
+	])('adds no blank line around %s', (_, into, text, landed?: string) => {
+		const { activation } = listing(['heading', (node) => into(node.raw.replace(/^# |\n$/g, ''))]);
+		const out = rewrittenPaste(outside(text), reader(text), activation, grammar, parts);
+		expect(out).toBe(landed ?? text.replace('# Title', into('Title')));
 	});
 
 	// The blank line between the two goes with the first, so the next starts where the first did.
@@ -75,7 +119,7 @@ describe('a paste rewrite by block type', () => {
 		'starts %s with its next block where an empty answer takes out the first',
 		(_, text, landed) => {
 			const { activation } = listing(['heading', () => '']);
-			expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(landed);
+			expect(rewrittenPaste(outside(text), reader(text), activation, grammar, parts)).toBe(landed);
 		}
 	);
 
@@ -85,7 +129,7 @@ describe('a paste rewrite by block type', () => {
 			'blockquote',
 			(node) => (node.raw.includes('one') ? '' : 'TWO')
 		]);
-		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar, parts)).toBe(
 			'a\n\nb\n\nTWO\n'
 		);
 	});
@@ -93,7 +137,7 @@ describe('a paste rewrite by block type', () => {
 	it('writes two claimed blocks under one container, each in its own item', () => {
 		const text = '- one\n\n  > a\n\n- two\n\n  > b\n';
 		const { activation } = listing(['blockquote', () => 'X']);
-		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar, parts)).toBe(
 			'- one\n\n  X\n\n- two\n\n  X\n'
 		);
 	});
@@ -104,7 +148,7 @@ describe('a paste rewrite by block type', () => {
 			['blockquote', () => '> again'],
 			['blockquote', () => 'never']
 		);
-		expect(rewrittenPaste(outside(QUOTE), reader(QUOTE), activation, grammar)).toBe(
+		expect(rewrittenPaste(outside(QUOTE), reader(QUOTE), activation, grammar, parts)).toBe(
 			'a\n\n> again\n\nb\n'
 		);
 		expect(answer).toHaveBeenCalledTimes(2);
@@ -113,14 +157,14 @@ describe('a paste rewrite by block type', () => {
 	it('claims the outermost block of its type, whose blocks inside are not offered', () => {
 		const text = '> outer\n>\n> > inner\n';
 		const { activation, answer } = listing(['blockquote', () => 'X']);
-		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe('X\n');
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar, parts)).toBe('X\n');
 		expect(answer).toHaveBeenCalledOnce();
 	});
 
 	it("writes a block inside a list item with the item's indent on each new line", () => {
 		const text = '- item\n\n  > q\n';
 		const { activation } = listing(['blockquote', () => 'one\ntwo']);
-		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar, parts)).toBe(
 			'- item\n\n  one\n  two\n'
 		);
 	});
@@ -128,12 +172,13 @@ describe('a paste rewrite by block type', () => {
 
 describe('a paste no rewrite runs on', () => {
 	it.each([
-		['plain text', { text: QUOTE, plain: true }],
-		["the editor's own copy", { text: QUOTE, plain: false, own: 'entry' }]
+		['plain text', { text: QUOTE, plain: true, asksRewrites: true }],
+		["the editor's own copy", { text: QUOTE, plain: false, own: 'entry', asksRewrites: true }],
+		["a program's own insert", { text: QUOTE, plain: false, asksRewrites: false }]
 	])('%s is never read or rewritten', (_, clip) => {
 		const { activation, answer } = listing(['blockquote', () => 'QUOTE']);
 		const read = reader(QUOTE);
-		expect(rewrittenPaste(clip, read, activation, grammar)).toBe(QUOTE);
+		expect(rewrittenPaste(clip, read, activation, grammar, parts)).toBe(QUOTE);
 		expect(read).not.toHaveBeenCalled();
 		expect(answer).not.toHaveBeenCalled();
 	});
@@ -141,7 +186,7 @@ describe('a paste no rewrite runs on', () => {
 	it('reads nothing where no rewrite is listed', () => {
 		const { activation } = listing();
 		const read = reader(QUOTE);
-		expect(rewrittenPaste(outside(QUOTE), read, activation, grammar)).toBe(QUOTE);
+		expect(rewrittenPaste(outside(QUOTE), read, activation, grammar, parts)).toBe(QUOTE);
 		expect(read).not.toHaveBeenCalled();
 	});
 
@@ -149,7 +194,7 @@ describe('a paste no rewrite runs on', () => {
 		const { activation, answer } = listing(['table', () => 'never']);
 		const read = reader(QUOTE);
 		// The same string back is what spares the core a second read of the clipboard.
-		expect(rewrittenPaste(outside(QUOTE), read, activation, grammar)).toBe(QUOTE);
+		expect(rewrittenPaste(outside(QUOTE), read, activation, grammar, parts)).toBe(QUOTE);
 		expect(read).toHaveBeenCalledOnce();
 		expect(answer).not.toHaveBeenCalled();
 	});

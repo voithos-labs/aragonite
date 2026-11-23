@@ -166,6 +166,7 @@
 	import type { CaretMenu } from '../schema/caret-menu';
 	import {
 		installPluginList,
+		reportWords,
 		type BlockType,
 		type InstalledPlugin,
 		type PluginError,
@@ -271,11 +272,7 @@
 		});
 		// A dev build says so once when nothing hears it; production stays silent.
 		if (devChecksOn && !heard && !onError) {
-			devWarn(
-				'plugin-error',
-				`plugin '${error.plugin}' failed (${error.doing}) and nothing heard it: pass onError`,
-				error.cause
-			);
+			devWarn('plugin-error', `${reportWords(error)}; nothing heard it: pass onError`, error.cause);
 		}
 	}
 
@@ -289,7 +286,7 @@
 		report: reportPluginError,
 		blocksAround: (kinds) => placingBlocks(kinds),
 		blockOf: (node, path) => documentRead.blockOf(node, path),
-		clipboardBlocks: (clip) => {
+		pastedReader: (clip) => {
 			const of = measured(clip);
 			return createDocumentRead({
 				getDoc: () => clip,
@@ -298,7 +295,7 @@
 				reading,
 				version: () => 0,
 				source: () => serialize(clip)
-			}).blockOf;
+			});
 		}
 	});
 	const installList = (values: PluginList, previous?: readonly InstalledPlugin[]) =>
@@ -558,7 +555,8 @@
 		writes: () => ({
 			commitSource: controller.commitSource,
 			undoStep: (seed, run) => controller.undoStep(seed, run),
-			insert: (md, below) => rootPaste.paste(scriptedClip(md), { below })
+			insert: (md, below, asksRewrites) =>
+				rootPaste.paste(scriptedClip(md, asksRewrites), { below })
 		})
 	});
 	const shownSource = createShownSourceState();
@@ -1260,7 +1258,7 @@
 			editorEl ? rootGestures.placeMenuCaret(editorEl, x, y) : false,
 		rangeAtContextPress: () => (editorEl ? rootGestures.rangeAtContextPress(editorEl) : false),
 		selection: selectionState,
-		insertMarkdown,
+		insertBelow: async (md) => (await drafts.edit().insertBelow(md).commit()).ok,
 		clipboard: menuClipboard,
 		openDraft: (spec, path) => drafts.open(spec, path),
 		inserts: () => inserts,
@@ -1645,9 +1643,7 @@
 		md: string,
 		options?: InsertMarkdownOptions
 	): Promise<boolean> {
-		const draft = drafts.edit();
-		if (options?.placement === 'below') draft.insertBelow(md);
-		else draft.insert(md);
+		const draft = drafts.edit().insertAsPaste(md, options?.placement === 'below');
 		return (await draft.commit()).ok;
 	}
 

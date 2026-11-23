@@ -27,7 +27,11 @@ describe('the commits of a paste over a range across blocks', () => {
 					{ path: focus, offset: end }
 				);
 
-				await makeHandlers(env, anchor).pasteOverRange({ text: clip, plain: false });
+				await makeHandlers(env, anchor).pasteOverRange({
+					text: clip,
+					plain: false,
+					asksRewrites: 'blocks'
+				});
 
 				expect(serialize(env.doc)).not.toBe(source);
 				expect(takeDevWarns().map((warn) => warn.message)).toEqual([]);

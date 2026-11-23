@@ -41,5 +41,5 @@ describe('a paste event’s read', () => {
 
 it('text a caller hands over carries no entry, whatever the clipboard last held', () => {
 	writeClipboardEvent(event({}), { text: 'same', own: 'kept' });
-	expect(scriptedClip('same').own).toBeUndefined();
+	expect(scriptedClip('same', true).own).toBeUndefined();
 });

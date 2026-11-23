@@ -40,7 +40,12 @@ import { CONTAINER_CONFORMANCE_CELLS } from './container-conformance';
 import { CONTAINER_DECLARED, derivedProfile } from './container-shape';
 import { inlineOutcomes, inlineSubjects, type Outcome } from './inline-check';
 import { paintOutcomes } from './paint-check';
-import { rewriteOutcome, rewriteSubjects } from './rewrite-check';
+import {
+	pasteRewriteOutcome,
+	pasteRewritesOf,
+	rewriteOutcome,
+	rewriteSubjects
+} from './rewrite-check';
 import { checkOneLineBreak, settleKindCells, type KindCell } from './kind-conformance';
 
 /* -------------------------------------------------------------------------- */
@@ -111,7 +116,7 @@ export type CheckStatus =
 	'passed' | 'failed' | 'advisory' | 'excused' | 'not-applicable' | 'unchecked';
 
 export interface CheckRow {
-	readonly of: 'plugin' | 'block' | 'inline' | 'command' | 'menu' | 'rewrite';
+	readonly of: 'plugin' | 'block' | 'inline' | 'command' | 'menu' | 'pasteRewrite' | 'blockRewrite';
 	/** The name the author wrote: the plugin's, a type's qualified name, `plugin/id`, a trigger. */
 	readonly subject: string;
 	readonly check: CheckName;
@@ -138,8 +143,10 @@ export interface Excuses {
 	readonly commands?: { readonly [id: string]: Excused<CommandCheck> };
 	/** By trigger; menus sharing one are one subject. */
 	readonly menus?: { readonly [trigger: string]: Excused<MenuCheck> };
+	/** By the rewrite's own name. */
+	readonly pasteRewrites?: { readonly [name: string]: Excused<RewriteCheck> };
 	/** By the full name of the type rewritten (`paragraph`, `alerts/alert`). */
-	readonly rewrites?: { readonly [type: string]: Excused<RewriteCheck> };
+	readonly blockRewrites?: { readonly [type: string]: Excused<RewriteCheck> };
 }
 
 /** A package's `./conformance` default export: the plugin value itself, not a call of it. */
@@ -221,8 +228,12 @@ async function rowsOf(
 			for (const [trigger, menus] of menuSubjects(run, plugin.name)) {
 				push('menu', trigger, 'waitingWrite', await menuOutcome(trigger, menus, mounted));
 			}
+			for (const entry of pasteRewritesOf(run, plugin.name)) {
+				const subject = qualifiedName(plugin.name, entry.rewrite.name);
+				push('pasteRewrite', subject, 'rewriteLands', pasteRewriteOutcome(run, mounted, entry));
+			}
 			for (const [from, entries] of rewriteSubjects(run, plugin.name)) {
-				push('rewrite', from, 'rewriteLands', rewriteOutcome(run, mounted, from, entries));
+				push('blockRewrite', from, 'rewriteLands', rewriteOutcome(run, mounted, from, entries));
 			}
 			const painted = await paintOutcomes(run, mounted, plugin.name, own, warnings);
 			for (const [check, outcome] of painted) push('plugin', plugin.name, check, outcome);
@@ -472,14 +483,15 @@ function excused(rows: Row[], excuse: Excuses | undefined, plugin: string): Row[
 	for (const [check, reason] of Object.entries(excuse?.plugin ?? {})) {
 		claims.push({ of: 'plugin', local: plugin, subject: plugin, check, reason });
 	}
-	// A command is named after its plugin as a type is; a trigger and a rewritten type's full name are
-	// spelled as the author wrote them.
+	// A command and a whole-paste rewrite are named after their plugin as a type is; a trigger and a
+	// rewritten type's full name are spelled as the author wrote them.
 	for (const [of, space, named] of [
 		['block', excuse?.blocks, true],
 		['inline', excuse?.inlines, true],
 		['command', excuse?.commands, true],
 		['menu', excuse?.menus, false],
-		['rewrite', excuse?.rewrites, false]
+		['pasteRewrite', excuse?.pasteRewrites, true],
+		['blockRewrite', excuse?.blockRewrites, false]
 	] as const) {
 		for (const [local, checks] of Object.entries(space ?? {})) {
 			const subject = named ? qualifiedName(plugin, local) : local;

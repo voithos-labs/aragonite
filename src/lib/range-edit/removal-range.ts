@@ -4,6 +4,7 @@
  */
 
 import { ownTrailingLineEnding } from '../core/lines';
+import { holdsLiteralBody } from '../schema/block-facts';
 import type { LaidBlock } from './layout';
 import {
 	contentEnd,
@@ -12,6 +13,7 @@ import {
 	isCell,
 	leafAt,
 	nodeAt,
+	parentOf,
 	titleAt,
 	titleOwner,
 	type Doc
@@ -85,7 +87,7 @@ export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number
  *  kind declares where no fence line opens it (a one-line `$$x^2$$`); null for none. */
 export function literalBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
-	if (factsOf(doc, leaf).body !== 'literal' || titleOwner(doc, leaf)) return null;
+	if (!holdsLiteralBody(doc.host.facts, leaf.type, parentOf(doc, leaf)?.type)) return null;
 	const node = nodeAt(doc, leaf.path);
 	const { raw } = node;
 	const fence = doc.host.fence(raw);

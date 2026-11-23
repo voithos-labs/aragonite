@@ -149,11 +149,17 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 | --- | --- | --- | --- |
 | `waitingWrite` | every menu | A pick that waits writes nothing once the host loads another note | yes |
 
-**A paste rewrite.** `of: 'rewrite'`, and the subject is the full name of the type it rewrites (`heading`, `alerts/alert`). Rewrites that share a `from` are one subject.
+**A whole-paste rewrite.** `of: 'pasteRewrite'`, and the subject is its name after your plugin's (`shout/shout`).
 
 | Check | Runs for | What it holds you to | Excuse |
 | --- | --- | --- | --- |
-| `rewriteLands` | every rewrite | Its answer lands as blocks of its own, leaving the block after it and the container around it, and a paste of the answer isn't rewritten again | no |
+| `rewriteLands` | every whole-paste rewrite | It answers its own `sample`, pasted at the top and inside a quote, and a paste of its answer isn't rewritten again | no |
+
+**A block rewrite.** `of: 'blockRewrite'`, and the subject is the full name of the type it rewrites (`heading`, `alerts/alert`). Rewrites that share a `from` are one subject.
+
+| Check | Runs for | What it holds you to | Excuse |
+| --- | --- | --- | --- |
+| `rewriteLands` | every rewrite | Its answer lands as blocks of its own, leaving the blocks above and after it byte for byte and the container around it, and a paste of the answer isn't rewritten again | no |
 
 **How commands, menus and rewrites are run.** Against one editor, with nothing on screen:
 
@@ -161,7 +167,7 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 - `waitingWrite` runs your command over a sample, or picks your menu's first row for an empty query. Once the call waits, the host loads another note. Any write after that fails the row.
 - A call that returns no promise has no wait to check, so its row is `not-applicable`. If your command writes later, return its promise: a write the check sees after a call that returned none fails the row.
 - `actionTarget` hands your command the second of two sample blocks while the caret sits in the first. Writing the first block, or inserting at the caret, fails it. A command that only asked the screen for something (a box, a menu) reads `unchecked`.
-- `rewriteLands` pastes each sample of the `from` type with a block after it, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails.
+- `rewriteLands` pastes each sample of the `from` type alone, then with a block right after it, then with one right above it too, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails. A whole-paste rewrite runs alone over its `sample`; a sample it keeps fails, since the row would check nothing.
 
 The `waitingWrite` failure has one fix. Open the draft before the wait: a draft refuses on its own once its note is gone, and so does a menu's `MenuPick`.
 
@@ -213,7 +219,7 @@ Each group is keyed by a name you wrote:
 | `commands` | the command's own id | `waitingWrite`, `actionTarget` |
 | `menus` | the trigger | `waitingWrite` |
 
-`plugin` and `rewrites` exist too, and take nothing: none of their checks can be excused.
+`plugin`, `pasteRewrites` (by the rewrite's own name) and `blockRewrites` (by the full name of the type) exist too, and take nothing: none of their checks can be excused.
 
 An excuse is a claim, not a waiver, and the run checks it:
 
@@ -397,10 +403,10 @@ expect(tabOrder(target.querySelector('.editor')!)).toBeNull();
 
 **`rewritePaste(text, plugins)`**
 
-The function every paste that lands as blocks runs, over a string, so a test proves your rewrite is **wired**, not merely that your `into` works. `plugins` is what you'd hand an editor's `plugins` prop.
+The rewrites a paste from the clipboard runs, over a string: the whole-paste ones, then those by type, then a `setup` plugin's transforms, as the editor runs them where a paste lands as blocks. So a test proves your rewrite is **wired**, not merely that your `into` works. `plugins` is what you'd hand an editor's `plugins` prop.
 
 ```ts
-import { builtin, definePlugin, rewrite } from '@voithos-labs/aragonite/plugin';
+import { blockRewrite, builtin, definePlugin } from '@voithos-labs/aragonite/plugin';
 import { rewritePaste } from '@voithos-labs/aragonite/testing';
 
 const shout = definePlugin({
@@ -408,7 +414,9 @@ const shout = definePlugin({
 	version: '1.0.0',
 	editor: '*',
 	contributes: () => ({
-		rewrites: [rewrite({ from: builtin.blocks.heading, into: (block) => block.text.toUpperCase() })]
+		blockRewrites: [
+			blockRewrite({ from: builtin.blocks.heading, into: (block) => block.text.toUpperCase() })
+		]
 	})
 });
 
@@ -418,7 +426,7 @@ rewritePaste('quiet please\n', [shout]); // 'quiet please\n' (a paragraph, so no
 
 It answers for a paste from outside the editor that reads as blocks, and nothing else. Plain text and the editor's own copy are never rewritten, so it's not the route for testing those.
 
-`check` runs the same function over each type your plugin rewrites, with a block after it (`rewriteLands`, in [the checks](#the-checks)). `rewritePaste` is for the cases a sample doesn't hold.
+`check` runs the same function over each whole-paste rewrite's sample and each type your plugin rewrites (`rewriteLands`, in [the checks](#the-checks)). `rewritePaste` is for the cases a sample doesn't hold.
 
 For a `setup` plugin, `plugins` takes the unit, and `undefined` runs every installed `setup` plugin's paste transforms, as an editor with no prop does. A unit you list is installed for the process, so reset between cases ([a blank slate per test](#a-blank-slate-per-test)).
 
@@ -440,7 +448,7 @@ afterEach(() => {
 While a callback is registered it takes over reporting completely (nothing reaches the console), and every entry is a small object. A rewrite whose `into` throws, for instance, is contained as a decline and reported like this:
 
 ```ts
-import { builtin, definePlugin, rewrite } from '@voithos-labs/aragonite/plugin';
+import { blockRewrite, builtin, definePlugin } from '@voithos-labs/aragonite/plugin';
 import { rewritePaste } from '@voithos-labs/aragonite/testing';
 
 const boom = definePlugin({
@@ -448,8 +456,8 @@ const boom = definePlugin({
 	version: '1.0.0',
 	editor: '*',
 	contributes: () => ({
-		rewrites: [
-			rewrite({
+		blockRewrites: [
+			blockRewrite({
 				from: builtin.blocks.heading,
 				into: () => {
 					throw new Error('boom');
@@ -463,7 +471,7 @@ rewritePaste('# quiet please\n', [boom]); // '# quiet please\n', untouched
 fires[0];
 // {
 //   tag: 'plugin-error',
-//   message: "plugin 'boom' failed (rewrite paste)",
+//   message: "plugin 'boom' (rewrite paste): boom",
 //   details: Error('boom')
 // }
 ```

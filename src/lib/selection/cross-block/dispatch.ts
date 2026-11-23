@@ -23,7 +23,7 @@ import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-d
 import type { KindCue } from '../../components/kind-cue.svelte';
 import { isReadingMode } from '../../presentation-mode';
 import { replaceRange, type RangeInsertion } from './range-replace';
-import type { Clip } from './range-paste';
+import type { RewrittenClip } from '../../tree-operations/paste/paste-rewrites';
 import { heldInputOf, type HeldInput } from '../held-input';
 import { createCrossBlockKeydown } from './keydown';
 import { createCrossBlockPointer, type PaddingPress } from './pointer';
@@ -91,7 +91,7 @@ export interface CrossBlockHandlers {
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handlePointerDown(e: PointerEvent, press?: PointerPressOptions): boolean;
 	/** Pastes `clip` over the range the editor holds; false where it holds none or nothing landed. */
-	pasteOverRange(clip: Clip): Promise<boolean>;
+	pasteOverRange(clip: RewrittenClip): Promise<boolean>;
 	/** Whether `handleBeforeInput` takes `e`, known before it runs: any input that reaches a block
 	 *  under a range but an IME's, undo and redo, and a paste, drop or cut's own. */
 	claimsBeforeInput(e: InputEvent): boolean;
