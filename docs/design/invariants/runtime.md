@@ -136,6 +136,7 @@ These checks run in three kinds of place:
 | G1.218 | A paste leaves the range-edit core's answer, whichever commit took it | A·N |
 | G1.219 | Bytes read off the kept record are compared with the tree before they leave it | A·N·P |
 | G1.220 | A fold of the chain rebuild spells the lines its list spelled before it | A·N |
+| G1.237 | A keystroke that made an ancestor read again finds the leaf's byte in it | A·N |
 
 ### The entries
 
@@ -374,5 +375,7 @@ These checks run in three kinds of place:
 **G1.219 · Kept bytes leave through a vouch** (`kept-starts-current`). A write that named too few blocks leaves the record wrong, and nothing at the write can tell in production. So a range gesture's read (`rangeRead`) and a draft's commit compare the blocks they name or reach with the tree and read again, a byte splice and a paste's leaf write compare the blocks they take and refuse the write, and `getSource()` reads the tree, never the record. Each mismatch forgets the record and fires `error`. `KeptStarts.vouch`, `saved` · `kept-bytes-vouch.test.ts`; the readers are G4.353.
 
 **G1.220 · A fold keeps its lines** (`fold-keeps-lines`). A fold re-reads blocks where they stand: a container's new bytes placed as the blocks they read as, a join merged, a wait read again. It writes and takes blank lines and nothing else, so its list spells the same lines in the same order afterwards, blank ones aside. No read-back holds that, because lines written twice can read as the tree does. When it fires, a fold wrote at an index that had moved. Skipped past 1 MB. `checkFoldKeepsLines` · `chain-rebuild.ts :: foldWrite` · `fold-keeps-lines.test.ts`, `container-slot-reading.test.ts`.
+
+**G1.237 · A relanding finds its byte** (`relanding-byte`). A keystroke that makes an ancestor read its bytes again (a `:::` fence grown by a colon) puts the caret back by the leaf's byte in that ancestor, found through the same byte map as the document's, an opaque body included. A null byte means the settled path is not in the ancestor, and the caret falls to the ancestor's first byte. Inline in `editor-actions/commit/leaf-commit.ts :: relandingAfter` · `keystroke-relanding.test.ts`, `opener-fence-growth.spec.ts`.
 
 **G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.
