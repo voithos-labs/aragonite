@@ -26,11 +26,11 @@ export interface PastedClip {
 	readonly plain: boolean;
 	readonly own?: string;
 	/** Which of the plugins' paste rewrites read it: every one, `'blocks'` once the whole-paste
-	 *  rewrites have, or none (false) for Markdown a program inserts itself. */
+	 *  rewrites are past (read, or withheld from a literal body), or none for a program's insert. */
 	readonly asksRewrites: boolean | 'blocks';
 }
 
-/** A clip the whole-paste rewrites have read: what every step past the paste entry takes. */
+/** A clip past the whole-paste rewrites: what every step past the paste entry takes. */
 export type RewrittenClip = PastedClip & { readonly asksRewrites: false | 'blocks' };
 
 /** One of two blocks left touching: its bytes, and its kind where the asker knows it. */

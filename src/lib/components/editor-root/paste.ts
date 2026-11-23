@@ -139,7 +139,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 	 *  rewrite reads; the core asks the rest only where the paste lands as blocks. */
 	function rewrittenAt(holder: Holder, clip: PastedClip): RewrittenClip {
 		return holder.at === 'block' && literalAt(holder.path)
-			? { ...clip, asksRewrites: 'blocks' }
+			? { ...clip, asksRewrites: clip.asksRewrites && 'blocks' }
 			: rewritten(clip);
 	}
 

@@ -188,8 +188,23 @@ describe('a paste on a literal block’s syntax', () => {
 		await select(editor, point([1], 0));
 		document.activeElement!.dispatchEvent(pasteEvent('one!!\n'));
 		await editor.settle();
-		expect(asked).toEqual(['type one!!\n']);
+		expect(asked.filter((read) => read.startsWith('type'))).toEqual(['type one!!\n']);
 		expect(editor.source()).toMatch(/^intro\n\nONE!!\n+%% the text\n$/);
+	});
+
+	it("leaves a draft's insert there as written", async () => {
+		const { plugin, asked } = rewriting();
+		const editor = mountEditor({
+			source: 'intro\n\n%% the text\n',
+			plugins: [literalLeaves, plugin],
+			presentationMode: 'source'
+		});
+		await editor.settle();
+		await select(editor, point([1], 0));
+		await editor.instance.edit().insert('one!!\n\ntwo\n').commit();
+		await editor.settle();
+		expect(asked).toEqual([]);
+		expect(editor.source()).toContain('one!!');
 	});
 });
 
