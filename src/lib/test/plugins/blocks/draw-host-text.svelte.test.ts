@@ -24,8 +24,10 @@ import {
 	lineBlock,
 	type Block,
 	type EditorPlugin,
+	type CaretPoint,
 	type TextDrawContext
 } from '#lib/plugin.js';
+import { caretOffsetAtPoint } from '#lib/browser/point.js';
 import type { LineBlockSpec } from '#lib/schema/block-shapes.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import type { BlockComponent } from '#lib/block-component.js';
@@ -335,7 +337,7 @@ describe('a drawn picture that opens its text (edit: source)', () => {
 	});
 
 	it('opens where its caret function puts the point, and at the line’s start without a caret', async () => {
-		const caret = vi.fn(() => 2);
+		const caret = vi.fn((_point: CaretPoint) => 2);
 		const at = mount(
 			marked({
 				draw: (_block: Block<never>, ctx: TextDrawContext) => ({ ...pictureDom(ctx), caret })
@@ -343,7 +345,13 @@ describe('a drawn picture that opens its text (edit: source)', () => {
 		);
 		await at.settle();
 		await click(at);
-		expect(caret).toHaveBeenCalledWith({ x: 30, y: 10 });
+		expect(caret).toHaveBeenCalledWith(
+			expect.objectContaining({ x: 30, y: 10, offsetIn: expect.any(Function) })
+		);
+		// The point measures an element of the drawing's own as the editor measures a click.
+		const point = caret.mock.calls[0][0];
+		const picture = pictureOf(at);
+		expect(point.offsetIn(picture)).toBe(caretOffsetAtPoint(picture, 30, 10));
 		// The function's offset counts in the block's text, which starts after `@@ `.
 		expect(offsetIn(at)).toBe(5);
 		await at.destroy();

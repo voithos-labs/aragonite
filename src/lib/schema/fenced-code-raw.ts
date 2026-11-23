@@ -9,6 +9,7 @@ import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { WriteContext, WriteRule } from './block-kind-descriptor';
 import {
+	displayLength,
 	displayLines,
 	firstDisplayLine,
 	firstLineEnding,
@@ -76,6 +77,16 @@ function fenceBody(raw: string): string {
 
 /** The built-in code block's rule, sized by its parsed metadata. */
 export const fencedCodeWrite: WriteRule = fenceRawWrite(fenceShapeOf);
+
+/** A code block's body in its bytes, its last line ending left out; null while it has no body
+ *  line, as a closer on the line after the opener leaves it. */
+export function codeBodyRange(node: NodeView): { start: number; end: number } | null {
+	const { marker, length } = fenceShapeOf(node);
+	const anatomy = fenceAnatomy(node.raw, { marker, length });
+	if (!anatomy || anatomy.closerStart === anatomy.bodyStart) return null;
+	const body = node.raw.slice(anatomy.bodyStart, anatomy.closerStart);
+	return { start: anatomy.bodyStart, end: anatomy.bodyStart + displayLength(body) };
+}
 
 /**
  * The shape of a fenced block that keeps no fence metadata, read off its own opener line. A

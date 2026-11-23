@@ -6,7 +6,12 @@
  */
 import { getPluginMetadata, type AnyBlockKind, type InlineNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { getContentRange, isProseKind } from '../core/inline';
+import { trimTrailingLineEnding } from '../core/lines';
+import { computeInlineContent, getContentRange, isProseKind } from '../core/inline';
+import { readerText } from '../core/inline/reader-text';
+import { isGridDescriptor, tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { createEditorGrammar, type EditorGrammar } from './editor-grammar';
+import { createEditorActivation } from './plugin-activation';
 import { isReservedChromeChild, rowContentRange } from './reserved-chrome';
 import type { BlockType } from './plugin-unit';
 import { makingOf } from './block-type';
@@ -39,8 +44,12 @@ export interface Block<D = unknown> {
 	/** Its bytes, its line ending included. In a quote or a list item these leave out the markers
 	 *  between its lines, so `byteAt` finds where one of them sits in the document. */
 	readonly text: string;
-	/** The text the author writes in it, its markers left out. */
+	/** The text the author writes in it, its markers left out. A container's is what its children
+	 *  hold, as they stand in it; a table and its rows, whose text sits in cells, keep their bytes. */
 	readonly body: string;
+	/** Its text as a reader reads it (`core/inline/reader-text.ts`); a container's is its children's,
+	 *  a line each, and a table row's cells are joined by a tab. */
+	readonly textContent: string;
 	/** The blocks it holds, each built when read; a title row is `title`, not a child. */
 	readonly children: readonly Block[];
 	/** The block holding it; null at the top level, or once it has left the document. */
@@ -121,6 +130,8 @@ export interface BlockReading {
 	 *  container closes the line (a summary's tag). */
 	ownEnd(path: readonly number[]): number | null;
 	inline(node: NodeView): readonly InlineNode[];
+	/** What a widget piece reads as, by its type's `textContent`; undefined where it has none. */
+	widgetText(node: InlineNode): string | undefined;
 	/** The document version now: a block's pieces are read again once it moves on. */
 	version(): number;
 }
@@ -134,6 +145,9 @@ export interface KeyWatch {
 	keys(): readonly string[];
 }
 
+let gfm: EditorGrammar | undefined;
+const gfmGrammar = () => createEditorGrammar({ plugins: createEditorActivation([]) });
+
 /** A block read outside any editor: types named by their kinds, no positions, no pieces. */
 export const DETACHED_READING: BlockReading = {
 	typeOf: (kind) => ({ name: kind, label: kind }),
@@ -142,7 +156,9 @@ export const DETACHED_READING: BlockReading = {
 	nodeAt: () => null,
 	byteOf: () => null,
 	ownEnd: () => null,
-	inline: () => [],
+	// GFM alone: a block read outside any editor reads no plugin's syntax.
+	inline: (node) => computeInlineContent(node, undefined, (gfm ??= gfmGrammar())),
+	widgetText: () => undefined,
 	version: () => 0
 };
 
@@ -246,9 +262,12 @@ class NodeBlock {
 	}
 
 	get body(): string {
-		const { node } = this[STATE];
-		const { start, end } = (makingOf(this.type)?.bodyRange ?? getContentRange)(node);
-		return node.raw.slice(start, end);
+		return bodyOf(this[STATE].node, this.type);
+	}
+
+	get textContent(): string {
+		const state = this[STATE];
+		return textOf(state.node, state.reading);
 	}
 
 	get children(): readonly Block[] {
@@ -340,6 +359,51 @@ class NodeBlock {
 }
 
 const pathOf = (state: BlockState) => state.reading.find(state.node, state);
+
+// A leaf's body is the range its type declares, else its content range; a declared range that
+// answers null is a body with no line yet.
+function bodyOf(node: NodeView, type: BlockType<unknown>): string {
+	const kids = node.children;
+	if (kids && !isGridDescriptor(tryGetBlockKindDescriptor(node.kind))) {
+		// A title row is `title`, and a gap before the first child is no text of the block's.
+		const first = titled(node);
+		let text = '';
+		for (let i = first; i < kids.length; i++)
+			text += (i === first ? '' : (kids[i].leadingTrivia ?? '')) + kids[i].raw;
+		return trimTrailingLineEnding(text);
+	}
+	const declared = makingOf(type)?.bodyRange ?? tryGetBlockKindDescriptor(node.kind)?.bodyRange;
+	const range = declared ? declared(node) : getContentRange(node);
+	return range ? node.raw.slice(range.start, range.end) : '';
+}
+
+// Iterative, since nesting depth comes from the document. A grid lays leaves on one line (a row's
+// cells) and other grids on lines of their own; a title row reads first, as its container shows it.
+function textOf(root: NodeView, reading: BlockReading): string {
+	let text = '';
+	// A node to read, or the separator before the sibling read next.
+	const stack: (NodeView | string)[] = [root];
+	while (stack.length > 0) {
+		const node = stack.pop()!;
+		if (typeof node === 'string') text += node;
+		else if (!node.children) text += leafText(node, reading);
+		else {
+			const kids = node.children;
+			const inLine = isGridDescriptor(tryGetBlockKindDescriptor(node.kind)) && !kids[0]?.children;
+			for (let i = kids.length - 1; i >= 0; i--) {
+				stack.push(kids[i]);
+				if (i > 0) stack.push(inLine ? '\t' : '\n');
+			}
+		}
+	}
+	return text;
+}
+
+function leafText(node: NodeView, reading: BlockReading): string {
+	if (!isProseKind(node.kind))
+		return trimTrailingLineEnding(bodyOf(node, reading.typeOf(node.kind)));
+	return readerText(reading.inline(node), node.raw, reading.widgetText);
+}
 
 // A title row is child 0 and stands outside `children`.
 const titled = (node: NodeView): number =>

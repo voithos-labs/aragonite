@@ -102,6 +102,7 @@ export type { BlockPaint, MarkAt, Paint, PaintContext } from './decorations/pain
 export type {
 	BoxDrawContext,
 	BoxFocus,
+	CaretPoint,
 	ContainerDrawContext,
 	DrawContext,
 	Drawn,

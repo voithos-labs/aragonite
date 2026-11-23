@@ -37,6 +37,9 @@ export interface BlockCommon<D, K extends string = BlockKey> {
 	name: string;
 	/** What a screen reader and the block menu call it. */
 	label: string;
+	/** What the drag ghost calls it, for a block whose first words read badly as a name; without it
+	 *  the ghost shows the block's first words. */
+	dragLabel?: string;
 	/** The glyph beside its name where its menu rows come as a flyout: a glyph's name, or your SVG. */
 	icon?: Icon;
 	/** Markdown holding this block, which the published checks parse and drive. */
@@ -203,6 +206,7 @@ export function leafRegistration(spec: LeafCommon<unknown>, text: LeafText): Bui
 	const role = spec.role ?? (edit === 'text' && !spec.draw && !multiLine ? 'prose' : 'object');
 	const shared = {
 		label: spec.label,
+		...(spec.dragLabel !== undefined && { dragLabel: spec.dragLabel }),
 		editable: true,
 		pageRole: role,
 		mergeRole: role === 'prose' ? ('prose-absorber' as const) : ('not-mergeable' as const),

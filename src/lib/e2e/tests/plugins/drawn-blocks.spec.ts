@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { PluginsPage, activeBlockPath } from './helpers';
 import { edgeKey, extendKey } from '../../platform-keys';
-import { clickInPlace } from '../../click-in-place';
+import { clickInPlace, hoverInPlace } from '../../click-in-place';
 
 /**
  * Blocks a plugin draws with `draw` (requirements/plugins/drawn-blocks.md), from
@@ -211,6 +211,35 @@ test.describe('a fence drawn as a preview until the caret comes in', () => {
 
 		await page.keyboard.press('ControlOrMeta+z');
 		await expect.poll(() => source(page)).toContain('```shown\nhello\n```');
+	});
+});
+
+test.describe("the drag ghost's name for a drawn block", () => {
+	test.beforeEach(async ({ page }) => {
+		await new PluginsPage(page).gotoPlugins('drawn');
+	});
+
+	async function ghostOf(page: Page, path: number[]): Promise<string | null> {
+		const host = page.locator(`[data-block-path="${JSON.stringify(path)}"]`).first();
+		await hoverInPlace(host);
+		const hb = (await host.locator(':scope > .block-drag-handle svg').boundingBox())!;
+		await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(hb.x + 120, hb.y + 60, { steps: 6 });
+		const ghost = page.locator('.reorder-ghost');
+		await expect(ghost).toBeVisible();
+		const text = await ghost.textContent();
+		await page.keyboard.press('Escape');
+		await page.mouse.up();
+		return text;
+	}
+
+	test('a box whose type declares dragLabel is called by it', async ({ page }) => {
+		expect(await ghostOf(page, [FIELD])).toBe('A field box');
+	});
+
+	test('a fence whose type declares none shows its first words', async ({ page }) => {
+		expect(await ghostOf(page, [3])).toBe('preview: hello');
 	});
 });
 

@@ -8,6 +8,7 @@ import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import type { LineBlockSpec } from '#lib/schema/block-shapes.js';
 import type { BoxDrawContext, TextDrawContext } from '#lib/schema/drawing.js';
 import { POINTER_GESTURE_ATTR } from '#lib/selection/pointer-gesture.js';
+import { VIEW_TEXT_ATTR } from '#lib/caret/block-content-selector.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import {
@@ -211,6 +212,38 @@ describe('ctx.render', () => {
 		typeInto(surfaceAt(editor, NOTE), '%%note abcdX');
 		await editor.settle();
 		expect(produce).toHaveBeenCalledTimes(2);
+	});
+
+	// Miss-analysis: every render row typed into an always-editable text, whose bytes move per key, so
+	// none held a preview of an open source, where only `ctx.typed` moves.
+	it('renders a live preview of an open source again for each key typed', async () => {
+		const preview = notes({
+			draw: (block: { text: string }, ctx: TextDrawContext) => {
+				const dom = document.createElement('div');
+				const out = document.createElement('output');
+				dom.append(out, ctx.source);
+				const show = (text: string) => ctx.render(out, () => document.createTextNode(text));
+				show(block.text);
+				return {
+					dom,
+					update: (next: { text: string }, now: TextDrawContext) => show(now.typed ?? next.text)
+				};
+			}
+		});
+		const editor = mountEditor({ source: SOURCE, plugins: [preview] });
+		await editor.settle();
+		const host = blockHostAt(editor, NOTE);
+		const at = { bubbles: true, cancelable: true, clientX: 30, clientY: 10 };
+		host.querySelector('output')!.dispatchEvent(new PointerEvent('pointerdown', at));
+		host.querySelector('output')!.dispatchEvent(new MouseEvent('click', at));
+		await editor.settle();
+		const shown = host.querySelector<HTMLElement>(`[${VIEW_TEXT_ATTR}]`)!;
+		expect(shown.hidden).toBe(false);
+		shown.textContent = '%%note abcdX';
+		shown.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+		await editor.settle();
+		expect(editor.source()).toBe(SOURCE);
+		expect(host.querySelector('output')?.textContent).toBe('%%note abcdX');
 	});
 
 	it('shows the source and the error when the renderer throws', async () => {

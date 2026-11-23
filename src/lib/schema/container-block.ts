@@ -44,6 +44,7 @@ export function containerRegistration(
 	const marked = lines.shape === 'marked';
 	return {
 		label: spec.label,
+		...(spec.dragLabel !== undefined && { dragLabel: spec.dragLabel }),
 		editable: true,
 		supportsInline: false,
 		// A quote-like container reads as part of the text around it, so it shows no drag handle.

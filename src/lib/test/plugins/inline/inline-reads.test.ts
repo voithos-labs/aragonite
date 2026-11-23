@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 // What an editor reads with `inline()` constructs on its list: the claim, its data, the built-in
 // image or link an `as` claim makes and writes, the order on one character, and the install errors.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { InlineNode } from '#lib';
 import {
 	INLINE_PRIORITIES,
 	inline,
+	type CaretPoint,
 	registerInlineSyntax,
 	type ImagePiece,
 	type Inline,
@@ -346,6 +347,27 @@ describe("inline(): what a widget's arrows and click do", () => {
 		];
 		expect(answer).toEqual(expected[`${arrows} ${click}`]);
 	});
+});
+
+// Miss-analysis: no row asked what `caret` is handed, so the claim's bytes went missing unseen.
+it("inline(): a widget's caret gets the click's point and the claim's bytes", () => {
+	const caret = vi.fn((_el: HTMLElement, _point: CaretPoint, source: string) => source.length - 1);
+	const chip = inline({
+		name: 'chip',
+		label: 'Chip',
+		prefix: '{',
+		match: /{[^}]*}/,
+		read: () => 1,
+		sample: '{x}',
+		widget: { delete: 'whole', arrows: 'into', click: 'source', caret },
+		draw: () => ({})
+	});
+	const { grammar } = editorReading([['chips', [chip]]]);
+	const editing = grammar.inlines!().get('chips/chip' as never)!.widget!.editing as WidgetEditing;
+	const el = document.createElement('span');
+	const point: CaretPoint = { x: 3, y: 4, offsetIn: () => 1 };
+	expect(editing.revealOffsetAtPoint!(el, '{xyz}', 3, 4, point)).toBe(4);
+	expect(caret).toHaveBeenCalledWith(el, point, '{xyz}');
 });
 
 describe('inline(): installing and making', () => {

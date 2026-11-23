@@ -273,6 +273,13 @@ function checkWidget(context: CheckContext, claims: readonly Claim[]): string {
 			`the claim ${show(bytesOf(claim))} is drawn as a widget`
 		);
 		assertSelfDelimiting(context, raw, node, part.kind);
+		const textContent = part.widget?.own?.textContent;
+		if (!textContent) continue;
+		const read: unknown = textContent(node.data);
+		assert(
+			typeof read === 'string',
+			`textContent reads the claim ${show(bytesOf(claim))} as ${show(read)}, which is no text`
+		);
 	}
 	return `${claims.length} claim(s) are one widget each, over bytes that read alone`;
 }

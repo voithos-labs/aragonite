@@ -9,7 +9,7 @@ import type { BlockOpener, GrammarView } from './block-openers';
 import type { BlockCompleter } from './block-completions';
 import type { BlockView } from './block-view';
 import type { BlockAction, BlockCommon, BlockInsert } from './block-shapes';
-import { holdBlockKind, type BuiltinRegistration } from './block-kind-descriptor';
+import { holdBlockKind, rejectBlankLabel, type BuiltinRegistration } from './block-kind-descriptor';
 import { normalizeChord, type KeyBinding } from './keybindings';
 import type { Command } from './plugin-command';
 import { qualifiedName } from './plugin-name';
@@ -46,6 +46,13 @@ export interface InstalledBlock {
 
 /** A block type a maker made; `name` is its local name until an editor names it after its plugin. */
 export function madeBlockType<D>(making: BlockMaking<D>): BlockType<D> {
+	// Where every maker passes, so no type can show the drag ghost an empty name.
+	rejectBlankLabel(
+		'block type',
+		making.local as AnyBlockKind,
+		'dragLabel',
+		making.registration.dragLabel
+	);
 	const type = { [MAKING]: making, [OWNER]: null as string | null, label: making.label };
 	return Object.defineProperty(type, 'name', {
 		enumerable: true,

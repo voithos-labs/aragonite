@@ -19,7 +19,6 @@ import { augmentInlineWidgetKind } from '../core/inline/inline-widgets';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
 import { setBuiltInRangeIndent } from '../schema/range-indent-forms';
 import { shiftBodyLines } from './blocks/code/code-indent';
-import { codeBodyRange } from './blocks/code/code-renderer';
 import { imageWidgetOnSelectedKey } from './image/image-widget-editing';
 import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 import { RAW_TEXT_VIEW, textBlockView } from './blocks/text/text-block-view';
@@ -70,9 +69,6 @@ export function registerBuiltInBlocks(): void {
 	attachBuiltinViews(BUILT_IN_VIEWS);
 
 	registerPasteSurface(tableCellPasteSurface);
-
-	// A code block's emptiness is its body's, which the code renderer slices.
-	augmentBuiltin('fencedCode', { bodyRange: codeBodyRange });
 
 	// Table owns cell addressing: a drag needs the exact hit or a refusal, a caret the nearest
 	// cell, and the selection code reaches both through the descriptor.

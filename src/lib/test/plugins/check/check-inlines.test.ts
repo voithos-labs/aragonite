@@ -372,6 +372,19 @@ describe('check over inline constructs', () => {
 		expect(rowOf(excused, 'peeks/formula', 'widget')?.status).toBe('excused');
 	});
 
+	// Miss-analysis: `textContent` is a JavaScript author's function, and no row asked it of a sample.
+	it('fails widget for a textContent that answers no text, and passes one that does', async () => {
+		const blank = formula({ textContent: () => undefined });
+		const failed = await reportOf(check(pluginOf('blanks', () => [blank])));
+		expect(rowOf(failed, 'blanks/formula', 'widget')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/textContent reads the claim "\$x\$" as undefined/)
+		});
+		const read = formula({ textContent: (data: string) => `[${data}]` });
+		const passed = await check(pluginOf('reads', () => [read]));
+		expect(rowOf(passed, 'reads/formula', 'widget')?.status).toBe('passed');
+	});
+
 	it('refuses an excuse over inlineDecline, which an excuse never covers', async () => {
 		const excuse = {
 			inlines: { note: { inlineDecline: 'a sentence long enough to count as a reason' } }
