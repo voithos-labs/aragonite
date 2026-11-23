@@ -10,6 +10,7 @@ import { togglesOf } from '../schema/inline-type';
 import { isThenable, type ContributedCommand } from '../schema/editor-contributions';
 import type { ContributedMenu } from '../schema/caret-menu';
 import type { AnyBlockKind } from '../core/nodes';
+import type { Block } from '../schema/doc-view';
 import type { CommandCheck } from './check-names';
 import { Unsettled, type PluginCheckRun, type Stage } from './check-context';
 import type { Outcome } from './inline-check';
@@ -164,8 +165,10 @@ async function waitingCommand(
 	run: PluginCheckRun,
 	stage: Stage,
 	entry: ContributedCommand,
-	block: unknown
+	block: Block | undefined
 ): Promise<Outcome> {
+	// In the block it is handed, else in the note: a command that acts at the caret finds one.
+	stage.caret(block?.from ?? 0);
 	if (!run.contributions.can(entry, block)) {
 		return { status: 'not-applicable', detail: 'its `when` declines the sample' };
 	}
@@ -177,6 +180,8 @@ async function waitingCommand(
 }
 
 async function waitingPick(stage: Stage, menu: ContributedMenu['menu']): Promise<Outcome> {
+	// Where typing the trigger leaves it.
+	stage.caret(menu.trigger.length);
 	const ctx = { editor: stage.editor };
 	const rows =
 		menu.accepts && !menu.accepts('', ctx)

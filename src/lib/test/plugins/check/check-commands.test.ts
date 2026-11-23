@@ -85,6 +85,18 @@ describe('waitingWrite over commands', () => {
 		expect(rowOf(await check(first), 'first/go', 'waitingWrite')?.status).toBe('passed');
 	});
 
+	// Miss: no fixture read the selection, so a command that leaves with none passed undriven.
+	it('puts the caret in the note, so a command that acts at the caret is driven', async () => {
+		const atCaret = commanding('at-caret', async (editor) => {
+			const at = editor.selection?.head;
+			if (at === undefined) return;
+			await Promise.resolve();
+			await editor.edit().replace({ from: at, to: at }, 'x').commit();
+		});
+		const row = rowOf(await reportOf(check(atCaret)), 'at-caret/go', 'waitingWrite');
+		expect(row?.detail).toMatch(/a commit after the host loaded another note/);
+	});
+
 	it('reads not-applicable for a command that answers with no promise', async () => {
 		const now = commanding('now', () => true);
 		expect(rowOf(await check(now), 'now/go', 'waitingWrite')).toMatchObject({
@@ -176,6 +188,25 @@ describe('waitingWrite over menus', () => {
 		const row = rowOf(await reportOf(check(kept)), '@', 'waitingWrite');
 		expect(row?.status).toBe('failed');
 		expect(row?.detail).toMatch(/its pick of "Ada" made a commit after the host loaded/);
+	});
+
+	it('puts the caret after the trigger, where a pick that reads the selection finds it', async () => {
+		const heads: unknown[] = [];
+		const reads = pluginOf('reads-caret', () => ({
+			menus: [
+				menu<MenuRow & { editor: Editor }>({
+					label: 'Mention',
+					trigger: '@',
+					rows: (_query, { editor }) => [{ label: 'Ada', editor }],
+					async pick(row) {
+						heads.push(row.editor.selection?.head);
+						await Promise.resolve();
+					}
+				})
+			]
+		}));
+		await check(reads);
+		expect(heads).toEqual([1]);
 	});
 
 	it('folds menus sharing a trigger into one row, naming the one that failed', async () => {
