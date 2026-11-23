@@ -15,7 +15,7 @@ import { textBlockView } from '../blocks/text/text-block-view';
 
 // The line handed to the type's painting whole.
 const WHOLE_LINE: SourceFrame = {
-	paint(text, paintText) {
+	wrap(text, paintText) {
 		const frag = document.createDocumentFragment();
 		frag.append(paintText(text));
 		return frag;

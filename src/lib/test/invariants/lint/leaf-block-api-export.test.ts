@@ -9,7 +9,7 @@ import { balancedBlock, collectEditorSources, readSource } from './scan-source';
 import { describeFileRules, svelteOnly, type FileRule, type Probe } from './file-rule';
 import { SOURCE } from './source-paths';
 
-const LEAF_FACTORY_RE = /\bcreateEditableLeaf\s*\(/;
+const LEAF_FACTORY_RE = /\bcreate(?:EditableLeaf|SourceLeaf)\s*\(/;
 
 /** `BlockComponent`'s members, read off its declaration so a member added there joins the scan. */
 function blockComponentMembers(): Set<string> {

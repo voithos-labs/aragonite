@@ -50,7 +50,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 // no fence of the type opens is all body, and what follows the closer plain text.
 function fenceLines(shape: ReturnType<typeof fenceShape>): SourceFrame {
 	return {
-		paint(text, paintText) {
+		wrap(text, paintText) {
 			const shown = shape.split(text) ?? { opener: '', body: text, closer: '', after: '' };
 			const frag = renderFencedSource(shown, paintText);
 			if (shown.after) frag.append(shown.after);

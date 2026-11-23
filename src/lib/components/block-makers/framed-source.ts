@@ -16,7 +16,7 @@ type CaretText = { text: string; caret: number };
 /** How a block type's shape frames its shown text: the editor's markers around `paintText`'s
  *  painting of the text inside them, and the shape the text keeps while it's edited. */
 export interface SourceFrame {
-	paint(text: string, paintText: (inner: string) => Node): DocumentFragment;
+	wrap(text: string, paintText: (inner: string) => Node): DocumentFragment;
 	reshape?(text: string, caret: number, lineEnding: LineEnding): CaretText | null;
 }
 
@@ -35,7 +35,7 @@ export function framedDrawing(
 			own ? own(inner, paint) : document.createTextNode(inner);
 	return {
 		...drawing,
-		renderSource: (text, paint) => frame.paint(text, paintText(paint)),
+		renderSource: (text, paint) => frame.wrap(text, paintText(paint)),
 		reshapeSource: reshapes(spec.reshapeSource, frame.reshape),
 		paintsText: own !== undefined
 	};
