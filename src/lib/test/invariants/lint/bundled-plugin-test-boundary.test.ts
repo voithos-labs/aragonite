@@ -238,10 +238,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'author cannot check the bytes they carry'
 	},
 	'src/lib/test/plugins/latex/read-table.test.ts': {
-		specifiers: ['#lib/schema/block-type.js', '#lib/schema/plugin-unit.js'],
+		specifiers: [
+			'#lib/schema/block-type.js',
+			'#lib/schema/plugin-unit.js',
+			'#lib/schema/drawing.js'
+		],
 		reason:
-			'nothing published applies a block type’s write rule, so the bytes it makes of a write ' +
-			'cannot be pinned'
+			'nothing published applies a block type’s write rule or hands back its reshape, so the ' +
+			'bytes it makes of a write and the shape its source opens in cannot be pinned'
 	},
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {
 		specifiers: [

@@ -1,11 +1,13 @@
 // @vitest-environment node
 // Text read and written by an editor running latex, row for row as 0.11.5 read and wrote it: the
-// table is 0.11.5's output, the unclosed ```math fence aside, ruled to read as the maker reads it.
+// table is 0.11.5's output but for two rows: the unclosed ```math fence, ruled to read as the maker
+// reads it, and a whitespace-only one-liner opened.
 // Miss-analysis: the package's reads were pinned per helper, so no row held the reading whole
 // through a plugin value's grammar when the helpers moved into the editor.
 import { describe, expect, it } from 'vitest';
 import { grammar, type Block, type Piece } from '#lib/plugin.js';
 import { makingOf } from '#lib/schema/block-type.js';
+import { drawingOf } from '#lib/schema/drawing.js';
 import { installPluginList } from '#lib/schema/plugin-unit.js';
 import { latex } from '#packages/latex/src/index.js';
 
@@ -145,6 +147,27 @@ const CUT_WRITES: [held: string, written: string, raw: string][] = [
 	['```math\r\nx^2\r\n```', '```math\r\nAfter', '```math\r\nAfter\r\n```']
 ];
 
+/** A shown text the source opens on, the document's line ending, and the shape it opens in with
+ *  its caret; null where it keeps its own shape. */
+const OPENS: [shown: string, lineEnding: '\n' | '\r\n', opened: [string, number] | null][] = [
+	['$$$$', '\n', ['$$\n\n$$', 3]],
+	['$$\n$$', '\n', ['$$\n\n$$', 3]],
+	// 0.11.5 opened a whitespace-only one-liner as an empty block; the maker keeps its space as body.
+	['$$ $$', '\n', null],
+	['```math\n```', '\n', ['```math\n\n```', 8]],
+	['~~~math\n~~~', '\n', ['~~~math\n\n~~~', 8]],
+	['```math\r\n```', '\r\n', ['```math\r\n\r\n```', 9]],
+	['$$\r\n$$', '\r\n', ['$$\r\n\r\n$$', 4]],
+	['$$$$', '\r\n', ['$$\r\n\r\n$$', 4]],
+	['$$\n$$', '\r\n', ['$$\n\n$$', 3]],
+	['$$\n\n$$', '\n', null],
+	['```math\n\n```', '\n', null],
+	['$$x^2$$', '\n', null],
+	['```math\nx^2\n```', '\n', null],
+	['~~~math\n```', '\n', null],
+	['````math\n```', '\n', null]
+];
+
 const pieces = (block: Block, list: readonly Piece[]): Shape[] =>
 	list
 		.filter((p) => p.kind !== 'text')
@@ -196,5 +219,17 @@ describe('a math block keeps its bytes legal as 0.11.5 did', () => {
 			lineEnding
 		};
 		expect(rule.normalize(written, ctx as never)).toBe(raw);
+	});
+});
+
+// Opening an empty block's source gives the caret a line of its own between the fences.
+describe('a math source opens in the shape 0.11.5 gave it', () => {
+	it.each(OPENS)('%j on %j', (shown, lineEnding, opened) => {
+		const [unit] = installPluginList([latex], ({ cause }) => {
+			throw cause;
+		});
+		const drawing = drawingOf(makingOf(unit.contribution.blocks![0])!.view);
+		const got = drawing.reshapeSource!(shown, 0, lineEnding);
+		expect(got && [got.text, got.caret]).toEqual(opened);
 	});
 });
