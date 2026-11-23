@@ -1,90 +1,51 @@
 /**
- * A `[[toc]]` block whose rendered view lists the document's headings, read straight off
- * `BlockComponentProps.document`: the worked example of using that prop. Recognition starts
- * only once the plugin registers, so without it `[[toc]]` is a plain paragraph.
+ * A `[[toc]]` line drawn as the document's heading outline, each entry a link to its heading.
+ * The outline reads each top-level block's headings through `depends`, so a key outside a heading
+ * asks one block and redraws nothing. Without the plugin, `[[toc]]` is a plain paragraph.
  */
 
-import {
-	definePlugin,
-	declarePluginKind,
-	registerBlockKind,
-	registerInsertEntry,
-	OPENER_PRIORITIES,
-	type BlockView,
-	type EditorPlugin
-} from '@voithos-labs/aragonite/plugin';
-import { svelteBlockView } from '@voithos-labs/aragonite/svelte';
+import { builtin, definePlugin, lineBlock } from '@voithos-labs/aragonite/plugin';
+import { svelteBlock } from '@voithos-labs/aragonite/svelte';
 import TocBlock from './TocBlock.svelte';
-import { MAX_HEADING_DEPTH } from './heading-outline';
-
-export const TOC_BLOCK = 'toc';
-
-const TOC_LINE = '[[toc]]';
-
-export function registerTocBlock(view: BlockView): void {
-	const toc = declarePluginKind(TOC_BLOCK);
-
-	// A block that holds its own source, like `fencedCode`: `serialize` re-emits
-	// `leadingTrivia + raw`, so a raw taken verbatim from the line round-trips.
-	registerBlockKind(toc, {
-		view,
-		opener: {
-			// Just below the only built-in that consumes brackets, so `[[toc]]` resolves here
-			// whatever that matcher does.
-			priority: OPENER_PRIORITIES.linkReferenceDefinition - 5,
-			interruptsParagraph: (text) => text === TOC_LINE,
-			tryOpen(ctx) {
-				// Exact line only, so this process-wide opener never misfires on indented or
-				// trailing content in a sibling plugin's document.
-				if (ctx.line.text !== TOC_LINE) return null;
-				return {
-					node: { kind: toc, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
-					consumed: 1
-				};
-			}
-		},
-		label: 'Table of contents',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		textPosition: 'while-source-shows',
-		// Render-primary like the math blocks: the rendered view gives the caret nowhere to sit
-		// at either edge, so both edges take the gap caret.
-		gapEdges: 'both',
-		samples: ['[[toc]]\n']
-	});
-}
+import { MAX_HEADING_DEPTH, headingsIn } from './heading-outline';
 
 export type MaxHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
-/** The factory argument, which sets every editor's default, and an editor's `{ plugin, options }`
- *  entry, which overrides it. */
+/** What an editor's `toc({ … })` sets. */
 export interface TocOptions {
 	/** Deepest heading level listed (default 6 = every level). */
 	maxDepth?: MaxHeadingLevel;
 }
 
-export function tocPlugin(options?: TocOptions): EditorPlugin {
-	return definePlugin<Required<TocOptions>>({
-		name: 'toc',
-		defaults: { maxDepth: options?.maxDepth ?? MAX_HEADING_DEPTH },
-		// Anything but a whole number in 1..6 keeps the default rather than listing nothing.
-		parseOptions(raw) {
-			const maxDepth = (raw as TocOptions | null)?.maxDepth;
-			return isMaxHeadingLevel(maxDepth) ? { maxDepth } : {};
-		},
-		setup() {
-			registerTocBlock(svelteBlockView(TocBlock));
-			registerInsertEntry({
-				id: 'toc',
+/** A table of contents: list `toc`, or `toc({ maxDepth: 3 })`, in an editor's plugins. */
+export const toc = definePlugin<TocOptions>({
+	name: 'toc',
+	version: '0.11.5',
+	editor: '0.11.5',
+	defaults: { maxDepth: MAX_HEADING_DEPTH },
+	contributes: ({ maxDepth }) => ({
+		blocks: [
+			lineBlock({
+				name: 'toc',
 				label: 'Table of contents',
-				icon: 'list-tree',
-				keywords: ['toc', 'contents', 'outline', 'index'],
-				markdown: `${TOC_LINE}\n`
-			});
-		}
-	});
-}
+				match: /^\[\[toc\]\]$/,
+				interrupts: true,
+				// Ahead of the one built-in that reads brackets at a line's start.
+				before: builtin.blocks.linkReferenceDefinition,
+				sample: '[[toc]]',
+				insert: {
+					label: 'Table of contents',
+					icon: 'list-tree',
+					keywords: ['toc', 'contents', 'outline', 'index'],
+					insert: '[[toc]]\n'
+				},
+				// A depth outside 1..6 lists every level rather than nothing.
+				depends: headingsIn(isMaxHeadingLevel(maxDepth) ? maxDepth : MAX_HEADING_DEPTH),
+				draw: svelteBlock(TocBlock)
+			})
+		]
+	})
+});
 
 function isMaxHeadingLevel(value: unknown): value is MaxHeadingLevel {
 	return (

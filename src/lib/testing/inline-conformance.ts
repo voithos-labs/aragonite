@@ -637,8 +637,8 @@ function checkRegistrationHygiene(
 	rung: InlineHandler
 ): string {
 	const reserved = isBuiltInTrigger(profile.trigger);
-	// Two handlers may share a prefix at different priorities (emoji and directive text both
-	// live on `:`), but two at the same priority could not be ordered by the dispatch.
+	// Two handlers may share a prefix at different priorities (a plugin's and directive text's on
+	// `:`), but two at the same priority could not be ordered by the dispatch.
 	const sameRung = handlersOn(context, profile.trigger).filter(
 		(r) => r.prefix === prefix && r.priority === rung.priority
 	);

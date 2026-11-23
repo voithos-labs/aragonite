@@ -17,7 +17,7 @@ import { recognizeTextDirective } from './text-recognizer';
 
 export function activateDirectiveGrammar(views: DirectiveViews): void {
 	// The inline handler has no registration of its own to check, so it borrows the
-	// `directiveText` flag, read before it is set; the `:` trigger is shared with emoji.
+	// `directiveText` flag, read before it is set; another plugin's handler may hold `:` too.
 	const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
 
 	registerDirectiveKinds(views);

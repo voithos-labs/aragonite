@@ -36,6 +36,9 @@ source back into a caption and commits the edit once. Seed `parrot`: block 0
   parrot and the frame keeps dancing.
 - Arrow in and out: ArrowLeft from the start of `After` shows the source with the caret in the
   parrot; ArrowRight from the end of the source closes it and puts the caret back in `After`.
+- A click just above the bird, with the parrot first in the document, puts a gap caret above
+  it, and a letter typed there becomes a paragraph above, as above a table of contents.
+- ArrowUp from the start of the open source, with the parrot first, puts a gap caret above it.
 - Enter at the end of the caption: the source closes and an empty paragraph opens below with the
   caret in it, the caption unchanged and the bytes reading
   `%%parrot party responsibly\n\n\nAfter\n`, the shape a heading's Enter writes at the same
@@ -92,6 +95,9 @@ source back into a caption and commits the edit once. Seed `parrot`: block 0
   anything else held still, so a block whose own text moved fourteen times a second read as
   working here while it broke a presentation spec elsewhere (#280). The general miss: an
   animation was only ever asserted from the side that wanted it.
+- The edges above the bird: no row put the parrot first and reached for the space above it, so
+  a click there landing nowhere was never asked about; the outline's rows held the same edges for
+  a table of contents alone.
 - Reduced motion: no parrot scenario ever ran with a media preference set, so a bird that danced
   through `prefers-reduced-motion: reduce` had nothing to fail.
 - Containment: every scenario ran at the config's pinned 1280 viewport, where the widest frame

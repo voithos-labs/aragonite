@@ -32,7 +32,7 @@ const ENROLLMENT_FLOOR = [
 	'blockquote',
 	'mermaid',
 	'latex/block',
-	'toc',
+	'toc/toc',
 	'callout',
 	'admonition'
 ];

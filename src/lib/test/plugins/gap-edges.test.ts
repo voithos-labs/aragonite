@@ -10,7 +10,6 @@ import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { registerDetailsKind } from '#packages/details/src/details-kind.js';
-import { registerTocBlock } from '#packages/toc/src/toc-plugin.js';
 import { gapEligibleAt } from '#lib/selection/gap-caret.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -21,7 +20,6 @@ const MERMAID = '```mermaid\ngraph TD\n```\n';
 const CALLOUT = ':::note Title\nbody\n:::\n';
 const DETAILS = '<details>\n<summary>S</summary>\n\nbody\n\n</details>\n';
 const GENERIC_DIRECTIVE = ':::mystery\nbody\n:::\n';
-const TOC = '[[toc]]\n';
 const QUOTE = '> quoted\n';
 const ALERT = '> [!NOTE]\n> alert body\n';
 
@@ -33,7 +31,6 @@ beforeEach(() => {
 	registerMermaidKind(testView());
 	registerAdmonitions(testView());
 	registerDetailsKind(testView());
-	registerTocBlock(testView());
 });
 
 /** The boundary between the two sources, with each parsed as its own top-level block. */
@@ -79,14 +76,6 @@ describe('gapEdges declarations of the bundled plugin kinds', () => {
 		expect(tryGetBlockKindDescriptor('paragraph')?.gapEdges).toBe('none');
 		expect(eligibleBetween(TABLE, 'prose\n')).toBe(false);
 		expect(eligibleBetween('prose\n', TABLE)).toBe(false);
-	});
-
-	// The toc's rendered view gives the caret nowhere to sit at either edge, like the math forms.
-	// Miss-analysis: the declared set was pinned kind by kind, so an undeclared kind had no row.
-	it('opens the toc boundary against another trapped kind in either order', () => {
-		expect(eligibleBetween(MATH_BLOCK, TOC)).toBe(true);
-		expect(eligibleBetween(TOC, MATH_BLOCK)).toBe(true);
-		expect(eligibleBetween(TOC, TOC)).toBe(true);
 	});
 });
 

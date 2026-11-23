@@ -45,9 +45,7 @@ const DEFAULTED_READER_IMPORTERS: Record<string, string> = {
 	'packages/admonitions/src/convert-document.ts':
 		'a published whole-document conversion that runs with no editor',
 	'packages/footnotes/src/footnote-numbering.ts':
-		'the published numbering reads every plugin with no editor; a mounted widget passes its own reader',
-	'packages/toc/src/heading-outline.ts':
-		'the outline reads every plugin with no editor; the toc block passes its editor reader'
+		'the published numbering reads every plugin with no editor; a mounted widget passes its own reader'
 };
 const mayImportDefaulted = (relPath: string): boolean =>
 	relPath in DEFAULTED_READER_IMPORTERS || relPath.startsWith(SOURCE_DIR.testing);

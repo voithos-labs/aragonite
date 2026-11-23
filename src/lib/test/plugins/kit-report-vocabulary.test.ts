@@ -2,14 +2,14 @@
 // The three conformance kits report a cell in one shape, so one reader handles all their reports.
 import { describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib';
-import { declaredPluginInlineKind, INLINE_PRIORITIES } from '#lib/plugin.js';
+import { declaredPluginInlineKind } from '#lib/plugin.js';
 import {
 	runContainerConformance,
 	runInlineKindConformance,
 	runKindConformance,
 	type CellReport
 } from '#lib/testing.js';
-import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
+import { GLYPH_KIND, GLYPH_PRIORITY, glyphPlugin } from '#lib/test/harness/glyph-plugin.js';
 
 const STATUSES = ['asserted', 'exempt', 'boundary'];
 const EXCUSED = 'the vocabulary suite reads the report shape, not what this cell would prove';
@@ -49,11 +49,11 @@ describe('conformance kit reports share one vocabulary', () => {
 	});
 
 	it('the inline kit resolves its report like the other two', async () => {
-		installPlugins([emojiPlugin()]);
+		installPlugins([glyphPlugin()]);
 		const pending = runInlineKindConformance({
 			trigger: ':',
-			priority: INLINE_PRIORITIES.plugin + 10,
-			kind: declaredPluginInlineKind(EMOJI_KIND),
+			priority: GLYPH_PRIORITY,
+			kind: declaredPluginInlineKind(GLYPH_KIND),
 			fixtures: [':smile:'],
 			overlapFixtures: ['meet at 10:30'],
 			overlapDecline: { mode: 'assert' },

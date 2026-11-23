@@ -19,9 +19,16 @@ interface Run {
 /** A document of top-level blocks as their texts, with the writes a watch follows. */
 function document(texts: string[]) {
 	let blocks = texts;
+	let definitions = {};
 	const followers: WriteFollower[] = [];
 	return {
 		followers,
+		definitions: () => definitions,
+		/** A write that changes a link reference definition, a block's bytes left alone. */
+		redefine() {
+			definitions = {};
+			this.writeRuns([]);
+		},
 		blocks: () => blocks.map((text) => ({ text }) as unknown as Block),
 		count: () => blocks.length,
 		block: (i: number) => ({ text: blocks[i] }) as unknown as Block,
@@ -104,6 +111,23 @@ describe('its answers change', () => {
 		doc.write(at, removed, inserted);
 		expect(watch.version() !== was).toBe(changes);
 		expect(watch.keys()).toEqual(doc.blocks().map(headings));
+	});
+});
+
+// Miss-analysis: every row wrote the blocks it asked about, so none changed a definition alone,
+// which a heading's reference link reads from another block.
+describe('a change to the link reference definitions', () => {
+	it('asks every block again, though no block was written', () => {
+		let defined = 'p';
+		const doc = document(['# A', 'tail']);
+		const linked = (block: Block) => (block.text.startsWith('#') ? `${block.text} ${defined}` : '');
+		const watch = watchKeys(doc, linked, () => {});
+		expect(watch.keys()).toEqual(['# A p', '']);
+		const was = watch.version();
+		defined = 'q';
+		doc.redefine();
+		expect(watch.keys()).toEqual(['# A q', '']);
+		expect(watch.version()).not.toBe(was);
 	});
 });
 

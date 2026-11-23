@@ -341,11 +341,11 @@ describe('a rule removed whole lands where the kind beside it takes a caret, off
 	const sides = {
 		'above the rule, by Backspace': { route: { key: 'Backspace' }, above: true, gap: [] },
 		'above the rule, by the block menu’s Remove': { route: { menu: true }, above: true, gap: [] },
-		'below the rule, by Delete': { route: { key: 'Delete' }, above: false, gap: ['toc'] },
+		'below the rule, by Delete': { route: { key: 'Delete' }, above: false, gap: ['toc/toc'] },
 		'below the rule, by Mod+X': {
 			route: { cut: true },
 			above: false,
-			gap: ['fencedCode', 'directiveContainer', 'toc', 'mathBlock', 'mathFence']
+			gap: ['fencedCode', 'directiveContainer', 'mathBlock', 'mathFence', 'toc/toc']
 		}
 	} satisfies Record<string, { route: WholeRoute; above: boolean; gap: string[] }>;
 	for (const mode of ['source', 'live'] as const) {

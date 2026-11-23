@@ -148,16 +148,6 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'the directive inline level has no published kind name; the plugin barrel publishes the ' +
 			'body wrap and the registration entry points only'
 	},
-	'src/lib/test/plugins/emoji/widget.test.ts': {
-		specifiers: [
-			'#lib/core/inline/inline-widgets.js',
-			'#lib/core/inline/widget-shell.js',
-			'#lib/schema/editor-grammar.js'
-		],
-		reason:
-			'no registry read-back: a widget kind registers its editing policy but never reads it, ' +
-			'and the read takes a grammar no entry point publishes'
-	},
 	'src/lib/test/plugins/footnotes/definition-split-separator.test.ts': {
 		specifiers: [
 			'#lib/tree-operations/index.js',
@@ -417,7 +407,7 @@ describe('G4.63 classifier non-vacuity', () => {
 		expect(isAllowedSpecifier(file, '#packages/details/src/index.js')).toBe(true);
 		expect(isAllowedSpecifier(file, '#packages/details/src/details-kind.js')).toBe(true);
 		expect(isAllowedSpecifier(file, '#packages/emoji/src/index.js')).toBe(true);
-		expect(isAllowedSpecifier(file, '#packages/emoji/src/emoji-recognizer.js')).toBe(false);
+		expect(isAllowedSpecifier(file, '#packages/emoji/src/emoji-plugin.js')).toBe(false);
 	});
 
 	it('allows the copyable test support and any npm package', () => {
@@ -434,7 +424,7 @@ describe('G4.63 classifier non-vacuity', () => {
 		expect(isAllowedSpecifier(file, '../../harness/scan-growth')).toBe(true);
 		expect(isAllowedSpecifier(file, '../../../../../scripts/build.mjs')).toBe(true);
 		expect(isAllowedSpecifier(file, '../../../core/parser')).toBe(false);
-		expect(isAllowedSpecifier(file, '#packages/emoji/src/emoji-recognizer.js')).toBe(false);
+		expect(isAllowedSpecifier(file, '#packages/emoji/src/emoji-plugin.js')).toBe(false);
 	});
 
 	it('binds per-plugin suites only, leaving the loose platform tests alone', () => {

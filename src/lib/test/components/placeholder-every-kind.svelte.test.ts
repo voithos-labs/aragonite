@@ -15,14 +15,14 @@ import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import type { PlaceholderBlock, PluginsProp } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 
 installLayoutStubs();
 afterEach(destroyMountedEditors);
@@ -31,14 +31,14 @@ afterEach(destroyMountedEditors);
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: detailsPlugin,
-	emoji: emojiPlugin,
+	emoji: () => emoji,
 	footnotes: footnotesPlugin,
 	'highlight-occurrences': () => highlightOccurrences,
 	latex: () => latex,
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
 	'slash-commands': () => slashCommands,
-	toc: tocPlugin
+	toc: () => toc
 };
 
 /** A kind that can be empty: the source holding one empty block of it and that block's path, and
@@ -67,7 +67,7 @@ const NEVER_ASKED: Record<string, string> = {
 	indentedCode: 'an indented code block starts at its first non-blank line',
 	htmlBlock: NO_BLANK_FORM,
 	linkReferenceDefinition: NO_BLANK_FORM,
-	toc: NO_BLANK_FORM,
+	'toc/toc': NO_BLANK_FORM,
 	unrecognized: 'no opener produces it, and it keeps the bytes it was given',
 	table: 'its cells are not blocks and are not asked',
 	tableRow: 'rendered inside its table, whose cells are not asked',

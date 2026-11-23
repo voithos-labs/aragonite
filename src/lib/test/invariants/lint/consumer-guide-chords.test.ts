@@ -28,13 +28,13 @@ import { declaredPluginKind } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { ADMONITION } from '#packages/admonitions/src/kinds.js';
 import { detailsPlugin, DETAILS_SUMMARY } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
 import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 import { readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
@@ -43,10 +43,8 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 const BUNDLED_PLUGINS = [
 	admonitionsPlugin(),
 	detailsPlugin(),
-	emojiPlugin(),
 	footnotesPlugin(),
-	mermaidPlugin(),
-	tocPlugin()
+	mermaidPlugin()
 ];
 // Installed as the file loads too, so the row tables below can name the bundled kinds.
 installPlugins(BUNDLED_PLUGINS);
@@ -67,7 +65,7 @@ const contributions = createEditorContributions({
 	}
 });
 contributions.read(
-	installPluginList([slashCommands, parrotPlugin(), latex], ({ cause }) => {
+	installPluginList([slashCommands, parrotPlugin(), latex, toc, emoji], ({ cause }) => {
 		throw cause;
 	})
 );

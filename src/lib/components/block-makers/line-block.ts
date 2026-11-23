@@ -6,6 +6,7 @@ import { framedDrawing, type SourceFrame } from './framed-source';
 import {
 	checkLocalName,
 	completerOf,
+	editOf,
 	leafRegistration,
 	lineShape,
 	priorityBefore,
@@ -43,10 +44,11 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 	checkLocalName('lineBlock', spec.name);
 	const priority = priorityBefore(spec.before);
 	const shape = lineShape(spec as LineBlockSpec<unknown>, priority);
-	// With no `draw`, the line is the editor's own text block, its marker dimmed.
-	const drawing = spec.draw
-		? framedDrawing(spec as LineBlockSpec<unknown>, () => type, true, lineMarker(shape))
-		: null;
+	// A line that neither draws, paints nor opens its text is the editor's own text block.
+	const drawing =
+		spec.draw || spec.renderSource || editOf(spec) === 'source'
+			? framedDrawing(spec as LineBlockSpec<unknown>, () => type, true, lineMarker(shape))
+			: null;
 	const type: BlockType<D> = madeBlockType<D>({
 		local: spec.name,
 		label: spec.label,

@@ -49,7 +49,8 @@ import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 import { placeCaret } from '../../../selection/place-caret';
 import { createSourceReveal } from '../../../caret/reveal-source';
-import { VIEW_TEXT_HOST_ATTR } from '../../../caret/block-content-selector';
+import { blockBoxElAt } from '../../../caret/block-el-lookup';
+import { claimsPointerGesture } from '../../../selection/pointer-gesture';
 import { traceRevealOpen, traceRevealFold } from '../../../debug/interaction-trace';
 import { isBlankText, trimTrailingLineEnding, type LineEnding } from '../../../core/lines';
 import type { PresentationMode } from '../../../presentation-mode';
@@ -804,8 +805,9 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 	// Pointer-down only records where it landed, so a drag starting on the rendered view stays a
 	// selection drag; the click, a release that did not move, shows the source.
 	let renderPressed = false;
+	// A press a drawing keeps is its own, so it opens nothing.
 	function onRenderPointerDown(e: PointerEvent): void {
-		renderPressed = !e.shiftKey && !isReading();
+		renderPressed = !e.shiftKey && !isReading() && !claimsPointerGesture(e.target);
 	}
 
 	function onRenderClick(e: MouseEvent): void {
@@ -896,11 +898,11 @@ export function createSourceLeaf(deps: EditableLeafDeps, kindPaints: boolean): E
 		caretBounds: surface.caretBounds,
 		measurePartialRects: (startOffset, endOffset) => {
 			if (isRevealed()) return surface.measurePartialRects(startOffset, endOffset);
-			// A hidden source has no text to measure, so any non-empty range covers the rendered box:
-			// a drawn block's, round its hidden text element.
+			// A hidden source has no text to measure, so any non-empty range covers the block's box,
+			// never its text element, which a drawing hides while its picture shows.
 			if (endOffset <= startOffset) return [];
-			const el = getBlockElByPath(deps.getPath());
-			const box = el?.closest(`[${VIEW_TEXT_HOST_ATTR}]`) ?? el;
+			const root = getEditorRoot();
+			const box = root && blockBoxElAt(root, deps.getPath());
 			return box ? [box.getBoundingClientRect()] : [];
 		},
 		preparePaste: clipboard.preparePaste,

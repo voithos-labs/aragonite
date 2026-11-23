@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
-	import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+	import { emoji } from '@voithos-labs/aragonite-emoji';
 	import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
 	import { DEMO_FOOTNOTES, DEMO_LATEX, DEMO_TOC } from '../../../demo-plugins';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
@@ -8,13 +8,7 @@
 	import { chordCountPlugin } from '../chord-count/chord-count-plugin';
 
 	// Module scope so the entry arrays stay identity-stable across (SSR) renders.
-	const listedPlugins = [
-		parrotPlugin(),
-		blockBadgePlugin,
-		emojiPlugin(),
-		admonitionsPlugin(),
-		DEMO_LATEX
-	];
+	const listedPlugins = [parrotPlugin(), blockBadgePlugin, emoji, admonitionsPlugin(), DEMO_LATEX];
 	const unlistedPlugins = [docStatsPlugin, chordCountPlugin];
 
 	// The `?reads` variant: live mode, so the link card and pending marks run, and the toc and

@@ -2511,14 +2511,11 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 
 // ── G4.251 no bundled block builds its rendered view in Svelte ─────────────
 
-const MOVES_TO_BLOCK_VIEW = 'moves onto a block type `draw` with the plugin interface redesign';
 const REVEAL_IN_SVELTE: FileRule = {
 	id: 'G4.251 no bundled plugin builds a render-primary leaf in Svelte',
 	population: under(SOURCE_DIR.plugins),
 	matches: /\bmode:\s*['"]render-primary['"]/,
-	allowed: {
-		'packages/toc/src/TocBlock.svelte': `the outline, whose list follows the headings; ${MOVES_TO_BLOCK_VIEW}`
-	},
+	allowed: {},
 	reason:
 		"a bundled block that shows a rendered view until clicked draws it with a block type's `draw` and `edit: 'source'`, the way a plugin author would",
 	hits: [at('packages/x/src/XBlock.svelte', "mode: 'render-primary',")],

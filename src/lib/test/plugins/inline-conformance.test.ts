@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Every bundled inline handler runs the published conformance kit as its first consumer, so a
-// cell no bundled handler can pass has not earned its runtime. The kit's failing cases live in
-// `inline-conformance-red.test.ts`.
+// Every bundled inline handler runs the published conformance kit as its first consumer, and a
+// local glyph stands in for the shapes none of them has (a plain DOM view, a whole delete). The
+// kit's failing cases live in `inline-conformance-red.test.ts`.
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib';
@@ -11,11 +11,10 @@ import { INLINE_PRIORITIES } from '#lib/plugin.js';
 import { declaredPluginInlineKind } from '#lib/plugin.js';
 import { runInlineKindConformance } from '#lib/testing.js';
 import type { InlineConformanceProfile, PluginConformanceSuite } from '#lib/testing.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
-import emojiSuite from '#packages/emoji/src/conformance.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import footnotesSuite from '#packages/footnotes/src/conformance.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
+import { GLYPH_KIND, GLYPH_PRIORITY, glyphPlugin } from '#lib/test/harness/glyph-plugin.js';
 
 const MINTS_ONLY_ITS_OWN_KIND =
 	'the rung mints only its own inline kind, which the scan leaves unstamped by design — ' +
@@ -33,7 +32,21 @@ function publishedRung(suite: PluginConformanceSuite): InlineConformanceProfile 
 }
 
 const footnoteRung = publishedRung(footnotesSuite);
-const emojiRung = publishedRung(emojiSuite);
+
+/** A widget drawn as plain DOM and deleted whole, which no bundled inline syntax handler is. */
+const glyphRung: InlineConformanceProfile = {
+	trigger: ':',
+	priority: GLYPH_PRIORITY,
+	get kind() {
+		return declaredPluginInlineKind(GLYPH_KIND);
+	},
+	fixtures: [':smile:', 'ship it :rocket: now'],
+	overlapFixtures: [':name[label]', ':name{.cls}', 'meet at 10:30', 'see https://x.dev', ':bare:'],
+	overlapDecline: { mode: 'assert' },
+	widget: { mode: 'assert' },
+	editingPolicy: { mode: 'assert' },
+	imageClaim: { mode: 'exempt', reason: MINTS_ONLY_ITS_OWN_KIND }
+};
 
 const directiveTextRung: InlineConformanceProfile = {
 	trigger: ':',
@@ -51,15 +64,14 @@ const directiveTextRung: InlineConformanceProfile = {
 
 describe('every bundled inline syntax handler passes the conformance kit', () => {
 	beforeEach(() => {
-		// Emoji before the directive activation on purpose: that order is what leaves the
+		// A `:` handler before the directive activation on purpose: that order is what leaves the
 		// directive recognizer unregistered, making its `registration` cell a live check.
-		installPlugins([emojiPlugin(), footnotesPlugin()]);
+		installPlugins([glyphPlugin(), footnotesPlugin()]);
 		activateDirectiveGrammar(testDirectiveViews());
 	});
 
 	it.each([
 		['footnote reference', footnoteRung],
-		['emoji', emojiRung],
 		['directive text', directiveTextRung]
 	])('%s', async (_name, profile) => {
 		const report = await runInlineKindConformance(profile);
@@ -79,7 +91,7 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 // otherwise pass as a quiet `boundary`.
 describe('the enrolled inline syntax handlers execute the cells their shape owns', () => {
 	beforeEach(() => {
-		installPlugins([emojiPlugin(), footnotesPlugin()]);
+		installPlugins([glyphPlugin(), footnotesPlugin()]);
 		activateDirectiveGrammar(testDirectiveViews());
 	});
 
@@ -87,9 +99,9 @@ describe('the enrolled inline syntax handlers execute the cells their shape owns
 		(await runInlineKindConformance(profile)).cells.find((c) => c.cell === cell)!;
 
 	// The shell is the editor's, so the cell asserts every widget kind the same way, a plain DOM
-	// view (emoji) and a Svelte one (footnotes) alike.
+	// view (the glyph) and a Svelte one (footnotes) alike.
 	it.each([
-		['a DOM view', emojiRung],
+		['a DOM view', glyphRung],
 		['a Svelte view', footnoteRung]
 	])('asserts the widget cell for %s', async (_view, rung) => {
 		const cell = await cellOf(rung, 'widget');
@@ -98,7 +110,7 @@ describe('the enrolled inline syntax handlers execute the cells their shape owns
 	});
 
 	it('checks the whole-delete bytes for an atomic-delete inline syntax handler', async () => {
-		expect((await cellOf(emojiRung, 'editingPolicy')).detail).toContain('whole-delete');
+		expect((await cellOf(glyphRung, 'editingPolicy')).detail).toContain('whole-delete');
 	});
 
 	it('excuses imageClaim only where no fixture creates a built-in', async () => {

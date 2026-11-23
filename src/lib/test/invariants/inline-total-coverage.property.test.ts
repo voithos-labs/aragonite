@@ -4,8 +4,11 @@ import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '#lib';
 import { isInlineKindDeclared } from '../../schema/plugin-kind';
 import { installPlugins, parseInline } from '#lib';
+import type { AnyInlineKind } from '#lib/core/nodes.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { listGrammar } from '#lib/schema/own-syntax.js';
 import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
-import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { registeredMath, MATH_INLINE } from '#lib/test/harness/registered-math.js';
 import {
 	arbInlineSource,
@@ -45,21 +48,22 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set(Object.keys(KIND_VOCABULARY));
 
 /** The kind-name half, split from tiling because a registered inline handler emits its own
  *  declared kind, which the built-in union alone would reject before tiling is tested. */
-function assertKindVocabulary(nodes: InlineNode[]): void {
+function assertKindVocabulary(nodes: InlineNode[], grammar?: GrammarView): void {
 	for (const node of nodes) {
-		if (!KNOWN_KINDS.has(node.kind) && !isInlineKindDeclared(node.kind)) {
+		const own = grammar?.inlines?.().has(node.kind) ?? false;
+		if (!KNOWN_KINDS.has(node.kind) && !isInlineKindDeclared(node.kind) && !own) {
 			throw new Error(`unknown inline kind '${node.kind}' at [${node.start},${node.end})`);
 		}
-		if (node.children) assertKindVocabulary(node.children);
+		if (node.children) assertKindVocabulary(node.children, grammar);
 	}
 }
 
 /** The tiling half: every byte covered once, constructs covering their parent. */
-function assertScanContract(raw: string, start: number, end: number): void {
-	const nodes = parseInline(raw, start, end);
+function assertScanContract(raw: string, start: number, end: number, grammar?: GrammarView): void {
+	const nodes = parseInline(raw, start, end, undefined, grammar);
 	assertTotalCoverage(nodes, start, end);
 	assertConstructCoverage(nodes);
-	assertKindVocabulary(nodes);
+	assertKindVocabulary(nodes, grammar);
 }
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
@@ -87,16 +91,30 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 	it('holds with the bundled inline syntax handlers installed', () => {
 		// Registries register once, so the handlers install once for the whole property, and
 		// the scan reads no state the cases mutate.
-		installPlugins([footnotesPlugin(), emojiPlugin(), registeredMath()]);
+		installPlugins([footnotesPlugin(), registeredMath()]);
 		// Without this a failed setup leaves the bare grammar running and the case passes
 		// for the wrong reason.
-		for (const kind of [FOOTNOTE_REF_KIND, EMOJI_KIND, MATH_INLINE]) {
+		for (const kind of [FOOTNOTE_REF_KIND, MATH_INLINE]) {
 			expect(isInlineKindDeclared(kind), `inline syntax handler not installed: ${kind}`).toBe(true);
 		}
 
 		fc.assert(
 			fc.property(arbPluginInlineSource, (source) => {
 				assertScanContract(source, 0, source.length);
+			}),
+			PARAMS
+		);
+	});
+
+	it("holds with a plugin value's inline constructs listed", () => {
+		const { grammar } = listGrammar([emoji], ({ cause }) => {
+			throw cause;
+		});
+		expect(grammar.inlines?.().has('emoji/emoji' as AnyInlineKind)).toBe(true);
+
+		fc.assert(
+			fc.property(arbPluginInlineSource, (source) => {
+				assertScanContract(source, 0, source.length, grammar);
 			}),
 			PARAMS
 		);

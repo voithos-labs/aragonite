@@ -107,8 +107,6 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 		'preventDefault on the summary so the disclosure toggle takes no focus',
 	'packages/latex/src/BlockMath.svelte':
 		'binds the shared editable-leaf reveal handler; the reset lives there',
-	'packages/toc/src/TocBlock.svelte':
-		'binds the shared editable-leaf reveal handler, plus entry navigation',
 	'packages/mermaid/src/MermaidBlock.svelte':
 		'stopPropagation on its toolbar and a diagram-surface press that selects the block',
 	'src/routes/test/plugins/+page.svelte':

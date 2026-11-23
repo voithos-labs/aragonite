@@ -1,4 +1,3 @@
-// GitHub `:shortcode:` emoji as atomic glyph widgets on the bare `:` trigger.
-export { emojiPlugin } from './emoji-plugin';
-export { EMOJI_KIND } from './emoji-recognizer';
+// GitHub `:shortcode:` emoji drawn as their glyphs: list `emoji` in an editor's plugins.
+export { emoji } from './emoji-plugin';
 export { EMOJI_TABLE } from './emoji-table';

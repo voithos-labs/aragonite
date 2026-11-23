@@ -380,11 +380,11 @@ Two smaller routes. For an editor-less `parse()` pipeline that needs the grammar
 import { installPlugins } from '@voithos-labs/aragonite';
 import { isPluginInstalled } from '@voithos-labs/aragonite/plugin';
 
-const toc = tocPlugin();
-isPluginInstalled('toc'); // false
-installPlugins([toc]);
-isPluginInstalled('toc'); // true
-installPlugins([toc]); // no-op (a fresh tocPlugin() here would no-op too, with a dev warning)
+const details = detailsPlugin();
+isPluginInstalled('details'); // false
+installPlugins([details]);
+isPluginInstalled('details'); // true
+installPlugins([details]); // no-op (a fresh detailsPlugin() here would no-op too, with a dev warning)
 ```
 
 ### What is stable, what is not

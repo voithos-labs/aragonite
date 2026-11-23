@@ -1,32 +1,35 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+// @vitest-environment jsdom
+// The `/changelog` route serves the repo's own changelog, one release family per document, so
+// every entry ships to a demo route as untested content and a byte-exact round trip is the
+// route's whole promise. The documents are imported here rather than re-composed, so neither
+// the prelude nor a newly added family can drift out from under this guard.
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { installPlugins } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
-import { tocPlugin, TOC_BLOCK } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 
-/**
- * The `/changelog` route serves the repo's own changelog, one release family per document, so
- * every entry ships to a demo route as untested content and a byte-exact round trip is the
- * route's whole promise. The documents are imported here rather than re-composed, so neither
- * the prelude nor a newly added family can drift out from under this guard.
- */
+const DETAILS_PLUGIN = detailsPlugin();
 
 beforeEach(() => {
 	installPlugins([
 		admonitionsPlugin(),
-		detailsPlugin(),
-		tocPlugin({ maxDepth: 3 }),
+		DETAILS_PLUGIN,
 		footnotesPlugin(),
-		emojiPlugin(),
 		mermaidPlugin()
 	]);
 });
+afterEach(destroyMountedEditors);
 
 const PRELUDE = '<details>\n<summary>Versions</summary>\n\n[[toc]]\n\n</details>\n\n';
 
@@ -55,12 +58,15 @@ describe('changelog documents', () => {
 		}
 	});
 
-	it('resolves the prelude to a collapsed details holding the outline', () => {
+	it('resolves the prelude to a collapsed details holding the outline', async () => {
 		const [outline] = parse(CHANGELOG_FAMILIES[0].document).children;
 		expect(outline.kind).toBe(DETAILS);
-		// Child 0 is the summary; the `[[toc]]` must have parsed as the plugin block inside
-		// the container rather than falling back to prose.
-		expect(outline.children?.[1]?.kind).toBe(TOC_BLOCK);
 		expect(outline.raw.startsWith('<details>\n')).toBe(true);
+		// Child 0 is the summary; in an editor running the outline, the `[[toc]]` reads as its block
+		// inside the container rather than falling back to prose.
+		installLayoutStubs();
+		const m = mountEditor({ source: PRELUDE, plugins: [DETAILS_PLUGIN, toc({ maxDepth: 3 })] });
+		await m.settle();
+		expect(m.instance.getBlockKindAt([0, 1])).toBe('toc/toc');
 	});
 });

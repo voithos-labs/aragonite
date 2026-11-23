@@ -15,6 +15,8 @@ plugin kinds ship render-primary leaves.
 - A token that exists only inside a `[[toc]]` leaf's hidden source is found and paints a sized
   `.match-overlay` inside the toc host: the same fallback in the factory, a second kind, no extra
   production code.
+- A token in the caption of a folded `%%parrot` line, a block type's own drawing whose text element
+  hides while the picture shows, paints a sized `.match-overlay` over the block's box the same way.
 
 ## Miss-analysis
 
@@ -23,3 +25,5 @@ plugin kinds ship render-primary leaves.
   hidden, so a match was counted but never painted. The 0.9.24 conformance sweep pinned the
   degraded behavior rather than real paint, and no focused spec queried text living only in the
   hidden source of a leaf. This file pins that query directly, per kind.
+- A drawn block's folded match painted nothing: the fallback measured the block's text element,
+  which a drawing hides while its picture shows, and every row searched a leaf a component drew.

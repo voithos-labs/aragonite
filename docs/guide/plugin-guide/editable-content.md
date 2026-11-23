@@ -83,7 +83,7 @@ const label = lineBlock({
 });
 ```
 
-**A painted source.** A `lineBlock`'s marker and a `fencedBlock`'s fence lines are the editor's: it draws them dimmed, as the built-in blocks draw theirs, and hides them in the modes that hide markers. By default the text inside them (a line block's `text` group, a fenced block's body) is one text node. Give the spec a `renderSource(text, paint)` and it paints that text as DOM instead, any node you return: highlight tokens, whatever your block draws. A `lineBlock` takes it once it has a `draw`. `paint.code(body, language)` highlights with whatever highlighter the editor lists, and paints plain without one. The editor checks `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
+**A painted source.** A `lineBlock`'s marker and a `fencedBlock`'s fence lines are the editor's: it draws them dimmed, as the built-in blocks draw theirs, and hides them in the modes that hide markers. By default the text inside them (a line block's `text` group, a fenced block's body) is one text node. Give the spec a `renderSource(text, paint)` and it paints that text as DOM instead, any node you return: highlight tokens, whatever your block draws. With no `draw`, the editor shows the painted text alone, in place of its own text block. `paint.code(body, language)` highlights with whatever highlighter the editor lists, and paints plain without one. The editor checks `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
 
 The fence lines come with two shapes the shown text keeps while it's edited. A closed block with no body line gets an empty one, for the caret to sit on once the fence lines hide. A line break typed into a one-line block's text (a fence with `oneLine`) puts its fences on lines of their own at once:
 
@@ -99,6 +99,8 @@ A painted source takes its plain-text edits from the leaf, not the browser: typi
 
 A `lineBlock` is one line, so Enter ends the block, as the quickstart showed. A `fencedBlock`'s text spans lines, so there Enter types a newline in the block's own line ending.
 
+A gap caret, the caret that stands between two blocks, sits wherever the caret can't reach your block's edge: on both sides of a `fencedBlock` and of a block drawn with `edit: 'source'`, and above an `edit: 'box'` block, whose Enter opens a paragraph below. A `lineBlock` whose text shows gets none, since Enter splits it at either end.
+
 **Commit semantics.** A commit parses the edited text and lands it the way the editor lands any edit, by what the parse gives back:
 
 ```
@@ -111,7 +113,7 @@ commit(edited text) ── parse ──▶ same kind?        update in place, ca
 
 So editing past your own fence re-splits the document instead of wedging foreign text into your node.
 
-**Per-instance configuration.** Your plugin's `contributes(options)` runs once per editor with that editor's options, already merged over your `defaults`, so a `draw` made in there closes over them. The bundled toc block's `maxDepth` is one of these, with `tocPlugin({ maxDepth })` filling the default.
+**Per-instance configuration.** Your plugin's `contributes(options)` runs once per editor with that editor's options, already merged over your `defaults`, so a `draw` made in there closes over them. The bundled toc block's `maxDepth` is one of these: an editor listing `toc({ maxDepth: 3 })` lists three levels.
 
 ### Already in Svelte?
 

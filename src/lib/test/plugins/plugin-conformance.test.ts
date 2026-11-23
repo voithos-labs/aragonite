@@ -8,7 +8,7 @@ import type { OpenContext } from '#lib/schema/block-openers.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
-import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
+import { GLYPH_KIND, GLYPH_PRIORITY, glyphPlugin } from '#lib/test/harness/glyph-plugin.js';
 import type { LegacyRow } from '#lib/testing/plugin-conformance.js';
 import { KIND_CELL_CONTRACTS } from '#lib/testing/cell-contracts.js';
 
@@ -108,8 +108,8 @@ describe('runPluginConformance', () => {
 	});
 
 	it('fails an inline kind the suite gives no profile', async () => {
-		await expect(runPluginConformance({ plugins: [emojiPlugin()] })).rejects.toThrow(
-			`inline kind "${EMOJI_KIND}" has no profile in the suite's inline`
+		await expect(runPluginConformance({ plugins: [glyphPlugin()] })).rejects.toThrow(
+			`inline kind "${GLYPH_KIND}" has no profile in the suite's inline`
 		);
 	});
 
@@ -123,12 +123,12 @@ describe('runPluginConformance', () => {
 
 	it('runs an inline profile that names its kind before the kind exists', async () => {
 		const report = await runPluginConformance({
-			plugins: [emojiPlugin()],
+			plugins: [glyphPlugin()],
 			inline: [
 				{
 					trigger: ':',
-					priority: 110,
-					kind: EMOJI_KIND,
+					priority: GLYPH_PRIORITY,
+					kind: GLYPH_KIND,
 					fixtures: [':smile:'],
 					overlapFixtures: ['meet at 10:30'],
 					overlapDecline: { mode: 'assert' },

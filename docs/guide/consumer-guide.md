@@ -805,7 +805,7 @@ Plugins install once at mount, in array order, before the first parse. Build the
 - **Passing the same plugin to two editors registers it once.** Per-instance configuration still works: an entry may be `{ plugin, options }` instead of a bare plugin, and each editor gets its own `options` even though the registration is shared (the split-pane case). Reach for this over the plugin's own factory argument for anything two editors would vary, because a factory argument only takes effect on the first install. An entry doesn't have to spell out everything, either: each field it names replaces the plugin's default for that field (a list included), and the rest keep their defaults.
 - **The prop is the enablement set.** Registration is shared, but an editor only runs the plugins it lists, so leaving one out of an editor's array switches it off there, syntax included: its blocks read as the plain Markdown they are. An editor mounted with no `plugins` prop (or an empty array) is the exception: it activates everything installed in the process.
 - **A later editor may mount carrying a plugin an earlier one never had.** The late install is legal and serves the new editor's own parse; an editor that already parsed doesn't re-parse against the newer grammar, and a dev-build warning names the late registration.
-- **For a `parse()` pipeline with no `<Editor>` mounted**, call `installPlugins(plugins)` from the package to make the grammar live.
+- **For a `parse()` pipeline with no `<Editor>` mounted**, call `installPlugins(plugins)` from the package to make the grammar live. A plugin value (`toc`, `emoji`, `highlight`) doesn't install that way: `grammar(values).parse(text)`, from `/plugin`, reads text as an editor running those values would. It takes plugin values only, and it doesn't see what `installPlugins` installed.
 
 **One plugin set per app, not per route.** Installation is first-wins per plugin name: once a plugin is installed, a later set's own definition of it (its factory options included) is ignored with a dev-build warning (a plugin new to the process still installs late, as above). Under SSR, that turns per-route sets into a hydration hazard:
 
@@ -830,9 +830,9 @@ Each one releases with the editor and asks for exactly its version, so bump them
 ```ts
 import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
 import { detailsPlugin } from '@voithos-labs/aragonite-details';
-import { tocPlugin } from '@voithos-labs/aragonite-toc';
+import { toc } from '@voithos-labs/aragonite-toc';
 import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
-import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+import { emoji } from '@voithos-labs/aragonite-emoji';
 import { highlight } from '@voithos-labs/aragonite-highlight';
 import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
 import { latex } from '@voithos-labs/aragonite-latex';
@@ -846,9 +846,9 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 | --- | --- |
 | `admonitionsPlugin()` | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes |
 | `detailsPlugin()` | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; a non-canonical `<details …>` stays a plain HTML block |
-| `tocPlugin()` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
+| `toc` or `toc({ maxDepth? })` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
 | `footnotesPlugin()` | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order |
-| `emojiPlugin()` | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph, with the literal `:name:` still in the source |
+| `emoji` | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph, with the literal `:name:` still in the source |
 | `highlight({ renderer? })` | Fenced code highlights in its language: 24 common ones, eight with the page and each other one the first time a fence names it, or every highlight.js grammar if you opt in (**Code highlighting**, below). The code block's picker offers the ones it highlights. Without a renderer, code stays plain, which is also what an editor without this plugin shows |
 | `highlightOccurrences` | Every occurrence of the word under the caret, the one you're on included, is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change. The plugin picks no color: style `.decoration-overlay.hl-occurrence` to see it |
 | `latex` or `latex({ renderer?, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; without an engine each formula shows its source. `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing, and each editor keeps its own renderings. With latex listed, the code block's picker offers `math` |
@@ -861,15 +861,15 @@ A few of them take options or need a word more.
 
 **Admonitions.** Pass `{ convertAlertsOnPaste: true }` to rewrite pasted GitHub alerts to directive source instead of rendering them natively.
 
-**Table of contents.** The walk descends into containers, so headings inside blockquotes, lists, and callouts are listed too, and navigation is view-only, so entries work in every presentation mode. `{ maxDepth }` (1 through 6, default 6) lists only the top levels, and it's read per instance:
+**Table of contents.** Headings inside blockquotes, lists and callouts are listed too, and following an entry changes no bytes, so entries work in every presentation mode. `maxDepth` (1 through 6, default 6) lists only the top levels, in the editor whose list holds it:
 
 ```ts
-import { tocPlugin, type TocOptions } from '@voithos-labs/aragonite-toc';
+import { toc } from '@voithos-labs/aragonite-toc';
 
-const plugins = [{ plugin: tocPlugin(), options: { maxDepth: 3 } satisfies TocOptions }];
+const plugins = [toc({ maxDepth: 3 })];
 ```
 
-Two editors in one process can list different depths this way; the factory form, `tocPlugin({ maxDepth: 3 })`, is the default for an instance that declares none. The `satisfies TocOptions` is there because `options` is `unknown` to the editor, and with it a typo or an out-of-range level stays a compile error. At runtime anything that isn't a level from 1 to 6 falls back to the factory value.
+Two editors in one process can list different depths this way. At runtime anything that isn't a level from 1 to 6 lists every level.
 
 **Footnotes.** A reference jumps to its definition on the click a link follows: a plain click in reading mode, Ctrl/Cmd+click while editing, or a plain click in live mode too if you set `linkClick: 'plain'`. Any other plain click opens the reference's source to edit. The definition's own `[^label]` marker is the way back, on the same gesture, and it lands the caret right after the first citation. In reading mode both are links a keyboard reaches with Tab and follows with Enter, and the way back focuses that first citation, so Tab carries on from it; the editing modes give them no tab stop.
 

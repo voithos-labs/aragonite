@@ -22,7 +22,8 @@ import {
 } from '#lib/test/harness/clipboard-events.js';
 import { pasteGesture } from '../range-laws/gestures';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
-import { tocPlugin, TOC_BLOCK } from '#packages/toc/src/index.js';
+import { memoPlugin } from '../../../routes/test/plugins/memo/register';
+import { MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import { parrot as parrotBlock, parrotPlugin } from '#packages/parrot/src/index.js';
 import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
@@ -34,8 +35,8 @@ import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
-const TOC_LINE = '[[toc]]\n';
-const toc = tocPlugin();
+const MEMO_LINE = '%% a memo\n';
+const memo = memoPlugin();
 
 /** The grammar an editor whose `plugins` prop lists `names` parses through. */
 function grammarListing(names: string[]) {
@@ -43,7 +44,7 @@ function grammarListing(names: string[]) {
 }
 
 beforeEach(() => {
-	installPlugins([toc]);
+	installPlugins([memo]);
 	// A bodyWrite-declaring owner, so the escape below has a reparse to run.
 	registerDetailsKind(testView());
 });
@@ -52,7 +53,7 @@ beforeEach(() => {
 // escapes the pasted bytes and re-reads them, so it has to use the grammar the clipboard used.
 describe('the bodyWrite escape reparse reads the instance grammar', () => {
 	const pasted = (): CstNode[] => [
-		{ kind: 'paragraph', leadingTrivia: '', raw: TOC_LINE + '</details>\n' } as CstNode
+		{ kind: 'paragraph', leadingTrivia: '', raw: MEMO_LINE + '</details>\n' } as CstNode
 	];
 	const landedKinds = (grammar: GrammarView) =>
 		normalizeReplacementForBody(
@@ -63,11 +64,11 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 		).replacement.map((n) => n.kind);
 
 	it('the global grammar creates the plugin kind', () => {
-		expect(landedKinds(defaultGrammarView)).toContain(TOC_BLOCK);
+		expect(landedKinds(defaultGrammarView)).toContain(MEMO_BLOCK);
 	});
 
 	it('the grammar of an editor without the plugin keeps it prose', () => {
-		expect(landedKinds(grammarListing([]))).not.toContain(TOC_BLOCK);
+		expect(landedKinds(grammarListing([]))).not.toContain(MEMO_BLOCK);
 	});
 });
 
@@ -110,14 +111,14 @@ describe('a paste into a mounted editor reads that editor’s plugins', () => {
 	}
 
 	it.each([
-		['lists it', [toc], true],
+		['lists it', [memo], true],
 		['lists another plugin, not it', [shouter], false]
 	] as const)('lands the plugin’s kind only where the editor %s', async (_, plugins, lands) => {
-		const editor = await pasted([...plugins], TOC_LINE);
+		const editor = await pasted([...plugins], MEMO_LINE);
 		const kinds = editor.instance.__test
 			.getDocument()
 			.children.map((block) => block.kind as string);
-		expect(kinds.includes(TOC_BLOCK)).toBe(lands);
+		expect(kinds.includes(MEMO_BLOCK)).toBe(lands);
 	});
 
 	// Miss-analysis: the kind rows pasted a kind registered in a plugin's setup; a block type a
@@ -135,7 +136,7 @@ describe('a paste into a mounted editor reads that editor’s plugins', () => {
 
 	it.each([
 		['lists it', [shouter], '# TITLE'],
-		['lists another plugin, not it', [toc], '# title']
+		['lists another plugin, not it', [memo], '# title']
 	] as const)('runs the plugin’s transform only where the editor %s', async (_, plugins, head) => {
 		const editor = await pasted([...plugins], '# title\n');
 		expect(editor.source().startsWith(head)).toBe(true);
@@ -145,7 +146,7 @@ describe('a paste into a mounted editor reads that editor’s plugins', () => {
 	// cell run the transforms from the cell's own answer, a second call site.
 	it.each([
 		['lists it', [shouter], '# TITLE'],
-		['lists another plugin, not it', [toc], '# title']
+		['lists another plugin, not it', [memo], '# title']
 	] as const)(
 		'runs the transform on blocks pasted out of a cell only where the editor %s',
 		async (_, plugins, head) => {
@@ -167,7 +168,7 @@ describe('a paste into a mounted editor reads that editor’s plugins', () => {
 	// drove the dispatcher the range-edit core replaced, and no live row registered one.
 	it.each([
 		['lists it', [gatekeeper], ['ahead', 'text']],
-		['lists another plugin, not it', [toc], []]
+		['lists another plugin, not it', [memo], []]
 	] as const)(
 		'asks a plugin’s paste surface only where the editor %s',
 		async (_, plugins, said) => {

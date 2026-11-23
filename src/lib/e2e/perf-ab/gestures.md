@@ -10,11 +10,12 @@
 - Over a divider held whole and the two paragraphs under it, to the second one's end, in the same document with its middle block a divider: Delete (the key of every row here), a typed letter, Enter and a paste of one line. No text is kept at either end, so the text and the break take a line of their own.
 - At a caret in the same document: a letter typed mid-paragraph (the control), Enter at a paragraph end, a paste of two paragraphs mid-paragraph and a paste of two lines at a paragraph end.
 - A letter typed at the end of the first block among small blocks and in flat prose, in the first item of a giant list, at the end of a 60-line code fence in live mode, and at the end of a paragraph dense with footnote references and `[[wiki]]` links on `/test/plugins?seed=footnotes`.
+- A letter typed at the end of a heading in the middle of 2,000 headings under a table of contents on `/test/plugins?seed=toc`, where the outline asks only the heading typed in.
 - At an item end in a 1 MB bullet list: Enter, a second Enter on the item the first opened, a paste of `x\n` (key: Enter) and a paste of `x\n\n` (key: the two Enters). In a numbered list: Enter, and a paste of `x\n` (key: Enter).
 
 ## Edge cases
 
-- A build whose bridge lacks a call a row makes, whose route draws no footnote reference, whose whole-block range reads back as another range, or whose first sample changes nothing or makes another edit reports the row as not on this ref, with the reason, instead of failing.
+- A build whose bridge lacks a call a row makes, whose route draws no footnote reference or outline, whose whole-block range reads back as another range, or whose first sample changes nothing or makes another edit reports the row as not on this ref, with the reason, instead of failing.
 
 ## Error cases
 

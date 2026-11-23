@@ -3,7 +3,7 @@
 KaTeX's `htmlAndMathml` output carries a visual half (`.katex-html`) and an accessibility half
 (`.katex-mathml`) that `katex/dist/katex.min.css` collapses to a 1px box. That stylesheet is a
 dependency of the default `katexRenderer` and is imported by the module that owns it, so every
-route installing `latexPlugin` gets it. Without it both halves paint: the render, followed by the
+route listing `latex` gets it. Without it both halves paint: the render, followed by the
 TeX source repeated as plain text.
 
 ## Happy paths

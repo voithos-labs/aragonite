@@ -11,13 +11,11 @@ import {
 	type Document,
 	type InlineNode
 } from '#lib/core/nodes.js';
-import { computeInlineContent, isProseKind } from '#lib/plugin.js';
+import { computeInlineContent, grammar, isProseKind, type Piece } from '#lib/plugin.js';
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { DETAILS } from '#packages/details/src/index.js';
-import { EMOJI_KIND } from '#packages/emoji/src/index.js';
 import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
 import { MERMAID } from '#packages/mermaid/src/index.js';
-import { TOC_BLOCK } from '#packages/toc/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
@@ -26,6 +24,9 @@ import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md
  * document's prose: the owner rewrites `showcase-content.md` by hand, and a suite that
  * pins its sentences reds on every rewrite while saying nothing about coverage.
  */
+
+const EMOJI = 'emoji/emoji';
+const MATH = 'latex/math';
 
 /** A kind the tour does not reach today. Both directions are asserted, so an entry
  *  whose kind is demonstrated, or names nothing expected, fails. */
@@ -48,14 +49,15 @@ const NOT_YET_DEMONSTRATED: Record<string, string> = {
 const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	admonitions: [ADMONITION, GITHUB_ALERT],
 	details: [DETAILS],
-	emoji: [EMOJI_KIND],
+	emoji: [EMOJI],
 	footnotes: [FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND],
 	mermaid: [MERMAID],
-	// Plugin values, read only by an editor running them, so no page-wide parse holds them;
-	// `plugins/showcase-route.spec.ts` sees the math and the bird on the page.
-	latex: [],
+	// Inline math reads through the demo's plugin values, as emoji does; its block is a block type.
+	latex: [MATH],
+	// Block types, read only by an editor running their plugin, so no page-wide parse holds them;
+	// `plugins/showcase-route.spec.ts` sees them on the page.
 	parrot: [],
-	toc: [TOC_BLOCK],
+	toc: [],
 	// Declares no kind at all: its demonstration is a paragraph repeating a word, asserted
 	// on its own below and chosen the same way by `plugins/showcase-occurrences.spec.ts`.
 	'highlight-occurrences': [],
@@ -67,9 +69,10 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	highlight: []
 };
 
-/** The inline kinds the bundled plugins add. No registry lists them, so the plugin
- *  packages' own exported constants stand in. */
-const PLUGIN_INLINE_KINDS = [EMOJI_KIND, FOOTNOTE_REF_KIND];
+/** The inline kinds the bundled plugins add. No registry lists them, so their names stand in. */
+const PLUGIN_INLINE_KINDS = [EMOJI, FOOTNOTE_REF_KIND, MATH];
+
+const { plugins: SETUP_PLUGINS, values: PLUGIN_VALUES } = normalizePluginEntries(DEMO_PLUGINS);
 
 function kindsIn(document: Document): Set<string> {
 	const found = new Set<string>();
@@ -90,12 +93,35 @@ function kindsIn(document: Document): Set<string> {
 	return found;
 }
 
+/** The kinds the demo's plugin values read in `source`, which no page-wide parse sees; each is
+ *  named after its plugin (`emoji/emoji`). */
+function valueKindsIn(source: string): Set<string> {
+	const found = new Set<string>();
+	const add = (kind: string) => kind.includes('/') && found.add(kind);
+	const collect = (pieces: readonly Piece[]): void => {
+		for (const piece of pieces) {
+			add(piece.kind);
+			collect(piece.children);
+		}
+	};
+	for (const top of grammar(PLUGIN_VALUES).parse(source).blocks) {
+		for (const block of top.walk()) {
+			add(block.type.name);
+			collect(block.pieces);
+		}
+	}
+	return found;
+}
+
 let demonstrated: Set<string>;
 let expected: Set<string>;
 
 beforeEach(() => {
-	installPlugins(normalizePluginEntries(DEMO_PLUGINS).plugins);
-	demonstrated = kindsIn(parse(SHOWCASE_DOCUMENT));
+	installPlugins(SETUP_PLUGINS);
+	demonstrated = new Set([
+		...kindsIn(parse(SHOWCASE_DOCUMENT)),
+		...valueKindsIn(SHOWCASE_DOCUMENT)
+	]);
 	expected = new Set([
 		...ALL_BLOCK_KINDS,
 		...getAllRegisteredKinds().filter((kind) => !isBuiltinBlockKind(kind)),

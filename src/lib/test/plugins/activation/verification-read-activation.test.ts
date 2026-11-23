@@ -2,7 +2,7 @@
 // Miss-analysis: the reparsing checks only ran with every plugin active, where any grammar agrees.
 import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { EMOJI_KIND, emojiPlugin } from '#packages/emoji/src/index.js';
+import { FOOTNOTE_REF_KIND, footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { MATH_INLINE, registeredMath } from '#lib/test/harness/registered-math.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { screenVisibility } from '#lib/core/inline/visibility.js';
@@ -15,26 +15,26 @@ import { grammarListing } from './grammar-listing';
 import { fixtureReading, topLevelStore } from '#lib/test/harness/fixture-grammar.js';
 
 beforeEach(() => {
-	installPlugins([registeredMath(), emojiPlugin()]);
+	installPlugins([registeredMath(), footnotesPlugin()]);
 });
 
-/** An editor that lists neither latex nor emoji, so it draws `$x$` and `:smile:` as text. */
+/** An editor that lists neither latex nor footnotes, so it draws `$x$` and `[^note]` as text. */
 const withoutEither = () => grammarListing([]);
 const LIVE = screenVisibility('live', { chromePaints: false });
 const inlinesOf = (raw: string) => parseInline(raw, 0, raw.length, undefined, withoutEither());
 
-// Without the installs every editor draws `$x$` and `:smile:` as text, and the cases below pass.
+// Without the installs every editor draws `$x$` and `[^note]` as text, and the cases below pass.
 describe('the installed plugins read their syntax', () => {
-	it('parses `$x$` and `:smile:` as their constructs where every plugin is listed', () => {
-		const kinds = parseInline('a $x$ :smile:', 0, 13).map((node) => node.kind);
-		expect(kinds).toEqual(expect.arrayContaining([MATH_INLINE, EMOJI_KIND]));
+	it('parses `$x$` and `[^note]` as their constructs where every plugin is listed', () => {
+		const kinds = parseInline('a $x$ [^note]', 0, 13).map((node) => node.kind);
+		expect(kinds).toEqual(expect.arrayContaining([MATH_INLINE, FOOTNOTE_REF_KIND]));
 	});
 });
 
 describe('the link wrap reads the syntax the editor draws', () => {
-	it('wraps `a :smile: b`, which the editor draws as text', () => {
+	it('wraps `a [^note] b`, which the editor draws as text', () => {
 		expect(
-			canWrapRangeAsLink('a :smile: b', 0, 11, fixtureReading({ grammar: withoutEither() }))
+			canWrapRangeAsLink('a [^note] b', 0, 11, fixtureReading({ grammar: withoutEither() }))
 		).toBe(true);
 	});
 });
@@ -55,19 +55,19 @@ describe('a pending mark reads the syntax the editor draws', () => {
 });
 
 describe('the typing position at a hidden run reads the syntax the editor draws', () => {
-	// `**:smile**`: typing `:` inside the bold spells an emoji only where emoji is listed.
+	// `**[^note**`: typing `]` inside the bold spells a reference only where footnotes is listed.
 	it('keeps the typed byte at the caret inside the bold', () => {
-		const raw = '**:smile**';
+		const raw = '**[^note**';
 		const reading = fixtureReading({ grammar: withoutEither() });
 		const edges = hiddenEdges(inlinesOf(raw), raw, LIVE, reading);
-		expect(edges.typingOffset(8, null, ':')).toBe(8);
+		expect(edges.typingOffset(8, null, ']')).toBe(8);
 	});
 });
 
 describe('the edge delete reads the syntax the editor draws', () => {
-	// Deleting the bold `x` leaves `:smile:`, which reads as text here, not as an emoji.
+	// Deleting the bold `x` leaves `[^note]`, which reads as text here, not as a reference.
 	const deleteBoldX = (kind: 'paragraph' | 'tableCell') => {
-		const raw = ':smile**x**:';
+		const raw = '[^note**x**]';
 		const node = makeBlockNode({ kind, leadingTrivia: '', raw });
 		return resolveEdgeDeletion({
 			display: raw,
@@ -82,10 +82,10 @@ describe('the edge delete reads the syntax the editor draws', () => {
 	};
 
 	it('takes the byte in a table cell', () => {
-		expect(deleteBoldX('tableCell')).toMatchObject({ raw: ':smile:', caret: 6 });
+		expect(deleteBoldX('tableCell')).toMatchObject({ raw: '[^note]', caret: 6 });
 	});
 
 	it('takes the byte in a prose block', () => {
-		expect(deleteBoldX('paragraph')).toMatchObject({ raw: ':smile:', caret: 6 });
+		expect(deleteBoldX('paragraph')).toMatchObject({ raw: '[^note]', caret: 6 });
 	});
 });

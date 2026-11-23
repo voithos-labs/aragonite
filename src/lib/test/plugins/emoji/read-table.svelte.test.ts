@@ -4,7 +4,7 @@
 // Miss-analysis: the recognizer rows read the scan's nodes alone, so none held what an editor
 // running the plugin draws and reads for the same bytes.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { EMOJI_KIND, emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -15,8 +15,8 @@ import type { Block, Piece } from '#lib/plugin.js';
 beforeAll(() => installLayoutStubs());
 afterEach(destroyMountedEditors);
 
-const PLUGIN = emojiPlugin();
-const KIND: string = EMOJI_KIND;
+const PLUGIN = emoji;
+const KIND = 'emoji/emoji';
 
 // Iterative, as an author's walk over a block's pieces would be.
 function glyphSpans(pieces: readonly Piece[]): [number, number][] {

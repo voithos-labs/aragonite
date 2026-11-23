@@ -1,66 +1,71 @@
 /**
- * The heading outline as a pure function over the read-only document. It recurses through
- * containers, so a heading nested in a blockquote or list is still collected at its own path
- * and stays navigable.
+ * The heading outline, read block by block: what each top-level block answers to the outline's
+ * `depends` (its headings, as a reader reads them), and the list those answers make together.
  */
 
-import {
-	computeInlineContent,
-	headingLevel,
-	trimWhitespace,
-	walkBlocks,
-	type DocumentView,
-	type EditorContext,
-	type InlineNode
-} from '@voithos-labs/aragonite/plugin';
+import { builtin, trimWhitespace, type Block, type Doc } from '@voithos-labs/aragonite/plugin';
 
 /** Deepest heading level a document can list; `[[toc]]` has no meaning past GFM's six. */
 export const MAX_HEADING_DEPTH = 6;
 
+/** One row of the outline: heading `nth` (counting every heading) of top-level block `block`. */
 export interface TocEntry {
-	/** Stable and unique per position: the keyed-loop identity. */
+	/** Unique per position: the keyed loop's identity. */
 	id: string;
-	/** Document-absolute block path of the heading, for `rects.scrollTo`. */
-	path: number[];
+	block: number;
+	nth: number;
 	level: number;
 	label: string;
 }
 
-/** A label's plain text without a DOM: markers drop, value nodes show what they render to, and
- *  anything else its bytes. The editor's visible text renders through the DOM and draws widgets. */
-export function projectInlineText(nodes: readonly InlineNode[], raw: string): string {
-	let text = '';
-	for (const node of nodes) {
-		if (node.children) text += projectInlineText(node.children, raw);
-		else if (typeof node.text === 'string') text += node.text;
-		else if (typeof node.decoded === 'string') text += node.decoded;
-		else if (typeof node.url === 'string') text += node.url;
-		else if (node.kind === 'rawHtml') continue;
-		else text += raw.slice(node.start, node.end);
-	}
-	return text;
+type Heading = [level: number, label: string, nth: number];
+
+const isHeading = (block: Block) =>
+	block.is(builtin.blocks.heading) || block.is(builtin.blocks.setextHeading);
+
+/** The outline's `depends`: a block's headings to `maxDepth` as JSON, or '' with none, so a label
+ *  may hold a line break. */
+export function headingsIn(maxDepth: number): (block: Block) => string {
+	return (block) => {
+		// Most blocks hold no heading: skip the walk unless a `#` or an underline could start one.
+		if (!/#|[=-][ \t]*\r?$/m.test(block.text)) return '';
+		const found: Heading[] = [];
+		let nth = 0;
+		for (const inside of block.walk()) {
+			if (!isHeading(inside)) continue;
+			const { level } = inside.data as { level: number };
+			if (level <= maxDepth) found.push([level, trimWhitespace(inside.textContent), nth]);
+			nth++;
+		}
+		return found.length === 0 ? '' : JSON.stringify(found);
+	};
 }
 
-/** Labels read through `read`, the editor's inline parse, so syntax it left out stays text. */
-export function collectHeadings(
-	document: DocumentView | undefined,
-	maxDepth: number,
-	read: EditorContext['computeInlineContent'] = computeInlineContent
-): TocEntry[] {
-	const entries: TocEntry[] = [];
-	if (!document) return entries;
-	walkBlocks(document, (node, path) => {
-		const level = headingLevel(node);
-		if (level === null) return;
-		if (level <= maxDepth) {
-			entries.push({
-				id: path.join('.'),
-				path,
-				level,
-				label: trimWhitespace(projectInlineText(read(node), node.raw))
-			});
-		}
-		return 'skip';
-	});
+// The answers never change once handed over, so they key the list: one outline per edit.
+const outlines = new WeakMap<readonly string[], TocEntry[]>();
+
+/** The outline the top-level blocks' answers make, in document order. */
+export function outlineOf(answers: readonly string[]): TocEntry[] {
+	let entries = outlines.get(answers);
+	if (!entries) {
+		entries = [];
+		answers.forEach((answer, block) => {
+			if (!answer) return;
+			for (const [level, label, nth] of JSON.parse(answer) as Heading[])
+				entries!.push({ id: `${block}.${nth}`, block, nth, level, label });
+		});
+		outlines.set(answers, entries);
+	}
 	return entries;
+}
+
+/** The heading an entry names in `doc`, or null once an edit has taken it away. */
+export function headingOf(doc: Doc, entry: TocEntry): Block | null {
+	const block = doc.blocks[entry.block];
+	if (!block) return null;
+	let nth = 0;
+	for (const inside of block.walk()) {
+		if (isHeading(inside) && nth++ === entry.nth) return inside;
+	}
+	return null;
 }

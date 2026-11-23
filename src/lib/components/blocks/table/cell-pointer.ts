@@ -15,8 +15,7 @@ import {
 import { rowMajorCellIndex } from '../../../core/coordinate-spaces';
 import { createPointerDragSession, type PointerPosition } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
-import { collapseNativeRangeOnTakeover, reachesWholeBlock } from '../../../selection/drag-pointer';
-import { blockContentElAt } from '../../../caret/block-el-lookup';
+import { collapseNativeRangeOnTakeover, reachesBlockAt } from '../../../selection/drag-pointer';
 import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';
 import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
 import { caretOffsetAtPoint, elementAtPoint } from '../../../browser/point';
@@ -153,8 +152,8 @@ export function installCellDragListener(
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
 		if (isWholeBlockEndpoint(focusPoint)) {
-			const box = blockContentElAt(ctx.editorRoot, near.path)?.getBoundingClientRect();
-			if (!reachesWholeBlock(box, anchor.tablePath, near.path, clientY, finger !== null)) return;
+			if (!reachesBlockAt(ctx.editorRoot, anchor.tablePath, near.path, clientY, finger !== null))
+				return;
 		}
 		extendTo(focusPoint);
 	}

@@ -1,20 +1,23 @@
-/**
- * The consumer example's seed, parsed under the plugin set that route installs. A directive
- * another installed plugin owns still renders, as that plugin's block, so the drift shows
- * only in the browser.
- * Miss-analysis: only `consumer-smoke` covered the consumer route, and CI never runs it on dev.
- */
-import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '#lib/core/parser.js';
-import { installPlugins } from '#lib';
+// @vitest-environment jsdom
+// The consumer example's seed, read by an editor running the plugin set that route lists. A
+// directive another installed plugin owns still renders, as that plugin's block, so the drift
+// shows only in the browser.
+// Miss-analysis: only `consumer-smoke` covered the consumer route, and CI never runs it on dev.
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
 import { grammar } from '#lib/plugin.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { PLUGINS_SEED } from '../../../../examples/consumer/src/routes/plugins/seed';
 
@@ -25,20 +28,26 @@ const consumerRouteSet = () => [
 	detailsPlugin(),
 	admonitionsPlugin(),
 	mermaidPlugin(),
-	tocPlugin(),
-	emojiPlugin(),
+	toc,
+	emoji,
 	footnotesPlugin()
 ];
 
-beforeEach(() => {
-	installPlugins(consumerRouteSet());
-});
+beforeAll(() => installLayoutStubs());
+afterEach(destroyMountedEditors);
 
 describe('the consumer example route parses its seed as the kinds its suite asserts', () => {
-	it('resolves every seeded construct to the plugin that claims it', () => {
-		expect(parse(PLUGINS_SEED).children.map((block) => block.kind)).toEqual([
+	it('resolves every seeded construct to the plugin that claims it', async () => {
+		const m = mountEditor<EditorTestSurface>({
+			source: PLUGINS_SEED,
+			plugins: consumerRouteSet(),
+			scrollMode: 'host'
+		});
+		await m.settle();
+		const doc = m.instance.__test.getDocument();
+		expect(doc.children.map((block) => block.kind)).toEqual([
 			'heading',
-			'toc',
+			'toc/toc',
 			'callout',
 			'details',
 			'paragraph',

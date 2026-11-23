@@ -21,27 +21,27 @@ import { isWholeBlockUnit } from '#lib/schema/whole-block-unit.js';
 import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: detailsPlugin,
-	emoji: emojiPlugin,
+	emoji: () => emoji,
 	footnotes: footnotesPlugin,
 	'highlight-occurrences': () => highlightOccurrences,
 	latex: () => latex,
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
 	'slash-commands': () => slashCommands,
-	toc: tocPlugin
+	toc: () => toc
 };
 // One instance each: installing a second object under a plugin's name warns.
 const PLUGINS = normalizePluginEntries(Object.values(BUNDLED).map((plugin) => plugin())).plugins;
@@ -71,8 +71,6 @@ const MERGE_KEYS: Record<string, string | null> = {
 };
 /** Literal kinds whose lines are no body: a line pasted in one is not one of its lines. */
 const NO_BODY_LINES = ['linkReferenceDefinition'];
-/** Drawn by a component that opens the text on a click, which the registration can't see. */
-const PICTURES_BY_COMPONENT = ['toc'];
 const JOINS_BY_ROLE: Record<MergeRole, BlockFacts['joins']> = {
 	prose: 'text',
 	'prose-absorber': 'text-keeping-type',
@@ -137,10 +135,7 @@ const EXPECTED: { [Field in keyof BlockFacts]-?: (kind: string) => BlockFacts[Fi
 		descriptorOf(kind)?.supportsInline || holdsBlocks(kind) ? 'markdown' : 'literal',
 	holdsLines: (kind) => !NO_BODY_LINES.includes(kind),
 	joins: (kind) => JOINS_BY_ROLE[descriptorOf(kind)!.mergeRole],
-	textPosition: (kind) => {
-		if (descriptorOf(kind)?.blockFocus === 'whole-block') return 'never';
-		return PICTURES_BY_COMPONENT.includes(kind) ? 'while-source-shows' : 'always';
-	}
+	textPosition: (kind) => (descriptorOf(kind)?.blockFocus === 'whole-block' ? 'never' : 'always')
 };
 
 // ── The rows ─────────────────────────────────────────────────────────────────
@@ -157,8 +152,7 @@ describe('block facts agree with every registration', () => {
 			...LAZY_LINES,
 			...Object.keys(BUILT_IN_SHAPES),
 			...Object.keys(MERGE_KEYS),
-			...NO_BODY_LINES,
-			...PICTURES_BY_COMPONENT
+			...NO_BODY_LINES
 		];
 		expect(named.filter((kind) => !registered.has(kind))).toEqual([]);
 	});

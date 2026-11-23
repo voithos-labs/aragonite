@@ -21,7 +21,7 @@ import {
 	releaseTypingPausesForTests
 } from '#lib/editor-actions/commit/text-batch.js';
 import { makeRng } from '#lib/e2e/simulation/rng.js';
-import { KEYS, SYNTAX_PLUGINS, type Key, type ScriptedKey } from './corpus';
+import { KEYS, EDITOR_SYNTAX_PLUGINS, type Key, type ScriptedKey } from './corpus';
 import { caretField, textField, undoField, warnsField, type Row } from './rows';
 
 /** Where a caret goes: a leaf block by its CST path, or one cell of the table at that path. */
@@ -37,7 +37,7 @@ const siteName = ({ path, cell }: Site) =>
 	`[${path.join(',')}]${cell ? ` r${cell[0]}c${cell[1]}` : ''}`;
 
 function mount(source: string, mode: PresentationMode): MountedEditor {
-	return mountEditor({ source, presentationMode: mode, plugins: SYNTAX_PLUGINS });
+	return mountEditor({ source, presentationMode: mode, plugins: EDITOR_SYNTAX_PLUGINS });
 }
 
 /** Every leaf block of `source`, and each cell of each table, read off a mount only where a table

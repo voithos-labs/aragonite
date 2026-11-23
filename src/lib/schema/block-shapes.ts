@@ -213,9 +213,13 @@ export function leafRegistration(spec: LeafCommon<unknown>, text: LeafText): Bui
 		editable: true,
 		pageRole: role,
 		mergeRole: role === 'prose' ? ('prose-absorber' as const) : ('not-mergeable' as const),
-		// An edge where Enter already makes a paragraph takes no gap caret: a one-line text splits
-		// at either end, a box focused whole opens one below.
-		gapEdges: box ? ('before' as const) : multiLine ? ('both' as const) : ('none' as const),
+		// A gap caret sits where the caret can't reach an edge: by a text that spans lines or shows only
+		// once the caret comes in, above a box (Enter opens one below); a one-line text splits instead.
+		gapEdges: box
+			? ('before' as const)
+			: multiLine || edit === 'source'
+				? ('both' as const)
+				: ('none' as const),
 		...samplesOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
 		...(writes ? { rawWrite: writes } : {})

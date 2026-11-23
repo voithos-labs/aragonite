@@ -6,30 +6,36 @@ import { createHash } from 'node:crypto';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { EditorPlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
+import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
-import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
 import RevealLeafBlock from '../blocks/fixtures/RevealLeafBlock.svelte';
-import { tocPlugin } from '#packages/toc/src/index.js';
+import { toc } from '#packages/toc/src/index.js';
 import { MULTI_SEEDS } from '#lib/e2e/simulation/multi-seeds.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 
 /** The bundled plugins that add syntax and render without a network or a canvas, so `$x$`,
- *  `:::note`, `[^1]` and `[[toc]]` read the way the showcase reads them. */
+ *  `:::note` and `[^1]` read the way the showcase reads them, installed page-wide. */
 export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
 	admonitionsPlugin(),
 	detailsPlugin(),
-	tocPlugin(),
 	footnotesPlugin(),
-	emojiPlugin(),
 	// The latex package is a plugin value, which only an editor reads; the same syntax registered
 	// page-wide, its blocks drawn as a picture that opens its source, as a math block is.
 	registeredMath(svelteBlockView(RevealLeafBlock))
 ];
+
+/** The bundled plugin values that add syntax, which an editor installs for itself: `[[toc]]` and
+ *  `:smile:`. */
+export const SYNTAX_PLUGIN_VALUES = [toc, emoji];
+
+/** Both, as an editor's `plugins` lists them. */
+export const EDITOR_SYNTAX_PLUGINS: PluginsProp = [...SYNTAX_PLUGINS, ...SYNTAX_PLUGIN_VALUES];
 
 /** One document per block kind, container and inline construct, short enough that every offset
  *  times every key stays cheap. Ids name rows, so renaming one renames its rows. */
