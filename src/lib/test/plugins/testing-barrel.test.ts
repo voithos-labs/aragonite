@@ -234,7 +234,8 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 // Miss-analysis: nothing listed the entry's names, so one more name for `setup` plugins would
 // have joined the ones that leave with them, unseen.
 
-/** What stays on the entry: `check`, its result, its helpers and the environment switch it asks for. */
+/** What stays on the entry: `check`, its result, its helpers, and the environment switch it asks
+ *  for with the way back. */
 const STAYS = [
 	'check',
 	'CheckFailure',
@@ -247,6 +248,7 @@ const STAYS = [
 	'Conformance',
 	'Excuses',
 	'configureEditorEnv',
+	'resetEditorEnv',
 	'headless',
 	'tabOrder',
 	'rewritePaste'
@@ -255,7 +257,6 @@ const STAYS = [
 /** What leaves: the kits for `setup` plugins, their types and the reset of their registries. */
 const LEAVES = [
 	'resetPluginPlatformForTests',
-	'resetEditorEnv',
 	'CellReport',
 	'CellStatus',
 	'ConformanceCoverage',
