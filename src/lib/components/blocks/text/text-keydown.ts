@@ -46,8 +46,8 @@ export function demoteEmptyAtxHeading(raw: string, content: ContentRange): TextE
 	return demoteToParagraph(raw, content, 0);
 }
 
-/** Re-mark the content with an ATX prefix for `level`, replacing the current kind's structural
- *  bytes. Not a toggle: level 0 demotes, and null there means there was nothing to strip. */
+/** Re-mark the content with an ATX prefix for `level`, keeping a closing `#` run. Not a toggle:
+ *  level 0 demotes, and null there means there was nothing to strip. */
 export function cycleHeading(
 	raw: string,
 	content: ContentRange,

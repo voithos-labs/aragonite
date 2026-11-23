@@ -60,7 +60,7 @@ describe('demoteToParagraph: an ATX closing run', () => {
 		const raw = '# Hi #\r';
 		const content = getContentRange(parse(raw).children[0]);
 		expect(demoteToParagraph(raw, content, 2)?.newRaw).toBe('Hi\r');
-		expect(cycleHeading(raw, content, 2, 2)?.newRaw).toBe('## Hi\r');
+		expect(cycleHeading(raw, content, 2, 2)?.newRaw).toBe('## Hi #\r');
 	});
 });
 
