@@ -1,7 +1,7 @@
 # Feature: a title row holds one line
 
 A container's title row is one line: a `:::` container's opener line (`:::tip Title`) or a
-`<details>` summary. Shift+Enter there writes nothing: no bytes, no undo entry, and the caret stays
+`<details>` summary. Shift+Enter at a caret there writes nothing: no bytes, no undo entry, and the caret stays
 where it was, so the next letter goes in there. Fixtures in the `/test/plugins` harness; the caret
 is walked into the row with ArrowLeft from the body's start.
 
