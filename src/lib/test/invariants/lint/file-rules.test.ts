@@ -469,7 +469,9 @@ const RULES: FileRule[] = [
 			'src/lib/search/regex-executor.ts':
 				'setTimeout regex-scan cancellation deadline: nothing waits on the timer, and no main-thread budget can interrupt one RegExp.exec',
 			'src/lib/testing/check-context.ts':
-				"setTimeout deadline on a plugin's own promise under `check`: a row fails once it passes, and nothing is ordered by it"
+				"setTimeout deadline on a plugin's own promise under `check`: a row fails once it passes, and nothing is ordered by it",
+			'src/lib/testing/command-check.ts':
+				"setTimeout turn after a plugin's call under `check`, so a write or a report the call left running lands on its own row: it orders no editor step"
 		},
 		reason:
 			'`await tick()` is the only sequencing primitive; a timing primitive that is a cadence or a wall-clock deadline joins the allowlist with why',

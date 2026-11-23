@@ -1,8 +1,8 @@
 /**
  * `check`'s rows over what a plugin runs: each command it lists or its block types place, and each
  * caret menu, by trigger. A row drives the plugin's own code against the editor a check hands it: a
- * command or a pick that waits, with the host loading another note while it does, and a block's
- * command handed the second of two blocks while the caret sits in the first.
+ * command or a pick, with the host loading another note while what it started still runs, and a
+ * block's command handed the second of two blocks while the caret sits in the first.
  */
 
 import type { Contribution } from '../schema/plugin-unit';
@@ -181,11 +181,7 @@ async function waitingCommand(
 	if (!run.contributions.can(entry, block)) {
 		return { status: 'not-applicable', detail: 'its `when` declines the sample' };
 	}
-	const answer = entry.spec.run(stage.editor, block);
-	if (!isThenable(answer)) {
-		return { status: 'not-applicable', detail: 'answers at once, with no wait to outlive a note' };
-	}
-	return outlives(stage, answer, 'it');
+	return outlives(stage, entry.spec.run(stage.editor, block), 'it');
 }
 
 async function waitingPick(stage: Stage, menu: ContributedMenu['menu']): Promise<Outcome> {
@@ -207,48 +203,64 @@ async function waitingPick(stage: Stage, menu: ContributedMenu['menu']): Promise
 	const picked = typeof label === 'string' ? `its pick of "${label}"` : 'its first pick';
 	const pick = stage.pick(menu.trigger, '');
 	try {
-		const answer = menu.pick(row, pick);
-		if (!isThenable(answer)) {
-			await stage.idle(picked);
-			return { status: 'not-applicable', detail: `${picked} answers at once, with no wait` };
-		}
-		return await outlives(stage, answer, picked);
+		return await outlives(stage, menu.pick(row, pick), picked);
 	} finally {
 		pick.end();
 	}
 }
 
-/** Loads another note once `answer`'s own writes through the editor are done, as a host's load waits
- *  for an open write, then fails any write made after it. */
-async function outlives(
-	stage: Stage,
-	answer: PromiseLike<unknown>,
-	what: string
-): Promise<Outcome> {
+/** Loads another note once the call's own writes through the editor are done, as a host's load
+ *  waits for an open write, then fails any write made after it, before or after `answer` settles. */
+async function outlives(stage: Stage, answer: unknown, what: string): Promise<Outcome> {
 	if (stage.busy()) await stage.idle(what);
 	const before = stage.writes.length;
 	stage.swap(anotherNote(stage.source().length));
-	let rejected: { cause: unknown } | null = null;
-	try {
-		await stage.within(answer, what);
-	} catch (cause) {
-		if (cause instanceof Unsettled) throw cause;
-		rejected = { cause };
-	}
-	await stage.idle(what);
+	const rejected = await ended(stage, answer, what);
+	const waits = isThenable(answer);
 	const late = stage.writes.slice(before);
 	if (late.length > 0) {
-		return failed(
-			`${what} made ${late.join(', ')} after the host loaded another note; write through a ` +
-				'draft opened before the wait, which is refused once its note is gone'
-		);
+		const advice = waits
+			? 'after the host loaded another note; write through a draft opened before the wait, ' +
+				'which is refused once its note is gone'
+			: 'after it returned, once the host loaded another note: return the promise of what it ' +
+				'waits on, and write through a draft opened before the wait';
+		return failed(`${what} made ${late.join(', ')} ${advice}`);
 	}
 	if (rejected) {
 		return failed(
 			`${what} rejected once the host loaded another note: ${messageOf(rejected.cause)}`
 		);
 	}
+	if (!waits) {
+		return {
+			status: 'not-applicable',
+			detail: `${what} answers at once, with no wait to outlive a note`
+		};
+	}
 	return { status: 'passed', detail: `${what} waited, and wrote nothing into the next note` };
+}
+
+// The timer as this module loaded it: a test's fake timers would hold the turn, and `check` with it.
+const unfaked = { setTimeout: globalThis.setTimeout.bind(globalThis) };
+
+/** Waits out a call: `answer` within the bound, its writes, then one macrotask, so a write or a
+ *  report it left running lands on its own row. Answers the promise's rejection. */
+async function ended(
+	stage: Stage,
+	answer: unknown,
+	what: string
+): Promise<{ cause: unknown } | null> {
+	let rejected: { cause: unknown } | null = null;
+	try {
+		if (isThenable(answer)) await stage.within(answer, what);
+	} catch (cause) {
+		if (cause instanceof Unsettled) throw cause;
+		rejected = { cause };
+	}
+	await stage.idle(what);
+	await new Promise<void>((resolve) => unfaked.setTimeout(resolve, 0));
+	await stage.idle(what);
+	return rejected;
 }
 
 /** Runs `entry` on the second of two blocks of `kind` with the caret in the first. */
@@ -269,9 +281,8 @@ async function actionTarget(
 	if (!run.contributions.can(entry, second)) {
 		return { status: 'not-applicable', detail: 'its `when` declines the sample' };
 	}
-	const answer = entry.spec.run(stage.editor, second);
-	if (isThenable(answer)) await stage.within(answer, 'it');
-	await stage.idle('it');
+	const rejected = await ended(stage, entry.spec.run(stage.editor, second), 'it');
+	if (rejected) return failed(`threw: ${messageOf(rejected.cause)}`);
 	const inserted = stage.writes.find((write) => write.startsWith('an insert'));
 	if (!stage.source().startsWith(kept) || inserted) {
 		const how = inserted ? `made ${inserted} at the caret` : 'wrote the first block';
