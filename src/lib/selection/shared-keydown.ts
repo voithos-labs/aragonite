@@ -190,7 +190,7 @@ export async function handleSharedKeydown(
 }
 
 /** A plain arrow over a range in the block collapses it ahead of every check that could leave the
- *  block: Left to its start, Right to its end, Up and Down to its moving end. True if it did. */
+ *  block: Left as `leftEdgeArrival` says, Right to its end, Up and Down to its moving end; true if so. */
 function collapseRangeForArrow(
 	e: KeyboardEvent,
 	ctx: SharedKeydownContext,

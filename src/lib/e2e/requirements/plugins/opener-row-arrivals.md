@@ -58,6 +58,7 @@ ArrowLeft over a selection on the row rests where the selection starts when a ca
 - An untitled `:::tip`, Shift+Home from the row's end or from byte 4, Mod+A, a triple-click on the name, or a Shift+click at the row's left edge: the row's end, and `x` writes `:::tip x`. ArrowLeft moves the caret right there, which keeps the callout.
 - An untitled `:::tip`, Shift+ArrowLeft twice from the row's end, or Shift+ArrowRight twice from byte 4: byte 4, `:::txip`.
 - ArrowRight over each of those selections: its end.
+- With the caret at byte 5, Shift+End: byte 5, where the caret stood. A double-click on the shown name, or a drag leftward inside it: the title's start, since a press is an arrival.
 - A word step left (Ctrl+ArrowLeft, Option on macOS) over Mod+A or Shift+Home from the title's start: from the title's start into the name, byte 3, `:::xtip Title`; over Mod+A on an untitled row, `:::xtip`.
 
 ## A caret the browser leaves on the row

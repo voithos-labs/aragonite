@@ -4,7 +4,7 @@ import { PluginsPage } from './helpers';
 import { edgeKey, extendKey, WORD_MODIFIER } from '../../platform-keys';
 import { multiClick } from '../../multi-click';
 import { skipUnlessSupported } from '../../browser-engine';
-import { textRunCenter, textRunStart } from '../../text-runs';
+import { pointAtRaw, textRunCenter, textRunStart } from '../../text-runs';
 import { attachIme } from '../../simulation/ime';
 
 /**
@@ -1127,4 +1127,44 @@ test.describe('a write right after an arrival on a :::tip row', () => {
 		await expect.poll(() => sourceOf(page)).toBe(NEST);
 		await expect.poll(() => caretText(page)).toBe('[0,1,0]:7');
 	});
+});
+
+// ── ArrowLeft over a selection made in the shown name ────────────────────────
+
+/** Presses `from`'s raw offset on the row and drags to `to`'s, with the row's name showing. */
+async function dragOnRow(page: Page, from: number, to: number): Promise<void> {
+	const a = await pointAtRaw(page, ROW, from);
+	const b = await pointAtRaw(page, ROW, to);
+	await page.mouse.move(a.x, a.y);
+	await page.mouse.down();
+	await page.mouse.move(b.x, b.y, { steps: 4 });
+	await page.mouse.up();
+}
+
+test.describe('ArrowLeft over a selection made in a shown :::tip name', () => {
+	const rows: [string, (page: Page) => Promise<void>, string, number][] = [
+		[
+			'Shift+End from inside the name',
+			(page) => page.keyboard.press(extendKey('lineEnd')),
+			'[0,0]:5..[0,0]:12',
+			5
+		],
+		['a drag leftward inside the name', (page) => dragOnRow(page, 6, 3), '[0,0]:6..[0,0]:3', 7],
+		[
+			'a double-click on the name',
+			async (page) => multiClick(page, await textRunCenter(page, 'tip', { path: ROW }), 2),
+			'[0,0]:3..[0,0]:6',
+			7
+		]
+	];
+	for (const [name, select, selected, left] of rows) {
+		test(`${name}, then ArrowLeft`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, { name, source: T, steps: arrowBack(7), caret: '' });
+			await select(page);
+			await expect.poll(() => caretText(page)).toBe(selected);
+			await page.keyboard.press('ArrowLeft');
+			await expect.poll(() => caretText(page)).toBe(`[0,0]:${left}`);
+		});
+	}
 });
