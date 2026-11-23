@@ -25,6 +25,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { insertBy } from '#lib/test/harness/insertion-routes.js';
+import { rewritePaste } from '#lib/testing.js';
 
 beforeEach(installLayoutStubs);
 afterEach(async () => {
@@ -462,5 +463,36 @@ describe('installing a whole-paste rewrite', () => {
 		]
 	])('leaves the plugin out %s', (_, rewrites, said) => {
 		expect(refusal(rewrites)).toEqual({ kept: [], said: [said] });
+	});
+});
+
+// Miss-analysis: the helper's rows compared it with itself, so a helper that skipped the
+// whole-paste rewrites would have agreed with every one of them.
+describe('rewritePaste', () => {
+	it('answers what the editor pastes once both forms ran', async () => {
+		const both = definePlugin({
+			name: 'both',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				pasteRewrites: [pasteRewrite({ name: 'loud', sample: 'x!!', into: (p) => shout(p.text) })],
+				blockRewrites: [
+					blockRewrite({
+						from: builtin.blocks.heading,
+						into: (block, { pasted }) => `# ${block.body} of ${pasted.blocks.length}`
+					})
+				]
+			})
+		}) as unknown as EditorPlugin;
+		const clip = '# quiet!!\n\nand more\n';
+		const answer = rewritePaste(clip, [both]);
+		expect(answer).toBe('# QUIET!! of 2\n\nAND MORE\n');
+		const { editor } = await mounted(TEXT, [both]);
+		await pasteOn(editor, await acrossText(editor), clip);
+		const landed = editor.source();
+		await destroyMountedEditors();
+		const control = await mounted(TEXT);
+		await pasteOn(control.editor, await acrossText(control.editor), answer);
+		expect(landed).toBe(control.editor.source());
 	});
 });

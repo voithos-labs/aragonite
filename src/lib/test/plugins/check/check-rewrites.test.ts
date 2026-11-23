@@ -1,10 +1,19 @@
 // @vitest-environment node
-// `check` pastes each type a plugin rewrites, at the top and inside a container, with a block flush
-// below it and one flush above: an answer lands as blocks of its own, each neighbour keeps its bytes,
-// and a paste of the answer isn't rewritten again. `rewritePaste` runs
-// the same production function over a plugin list.
+// `check` pastes each type a plugin rewrites, at the top and inside a container, alone, with a block
+// flush below it and with one flush above: an answer lands as blocks of its own, each neighbour keeps
+// its bytes, and a paste of the answer isn't rewritten again. It pastes a whole-paste rewrite's
+// sample at the top and inside a quote. `rewritePaste` runs the same production function over a
+// plugin list.
 import { describe, expect, it } from 'vitest';
-import { blockRewrite, builtin, definePlugin, type Plugin } from '#lib/plugin.js';
+import {
+	blockRewrite,
+	builtin,
+	definePlugin,
+	pasteRewrite,
+	type Editor,
+	type Plugin
+} from '#lib/plugin.js';
+import type { Doc } from '#lib/schema/doc-view.js';
 import { check, isCheckFailure, type CheckReport, type Excuses } from '#lib/testing/check.js';
 import { rewritePaste } from '#lib/testing.js';
 
@@ -21,13 +30,32 @@ function rewriting(name: string, ...into: ((body: string) => string | null)[]): 
 	});
 }
 
-async function rowOf(run: Promise<CheckReport>) {
-	try {
-		return (await run).rows.find((row) => row.of === 'blockRewrite');
-	} catch (error) {
-		if (isCheckFailure(error)) return error.report.rows.find((row) => row.of === 'blockRewrite');
+/** A plugin of one whole-paste rewrite named `name`. */
+function wholeRewriting(
+	plugin: string,
+	into: (pasted: Doc, editor: Editor) => string | null,
+	{ name = 'all', sample = 'wow!! ok' } = {}
+): Plugin {
+	return definePlugin({
+		name: plugin,
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({
+			pasteRewrites: [
+				pasteRewrite({ name, sample, into: (pasted, { editor }) => into(pasted, editor) })
+			]
+		})
+	});
+}
+
+const reportOf = (run: Promise<CheckReport>) =>
+	run.catch((error: unknown) => {
+		if (isCheckFailure(error)) return error.report;
 		throw error;
-	}
+	});
+
+async function rowOf(run: Promise<CheckReport>, of = 'blockRewrite') {
+	return (await reportOf(run)).rows.find((row) => row.of === of);
 }
 
 describe('rewriteLands', () => {
@@ -35,6 +63,29 @@ describe('rewriteLands', () => {
 		const fenced = rewriting('fenced', (body) => `\`\`\`\n${body}\n\`\`\``);
 		expect(await rowOf(check(fenced))).toMatchObject({
 			subject: 'paragraph',
+			status: 'passed',
+			detail: expect.stringMatching(/^6 answer/)
+		});
+	});
+
+	// Miss-analysis: every paste had a block flush below the sample, so a rewrite that answers only
+	// a block pasted alone was never asked about its answer.
+	it('passes a rewrite that answers a block pasted alone, deciding on `pasted`', async () => {
+		const lone = definePlugin({
+			name: 'lone',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				blockRewrites: [
+					blockRewrite({
+						from: builtin.blocks.heading,
+						into: (block, { pasted }) => (pasted.blocks.length === 1 ? `> ${block.body}` : null)
+					})
+				]
+			})
+		});
+		expect(await rowOf(check(lone))).toMatchObject({
+			subject: 'heading',
 			status: 'passed',
 			detail: expect.stringMatching(/^4 answer/)
 		});
@@ -76,7 +127,7 @@ describe('rewriteLands', () => {
 		expect(await rowOf(check(flat))).toMatchObject({
 			subject: 'heading',
 			status: 'passed',
-			detail: expect.stringMatching(/^4 answer/)
+			detail: expect.stringMatching(/^6 answer/)
 		});
 		expect(rewritePaste('Above.\n# Title\nBelow.\n', [flat])).toBe('Above.\n\nTitle\n\nBelow.\n');
 	});
@@ -135,7 +186,101 @@ describe('rewriteLands', () => {
 	});
 });
 
+describe('rewriteLands for a whole-paste rewrite', () => {
+	const shout = (pasted: Doc) => (pasted.text.includes('!!') ? pasted.text.toUpperCase() : null);
+
+	it("passes the guide's shout, under its plugin's name", async () => {
+		const plugin = wholeRewriting('shout', shout, { name: 'shout' });
+		expect(await rowOf(check(plugin), 'pasteRewrite')).toMatchObject({
+			subject: 'shout/shout',
+			check: 'rewriteLands',
+			status: 'passed'
+		});
+	});
+
+	it('fails a sample its rewrite keeps', async () => {
+		const keeps = wholeRewriting('keeps', shout, { sample: 'calm' });
+		expect(await rowOf(check(keeps), 'pasteRewrite')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/keeps its own sample "calm" pasted at the top/)
+		});
+	});
+
+	it('fails an answer a paste of which is rewritten again', async () => {
+		const grows = wholeRewriting('grows', (pasted) => `${pasted.text}!`);
+		expect(await rowOf(check(grows), 'pasteRewrite')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/is rewritten again: "wow!! ok!" becomes "wow!! ok!!"/)
+		});
+	});
+
+	it('fails a rewrite that keeps its sample pasted inside a quote', async () => {
+		const top = wholeRewriting('top', (pasted, editor) =>
+			editor.doc.text.startsWith('>') ? null : pasted.text.toUpperCase()
+		);
+		expect(await rowOf(check(top), 'pasteRewrite')).toMatchObject({
+			status: 'failed',
+			detail: 'it keeps its own sample "wow!! ok" pasted inside a quote'
+		});
+	});
+
+	it('fails a rewrite with no sample', async () => {
+		const bare = wholeRewriting('bare', shout, { sample: '' });
+		expect(await rowOf(check(bare), 'pasteRewrite')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/lists no sample/)
+		});
+	});
+
+	it('keys its row and its excuse apart from a rewrite of the type it is named for', async () => {
+		const both = definePlugin({
+			name: 'both',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				pasteRewrites: [pasteRewrite({ name: 'paragraph', sample: 'a!!', into: (p) => shout(p) })],
+				blockRewrites: [
+					blockRewrite({ from: builtin.blocks.paragraph, into: (block) => `\`\`\`\n${block.body}` })
+				]
+			})
+		});
+		const excuse: Excuses = {
+			// @ts-expect-error: rewriteLands takes no excuse.
+			pasteRewrites: { paragraph: { rewriteLands: 'A fence it closes later.' } }
+		};
+		const rows = (await reportOf(check(both, { excuse }))).rows.filter(
+			(row) => row.check === 'rewriteLands'
+		);
+		expect(rows.map(({ of, subject, status }) => [of, subject, status])).toEqual([
+			['pasteRewrite', 'both/paragraph', 'failed'],
+			['blockRewrite', 'paragraph', 'failed']
+		]);
+		expect(rows[0].detail).toMatch(/never covers this check/);
+		expect(rows[1].detail).toMatch(/swallows the block pasted after it/);
+	});
+});
+
 describe('rewritePaste', () => {
+	it('runs the whole-paste rewrites, then those by type over what they left', () => {
+		const both = definePlugin({
+			name: 'both',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				pasteRewrites: [
+					pasteRewrite({ name: 'loud', sample: 'x', into: (p) => p.text.toUpperCase() })
+				],
+				blockRewrites: [
+					blockRewrite({
+						from: builtin.blocks.heading,
+						into: (block, { pasted }) => `# ${block.body} of ${pasted.blocks.length}`
+					})
+				]
+			})
+		});
+		expect(rewritePaste('# quiet\n\nand more\n', [both])).toBe('# QUIET of 2\n\nAND MORE\n');
+	});
+
 	it('runs a plugin value’s rewrites over a clipboard that reads as blocks', () => {
 		const loud = rewriting('loud', (body) => body.toUpperCase());
 		expect(rewritePaste('quiet\n\n> also quiet\n', [loud])).toBe('QUIET\n\n> ALSO QUIET\n');
