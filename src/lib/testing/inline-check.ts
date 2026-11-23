@@ -416,6 +416,15 @@ function checkPairSides(
 	}
 	const key = getInlineConstructPolicy(open.kind)?.pair?.key;
 	if (key) {
+		// The editor pairs two sides whose keys are identical, which two objects never are.
+		for (const claim of claims.flat()) {
+			const answer: unknown = key(claim.node.data);
+			if (Object(answer) !== answer) continue;
+			problems.push(
+				`\`key\` answers ${JSON.stringify(answer)} for ${show(bytesOf(claim))}: it has to be a string, which two sides of one pair share`
+			);
+			break;
+		}
 		subject.samples.forEach((sample, at) => {
 			const keys = (part: InstalledInline) =>
 				claims[at]

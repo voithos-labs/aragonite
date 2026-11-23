@@ -283,6 +283,16 @@ describe('check over inline constructs', () => {
 		);
 	});
 
+	// Miss: every fixture's key answered a string, and the row compared keys as text.
+	it('fails pairSides for a key that answers an object, which no two reads share', async () => {
+		const boxed = comment({ key: (id: string) => ({ id }) });
+		const report = await reportOf(check(pluginOf('boxed', () => [boxed])));
+		expect(rowOf(report, 'boxed/cm', 'pairSides')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/`key` answers \{"id":"a"\}.*a string/)
+		});
+	});
+
 	it.each<[string, () => unknown[], string, RegExp]>([
 		[
 			'a construct on another character',
