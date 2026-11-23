@@ -261,7 +261,7 @@ Each command is a subject under `plugin/id`, a block action's command included; 
 - `waitingWrite`, for a command and for a menu's first row picked on an empty query: once the call waits, the host loads another note, and any write after that fails. The `MenuPick` and a draft opened before the wait are refused on their own, so write through those. A call that returns no promise has no wait, so the row is `not-applicable`.
 - `actionTarget`, for a command a block type places: it runs on the second of two sample blocks with the caret in the first, and fails if it writes the first or inserts at the caret. A command that only asked the screen reads `unchecked`.
 
-These share one editor, as a mounted editor is shared: your `setup` runs on it once before them where there's a DOM, and the function it returns after them and the rows below. With no DOM, a plugin that lists a `setup` gets them `unchecked`.
+These share one editor, as a mounted editor is shared: your `setup` runs on it once before them where there's a DOM, and the function it returns after them and the rows below, which ask your rewrites and your paint of that same editor. With no DOM, a plugin that lists a `setup` gets them `unchecked`.
 
 Each wait of yours gets `timeout` milliseconds, 2000 unless you say: a command's or a pick's promise, a menu's `rows`, a highlighter's answer. One that outlasts it fails its row and says so. Answer the wait at once through `options` (a stubbed fetch), or raise `timeout`. Your `setup` is called and never awaited, so it has no wait to bound.
 

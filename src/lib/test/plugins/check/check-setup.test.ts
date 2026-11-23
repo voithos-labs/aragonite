@@ -3,9 +3,11 @@
 // an editor that reads the plugin's samples, commits drafts and answers as one with nothing on screen.
 import { describe, expect, it, vi } from 'vitest';
 import {
+	builtin,
 	definePlugin,
 	lineBlock,
 	menu,
+	rewrite,
 	type Block,
 	type Editor,
 	type MenuPick,
@@ -151,5 +153,35 @@ describe('the rows that drive a plugin, with a DOM', () => {
 			'passed',
 			'passed'
 		]);
+	});
+
+	// Miss: the paint above read a flag, never the editor, so a paint asked over an editor `setup`
+	// never met passed; one that reads its own editor painted nothing and no row said so.
+	it('asks the paint and the rewrites of the editor setup met, holding the text asked about', async () => {
+		let kept: Editor | undefined;
+		const seen: boolean[] = [];
+		const reads = definePlugin({
+			name: 'reads-kept',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				setup: (editor) => void (kept = editor),
+				paint: (block: Block) => {
+					const mine = kept?.blockAt(block.from);
+					return mine?.text === block.text
+						? [{ type: 'mark' as const, from: mine.from, to: mine.to - 1, class: 'x' }]
+						: [];
+				},
+				rewrites: [
+					rewrite({
+						from: builtin.blocks.paragraph,
+						into: (_block, { editor }) => (seen.push(editor === kept), null)
+					})
+				]
+			})
+		});
+		const report = await check(reads);
+		expect(report.rows.find((row) => row.check === 'paintRanges')?.status).toBe('passed');
+		expect(new Set(seen)).toEqual(new Set([true]));
 	});
 });

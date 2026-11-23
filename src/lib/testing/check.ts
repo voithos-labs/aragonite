@@ -204,10 +204,10 @@ async function rowsOf(
 				rows.push({ of: 'menu', subject: trigger, check: 'waitingWrite', ...outcome });
 			}
 			for (const [from, entries] of rewriteSubjects(run, plugin.name)) {
-				const outcome = rewriteOutcome(run, from, entries);
+				const outcome = rewriteOutcome(run, mounted, from, entries);
 				rows.push({ of: 'rewrite', subject: from, check: 'rewriteLands', ...outcome });
 			}
-			const painted = await paintOutcomes(run, plugin.name, own, warnings);
+			const painted = await paintOutcomes(run, mounted, plugin.name, own, warnings);
 			for (const [check, outcome] of painted) {
 				rows.push({ of: 'plugin', subject: plugin.name, check, ...outcome });
 			}

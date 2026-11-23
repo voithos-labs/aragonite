@@ -43,6 +43,8 @@ export function menuSubjects(run: PluginCheckRun, plugin: string): Map<string, C
 export interface Mount {
 	/** `drive` with `source` loaded into that editor. */
 	drive(source: string, drive: (stage: Stage) => Promise<Outcome>): Promise<Outcome>;
+	/** That editor with `source` loaded, for a row that reads; one of its own where none is mounted. */
+	over(source: string): Stage;
 	/** Runs the function `setup` returned, once the rows are done; the `setup` row. */
 	end(): Outcome;
 }
@@ -54,6 +56,7 @@ export function mount(run: PluginCheckRun, setup: Contribution['setup'], source:
 		const needs = 'needs a DOM: setup runs once an editor is mounted, so it may use one';
 		return {
 			drive: async () => ({ status: 'unchecked', detail: needs }),
+			over: (text) => run.stage(text),
 			end: () => ({ status: 'unchecked', detail: needs })
 		};
 	}
@@ -75,6 +78,7 @@ export function mount(run: PluginCheckRun, setup: Contribution['setup'], source:
 				return failed(error instanceof Unsettled ? error.message : `threw: ${messageOf(error)}`);
 			}
 		},
+		over: (text) => (stage.load(text), stage),
 		end() {
 			if (!setup) return { status: 'not-applicable', detail: 'lists no setup' };
 			if (threw !== null) return failed(`threw: ${threw}`);

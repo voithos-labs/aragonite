@@ -13,6 +13,7 @@ import type { Block } from '../schema/doc-view';
 import type { Contribution } from '../schema/plugin-unit';
 import type { PluginCheck } from './check-names';
 import { Unsettled, type PluginCheckRun } from './check-context';
+import type { Mount } from './command-check';
 import type { Outcome } from './inline-check';
 import { show } from './conformance-core';
 
@@ -21,6 +22,7 @@ type Warnings = readonly { readonly tag: string; readonly message: string }[];
 /** The plugin rows for what `own` lays over the document: only those it lists a way to lay. */
 export async function paintOutcomes(
 	run: PluginCheckRun,
+	mounted: Mount,
 	plugin: string,
 	own: Contribution | undefined,
 	warnings: Warnings
@@ -31,7 +33,7 @@ export async function paintOutcomes(
 		...run.kinds.flatMap((kind) => run.context.descriptor(kind).samples ?? [])
 	];
 	if (own?.paint || own?.paintContainer) {
-		out.push(['paintRanges', paintRanges(run, plugin, own, samples, warnings)]);
+		out.push(['paintRanges', paintRanges(mounted, plugin, own, samples, warnings)]);
 	}
 	if (own?.code) out.push(['codeTokens', await codeTokens(run, own.code, samples.join('\n'))]);
 	return out;
@@ -44,7 +46,7 @@ const messageOf = (error: unknown) => (error as Error)?.message ?? String(error)
 
 /** Each block of each sample asked through the editor's paint source, as a block on screen is. */
 function paintRanges(
-	run: PluginCheckRun,
+	mounted: Mount,
 	plugin: string,
 	own: Contribution,
 	samples: readonly string[],
@@ -69,7 +71,7 @@ function paintRanges(
 			}
 		});
 	for (const sample of samples) {
-		const stage = run.stage(sample);
+		const stage = mounted.over(sample);
 		const source = createPaintSource<Block>({
 			plugin,
 			contribution: {

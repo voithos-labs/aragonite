@@ -12,6 +12,7 @@ import type { ContributedRewrite } from '../schema/editor-contributions';
 import type { PluginActivation } from '../schema/plugin-activation';
 import type { PluginError } from '../schema/plugin-unit';
 import type { CheckContext, PluginCheckRun } from './check-context';
+import type { Mount } from './command-check';
 import type { Outcome } from './inline-check';
 import { show } from './conformance-core';
 
@@ -46,6 +47,7 @@ export function rewriteSubjects(
  *  the top and inside a container. */
 export function rewriteOutcome(
 	run: PluginCheckRun,
+	mounted: Mount,
 	from: string,
 	entries: readonly ContributedRewrite[]
 ): Outcome {
@@ -70,7 +72,8 @@ export function rewriteOutcome(
 			[`${sample}\n${after}`, false],
 			[wrap(`${sample}\n${after}`), true]
 		] as const) {
-			run.stage(clip);
+			// The editor a rewrite is handed is the one `setup` met.
+			mounted.over(clip);
 			const out = pasted(context, activation, clip);
 			if (out === clip) continue;
 			landed++;
