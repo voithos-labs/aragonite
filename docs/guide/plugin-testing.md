@@ -180,7 +180,7 @@ Nothing here is declared. A subject gets the rows its shape can take, so a type 
 
 - Where there's a DOM, your `setup` runs on that editor once before them, and the function it returns runs after. With no DOM, a plugin that lists `setup` gets its command and menu rows `unchecked`.
 - `waitingWrite` runs your command over a sample, or picks your menu's first row for an empty query. Once the call waits, the host loads another note. Any write after that fails the row.
-- A call that returns no promise and writes nothing later has no wait to check, so its row is `not-applicable`. One that writes later without returning its promise fails: return the promise.
+- A call that returns no promise has no wait to check, so its row is `not-applicable`. If your command writes later, return its promise: a write the check sees after a call that returned none fails the row.
 - `actionTarget` hands your command the second of two sample blocks while the caret sits in the first. Writing the first block, or inserting at the caret, fails it. A command that only asked the screen for something (a box, a menu) reads `unchecked`.
 - `rewriteLands` pastes each sample of the `from` type with a block after it, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails. So does an answer your rewrite would change again, since every paste would grow it.
 
@@ -440,7 +440,7 @@ import { rewritePaste } from '@voithos-labs/aragonite/testing';
 const shout = definePlugin({
 	name: 'shout',
 	version: '1.0.0',
-	editor: '^0.11.6',
+	editor: '*',
 	contributes: () => ({
 		rewrites: [rewrite({ from: builtin.blocks.heading, into: (block) => block.text.toUpperCase() })]
 	})
@@ -480,7 +480,7 @@ import { rewritePaste } from '@voithos-labs/aragonite/testing';
 const boom = definePlugin({
 	name: 'boom',
 	version: '1.0.0',
-	editor: '^0.11.6',
+	editor: '*',
 	contributes: () => ({
 		rewrites: [
 			rewrite({
@@ -588,15 +588,9 @@ Takes your kind (the value `declaredPluginKind` returns) and runs one cell per e
   - It's `boundary` for a kind with the rule and no top-level fixture (none at all, or one sitting inside a container), and `exempt` for a kind with neither the rule nor a top-level fixture.
 - The unfinished-reading cell, last. If your opener declares `readingNotFinal`, because it backs out without its closer or reads on like a fence ([A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final)), it takes your fixture's last line off and checks `mayClose` says yes to that line, the closer that finishes it, and that `closer` hands back a line that closes the rest into your kind again. It also asks `notFinal` of your fixture a line at a time: once it says final, it has to stay final. A reading no line closes (`closer: null`) is held another way: `notFinal` has to say it waits for the first line alone and for every run of lines short of the whole fixture (a `notFinal` written for the block's own bytes fails here), then call the whole fixture final; a `crosses` you declared has to accept every line of your fixture under the first, and your opener must not read on across a blank line put above the fixture's last line, since a block that does needs a `closer`. It's `exempt` for a one-line fixture, and for a reading that names a closer when your fixture minus its last line doesn't read as waiting, which covers every kind that neither backs out nor reads on. One catch: if your fixture is a fence and your opener declares no `readingNotFinal`, the cell fails and asks for `fenceReading`.
 
-Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one: [`check`](#checking-a-plugin-value-check) runs these checks over it. For the bundled `[[toc]]` block, the whole checkup is one call:
+Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one: [`check`](#checking-a-plugin-value-check) runs these checks over it.
 
-```ts
-it('toc conforms', async () => {
-	await runKindConformance(declaredPluginKind('toc'));
-});
-```
-
-It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the toc as it ships:
+The whole checkup is one call. It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the bundled `[[toc]]` block:
 
 ```ts
 const report = await runKindConformance(declaredPluginKind('toc'));
@@ -838,13 +832,7 @@ The other three declared cells are yours to excuse, since only you know whether 
 
 One thing worth knowing about `widget`: it asserts your claimed slice is **self-delimiting**. Re-scanning the slice alone must re-form the same kind over its whole length, because that slice is exactly what the widget's `data-source-*` attributes (the ones saying which bytes it stands for) hand the clipboard and a source reveal. Those attributes sit on the span the editor makes for your view, not on anything you build, so there's nothing about the span left for you to get wrong and the cell needs no DOM.
 
-`registration` is the thinnest cell. It checks three things:
-
-- yours is the only registration at its prefix and priority;
-- on a reserved trigger, your prefix is two or more characters and your priority sits below `INLINE_PRIORITIES.builtin`;
-- on a trigger no built-in owns, the scan actually visits that character.
-
-`registerInlineSyntax` already refuses most of that up front, so those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your recognizer not being there at all (a setup step that ran under the wrong guard, say), and that one doesn't wait for the cell: the run throws before any cell starts, telling you to register the plugin first.
+`registration` is the thinnest cell: yours is the only registration at its prefix and priority, and the scan visits your trigger. `registerInlineSyntax` already refuses most of what it checks. What you _can_ get wrong is your recognizer not being there at all (a setup step that ran under the wrong guard, say), and that one doesn't wait for the cell: the run throws before any cell starts, telling you to register the plugin first.
 
 ### The whole plugin at once: `runPluginConformance`
 
