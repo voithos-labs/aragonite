@@ -878,7 +878,7 @@ Two editors in one process can list different depths this way; the factory form,
 The two options:
 
 - `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the pick and, if the row sets `takesArgument: true`, the word typed after a space). The `/query` stays until `run` writes through the pick (`pick.write(text)` or `pick.insertBlock(markdown)`). A `run` may be async: if it opens a picker and waits, the pick writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
-- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details`, `math`, `mermaid` and `toc`).
+- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details`, `latex/block`, `mermaid` and `toc`).
 
 Calling `slashCommands` with options again lays them over the first ones field by field. So `slashCommands({ entries: [stamp] })({ exclude: ['table'] })` still lists the stamp row, and `({ entries: [] })` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the editor reports it (to `onError`, and on the `error` event) and runs the plugin on its defaults.
 

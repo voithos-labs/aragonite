@@ -17,7 +17,6 @@ import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-def
 import { FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
-import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
 import { registerTocBlock, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -285,7 +284,6 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: (view: BlockView) 
 	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },
 	{ dir: 'footnotes', kind: FOOTNOTE_DEF_KIND, install: registerFootnoteDefinition },
 	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
-	{ dir: 'latex', kind: MATH_BLOCK, install: registerMathBlock },
 	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind },
 	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock }
 ];
@@ -299,7 +297,7 @@ const NO_BLOCK_KIND_DIRS = new Set([
 ]);
 // Plugins whose blocks are block types, which only an editor running them parses: the kit reads
 // the page's grammar, so it doesn't reach them yet.
-const BLOCK_TYPE_DIRS = new Set(['parrot']);
+const BLOCK_TYPE_DIRS = new Set(['latex', 'parrot']);
 
 describe('kind conformance: bundled plugin kinds enroll', () => {
 	// Every kind the registrar registers, not only the headline one: title kinds with no
@@ -337,7 +335,7 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 
 	// The same check per kind, for a directory's second fixtured kind. The directive-fallback
 	// kinds `registerAdmonitions` adds are core, run by the registrar sweep above.
-	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT, MATH_FENCE];
+	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT];
 	it('sweeps exactly the bundled fixtured kinds', () => {
 		for (const { install } of BUNDLED_INSTALLS) install(testView());
 		const directiveFallback = new Set<string>([DIRECTIVE_CONTAINER, DIRECTIVE_LEAF]);

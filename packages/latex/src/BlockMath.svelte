@@ -204,9 +204,10 @@
 		border-radius: 8px;
 	}
 
-	/* The fence lines read at the formula's own weight, as the source has always drawn them. */
+	/* The fence lines, the `math` info string too, read at the formula's own weight and colour. */
 	.math-block :global(.math-block-source .md-marker) {
 		opacity: 1;
+		color: inherit;
 	}
 
 	/* The card stretches the source so its box fills the column; without it a short formula's
