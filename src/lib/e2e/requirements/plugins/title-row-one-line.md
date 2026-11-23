@@ -14,8 +14,12 @@ is walked into the row with ArrowLeft from the body's start.
 - An untitled row, before the colons, at the name's start and inside the name: the same
 - A nested callout's row, inside its title: the same, and the outer callout keeps its bytes
 - A details summary, inside it: the same
+- A paste of `C:\dir\`, a line break and `next` inside a title, or inside a summary: it goes in
+  as `C:\dir\ next`, the backslash kept and the break a space, with the caret after it
 
 ## Miss-analysis
 
 - No row pressed Shift+Enter on a title row, and only the paste into a title flattened its line,
   so a hard break written into the row by a key, a soft keyboard or a block write went in as typed.
+- The paste then took the key's rule and lost a backslash before a pasted break: no row pasted a
+  line ending in a backslash, and the one unit row pinned the loss as the rule.

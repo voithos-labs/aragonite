@@ -1,8 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
-// Shift+Enter on a title row writes nothing (`requirements/plugins/title-row-one-line.md`). Every
-// other route to the row's line is `test/blocks/title-row-one-line.test.ts`.
+// Shift+Enter on a title row writes nothing, and a pasted line break becomes a space
+// (`requirements/plugins/title-row-one-line.md`). Every other route to the row's line is
+// `test/blocks/title-row-one-line.test.ts`.
 
 const T = ':::tip Title\nbody\n:::\n';
 const U = ':::tip\nbody\n:::\n';
@@ -25,6 +26,33 @@ const ROWS: [string, string, number[], number, number[], number][] = [
 	['a nested row, inside the title', N, [0, 1, 0], 15, [0, 1, 1], 4],
 	['a details summary, inside it', D, [0, 0], 24, [0, 1], 5]
 ];
+
+const PASTED = ROWS.filter(([name]) => /inside the title|inside it/.test(name));
+
+test.describe('A pasted line ending in a backslash, on a title row', () => {
+	for (const mode of ['live', 'source'] as const)
+		for (const [name, source, row, rowStart, body, lefts] of PASTED)
+			test(`(${mode}) ${name} keeps the backslash and spaces the break`, async ({ page }) => {
+				const editor = new PluginsPage(page);
+				await editor.gotoPlugins();
+				await editor.setPresentationMode(mode);
+				await editor.loadContent(source);
+				await editor.focusBlockAtPath(body, 0);
+				for (let i = 0; i < lefts; i++) await page.keyboard.press('ArrowLeft');
+				const placed = await editor.bridge.getSelection();
+				expect(placed?.focus.path).toEqual(row);
+				await editor.seedClipboard('C:\\dir\\\nnext');
+
+				await editor.paste();
+
+				const at = rowStart + placed!.focus.offset;
+				const pasted = 'C:\\dir\\ next';
+				await editor.bridge.waitForSourceEquals(source.slice(0, at) + pasted + source.slice(at));
+				expect((await editor.bridge.getSelection())?.focus.offset).toBe(
+					placed!.focus.offset + pasted.length
+				);
+			});
+});
 
 test.describe('Shift+Enter on a title row', () => {
 	for (const mode of ['live', 'source'] as const)

@@ -1,6 +1,11 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { displayLength, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import {
+	displayLength,
+	oneLine,
+	ownTrailingLineEnding,
+	trimTrailingLineEnding
+} from '../core/lines';
 import {
 	tryGetBlockKindDescriptor,
 	type BlockKindDescriptor,
@@ -106,51 +111,13 @@ function withoutTrailingSpaces(text: string): string {
 	return text.replace(/[ \t]+$/, '');
 }
 
-/** Text as a title row holds it, on one line: a hard break goes whole, any other run of line
- *  breaks becomes one space, and a run at the end goes. A paste into a title takes it too. */
-export function titleLine(text: string): string {
-	return heldToOneLine(text).text;
-}
-
-/** The write rule every title row takes by its position, after its kind's own: {@link titleLine}
- *  over the row's text, ending as the row ends, so the row never runs into the line below. */
+/** The write rule every title row takes by its position, after its kind's own: the row's text on
+ *  {@link oneLine}, ending as the row ends, so the row never runs into the line below. */
 export const titleRowWrite: WriteRule = {
 	normalize: (raw, ctx) =>
-		titleLine(withoutOwnEnding(raw, ctx.node)) + ownTrailingLineEnding(ctx.node.raw),
-	mapOffset: (raw, offset, ctx) => heldToOneLine(withoutOwnEnding(raw, ctx.node)).at(offset)
+		oneLine(withoutOwnEnding(raw, ctx.node)).text + ownTrailingLineEnding(ctx.node.raw),
+	mapOffset: (raw, offset, ctx) => oneLine(withoutOwnEnding(raw, ctx.node)).at(offset)
 };
-
-// A backslash run of odd length before a line ending is a hard break; its last backslash goes too.
-const LINE_BREAKS = /(?<!\\)((?:\\\\)*)\\\r?\n|(?:\r?\n)+/g;
-
-/** {@link titleLine}'s text, and where an offset in `text` lands in it. */
-function heldToOneLine(text: string): { text: string; at(offset: number): number } {
-	const cuts: { from: number; to: number; by: number }[] = [];
-	let out = '';
-	let last = 0;
-	for (const match of text.matchAll(LINE_BREAKS)) {
-		const from = match.index;
-		const to = from + match[0].length;
-		const by = match[1] ?? (to === text.length ? '' : ' ');
-		out += text.slice(last, from);
-		cuts.push({ from, to, by: by.length });
-		out += by;
-		last = to;
-	}
-	out += text.slice(last);
-	return {
-		text: out,
-		at: (offset) => {
-			let shift = 0;
-			for (const cut of cuts) {
-				if (offset <= cut.from) break;
-				if (offset < cut.to) return cut.from + shift + Math.min(offset - cut.from, cut.by);
-				shift += cut.by - (cut.to - cut.from);
-			}
-			return offset + shift;
-		}
-	};
-}
 
 /** `raw` less the row's own line ending, where it still ends with it. */
 function withoutOwnEnding(raw: string, row: NodeView): string {

@@ -94,19 +94,46 @@ describe.each(ROWS)('a line break in $name', ({ source, at }) => {
 			});
 });
 
-const NEWLINE_TEXT: [string, (el: HTMLElement) => Promise<unknown>][] = [
-	['an IME commit', (el) => insertBy('composition', el, 'a\nb')],
-	['a drop', (el) => dropAtCaret(el, 'a\nb')],
-	['a paste', async (el) => dispatchPaste(el, 'a\nb')]
+// At the row's end a break elsewhere waits for the next letter, so the letter shows whether one opened.
+const END_BREAKS: [string, () => Promise<unknown>][] = [
+	...BREAKS,
+	[
+		'an IME commit ending in a backslash and a break',
+		() => insertBy('composition', focused(), 'a\\\n')
+	]
+];
+
+describe.each([
+	['a titled row', ':::tip Title\nin\n:::\n', 12, ':::tip Title', '\nin\n:::\n'],
+	['an untitled row', ':::tip\nin\n:::\n', 6, ':::tip ', '\nin\n:::\n']
+])('at %s’s end', (_, source, at, head, tail) => {
+	for (const mode of MODES)
+		for (const [gesture, act] of END_BREAKS)
+			it(`${mode}: ${gesture} then a letter writes the letter on the row`, async () => {
+				const editor = await mountAt(source, mode, at);
+				await act();
+				await editor.settle();
+				await insertBy('hardware key', focused(), 'x');
+				await editor.settle();
+				const composed = gesture.startsWith('an IME') ? 'a\\' : '';
+				expect(editor.source()).toBe(head + composed + 'x' + tail);
+			});
+});
+
+const TEXT_ROUTES: [string, (el: HTMLElement, text: string) => Promise<unknown>][] = [
+	['an IME commit', (el, text) => insertBy('composition', el, text)],
+	['a drop', (el, text) => dropAtCaret(el, text)],
+	['a paste', async (el, text) => dispatchPaste(el, text)],
+	['a browser paste', (el, text) => insertBy('browser paste', el, text)]
 ];
 
 describe.each(ROWS)('text holding a newline put in $name', ({ source, at, spaced }) => {
 	for (const mode of MODES)
-		for (const [gesture, act] of NEWLINE_TEXT)
+		for (const [gesture, act] of TEXT_ROUTES)
 			it(`${mode}: ${gesture} goes in on the row’s line`, async () => {
 				const editor = await mountAt(source, mode, at);
 
-				await act(focused());
+				await act(focused(), 'a\nb');
 				await editor.settle();
 
 				expect(editor.source()).toBe(spaced);
@@ -114,12 +141,21 @@ describe.each(ROWS)('text holding a newline put in $name', ({ source, at, spaced
 			});
 });
 
-// The paste and the write share one rule, so a hard break pasted into a title goes whole too.
-it('a paste holding a hard break drops it whole', async () => {
-	const editor = await mountAt(':::tip Title\nin\n:::\n', 'source', 10);
-	dispatchPaste(focused(), 'a\\\nb');
-	await editor.settle();
-	expect(editor.source()).toBe(':::tip Titable\nin\n:::\n');
+// Text from outside the editor is the user's: a backslash before a line break stays as text. Missed
+// because the paste took the key's rule, which drops the editor's own hard break whole.
+describe.each(ROWS)('text holding a backslash and a line break put in $name', ({ source, at }) => {
+	for (const mode of MODES)
+		for (const [gesture, act] of TEXT_ROUTES)
+			it(`${mode}: ${gesture} keeps the backslash and spaces the break`, async () => {
+				const editor = await mountAt(source, mode, at);
+
+				await act(focused(), 'a\\\nb');
+				await editor.settle();
+
+				const kept = source.slice(0, -1).replace(/(Tit|Sum)/, '$1a\\ b');
+				expect(editor.source()).toBe(kept + source.slice(-1));
+				expect(caret(editor)).toEqual({ path: [0, 0], offset: at + 4, collapsed: true });
+			});
 });
 
 describe('a block write to a title row', () => {
@@ -131,11 +167,20 @@ describe('a block write to a title row', () => {
 		expect(serialize(h.deps.doc)).toBe(':::tip Ti tle\nin\n:::\n');
 	});
 
-	it('replaceRaw holding a hard break writes nothing and adds no undo entry', async () => {
+	// Only the editor's own break key is refused; a block write is text, its backslash kept.
+	it('replaceRaw holding a backslash and a line break keeps the backslash', async () => {
 		const h = makeContainerHarness(':::tip Title\nin\n:::\n', [0]);
-		expect(await h.bundle.blockEdit.replaceRaw(0, ':::tip Tit\\\nle\n')).toBe(false);
-		expect(serialize(h.deps.doc)).toBe(':::tip Title\nin\n:::\n');
-		expect(h.deps.undoManager.getStacks().undo.length).toBe(0);
+		expect(await h.bundle.blockEdit.replaceRaw(0, ':::tip Tit\\\nle\n')).toBe(true);
+		expect(serialize(h.deps.doc)).toBe(':::tip Tit\\ le\nin\n:::\n');
+	});
+
+	it('a regex replace writing a backslash and a line break keeps the backslash', async () => {
+		const { deps, sr } = makeSearchReplace(':::tip Title\nin\n:::\n');
+		await sr.replaceAll(
+			scanCompiled(deps.doc, 'Title', { regex: true, caseSensitive: true }),
+			'Ti\\\\\\ntle'
+		);
+		expect(serialize(deps.doc)).toBe(':::tip Ti\\ tle\nin\n:::\n');
 	});
 
 	// The row ends as it ended, so its own text without its line ending is its bytes already.
