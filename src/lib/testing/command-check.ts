@@ -240,8 +240,9 @@ async function outlives(stage: Stage, answer: unknown, what: string): Promise<Ou
 	return { status: 'passed', detail: `${what} waited, and wrote nothing into the next note` };
 }
 
-// The timer as this module loaded it: a test's fake timers would hold the turn, and `check` with it.
-const unfaked = { setTimeout: globalThis.setTimeout.bind(globalThis) };
+// The timer as this module loaded it, so a test's fake timers can't hold the turn; marked pure, or
+// a host importing `configureEditorEnv` from `/testing` ships the call (G4.375).
+const unfaked = { setTimeout: /* @__PURE__ */ globalThis.setTimeout.bind(globalThis) };
 
 /** Waits out a call: `answer` within the bound, its writes, then one macrotask, so a write or a
  *  report it left running lands on its own row. Answers the promise's rejection. */
