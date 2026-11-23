@@ -154,14 +154,22 @@ describe('runPluginConformance', () => {
 		await expect(runPluginConformance({ plugins: [quiet] })).rejects.toThrow('dev checks are off');
 	});
 
-	it('passes a plugin that declares no kind, with an empty report', async () => {
+	it('passes a plugin that declares no kind, its install the one row', async () => {
 		const empty = plugin('empty-kinds', () => {});
 		expect(await runPluginConformance({ plugins: [empty] })).toEqual({
 			plugins: ['empty-kinds'],
 			kinds: [],
 			containers: [],
 			inline: [],
-			rows: []
+			rows: [
+				{
+					of: 'plugin',
+					subject: 'empty-kinds',
+					check: 'install',
+					status: 'passed',
+					detail: 'installs'
+				}
+			]
 		});
 	});
 });

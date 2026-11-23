@@ -108,7 +108,19 @@ export async function runPluginConformance(
 				`"${name}" is a plugin value: check it with check(plugin) from @voithos-labs/aragonite/testing`
 			);
 		}
+		const quiet = warnings.length;
 		installPlugins(plugins);
+		// A suite declaring no kind still drove the install, so a passed run never holds no row.
+		if (plugins.length > 0) {
+			const noisy = warnings.length > quiet;
+			report.rows.push({
+				of: 'plugin',
+				subject: names.join(', '),
+				check: 'install',
+				status: noisy ? 'failed' : 'passed',
+				detail: noisy ? 'raised a dev warning while installing' : 'installs'
+			});
+		}
 		const blockKinds: AnyBlockKind[] = names.flatMap(pluginKindsDeclaredBy);
 		const inlineKinds = names.flatMap(pluginInlineKindsDeclaredBy);
 		for (const problem of missingProfiles(suite, blockKinds, inlineKinds)) suiteFailure(problem);

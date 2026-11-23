@@ -13,6 +13,8 @@ describe('every bundled plugin passes its own published conformance suite', () =
 		const outcome = await runSuite(await suiteOf(dir));
 		expect(outcome.message).toBeNull();
 		expect(outcome.result).toBe('pass');
+		// A pass over no row checked nothing.
+		expect(outcome.rows.filter((row) => row.status === 'passed')).not.toEqual([]);
 	});
 
 	it('enrolls every bundled plugin, the plugin values among them through check', async () => {

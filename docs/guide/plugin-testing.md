@@ -575,7 +575,7 @@ it('the plugin conforms', async () => {
 });
 ```
 
-It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`, and each cell as a row in `rows`), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
+It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`, and in `rows` a row for the install and one per cell), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
 
 ```
 Error: plugin conformance failed for "memo":
