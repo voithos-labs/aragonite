@@ -404,6 +404,14 @@ export const KNOWN: Known[] = [
 	},
 	{
 		defect:
+			'a live composition over the browser’s range in literal text takes the range away ' +
+			'first, a removal and then the composition, so the break the removal left stays',
+		holds: ({ mode, where, gesture }) =>
+			mode === 'live' && !!where.to && 'letter' in gesture && gesture.route === 'composition',
+		repro: over('zz\n\n```\npq', 'browser', { letter: 'y', route: 'composition' }, 'live')
+	},
+	{
+		defect:
 			'a paste of several lines, or over a range the editor holds, lands by the paste’s own ' +
 			'open-end rule, which still adds a line (`syntax-tree.md` § The last line, “for now”)',
 		holds: (draw) =>
