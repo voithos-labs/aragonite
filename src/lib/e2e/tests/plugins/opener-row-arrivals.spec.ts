@@ -968,3 +968,163 @@ test.describe('a tap on a :::tip row not showing its name', () => {
 		await expect.poll(() => caretText(page)).toBe('[0,0]:13..[0,0]:18');
 	});
 });
+
+// ── Where an arrival meets a write ───────────────────────────────────────────
+
+const undoDepth = (page: Page): Promise<number> =>
+	page.evaluate(() => (window as any).__test.undoDepth() as number);
+
+const undo = (page: Page) => page.keyboard.press('ControlOrMeta+z');
+
+/** Each arrival onto an untitled `:::tip` row from its body, which rests at the row's end. */
+const ONTO_UNTITLED: [string, (page: Page) => Promise<void>][] = [
+	['ArrowUp from the body', (page) => page.keyboard.press('ArrowUp')],
+	[
+		'Home from inside the name',
+		async (page) => {
+			for (const key of ['ArrowUp', 'ArrowLeft', 'ArrowLeft', edgeKey('lineStart')]) {
+				await page.keyboard.press(key);
+			}
+		}
+	],
+	['a click at the row left edge', (page) => clickRow(page, 'left', ROW)],
+	['Shift+Tab from the body', (page) => tabUntil(page, 'Shift+Tab', '[0,0]')]
+];
+
+test.describe('an arrival on an untitled :::tip row, then a character', () => {
+	const [first, arriveFirst] = ONTO_UNTITLED[0];
+	const rows = [
+		...ONTO_UNTITLED.map(([name, arrive]) => ({ name, arrive, typed: 'x' })),
+		...['7', '-'].map((typed) => ({ name: first, arrive: arriveFirst, typed }))
+	];
+	for (const { name, arrive, typed } of rows) {
+		test(`${name}, then ${typed}, starts the title in one undo step`, async ({ page }) => {
+			await loadWithCaretInBody(page, U, [0, 1]);
+			await arrive(page);
+			await expect.poll(() => caretText(page)).toBe('[0,0]:6');
+			const depth = await undoDepth(page);
+			await page.keyboard.type(typed);
+			await expect.poll(() => sourceOf(page)).toBe(`:::tip ${typed}\nbody\n:::\n`);
+			await expect.poll(() => caretText(page)).toBe('[0,0]:8');
+			expect(await undoDepth(page)).toBe(depth + 1);
+			await undo(page);
+			await expect.poll(() => sourceOf(page)).toBe(U);
+			await expect.poll(() => caretText(page)).toBe('[0,0]:6');
+		});
+	}
+});
+
+test.describe('a held press on a :::tip row meets a write', () => {
+	test('an untitled row takes a letter as its title, the caret after it', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, U, [0, 1]);
+		const row = page.locator('[data-block-path="[0,0]"] [contenteditable="true"]');
+		const box = (await row.boundingBox())!;
+		await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:6');
+		await page.keyboard.type('x');
+		await expect.poll(() => sourceOf(page)).toBe(':::tip x\nbody\n:::\n');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:8');
+		await page.mouse.up();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+		expect(await typeX(page, editor)).toBe(':::tip xx\nbody\n:::\n');
+		await undo(page);
+		await expect.poll(() => sourceOf(page)).toBe(U);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:6');
+	});
+
+	test("a titled row loses its title's last letter, then takes one", async ({ page }) => {
+		await loadWithCaretInBody(page, ':::tip T\nbody\n:::\n', [0, 1]);
+		const at = await before(page, 'T');
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await expect.poll(() => caretText(page)).toBe('[0,0]:8');
+		await page.keyboard.press('Backspace');
+		await expect.poll(() => sourceOf(page)).toBe(':::tip \nbody\n:::\n');
+		await page.keyboard.type('y');
+		await expect.poll(() => sourceOf(page)).toBe(':::tip y\nbody\n:::\n');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:8');
+		await page.mouse.up();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+		// The Backspace and the letter are one typing run, so one undo takes both.
+		await undo(page);
+		await expect.poll(() => sourceOf(page)).toBe(':::tip T\nbody\n:::\n');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:8');
+	});
+
+	test('Shift+Enter in the title writes nothing', async ({ page }) => {
+		const editor = await loadWithCaretInBody(page, WORDS, [0, 1]);
+		const at = await before(page, 'ords');
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await expect.poll(() => caretText(page)).toBe('[0,0]:14');
+		const depth = await undoDepth(page);
+		await page.keyboard.press('Shift+Enter');
+		await page.mouse.up();
+		await expect.poll(() => markerDisplay(page)).toBe('inline');
+		const after = [await sourceOf(page), await caretText(page), await undoDepth(page)];
+		expect(after).toEqual([WORDS, '[0,0]:14', depth]);
+		expect(await typeX(page, editor)).toBe(':::tip Title wxords\nbody\n:::\n');
+	});
+});
+
+test.describe('a write right after an arrival on a :::tip row', () => {
+	for (const mode of ['live', 'source'] as const) {
+		test(`(${mode}) Shift+Enter after ArrowUp writes nothing`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, { name: '', source: T, mode, steps: ARRIVE, caret: '' });
+			const at = await caretText(page);
+			const depth = await undoDepth(page);
+			await page.keyboard.press('Shift+Enter');
+			await editor.waitForRenderFlush();
+			const after = [await sourceOf(page), await caretText(page), await undoDepth(page)];
+			expect(after).toEqual([T, at, depth]);
+		});
+	}
+
+	for (const [source, row, at] of [
+		[T, ':::tip a bTitle', '[0,0]:7'],
+		[U, ':::tip a b', '[0,0]:6']
+	] as const) {
+		const name = source.split('\n')[0];
+		test(`a paste of two lines after ArrowUp onto ${name} stays on the row`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, { name: '', source, steps: ARRIVE, caret: '' });
+			await expect.poll(() => caretText(page)).toBe(at);
+			await editor.seedClipboard('a\nb');
+			await editor.paste();
+			await expect.poll(() => sourceOf(page)).toBe(`${row}\nbody\n:::\n`);
+			await expect.poll(() => caretText(page)).toBe('[0,0]:10');
+			await undo(page);
+			await expect.poll(() => sourceOf(page)).toBe(source);
+			await expect.poll(() => caretText(page)).toBe(at);
+		});
+	}
+
+	test('a colon on a nested row, ArrowUp to the outer row, then a letter', async ({ page }) => {
+		const GROWN = ':::::note Outer\n::::tip Inner\nin\n::::\n:::::\n';
+		const editor = new PluginsPage(page);
+		const into: Step[] = [
+			{ at: [[0, 1, 1], 0] },
+			{ key: 'ArrowUp' },
+			{ key: 'ArrowLeft', times: 4 }
+		];
+		await run(page, editor, { name: '', source: NEST, steps: into, caret: '' });
+		await expect.poll(() => caretText(page)).toBe('[0,1,0]:3');
+		await page.keyboard.type(':');
+		await expect.poll(() => sourceOf(page)).toBe(GROWN);
+		await expect.poll(() => caretText(page)).toBe('[0,1,0]:4');
+		await page.keyboard.press('ArrowUp');
+		await expect.poll(() => caretText(page)).toBe('[0,0]:10');
+		expect(await typeX(page, editor)).toBe(':::::note xOuter\n::::tip Inner\nin\n::::\n:::::\n');
+		await undo(page);
+		await expect.poll(() => sourceOf(page)).toBe(GROWN);
+		await expect.poll(() => caretText(page)).toBe('[0,0]:10');
+		// An undo that lands on another block's row rests at its title's start, as on `next`.
+		await undo(page);
+		await expect.poll(() => sourceOf(page)).toBe(NEST);
+		await expect.poll(() => caretText(page)).toBe('[0,1,0]:7');
+	});
+});

@@ -96,6 +96,18 @@ A row with a title shows its `:::tip` when the press that focused it ends, so th
 - A tap at the start of a title word: the caret rests there (byte 13), and `x` writes `:::tip Title xwords`.
 - A double tap on a title word: that word. Not on desktop WebKit, which sends two taps as two single clicks.
 
+## Where an arrival meets a write
+
+An arrival puts the caret where the writes on the row expect it, so the two rules compose. Each row undoes in one step, the caret back where it stood.
+
+- An untitled `:::tip` reached by ArrowUp, Home from inside the name, a click at the row's left edge, or Shift+Tab, then `x`: `:::tip x`, the caret after the `x`, one undo step back to `:::tip`. The same after ArrowUp with `7` and with `-`.
+- A press held on an untitled row's end, `x` typed under it: `:::tip x`, the caret after the `x`; released, the name paints.
+- A press held on `:::tip T`, End, Backspace, then `y`: `:::tip y`, the caret after the `y`. One undo takes the Backspace and the letter together, as one typing run.
+- A press held on a title letter, Shift+Enter: nothing written, no undo step, the caret where pressed; `x` after the release goes there.
+- ArrowUp onto `:::tip Title`, then Shift+Enter, in live and in source mode: nothing written, no undo step.
+- ArrowUp onto `:::tip Title`, then a paste of `a`, a break, `b`: `:::tip a bTitle`. Onto an untitled `:::tip`: `:::tip a b`.
+- A colon typed in a nested row's colons (`:::tip` inside `::::note`): both fences grow and the caret stays after the colon; ArrowUp to the outer row lands at its title's start, and `x` goes into the outer title. The second undo, which lands on the inner row from the outer one, rests at the inner title's start, as on `next`.
+
 ## Regressions
 
 - A click on a title landed left of the letter clicked, a double-click selected a colon, and a drag ran into the colons, where the next letter turned the callout into a paragraph. The row showed its `:::tip` at mousedown and the title moved right under the pointer before the browser read the press. Miss-analysis: every click row pressed the row's left edge, where the landing is the same before and after the text moves; no row pressed a letter, double-clicked or dragged.
