@@ -41,7 +41,7 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		priority,
 		registration: containerRegistration(spec as ContainerSpec<object>, lines),
 		view: drawnView(drawing),
-		opener: (kind) => stripOpener(kind, spec.lines, priority, spec.interrupts ?? false),
+		openers: (kind) => [stripOpener(kind, spec.lines, priority, spec.interrupts ?? false)],
 		completer: completerOf(spec.complete, (written) => stripClaims(spec.lines, written)),
 		writeData(node, data, grammar) {
 			const copy = cloneNode(node);

@@ -1,5 +1,5 @@
 /**
- * A fenced block's shape read from its fences: its opener, its text range (the body between the
+ * A fenced block's shape read from its fences: its openers, its text range (the body between the
  * fence lines), the rule that keeps a write of its bytes legal, and what a completion must look
  * like to read back as it. An info fence follows the code fence's rules, closer growth included.
  * A fixed fence is read in one place, `readFixed`, which every one of those asks.
@@ -88,37 +88,42 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 			const read = readFixed(
 				fixed,
 				lines.map((text) => ({ text })),
-				0,
-				lines.length,
 				false
 			);
 			return read?.closing === lines.length - 1;
 		},
-		opener(kind: PluginBlockKind): BlockOpener {
+		/** One opener per kind of fence, each with its own reading: an info fence waits as the code
+		 *  fence does, so it declares that fence's reading itself. */
+		openers(kind: PluginBlockKind): BlockOpener[] {
 			const nodeOf = (ctx: OpenContext, raw: string): CstNode => ({
 				kind,
 				leadingTrivia: ctx.leadingTrivia,
 				raw
 			});
-			return {
+			const info: BlockOpener = {
 				priority,
-				interruptsParagraph: (text) =>
-					infoOpen(text) !== null || (interrupts && openFixed(fixed, text) !== null),
-				// An info fence waits as the code fence does, so it declares that fence's own reading.
-				readingNotFinal: fixed.length ? fixedReading(fixed) : fenceReading,
+				interruptsParagraph: (text) => infoOpen(text) !== null,
+				readingNotFinal: fenceReading,
 				tryOpen(ctx) {
-					const info = infoOpen(ctx.line.text);
-					if (info) {
-						const scan = scanFence(ctx, info);
-						return { node: nodeOf(ctx, scan.raw), consumed: scan.consumed };
-					}
-					const read = readFixed(fixed, ctx.lines, ctx.index, ctx.end, false);
+					const open = infoOpen(ctx.line.text);
+					if (!open) return null;
+					const scan = scanFence(ctx, open);
+					return { node: nodeOf(ctx, scan.raw), consumed: scan.consumed };
+				}
+			};
+			const own: BlockOpener = {
+				priority,
+				interruptsParagraph: interrupts && ((text) => openFixed(fixed, text) !== null),
+				readingNotFinal: fixedReading(fixed),
+				tryOpen(ctx) {
+					const read = readFixed(fixed, ctx.lines, false, ctx.index, ctx.end);
 					// Unclosed, a fixed opener is the line it is until its closer arrives.
 					if (read === null || read.closing === -1) return null;
 					const raw = joinRaw(ctx.lines, ctx.index, read.closing + 1);
 					return { node: nodeOf(ctx, raw), consumed: read.closing + 1 - ctx.index };
 				}
 			};
+			return [...(infoMatchers.length > 0 ? [info] : []), ...(fixed.length > 0 ? [own] : [])];
 		}
 	};
 }
@@ -173,9 +178,9 @@ interface FixedRead {
 function readFixed(
 	fixed: readonly FixedFence[],
 	lines: readonly { text: string }[],
-	from: number,
-	end: number,
-	held: boolean
+	held: boolean,
+	from = 0,
+	end = lines.length
 ): FixedRead | null {
 	const open = openFixed(fixed, lines[from].text);
 	if (!open) return null;
@@ -200,7 +205,7 @@ interface FixedSplit extends FixedRead {
 
 function splitFixed(fixed: readonly FixedFence[], text: string, held: boolean): FixedSplit | null {
 	const lines = splitLines(text);
-	const read = lines.length > 0 ? readFixed(fixed, lines, 0, lines.length, held) : null;
+	const read = lines.length > 0 ? readFixed(fixed, lines, held) : null;
 	if (!read) return null;
 	const closing = read.closing === -1 ? null : lines[read.closing];
 	return {
@@ -240,16 +245,13 @@ function fixedWrite(
 	if (!split) return { raw, offset, escaped: false };
 	const tail = ownTrailingLineEnding(raw);
 	const caret = Math.min(offset, display.length);
-	// The closer goes in after every written byte, so no offset moves.
-	const written =
-		split.closing === -1
-			? {
-					text: display + trailingLineEnding(ctx.node.raw, ctx.lineEnding) + split.closer,
-					caret,
-					escaped: false
-				}
-			: escapedBody(split, display, caret);
 	const intoTail = Math.min(Math.max(offset - display.length, 0), tail.length);
+	if (split.closing === -1) {
+		// The closer goes in after every written byte, so no offset moves.
+		const closer = trailingLineEnding(ctx.node.raw, ctx.lineEnding) + split.closer;
+		return { raw: display + closer + tail, offset: caret + intoTail, escaped: false };
+	}
+	const written = escapedBody(split, display, caret);
 	return { raw: written.text + tail, offset: written.caret + intoTail, escaped: written.escaped };
 }
 

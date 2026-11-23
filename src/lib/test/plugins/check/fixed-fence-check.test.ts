@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Miss-analysis: every fixed-fence row of the check suite read a fixture whole and none wrote over
-// one, so a cut closer that let the block fall back to a paragraph and an `escape` that changed
-// nothing both passed, though the editor got each wrong.
+// one, so a cut closer that let the block fall back to a paragraph, an `escape` that changed nothing
+// and a type listing both kinds of fence each passed, though the editor got all three wrong.
 import { afterEach, describe, expect, it } from 'vitest';
 import { definePlugin, fencedBlock, type Fence, type Plugin } from '#lib/plugin.js';
 import { resetEditorEnv } from '#lib/testing.js';
@@ -64,5 +64,14 @@ describe('check over a fixed fence', () => {
 		// A second run of the same value fails too: the warning is no once-only notice.
 		const { warnings } = await reportOf(plugin);
 		expect(new Set(warnings.map((w) => w.tag))).toEqual(new Set(['fence-escape']));
+	});
+
+	it('passes unfinishedReading on each sample of a type listing a fixed fence and a code fence', async () => {
+		const fences = [{ open: /^\$\$$/, close: '$$' }, { info: 'math' }] as const;
+		const report = await reportOf(fixedPlugin(fences, ['$$\nx^2\n$$', '```math\nx^2\n```']));
+		expect(rowOf(report, 'unfinishedReading')).toMatchObject({
+			status: 'passed',
+			detail: expect.stringMatching(/closes or crosses/)
+		});
 	});
 });

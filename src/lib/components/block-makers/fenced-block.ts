@@ -38,7 +38,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		priority,
 		registration: leafRegistration(spec as LeafCommon<unknown>, shape),
 		view: drawing ? drawnView(drawing) : textBlockView(),
-		opener: shape.opener,
+		openers: shape.openers,
 		completer: completerOf(spec.complete, shape.claims),
 		bodyRange: shape.range
 	});

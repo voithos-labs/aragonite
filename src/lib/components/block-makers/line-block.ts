@@ -32,7 +32,7 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 			multiLine: false
 		}),
 		view: drawing ? drawnView(drawing) : textBlockView(),
-		opener: shape.opener,
+		openers: (kind) => [shape.opener(kind)],
 		completer: completerOf(spec.complete, shape.claims),
 		bodyRange: shape.range,
 		writeData: shape.writeData

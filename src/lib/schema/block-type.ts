@@ -24,8 +24,8 @@ export interface BlockMaking<D = unknown> {
 	readonly priority: number;
 	readonly registration: BuiltinRegistration;
 	readonly view: BlockView;
-	/** The parser's way into the type, for the kind its editor named it; null for one no line opens. */
-	opener(kind: PluginBlockKind): BlockOpener | null;
+	/** The parser's ways into the type, for the kind its editor named it; none for one no line opens. */
+	openers(kind: PluginBlockKind): readonly BlockOpener[];
 	readonly completer: BlockCompleter | null;
 	readonly insert: BlockInsert;
 	/** Where a leaf's text sits in its bytes, read for `Block.body` however the leaf edits. */
@@ -39,7 +39,7 @@ export interface BlockMaking<D = unknown> {
 /** One of an editor's own block types, named and ready to read. */
 export interface InstalledBlock {
 	readonly kind: AnyBlockKind;
-	readonly opener: BlockOpener | null;
+	readonly openers: readonly BlockOpener[];
 	readonly view: BlockView;
 	readonly completer: BlockCompleter | null;
 }
@@ -83,10 +83,10 @@ export function installBlockTypes(
 			made[OWNER] = plugin;
 			const making = made[MAKING];
 			const kind = type.name as PluginBlockKind;
-			const opener = making.opener(kind);
+			const openers = making.openers(kind);
 			const registration = withChords(making.registration, making.chords);
-			held.push(holdBlockKind(kind, registration, opener !== null, plugin));
-			blocks.push({ kind, opener, view: making.view, completer: making.completer });
+			held.push(holdBlockKind(kind, registration, openers.length > 0, plugin));
+			blocks.push({ kind, openers, view: making.view, completer: making.completer });
 		}
 	}
 	return blocks;
