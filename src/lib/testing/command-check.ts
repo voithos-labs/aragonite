@@ -148,8 +148,12 @@ export async function menuOutcome(
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-/** The note a waiting row has the host load while the plugin waits. */
-const ANOTHER_NOTE = 'Another note.\n';
+const NOTE_LINE = 'Another note.\n';
+
+/** The note a waiting row has the host load while the plugin waits: no shorter than the `length`
+ *  bytes it replaces, so a write at a byte the plugin kept lands in it and is seen. */
+const anotherNote = (length: number) =>
+	NOTE_LINE.repeat(Math.max(1, Math.ceil(length / NOTE_LINE.length)));
 
 const failed = (detail: string): Outcome => ({ status: 'failed', detail });
 const messageOf = (error: unknown) => (error as Error)?.message ?? String(error);
@@ -222,7 +226,7 @@ async function outlives(
 ): Promise<Outcome> {
 	if (stage.busy()) await stage.idle(what);
 	const before = stage.writes.length;
-	stage.swap(ANOTHER_NOTE);
+	stage.swap(anotherNote(stage.source().length));
 	let rejected: { cause: unknown } | null = null;
 	try {
 		await stage.within(answer, what);

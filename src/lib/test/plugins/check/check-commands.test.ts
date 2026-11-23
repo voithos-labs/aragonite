@@ -97,6 +97,33 @@ describe('waitingWrite over commands', () => {
 		expect(row?.detail).toMatch(/a commit after the host loaded another note/);
 	});
 
+	// Miss: every late write was at byte 0, which any note holds; one past the next note's end was
+	// refused for its range, and the row read that as nothing written.
+	it('fails a late write at a byte the plugin kept, however long its sample', async () => {
+		const shout = command<Block<never>>({
+			id: 'shout',
+			title: 'Shout',
+			run: (async (editor: Editor, block: Block) => {
+				const at = block.to - 1;
+				await Promise.resolve();
+				await editor.edit().replace({ from: at, to: at }, '!').commit();
+			}) as never
+		});
+		const memo = lineBlock({
+			name: 'memo',
+			label: 'Memo',
+			sample: '%%a memo a good deal longer than the note the host loads next',
+			insert: { none: 'a fixture of the check suite' },
+			match: /^%%(?<text>.*)$/,
+			actions: [{ label: 'Shout', command: shout }]
+		});
+		const report = await reportOf(check(pluginOf('far', () => ({ blocks: [memo] }))));
+		expect(rowOf(report, 'far/shout', 'waitingWrite')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/a commit after the host loaded another note/)
+		});
+	});
+
 	it('reads not-applicable for a command that answers with no promise', async () => {
 		const now = commanding('now', () => true);
 		expect(rowOf(await check(now), 'now/go', 'waitingWrite')).toMatchObject({
