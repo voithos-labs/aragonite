@@ -480,6 +480,34 @@ test.describe('a caret the browser leaves on a :::tip row in live mode', () => {
 		await expect.poll(() => caretText(page)).toBe('[0,0]:7');
 	});
 
+	for (const [what, before] of [
+		['a step into the name', []],
+		['a letter typed in the name', [{ type: 'x' }]]
+	] as const) {
+		test(`focus that leaves after ${what} and comes back by script lands at the title start`, async ({
+			page
+		}) => {
+			const editor = new PluginsPage(page);
+			await run(page, editor, {
+				name: '',
+				source: T,
+				steps: [...arrowBack(8), ...before],
+				caret: ''
+			});
+			await page.evaluate(() => {
+				const field = document.body.appendChild(document.createElement('input'));
+				field.focus();
+			});
+			await page.keyboard.type('q');
+			await page.evaluate(() =>
+				document
+					.querySelector<HTMLElement>('[data-block-path="[0,0]"] [contenteditable="true"]')!
+					.focus()
+			);
+			await expect.poll(() => caretText(page)).toBe(before.length ? '[0,0]:8' : '[0,0]:7');
+		});
+	}
+
 	test('a letter typed inside the name stays there', async ({ page }) => {
 		const editor = new PluginsPage(page);
 		await run(page, editor, { name: '', source: T, steps: arrowBack(8), caret: '' });

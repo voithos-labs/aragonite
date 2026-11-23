@@ -58,6 +58,8 @@ The browser puts these carets down itself; the caret writer moves one that lands
 - Shift+Tab from the body, then `x`: the title's start, `:::tip xTitle`.
 - The row element's own `focus()`, then `x`: the title's start, `:::tip xTitle`.
 - ArrowUp inside a title that wraps, onto its first line: the title's start.
+- ArrowLeft into the name, a letter typed in a field outside the editor, then a script's `focus()` on the row: the title's start, since focus left the row in between.
+- The same after a letter typed in the name, which draws the row again (`:::txip Title`): its title's start, byte 8.
 - ArrowLeft into the name, then `x`: `:::txip Title`, the caret after the `x`.
 - ArrowLeft into the name, then Backspace: `:::ip Title`, the caret where the `t` was. Not on WebKit, which lands that caret at the title's start with or without the rule.
 - ArrowLeft into the name, then a composition of `か`: `:::tかip Title`, the caret after it.

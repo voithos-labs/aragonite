@@ -113,10 +113,10 @@ export function createCaretWriter(
 	// step may stay; a path, since renaming the row draws it again in a new element.
 	let rowEntered: string | null = null;
 
+	// Every pass, since a row drawn again under the same path is a new element; a repeat is a no-op.
 	function enterRow(el: HTMLElement | null): void {
-		const path = el && blockPathOf(el);
-		if (el && path !== rowEntered) el.addEventListener('focusout', leaveRow, { once: true });
-		rowEntered = path;
+		el?.addEventListener('focusout', leaveRow, { once: true });
+		rowEntered = el && blockPathOf(el);
 	}
 
 	// Focus coming back by Tab or a script is an arrival again, wherever the caret stood.
