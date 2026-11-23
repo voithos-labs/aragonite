@@ -80,6 +80,19 @@ describe('a fenced block on its own lines', () => {
 		expect(kindAt(m, 0)).toBe('paragraph');
 	});
 
+	it.each([
+		['a cut closing line', '%%begin\nx'],
+		['a cut down to the opener', '%%begin'],
+		['text typed onto the closing line', '%%begin\nx\n%%end y']
+	])('gets its closer back after %s, once', async (_name, typed) => {
+		const m = mountEditor({ source: '%%begin\nx\n%%end\n\nafter\n', plugins: [own()] });
+		await m.settle();
+		typeInto(surfaceAt(m, [0]), typed);
+		await m.settle();
+		expect(m.instance.getSource()).toBe(`${typed}\n%%end\n\nafter\n`);
+		expect([kindAt(m, 0), kindAt(m, 1)]).toEqual(['fences/demo', 'paragraph']);
+	});
+
 	it('escapes a body line that would close it early', async () => {
 		const m = mountEditor({ source: '%%begin\nx\n%%end\n', plugins: [own((line) => ` ${line}`)] });
 		await m.settle();

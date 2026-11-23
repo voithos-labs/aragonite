@@ -158,7 +158,7 @@ type LineData<D> =
 export type FencedBlockSpec = LeafCommon<never> & { fence: Fence | readonly Fence[] };
 
 /** One spelling of a fenced block. A body line that would close a fixed closer early is passed to
- *  `escape`; without it, the block ends there. */
+ *  `escape`, which returns a line that doesn't; without it, the block ends there. */
 export type Fence =
 	| { info: string | readonly string[] }
 	| {
