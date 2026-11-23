@@ -23,3 +23,6 @@ is walked into the row with ArrowLeft from the body's start.
   so a hard break written into the row by a key, a soft keyboard or a block write went in as typed.
 - The paste then took the key's rule and lost a backslash before a pasted break: no row pasted a
   line ending in a backslash, and the one unit row pinned the loss as the rule.
+- A title row's keymap had no Shift+Enter, so the key was left to the input event: Playwright
+  WebKit sends `insertParagraph`, whose browser edit turned the space before a title into a no-break
+  space. No title row ran outside Chromium.

@@ -20,10 +20,12 @@ export interface ChromeLeafOptions {
 	mergeRole?: MergeRole;
 }
 
-// A title row serializes as one line, so Enter moves into the body instead of splitting;
+// A title row serializes as one line, so Enter moves into the body instead of splitting, and
+// Shift+Enter is taken on its keydown, writing nothing, whatever input event the engine sends;
 // Backspace and Delete take the ordinary merge path.
 const CHROME_DEFAULT_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'chrome.descendToBody' },
+	{ chord: 'Shift+Enter', command: 'block.hardBreak' },
 	{ chord: 'Backspace', command: 'block.mergePrev' },
 	{ chord: 'Delete', command: 'block.mergeNext' }
 ];
