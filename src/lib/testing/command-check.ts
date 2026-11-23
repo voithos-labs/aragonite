@@ -75,7 +75,8 @@ export function mount(run: PluginCheckRun, setup: Contribution['setup'], source:
 			try {
 				return await drive(stage);
 			} catch (error) {
-				return failed(error instanceof Unsettled ? error.message : `threw: ${messageOf(error)}`);
+				if (!(error instanceof Unsettled)) return failed(`threw: ${messageOf(error)}`);
+				return { status: 'failed', detail: error.message, unsettled: true };
 			}
 		},
 		over: (text) => (stage.load(text), stage),
@@ -135,7 +136,10 @@ export async function menuOutcome(
 			menus.length > 1 ? { ...outcome, detail: `${menu.label}: ${outcome.detail}` } : outcome;
 		outcomes.push(named);
 	}
-	// Failed where any failed, else passed where any held, as a block type's samples fold.
+	// A menu that did not settle first, since no excuse covers the row; then failed where any failed,
+	// else passed where any held, as a block type's samples fold.
+	const unsettled = outcomes.find((outcome) => outcome.unsettled);
+	if (unsettled) return unsettled;
 	for (const status of ['failed', 'passed', 'unchecked'] as const) {
 		const found = outcomes.find((outcome) => outcome.status === status);
 		if (found) return found;

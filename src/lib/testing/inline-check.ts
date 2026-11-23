@@ -37,6 +37,8 @@ export interface InlineSubject {
 export interface Outcome {
 	status: 'passed' | 'failed' | 'not-applicable' | 'unchecked';
 	detail: string;
+	/** A wait it drove outlasted the run's bound, so no excuse covers it; never on a report's row. */
+	unsettled?: true;
 }
 
 /** The subjects a plugin's `inlines` lists, of those its install kept. */

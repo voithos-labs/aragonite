@@ -71,13 +71,15 @@ export async function check<O extends object>(
 	}
 	const warnings: { tag: string; message: string }[] = [];
 	const previous = setDevWarnSink(({ tag, message }) => warnings.push({ tag, message }));
-	let rows: CheckRow[];
+	let found: Row[];
 	try {
-		rows = await rowsOf(plugin, options, warnings);
+		found = await rowsOf(plugin, options, warnings);
 	} finally {
 		setDevWarnSink(previous);
 	}
-	rows = excused(rows, options.excuse, plugin.name);
+	const rows = excused(found, options.excuse, plugin.name).map(
+		({ unsettled: _, ...row }): CheckRow => row
+	);
 	const report: CheckReport = {
 		plugin: plugin.name,
 		version: plugin.version,
@@ -124,7 +126,8 @@ export interface CheckReport {
 }
 
 /** An excuse covers a failing check with a reason of a sentence; over a check that passed, that
- *  doesn't apply or that no excuse covers, or a subject the plugin doesn't list, the run fails. */
+ *  doesn't apply, that no excuse covers or whose wait did not settle, or over a subject the plugin
+ *  doesn't list, the run fails. */
 export interface Excuses {
 	readonly plugin?: Excused<PluginCheck>;
 	readonly blocks?: { readonly [local: string]: Excused<BlockCheck | ContainerCheck> };
@@ -169,17 +172,20 @@ export function isCheckFailure(error: unknown): error is CheckFailure {
 
 type Warnings = readonly { tag: string; message: string }[];
 
+/** A row as the excuses read it: whether its wait settled is theirs alone. */
+type Row = CheckRow & Pick<Outcome, 'unsettled'>;
+
 async function rowsOf(
 	plugin: Plugin<object>,
 	options: CheckOptions<object>,
 	warnings: Warnings
-): Promise<CheckRow[]> {
+): Promise<Row[]> {
 	// What the editor reports for the plugin, taken by the row it was heard in.
 	const said: string[] = [];
 	const { row, run } = install(plugin, options, warnings, said);
 	if (!run) return [row];
 	try {
-		const rows: CheckRow[] = [row];
+		const rows: Row[] = [row];
 		const push = (of: CheckRow['of'], subject: string, check: CheckName, outcome: Outcome) =>
 			rows.push({ of, subject, check, ...heard(outcome, said) });
 		const own = run.units.find((unit) => unit.name === plugin.name)?.contribution;
@@ -233,7 +239,7 @@ function heard(outcome: Outcome, said: string[]): Outcome {
 	if (said.length === 0) return outcome;
 	const reported = `the editor reported your plugin (${said.splice(0).join('; ')})`;
 	const detail = outcome.status === 'failed' ? `${outcome.detail}; ${reported}` : reported;
-	return { status: 'failed', detail };
+	return { ...outcome, status: 'failed', detail };
 }
 
 /** `install`: the plugin with its defaults and with `options`, held at once as two editors would
@@ -412,7 +418,7 @@ function worst(list: readonly Outcome[]): Outcome {
 }
 
 /** A failure of a check this release only reports. */
-const advisory = (row: CheckRow): CheckRow =>
+const advisory = (row: Row): Row =>
 	row.status === 'failed' && CHECKS[row.check].advisory ? { ...row, status: 'advisory' } : row;
 
 /* -------------------------------------------------------------------------- */
@@ -420,7 +426,7 @@ const advisory = (row: CheckRow): CheckRow =>
 /* -------------------------------------------------------------------------- */
 
 /** `rows` with each excuse applied, and a failed row for each excuse that doesn't stand. */
-function excused(rows: CheckRow[], excuse: Excuses | undefined, plugin: string): CheckRow[] {
+function excused(rows: Row[], excuse: Excuses | undefined, plugin: string): Row[] {
 	const out = [...rows];
 	const claims: {
 		of: CheckRow['of'];
@@ -477,13 +483,15 @@ function excused(rows: CheckRow[], excuse: Excuses | undefined, plugin: string):
 }
 
 function excuseRow(
-	out: CheckRow[],
+	out: Row[],
 	at: number,
 	reason: string,
 	refused: (detail: string) => void
 ): void {
 	const row = out[at];
-	if (row.status === 'failed' || row.status === 'advisory') {
+	// A row whose wait never settled was never driven to its end, so nothing it found is excused.
+	if (row.unsettled) refused('an excuse does not cover a wait that did not settle');
+	else if (row.status === 'failed' || row.status === 'advisory') {
 		out[at] = { ...row, status: 'excused', detail: `${reason} (it found: ${row.detail})` };
 	} else if (row.status === 'passed') refused('it passed: drop the excuse');
 	else refused(`it doesn't apply here (${row.detail}): drop the excuse`);

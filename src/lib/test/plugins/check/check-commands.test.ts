@@ -421,6 +421,70 @@ describe('a wait that outlasts the bound', () => {
 		expect(rowOf(report, '%', 'waitingWrite')?.status).toBe('passed');
 	});
 
+	// Miss: an excuse was read against the row's status alone, and a row that timed out reads failed.
+	it('refuses an excuse over a row that did not settle, however the row was folded or heard', async () => {
+		const fails = command({
+			id: 'fails',
+			title: 'Fails',
+			run: (async () => {
+				throw new Error('no server');
+			}) as never
+		});
+		const noisy = command({
+			id: 'noisy',
+			title: 'Noisy',
+			run: ((editor: Editor) => (editor.run(fails), never())) as never
+		});
+		const late = menu<MenuRow>({
+			label: 'Late',
+			trigger: '@',
+			rows: (_q, { editor }) => [{ label: 'Cy', editor } as MenuRow],
+			async pick(row) {
+				await Promise.resolve();
+				await (row as MenuRow & { editor: Editor }).editor
+					.edit()
+					.replace({ from: 0, to: 0 }, '@')
+					.commit();
+			}
+		});
+		const stuck = menu<MenuRow>({
+			label: 'Stuck',
+			trigger: '@',
+			rows: () => [{ label: 'Bo' }],
+			pick: never
+		});
+		const plugin = pluginOf('unsettled', () => ({
+			commands: [command({ id: 'go', title: 'Go', run: never }), fails, noisy],
+			menus: [late, stuck]
+		}));
+		const reason = 'The call waits on a server the check has no copy of.';
+		const excuse: Excuses = {
+			commands: { go: { waitingWrite: reason }, noisy: { waitingWrite: reason } },
+			menus: { '@': { waitingWrite: reason } }
+		};
+		const report = await reportOf(check(plugin, { timeout: 30, excuse }));
+		const refusal =
+			/^excused, but an excuse does not cover a wait that did not settle \(it found: .*did not settle within 30 ms/;
+		for (const subject of ['unsettled/go', 'unsettled/noisy', '@']) {
+			expect(rowOf(report, subject, 'waitingWrite'), subject).toEqual({
+				of: subject === '@' ? 'menu' : 'command',
+				subject,
+				check: 'waitingWrite',
+				status: 'failed',
+				detail: expect.stringMatching(refusal)
+			});
+		}
+		expect(rowOf(report, 'unsettled/noisy', 'waitingWrite')?.detail).toMatch(/no server/);
+		const bare = await reportOf(check(plugin, { timeout: 30 }));
+		expect(Object.keys(rowOf(bare, 'unsettled/go', 'waitingWrite') ?? {})).toEqual([
+			'of',
+			'subject',
+			'check',
+			'status',
+			'detail'
+		]);
+	});
+
 	it('leaves a call that settles past the bound behind: the next row reads as it does alone', async () => {
 		vi.useFakeTimers();
 		const [first, second] = [held(), held()];
