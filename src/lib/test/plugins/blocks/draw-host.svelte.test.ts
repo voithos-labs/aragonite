@@ -185,6 +185,36 @@ describe('a drawing', () => {
 		await Promise.resolve();
 		expect(pan.closest(`[${POINTER_GESTURE_ATTR}]`)).toBeNull();
 	});
+
+	// Miss-analysis: the keep row pressed a drawing whose text always shows, so no row pressed a
+	// kept control in a picture whose click opens the text.
+	it('leaves its text closed for a press it keeps, and opens it for any other', async () => {
+		const editor = mountEditor({
+			source: SOURCE,
+			plugins: [
+				notes({
+					draw: (_block: unknown, ctx: TextDrawContext) => {
+						const dom = document.createElement('div');
+						const button = document.createElement('button');
+						dom.append(button, ctx.source);
+						return { dom, keep: (e: Event) => e.target === button };
+					}
+				})
+			]
+		});
+		await editor.settle();
+		const host = blockHostAt(editor, NOTE);
+		const text = host.querySelector<HTMLElement>(`[${VIEW_TEXT_ATTR}]`)!;
+		const press = async (el: Element) => {
+			el.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+			el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+			await editor.settle();
+		};
+		await press(host.querySelector('button')!);
+		expect(text.hidden).toBe(true);
+		await press(host.querySelector('button')!.parentElement!);
+		expect(text.hidden).toBe(false);
+	});
 });
 
 describe('ctx.render', () => {

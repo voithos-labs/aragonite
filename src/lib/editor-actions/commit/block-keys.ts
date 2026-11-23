@@ -1,9 +1,9 @@
 /**
  * The answers a surface that reads the rest of the document redraws on: what its `depends(block)`
  * says of each top-level block (a toc, the headings in it; footnote numbering, the references).
- * A watch asks every block once as it starts, then only the blocks a write's runs replaced, and
- * asks them after the write, when the answers are read: a position read inside a write fails a
- * dev build. The answers change when one that says something (not '') leaves its index, so an
+ * A watch asks every block once as it starts, then only the blocks a write's runs replaced, or
+ * every block once the link reference definitions change, and asks them after the write, when the
+ * answers are read: a position read inside a write fails a dev build. The answers change when one that says something (not '') leaves its index, so an
  * Enter in prose below the last such answer changes nothing.
  */
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
@@ -18,6 +18,9 @@ export interface KeySource {
 	follow(follower: WriteFollower): () => void;
 	count(): number;
 	block(i: number): Block;
+	/** The document's link reference definitions, a new value whenever one changes: a block's
+	 *  pieces and its `textContent` read them. */
+	definitions(): unknown;
 }
 
 /** Starts asking now; a throw in `depends` reaches `report` and answers '', as a nullish answer
@@ -35,6 +38,7 @@ export function watchKeys(
 	// Null while it follows nothing: the next read asks every block.
 	let writes: (readonly TopLevelChange[] | null)[] | null = null;
 	let unfollow: (() => void) | null = null;
+	let definitions: unknown;
 
 	const ask = (block: Block): string => {
 		recordKeyAsked();
@@ -70,6 +74,7 @@ export function watchKeys(
 	}
 
 	function askAll(was: readonly string[]): void {
+		definitions = source.definitions();
 		slots = Array.from({ length: source.count() }, (_, i) => ask(source.block(i)));
 		shared = false;
 		if (!sameFrom(was, slots, 0)) version++;
@@ -81,11 +86,14 @@ export function watchKeys(
 			askAll(slots);
 			return;
 		}
-		if (writes.length === 0) return;
+		// Every block reads the definitions, so a change to them may change any answer.
+		const redefined = source.definitions() !== definitions;
+		if (writes.length === 0 && !redefined) return;
 		const done = writes;
 		writes = [];
 		const was = slots;
-		const moves = done.includes(null) ? null : replaced(done as (readonly TopLevelChange[])[]);
+		const reread = redefined || done.includes(null);
+		const moves = reread ? null : replaced(done as (readonly TopLevelChange[])[]);
 		// A write that couldn't say, or runs that don't add up, ask every block.
 		if (!moves || slots.length !== source.count()) askAll(was);
 		else {

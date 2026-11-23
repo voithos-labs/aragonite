@@ -320,7 +320,12 @@ export function createDocumentRead(deps: {
 		keys(depends, report) {
 			let watch = watches.get(depends);
 			if (!watch) {
-				const source = { follow: deps.follow ?? (() => () => {}), count, block: topAt };
+				const source = {
+					follow: deps.follow ?? (() => () => {}),
+					count,
+					block: topAt,
+					definitions: () => deps.reading.resolver
+				};
 				watches.set(depends, (watch = watchKeys(source, depends, report)));
 			}
 			return watch;
