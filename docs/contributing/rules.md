@@ -86,6 +86,10 @@ Two lessons, both learned the embarrassing way:
   - `minor`: real but bounded
   - `watch`: a signal, with no confirmed defect or repro
   - `nit`: cosmetic
+- A Bug also says how often a user would meet it, with one `reach:` label. Severity is the harm and reach is the odds, so the two together say what to fix first:
+  - `common`: an ordinary gesture on an ordinary document
+  - `rare`: it takes an unusual document and an unusual gesture together
+- A minor defect gets an issue only as part of a class: several shapes with one cause, listed in one issue.
 - An issue's body holds the defect, the repro, the files, the direction of the fix and why it's deferred. Nothing about process.
 - `good first issue` means one edit site and one acceptance signal.
 - The closing comment names the commit. Reuse the labels that exist.

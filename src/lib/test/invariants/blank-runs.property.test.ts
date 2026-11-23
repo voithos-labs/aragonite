@@ -7,7 +7,7 @@ import { describe, it, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { isBlankParagraph, parse } from '#lib/core/parser.js';
-import { documentLineEnding, trailingLineEnding } from '#lib/core/lines.js';
+import { documentLineEnding, ownTrailingLineEnding } from '#lib/core/lines.js';
 import { installPlugins } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
@@ -36,15 +36,17 @@ function leafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSlot[] 
 	});
 }
 
-/** The text each write puts in the leaf, or null when the leaf can't take it. */
+/** The text each write puts in the leaf, its own line ending after it as the typing write sends
+ *  it (none at an open end), or null when the leaf can't take it. */
 function textFor(write: Write, raw: string, ending: string): string | null {
 	const blank = isBlankParagraph({ kind: 'paragraph', raw });
-	if (write === 'empty') return blank ? null : trailingLineEnding(raw, ending as '\n');
-	if (write === 'fill') return blank ? 'x' + trailingLineEnding(raw, ending as '\n') : null;
+	const own = ownTrailingLineEnding(raw);
+	if (write === 'empty') return blank ? null : own;
+	if (write === 'fill') return blank ? 'x' + own : null;
 	// The last line's text goes and its line stays, as Backspace leaves it.
 	const lines = raw.replace(/\r?\n$/, '').split(/\r?\n/);
 	if (lines.length < 2 || lines.at(-1) === '') return null;
-	return lines.slice(0, -1).join(ending) + ending + ending;
+	return lines.slice(0, -1).join(ending) + ending + own;
 }
 
 function writeLeaf(doc: Document, slot: LeafSlot, text: string): void {
@@ -72,7 +74,10 @@ function divergenceAfter(source: string, write: Write, pick: number): string | n
 	const slots = leafSlots(doc).flatMap((slot) => {
 		const raw = slot.holder.children![slot.index].raw;
 		const text = textFor(write, raw, documentLineEnding(doc));
-		return text === null ? [] : [{ slot, text }];
+		// A body emptied whole at an open end keeps an empty block no reload reads, as a reload's own
+		// editable paragraph would be (`keepOneBlock`, `ensureEditableContainers`).
+		const whole = text === '' && slot.index === 0;
+		return text === null || whole ? [] : [{ slot, text }];
 	});
 	if (slots.length === 0) return null;
 	const { slot, text } = slots[pick % slots.length];

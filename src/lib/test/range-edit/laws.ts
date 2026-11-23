@@ -181,7 +181,9 @@ export function ownEntry(call: Call, host: CheckHost, input: RangeInput, at: num
 	const cut = call(source, range, 'cut', mode);
 	if (cut?.clipboard !== undefined) {
 		const back = call(cut.source, caretRange(cut.caret.at), withOwn(cut, heldBy(cut.caret)), mode);
-		if (back && back.source !== source)
+		// A cut that emptied an open end's last line left it a break, which the bytes put back keep.
+		const kept = ownTrailingLineEnding(source) ? '' : ownTrailingLineEnding(cut.source);
+		if (back && back.source !== source + kept)
 			out.push(`L12 cut ${q(cut.source)}, pasted back with its entry ${q(back.source)}`);
 	}
 	const copy = call(source, range, 'copy', mode);

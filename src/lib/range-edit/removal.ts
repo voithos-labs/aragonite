@@ -51,6 +51,8 @@ export interface Removal extends Edit {
 	/** The block whose children the caret sits between, as laid before the removal (null for the
 	 *  document), where the removal knows it: its path is asked of the bytes after. */
 	parent?: LaidBlock | null;
+	/** The caret stands past the last block of bytes that end in no line ending, in no text of it. */
+	pastEnd?: true;
 }
 
 export function removeRange(doc: Doc, start: number, end: number): Removal {

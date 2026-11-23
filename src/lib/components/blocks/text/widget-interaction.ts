@@ -31,7 +31,7 @@ import { keyOwnWidget } from '../widget-portal';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { widgetSourceRange } from '../../../core/inline/widget-shell';
 import { asRawOffset } from '../../../core/coordinate-spaces';
-import { rawRangeToDomRange, type RawRange } from '../../../browser/offsets';
+import { arrivalRawStart, rawRangeToDomRange, type RawRange } from '../../../browser/offsets';
 import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
 import { createSourceReveal, type SourceReveal } from '../../../caret/reveal-source';
 import {
@@ -815,6 +815,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// The snap below places a caret, so it does nothing while this block shows a selected
 		// range, which it would collapse; `clampOutOfMarkerPrefix` already holds that rule.
 		if (surfaceHoldsRange(el)) return;
+		const floor = arrivalRawStart(el, deps.node);
+		if (floor > 0 && (deps.cursor.getRaw() ?? floor) < floor) {
+			deps.cursor.setRaw(asRawOffset(floor), { clamp: 'reachable' });
+			return;
+		}
 		const side = press.moved ? null : reading.side;
 		if (side === 'fresh') deps.caretMemory.noteOutside();
 		else if (side) deps.pinChipSide(side === 'chip-inside' ? 'inside' : 'outside');

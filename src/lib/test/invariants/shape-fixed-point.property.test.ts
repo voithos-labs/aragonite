@@ -148,17 +148,17 @@ function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSl
 	});
 }
 
-/** A prose leaf becoming the blank line, as the typing write sends for an emptied block. Container
- *  bodies are included, since a body's start answers to its container's opener line. */
+/** A prose leaf emptied, as the typing write sends it: its own line ending alone, which is nothing
+ *  at an open end. Container bodies are included, since a body's start answers to its opener line. */
 function applyEmpty(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc);
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
-	writeLeaf(
-		doc,
-		slot,
-		trailingLineEnding(slot.holder.children![slot.index].raw, documentLineEnding(doc))
-	);
+	const own = ownTrailingLineEnding(slot.holder.children![slot.index].raw);
+	// A body emptied whole at an open end keeps an empty block no reload reads, as a reload's own
+	// editable paragraph would be (`keepOneBlock`, `ensureEditableContainers`).
+	if (own === '' && slot.index === 0) return;
+	writeLeaf(doc, slot, own);
 }
 
 /** A prose leaf's bytes written back as the page holds them, plus its own ending as the surface
