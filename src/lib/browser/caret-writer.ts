@@ -119,9 +119,12 @@ export function createCaretWriter(
 		rowEntered = el && blockPathOf(el);
 	}
 
-	// Focus coming back by Tab or a script is an arrival again, wherever the caret stood.
-	function leaveRow(): void {
-		rowEntered = null;
+	// Focus coming back by Tab or a script is an arrival again, wherever the caret stood. The window
+	// losing focus leaves the row focused, and its caret comes back where it was.
+	function leaveRow(e: Event): void {
+		const row = e.currentTarget as HTMLElement;
+		if (row !== row.ownerDocument.activeElement) rowEntered = null;
+		else row.addEventListener('focusout', leaveRow, { once: true });
 	}
 
 	// A caret the browser left before a row's title arrived there unless the last caret stood on that
