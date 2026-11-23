@@ -56,7 +56,7 @@ The published pack: the docs people outside the repo read, on GitHub. Its links 
 | [`guide/plugin-guide/commands.md`](guide/plugin-guide/commands.md) | Keyboard shortcuts, commands and right-click rows, for one block kind or the whole editor |
 | [`guide/plugin-guide/paste-transforms.md`](guide/plugin-guide/paste-transforms.md) | Rewriting pasted text before it parses |
 | [`guide/plugin-guide/menu-only-kinds.md`](guide/plugin-guide/menu-only-kinds.md) | A block that comes from a menu instead of typing, and still survives a reload |
-| [`guide/plugin-testing.md`](guide/plugin-testing.md) | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks pass, run against yours |
+| [`guide/plugin-testing.md`](guide/plugin-testing.md) | Proving a plugin never eats bytes: `check`, the one call that holds it to the checks every built-in block passes, the command a listing runs, and the tests still yours to write |
 | [`guide/plugin-api.md`](guide/plugin-api.md) | Every `/plugin` and `/svelte` export, grouped by job; a page for Ctrl+F, not for reading |
 | [`guide/directives.md`](guide/directives.md) | The `:::name` fence: a named box in Markdown, and how a plugin claims a name |
 | [`guide/plugin-guide/parrot-frames.md`](guide/plugin-guide/parrot-frames.md) | All ten party-parrot frames, ready to paste over the quickstart's two |
