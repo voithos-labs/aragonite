@@ -114,6 +114,19 @@ describe('a fenced block’s fence lines', () => {
 		]);
 	});
 
+	it('show a block type with no draw that opens its text as its body until the caret comes in', async () => {
+		const editor = await mounted('%%%\nbody\n%%%\n', { edit: 'source' });
+		const host = editor.target.querySelector<HTMLElement>('[data-block-path="[0]"]')!;
+		const text = host.querySelector<HTMLElement>(`[${VIEW_TEXT_ATTR}]`)!;
+		const picture = text.previousElementSibling as HTMLElement;
+		expect([text.hidden, picture.hidden, picture.textContent]).toEqual([true, false, 'body\n']);
+		type Seam = { __test: { getBlockComponent(path: number[]): { focus(at: number): void } } };
+		(editor.instance as unknown as Seam).__test.getBlockComponent([0]).focus(4);
+		await editor.settle();
+		expect([text.hidden, picture.hidden]).toEqual([false, true]);
+		expect(text.querySelectorAll(`.${FENCE_LINE}`)).toHaveLength(2);
+	});
+
 	// The fence lines the editor painted are its own, not an element a drawing put in the text.
 	it('stay in the text element through a redraw', async () => {
 		let drawn = 0;
