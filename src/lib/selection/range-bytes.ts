@@ -268,8 +268,8 @@ function endByte(
 	return row === null || whole || row === last ? textEnd(doc, block) : block.to;
 }
 
-/** An end on the first byte of a block the start's block can't join moves back to the text before
- *  that block, so the range takes neither it nor the blank lines apart; `offStart` keeps it off the start's. */
+/** An end on the first byte of a block the start's block can't join moves back to the text before it,
+ *  taking neither that block nor its blank lines; never onto the start's own block where `offStart`. */
 function endBesideText(
 	doc: DocumentView,
 	layout: Layout,
