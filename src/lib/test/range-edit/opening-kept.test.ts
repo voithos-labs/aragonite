@@ -23,9 +23,8 @@ describe("a range from a container's first byte into its body keeps the opening"
 			expect(removalOf(source, { from: 0, to }, 'backspace', mode, checkHost()).source).toBe(left);
 		});
 
-		// Controls: a range that stays on a `:::` row, or starts on its marker and runs off it. The
-		// row whole is its title in live mode (`title-row-drawn.test.ts`); a range that breaks the
-		// row unwraps the box (`opener-unwrap.test.ts`).
+		// Controls on a `:::` row: live mode's row whole is its title (`title-row-drawn.test.ts`), and
+		// a range that breaks the row unwraps the box (`opener-unwrap.test.ts`).
 		const row = mode === 'live' ? ':::tip \nbody\n:::\n' : 'body\n';
 		it.each([
 			['the marker alone', ':::tip Title\nbody\n:::\n', 0, 7, 'Title\n\nbody\n'],
