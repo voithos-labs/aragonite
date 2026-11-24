@@ -37,10 +37,6 @@ Hand `plugins` to the editor, and build the array once for the whole app, not on
 
 Prob put it in a global stylesheet; skip it and the plugin still runs, you just won't see the highlights.
 
-## Upgrading from 0.11.5
-
-`highlightOccurrencesPlugin(options)` is `highlightOccurrences` now, with no call. It takes no options, so `HighlightOccurrencesOptions` and its `onScan` are gone: there's no whole-document scan left to report on.
-
 ## More
 
 The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the plugin guide's [decorations](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/decorations.md) page builds this same idea step by step, if you want to paint something of your own over the text.

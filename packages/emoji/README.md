@@ -34,10 +34,6 @@ Hand `plugins` to the editor, and build the array once for the whole app, not on
 - A glyph acts like one character: Backspace takes out the whole `:rocket:`, and the arrow keys step over it.
 - Building a picker? `EMOJI_TABLE` is exported too, a `Map` from shortcode to glyph (`EMOJI_TABLE.get('tada')` is `'🎉'`).
 
-## Upgrading from 0.11.5
-
-`emojiPlugin()` is `emoji` now, with no call. A glyph's kind is `emoji/emoji`, and `EMOJI_KIND` is gone: compare against `'emoji/emoji'` if you need to.
-
 ## More
 
 The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the plugin guide's [inline kinds](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/inline-kinds.md) page builds a widget like this one, for syntax of your own that lives mid-sentence.
