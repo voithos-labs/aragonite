@@ -48,6 +48,8 @@ A press is read when it goes down, not at the click or the menu that comes after
 - the root's right-click record (`gestures.ts` :: `notePress`), which keeps the selection the press lands on, ends one it misses where a menu opens, and places the menu's caret;
 - the dead-space click (`dead-space-caret.ts` :: `planAtPoint`), which also reads the block's own snap before it places a caret.
 
+One line would move its own text under the press: a `:::` opener line shows its `:::name` once the caret is on it, which pushes the title right. So a line with a title shows the name when the press ends, not when it starts (`src/lib/components/editor-root/focus.ts` holds the focused block's paint while a button is down), and the browser reads the click, the drag or the long press against the text you saw.
+
 ## 2. Which block, and where in it
 
 A click inside a text block: the browser already knows (or the editor does, for a padding click), so skip to stage 4. A click anywhere else (the margin, the room a block's box keeps around its text, below the last block; "dead space" in the code) goes to `src/lib/selection/dead-space-caret.ts`, which decides in this order:
@@ -63,6 +65,8 @@ Then the kind names the spot inside the block. A table names a cell through its 
 Reading mode runs the same walk. There's no caret to write there, so the block it picks takes focus (and becomes the editor's tab stop), and the spot is kept for when you switch back out.
 
 Firefox leaves a caret in two more spots Chromium never does: inside an inline widget (a click right of a formula), and on the far side of a marker run live mode hides (ArrowLeft out of ` text` after `**bold**`). Neither is a spot the editor writes, and inside a widget no key even types. So the caret writer's `canonicalizeCaret` (`browser/caret-writer.ts`) moves a caret like that, and the one in a CRLF pair, to where the editor would put it for that pixel, on the `selectionchange` and again at the next keydown, since a fast key can beat the event. A caret the editor wrote itself stays where it is, far side included, and so does a range.
+
+The same pass catches a caret the browser puts before a `:::` opener line's title in live mode: Tab or Shift+Tab onto the line (Firefox and WebKit land at byte 0), a script's `focus()` on it, ArrowUp inside a title that wraps. That caret moves to the title's start, as an arrival does (§ 3). It stays where it is only when the caret before it was already on that line at or before the title's start, so ArrowLeft, a letter and Backspace still work inside the name. The writer remembers that line, one per editor, and forgets it when focus leaves the line.
 
 The probe, for the curious:
 
@@ -88,6 +92,7 @@ Below the verbs:
 - A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `place-caret.ts`, which ends what the editor had selected the way `focus` does.
 - The two selections the editor keeps without a caret on screen have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a lint fails any other file that writes either.
 - A lint (G4.270) fails any native selection write outside the caret writer, `browser/caret-writer.ts`.
+- A caret put down with no byte in hand is an arrival: a landing, Home, a click, ArrowLeft over a selection, a page step, a host's `navigateTo` with no offset. On a `:::` opener line in live mode an arrival rests no earlier than the title's start, so each of those sites reads `arrivalRawStart`, and the caret writer moves one the browser puts there (§ 2). A step (ArrowLeft into the name) and a byte in hand (undo, `setSelection`) are left alone. ArrowLeft over a selection is a step where a caret stood at the selection's start or Shift+Arrow steps took it there, and an arrival where Shift+Home, Mod+A or a press put it there (`browser/caret-writer.ts` :: `stepsLeftStartAt`). A lint (G4.389) fails a caret write nobody has said is which.
 
 ## 4. The snap
 
@@ -109,7 +114,7 @@ The widgets it measures are every widget the block draws, a picture inside a lin
 
 The snap does nothing when the browser already put the caret in visible text, or when the surface holds a range (the second and third clicks of a run are a word or block selection, `src/lib/selection/multi-click.ts`, not a caret).
 
-The same click also moves a caret that landed inside the container's marker prefix (the `[^label]: ` in front of a footnote definition's text) back into the content, and in live mode one that landed on a `:::` opener line's `:::name` to the title's start, where Home and an arrow from another line land too. And while a widget is selected whole, a caret the browser puts in its block goes back to the widget's edge, where it stays hidden until a key places one or a press lands elsewhere (`docs/design/selection.md`).
+The same click also moves a caret that landed inside the container's marker prefix (the `[^label]: ` in front of a footnote definition's text) back into the content, and in live mode one that landed on a `:::` opener line's `:::name` to the title's start, where Home and an arrow from another line land too. A double-click on such a line needs one more step: its first click shows the name and moves the title, so the second selects the word where the first landed, not the one now under the pointer. And while a widget is selected whole, a caret the browser puts in its block goes back to the widget's edge, where it stays hidden until a key places one or a press lands elsewhere (`docs/design/selection.md`).
 
 That's the caret placed. Now the keyboard.
 

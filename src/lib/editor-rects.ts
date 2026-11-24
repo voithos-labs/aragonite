@@ -4,7 +4,7 @@
  * offsets on prose, cell coordinates in a grid). jsdom reports boxes of about zero size, so e2e covers
  * the geometry and a unit test covers the answers that are not geometry.
  */
-import type { BlockComponent } from './block-component';
+import { CURSOR_START, type BlockComponent } from './block-component';
 import type { PlaceBlock, ScrollOwner } from './windowing/scroll-owner';
 import type { NativeSelectionRead } from './browser/selection-read';
 
@@ -28,8 +28,8 @@ export interface EditorRects {
 		path: readonly number[],
 		opts?: { block?: PlaceBlock; hold?: boolean }
 	): Promise<boolean>;
-	/** Mount `path` (opening a closed `<details>`), scroll there and land the caret at `offset`, default
-	 *  0, as an edit does. Reading mode moves focus there instead. True once in view. */
+	/** Mount `path` (opening a closed `<details>`), scroll and land the caret at `offset`, by default
+	 *  where an arrival at its start rests; reading mode moves focus there. True once in view. */
 	navigateTo(path: readonly number[], offset?: number): Promise<boolean>;
 }
 
@@ -94,7 +94,7 @@ export function createEditorRects(deps: {
 			await deps.revealPath(p);
 			return placement.scroll();
 		},
-		navigateTo(path, offset = 0) {
+		navigateTo(path, offset = CURSOR_START) {
 			return deps.landCaretAt([...path], offset);
 		}
 	};

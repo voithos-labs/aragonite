@@ -141,7 +141,7 @@ async function run(editor: Editor, step: Step): Promise<void> {
 	await editor.settle();
 }
 
-type Held = Pick<CstNode, 'raw' | 'leadingTrivia'>;
+type Held = Pick<CstNode, 'raw' | 'leadingTrivia' | 'kind'>;
 
 /** Every list of the editor's tree where the kept look and a look over fresh copies differ. */
 function differences(editor: Editor): string[] {
@@ -149,7 +149,11 @@ function differences(editor: Editor): string[] {
 	const out: string[] = [];
 	const visit = (list: readonly CstNode[], where: string) => {
 		const kept = (i: number): Held => list[i];
-		const fresh = (i: number): Held => ({ raw: list[i].raw, leadingTrivia: list[i].leadingTrivia });
+		const fresh = (i: number): Held => ({
+			raw: list[i].raw,
+			leadingTrivia: list[i].leadingTrivia,
+			kind: list[i].kind
+		});
 		for (let j = 1; j < list.length; j++) {
 			for (const look of [waitingInto, waitingAboveThrough]) {
 				const [a, b] = [look(kept, j, 0, readings), look(fresh, j, 0, readings)];

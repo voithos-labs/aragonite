@@ -31,10 +31,9 @@ import {
 	type LandingSegment,
 	type OpaqueSegment,
 	isInVisibleText,
+	markerRootOf,
 	SOURCE_AT_CARET_ATTR
 } from './painted';
-import { getContentRange } from '../core/inline';
-import type { NodeView } from '../core/node-views';
 import {
 	type RawOffset,
 	type DomTextOffset,
@@ -476,11 +475,17 @@ export function reachableRawBounds(el: HTMLElement): RawRange | null {
 	};
 }
 
-/** Where a caret put down on `node` (an arrow from another line, Home, a click; never a step) rests at
- *  the earliest: past a source-at-caret row's marker where the mode hides markers, else 0. */
-export function arrivalRawStart(el: HTMLElement, node: NodeView): number {
+/** Where a caret put down in `el` (an arrow from another line, Home, a click; never a step) rests at
+ *  the earliest: past a source-at-caret row's leading marker where the mode hides markers, else 0. */
+export function arrivalRawStart(el: HTMLElement): number {
 	if (!el.hasAttribute(SOURCE_AT_CARET_ATTR) || !revealsNoMarkers(el)) return 0;
-	return getContentRange(node).start;
+	let start = 0;
+	for (const seg of walkSegments(el, null)) {
+		if (seg.len === 0 || (seg.kind === 'text' && inMarkerPrefix(seg.node, el))) continue;
+		if (seg.kind !== 'text' || markerRootOf(seg.node, el) === null) break;
+		start += seg.len;
+	}
+	return start;
 }
 
 /** Clamp a caret offset into the range the caret can sit in; a no-op wherever the markers paint. */

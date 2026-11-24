@@ -811,10 +811,19 @@
 	opacity: 0.7;
 }
 
-/* A focused construct whose only bytes are its markers shows them, having nothing else to show,
-   and so does a source-at-caret row (a `:::` opener line); mirrored in `browser/painted.ts`. */
+/* A focused construct of bare markers shows them, having nothing else to show, and so does a
+   titled `:::` opener line unless a held press keeps its paint; mirrored in `browser/painted.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
-	[contenteditable]:is([data-content-empty], [data-source-at-caret]):focus-within
+	[contenteditable][data-content-empty]:focus-within
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line),
+:where(.editor):is([data-presentation^='preview-'], [data-presentation='live']):not(
+		[data-press-held]
+	)
+	[contenteditable][data-source-at-caret]:focus-within
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line),
+:where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
+	.block-host[data-focused]
+	[contenteditable][data-source-at-caret]:not([data-content-empty])
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
 	display: inline;
 }

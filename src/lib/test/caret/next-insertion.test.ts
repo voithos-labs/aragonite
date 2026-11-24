@@ -16,6 +16,7 @@ import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { createHeldSpace } from '#lib/caret/held-space.js';
 import { createPendingBreak } from '#lib/caret/pending-break.svelte.js';
 import { createSurfaceWrite } from '#lib/components/blocks/editable/surface-write.js';
+import { parse } from '#lib/core/parser.js';
 import { stubBlockEdit } from '#lib/testing/headless-actions.js';
 import type { NodeView } from '#lib/core/node-views.js';
 
@@ -200,6 +201,7 @@ describe('writeText and a record the write extends', () => {
 			getNode: () => ({ kind: 'paragraph', leadingTrivia: '', raw }) as NodeView,
 			getIndex: () => 0,
 			getPath: () => [0],
+			getDoc: () => parse(''),
 			blockEdit: {
 				...stubBlockEdit(),
 				updateBlockContent: (...args) => {

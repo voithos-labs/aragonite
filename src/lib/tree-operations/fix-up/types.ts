@@ -4,7 +4,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { LineEnding } from '../../core/lines';
 import type { ContainerBodyWrap } from '../../core/parser';
-import type { GrammarReading } from '../../schema/block-openers';
+import type { ClosedInGrammar, GrammarReading } from '../../schema/block-openers';
 
 /** One list of sibling blocks: the document's top level, or a container's body. */
 export interface SiblingList {
@@ -82,7 +82,7 @@ export interface KindTraits {
 }
 
 /** What a look for a wait reads of a block. */
-export type Held = Pick<CstNode, 'raw' | 'leadingTrivia'>;
+export type Held = Pick<CstNode, 'raw' | 'leadingTrivia' | 'kind'>;
 
 /** The block parser the fix-up reads with; every answer is the parser's own. */
 export interface Host {
@@ -92,11 +92,16 @@ export interface Host {
 	/** Whether a table right above a block with these bytes takes its first line as a row. */
 	continuesTableAbove(raw: string): boolean;
 	readingsThatMayChange(): readonly GrammarReading[];
+	/** The readings a line below closes under which `block` waits (`schema/block-openers.ts`). */
+	closedWaitsOf(
+		block: Pick<CstNode, 'raw' | 'kind'>,
+		readings: readonly GrammarReading[]
+	): readonly ClosedInGrammar[];
 	/** The topmost of the `count` blocks above that a line of `written` closes, or -1
 	 *  (`schema/block-openers.ts :: waitingAboveClosedBy`). */
 	waitingAboveClosedBy(
 		written: readonly string[],
-		rawAbove: (i: number) => string,
+		above: (i: number) => Pick<CstNode, 'raw' | 'kind'>,
 		count: number
 	): number;
 	/** The topmost block above `at` left waiting where block `at` starts, by a reading no line

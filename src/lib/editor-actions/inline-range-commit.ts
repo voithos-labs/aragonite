@@ -39,13 +39,13 @@ export interface InlineRangeOptions {
 
 export function createInlineRangeCommit(root: EditorRoot): InlineRangeCommit {
 	/** The leaf's list, the write the splice makes and where `caretAfter` lands in it, or null when
-	 *  there is no leaf. `write` is null where it would store the bytes the leaf already has. */
+	 *  there is no leaf. */
 	function planSplice(
 		path: number[],
 		start: number,
 		end: number,
 		bytes: string
-	): { scope: CommitScope; index: number; write: LegalWrite | null; moved: Moved } | null {
+	): { scope: CommitScope; index: number; write: LegalWrite; moved: Moved } | null {
 		if (path.length === 0) return null;
 		const scope = createPathScope(root, docPathFrom(path.slice(0, -1)));
 		const index = path[path.length - 1];
@@ -54,8 +54,6 @@ export function createInlineRangeCommit(root: EditorRoot): InlineRangeCommit {
 		const store = storedAsIn(scope.target(), index, root.deps.reading);
 		const edit = replaceRangeInLeaf(leaf, { start, end }, bytes, store);
 		const moved = movedBy(start, edit.caret - bytes.length, bytes.length);
-		// Compared against the bytes the write would store (G4.28), so a splice a table cell's pipe
-		// escaping cancels out adds no undo entry (dismissing an image after a resize).
 		const write = legalizeWrite(
 			scope.target(),
 			index,
@@ -63,12 +61,12 @@ export function createInlineRangeCommit(root: EditorRoot): InlineRangeCommit {
 			'literal',
 			root.deps.reading.grammar
 		);
-		return { scope, index, write: write.text === leaf.raw ? null : write, moved };
+		return { scope, index, write, moved };
 	}
 
 	function writtenDelta(path: number[], start: number, end: number, bytes: string): number {
 		const plan = planSplice(path, start, end, bytes);
-		if (!plan?.write) return 0;
+		if (!plan) return 0;
 		return plan.write.text.length - plan.scope.children()[plan.index].raw.length;
 	}
 
@@ -84,7 +82,8 @@ export function createInlineRangeCommit(root: EditorRoot): InlineRangeCommit {
 		if (!plan) return false;
 		// Not held: the height correction already keeps the focused line still.
 		const reveal = 'into-view';
-		if (!plan.write) {
+		// A splice the leaf's rules cancel out (a cell's pipe escaping) holds its bytes already.
+		if (plan.write.unchanged) {
 			if (opts.landCaret) {
 				await root.deps.caretLanding.land(plan.scope.at(plan.index, [], caretAfter), { reveal });
 			}

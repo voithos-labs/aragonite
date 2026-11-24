@@ -54,16 +54,21 @@ export function handleMotion(
 	el: HTMLElement
 ): boolean {
 	if (ctx.selection.ownsRange) return false;
+	// Before the move, the editor's below or the browser's, so where it takes the start reads as a step.
+	if (key.extend && !edgeKey(key)) ctx.caretWriter.noteStep(el);
 	// Over a range a Mac's Cmd+Shift+Arrow grows the range's own end, the platform's way, left to it.
 	if (key.arrow && key.extend && usesMacEditingConventions() && browserRangeIn(el)) return false;
 	if (key.unit === 'word' && !hasWordSegmenter()) return false;
 	// With Shift the moving end; over a range, its edge on the key's side, as a plain arrow collapses it.
 	const held = key.extend ? null : browserRangeIn(el);
-	const edges = held && held.start !== null && held.end !== null ? held : null;
+	const edges =
+		held && held.start !== null && held.end !== null ? { start: held.start, end: held.end } : null;
 	const from = key.extend
 		? ctx.getFocusOffset()
 		: edges
-			? edges[key.direction === 'backward' ? 'start' : 'end']
+			? key.direction === 'backward'
+				? leftEdgeArrival(edges.start, ctx, el)
+				: edges.end
 			: ctx.getCursorOffset();
 	if (from === null) return false;
 	const context = key.unit === 'character' ? null : ctx.unitContext(from);
@@ -112,13 +117,25 @@ export function stepBesideWidget(
 	return true;
 }
 
+/** Where a backward key over a range starting at raw `start` in `el` starts from: there, unless an
+ *  arrival, not steps, put that start before the arrival start (a `:::` row's title start). */
+export function leftEdgeArrival(start: number, ctx: MotionKeyContext, el: HTMLElement): number {
+	const floor = ctx.arrivalStart?.() ?? 0;
+	return start < floor && !ctx.caretWriter.stepsLeftStartAt(el, start) ? floor : start;
+}
+
 // ── Internals ──────────────────────────────────────────────────────────────
 
-/** Where a plain Home or Mod+Home stops at the earliest: such a key puts the caret down at the
- *  line's or the block's start, an arrival; every other key steps, and 0 leaves it alone. */
+/** A line or block edge key puts the caret, or a range's moving end, down at an edge, an arrival;
+ *  the character and word keys step from where it stood. */
+function edgeKey(key: MotionKey): boolean {
+	return key.unit === 'line-edge' || key.unit === 'block-edge';
+}
+
+/** Where a plain Home or Mod+Home stops at the earliest, and 0 leaves the key alone. */
 function arrivalFloor(key: MotionKey, ctx: MotionKeyContext): number {
-	const startKey = key.unit === 'line-edge' || key.unit === 'block-edge';
-	return startKey && key.direction === 'backward' && !key.extend ? (ctx.arrivalStart?.() ?? 0) : 0;
+	const home = edgeKey(key) && key.direction === 'backward' && !key.extend;
+	return home ? (ctx.arrivalStart?.() ?? 0) : 0;
 }
 
 /** A caret key the editor landed: the check that the browser's own move didn't run as well, and

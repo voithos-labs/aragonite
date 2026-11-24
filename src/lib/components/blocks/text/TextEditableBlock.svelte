@@ -29,6 +29,7 @@
 		type TextEditResult
 	} from './text-keydown';
 	import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
+	import { isReservedChromeChild } from '../../../schema/reserved-chrome';
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
 	import { readAsOpened } from '../../../schema/opened-reading';
 	import { createTextClipboard } from './text-clipboard';
@@ -482,8 +483,10 @@
 	}
 
 	/** At the end of the text's line the break waits for the next insertion to write it; anywhere
-	 *  else it writes its bytes now. */
+	 *  else it writes its bytes now. A title row holds one line, so it takes none. */
 	function writeHardBreak(offset: number): void {
+		const owner = blockNodeAt(getDoc(), myPath.slice(0, -1));
+		if (owner && isReservedChromeChild(owner, index)) return;
 		const content = getContentRange(node);
 		const lineEnd = content.end + sameLineSuffix(node).length;
 		// A caret in front of a hidden closer at the end is at the end too: nothing paints past it.

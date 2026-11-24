@@ -72,6 +72,7 @@ export function harness(
 			getNode: () => node,
 			getIndex: () => 0,
 			getPath: () => [0],
+			getDoc: () => parse(''),
 			blockEdit,
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 			getPreEditOffset: trap,

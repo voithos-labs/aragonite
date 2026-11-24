@@ -33,7 +33,7 @@ import {
 	NEXT_PROSE_LINE,
 	asBody,
 	installOwnRaw,
-	kindWriteRule,
+	writeRuleAt,
 	type BodyParent,
 	type BodyParentArg,
 	type NodeParent,
@@ -62,6 +62,8 @@ declare const legalWrite: unique symbol;
  */
 export interface LegalWrite {
 	readonly text: string;
+	/** True when `text` is the block's bytes as they stand, so the write commits nothing. */
+	readonly unchanged: boolean;
 	/** Where an offset into the text as the writer wrote it lands in the stored `text`. */
 	storedOffset(offset: number): number;
 	readonly [legalWrite]: true;
@@ -76,8 +78,8 @@ export type WriteTarget =
 	  }
 	| DocumentView;
 
-/** `text` made legal as the bytes of the block at `index`, among the siblings as they stand once it
- *  lands: the prose rule, the kind's `rawWrite`, the container's `bodyWrite`, then a written opener's closer. */
+/** `text` made legal as the bytes of the block at `index` among its siblings: the prose rule, the
+ *  position's rule (the kind's `rawWrite`, a title row's one line), `bodyWrite`, a written closer. */
 export function legalizeWrite(
 	parent: WriteTarget,
 	index: number,
@@ -90,7 +92,7 @@ export function legalizeWrite(
 	const lineEnding = 'lineEnding' in parent ? parent.lineEnding : documentLineEnding(parent);
 	const dropped = droppedOpenLines(node, text);
 	const prose = dropped ? dropped.text + text.slice(dropped.end) : text;
-	const ownRule = kindWriteRule(node);
+	const ownRule = writeRuleAt(owner, index, node);
 	const ownCtx: WriteContext = { node, mode, lineEnding };
 	const own = ownRule ? ownRule.normalize(prose, ownCtx) : prose;
 	const bodyRule = owner ? tryGetBlockKindDescriptor(owner.kind)?.bodyWrite : undefined;
@@ -108,7 +110,7 @@ export function legalizeWrite(
 		const inBody = bodyRule && bodyCtx ? bodyRule.mapOffset(own, inOwn, bodyCtx) : inOwn;
 		return Math.max(offsetPastClosers(inBody, closers) + markerShift, 0);
 	};
-	return { text: stored, storedOffset } as LegalWrite;
+	return { text: stored, unchanged: stored === node.raw, storedOffset } as LegalWrite;
 }
 
 // A kind with no reading of its own (a table cell, a title row) holds no block opener.
