@@ -8,6 +8,9 @@ import { asEditorX } from '#lib/core/coordinate-spaces.js';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../../block-component';
 import { consumePendingRestore } from '../../../components/blocks/editable/editable-surface';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
+import { stubBlockEdit } from '#lib/testing/headless-actions.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
 
 describe('caret memory', () => {
 	// Miss-analysis: only a source lint covered the input commit's reset, never a typed byte.
@@ -139,6 +142,65 @@ describe('the input read', () => {
 		surface.onInput(new InputEvent('input'));
 
 		expect(commits.map((c) => c.saved)).toEqual([1]);
+	});
+});
+
+describe('the selection an input replaces', () => {
+	// Miss-analysis: every row placed its range by keys in Chromium, where the browser deletes the
+	// range it shows; WebKit deleted one character of a range that starts before the marker's span.
+	afterEach(() => {
+		document.body.innerHTML = '';
+	});
+
+	/** The selection the write over `:::tip Title` names, `selected` held and `target` the range the
+	 *  input's `beforeinput` says it replaces (null: the event names none). */
+	function replaced(selected: [number, number] | null, target: [number, number] | null) {
+		const seen: unknown[] = [];
+		const blockEdit = {
+			...stubBlockEdit(),
+			updateBlockContent: (...args: unknown[]) => {
+				seen.push(args[6]);
+				return withStoredCaret(Promise.resolve(true), 0);
+			}
+		} as unknown as BlockEditActions;
+		const backend = {
+			getRaw: () => selected?.[1] ?? 0,
+			getRawSelection: () => selected && { start: selected[0], end: selected[1] },
+			rawRangeOf: (range: AbstractRange) => ({ start: range.startOffset, end: range.endOffset }),
+			setRaw: () => {}
+		};
+		const { surface, el } = makeSurface({ blockEdit, overrides: { backend } as never });
+		el.textContent = ':::tip Title';
+		const text = el.firstChild!;
+		const e = new InputEvent('beforeinput', { inputType: 'deleteContentBackward' });
+		if (target) {
+			const [startOffset, endOffset] = target;
+			const range = new StaticRange({
+				startContainer: text,
+				startOffset,
+				endContainer: text,
+				endOffset
+			});
+			Object.defineProperty(e, 'getTargetRanges', { value: () => [range] });
+		}
+		surface.onBeforeInput(e);
+		el.textContent = ':::tipTitle';
+		surface.onInput(new InputEvent('input'));
+		return seen;
+	}
+
+	it.each([
+		[
+			'the range the browser names, where it is not the one shown',
+			[0, 7],
+			[6, 7],
+			{ start: 6, end: 7 }
+		],
+		['the range shown, where the browser names it', [0, 7], [0, 7], { start: 0, end: 7 }],
+		['the range shown, where the browser names none', [0, 7], null, { start: 0, end: 7 }],
+		['none, at a caret, whatever the browser deletes', null, [6, 7], undefined]
+	] as const)('is %s', (_, selected, target, fact) => {
+		expect(replaced(selected as never, target as never)).toEqual([fact]);
 	});
 });
 

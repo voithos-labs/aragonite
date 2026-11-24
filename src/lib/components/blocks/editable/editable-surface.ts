@@ -589,10 +589,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	let preEditOffset = 0;
 	// The selection the edit replaces, read with that caret and spent by the block's next write.
 	let preEditSelection: RawRange | null = null;
-	const recordPreEditOffset = (): void => {
+	const recordPreEditOffset = (e?: InputEvent): void => {
 		if (composing()) return;
 		preEditOffset = deps.backend.getRaw() ?? 0;
-		preEditSelection = deps.backend.getRawSelection();
+		const selection = deps.backend.getRawSelection();
+		// The browser's own edit of a selection can take less of it (WebKit, from before a span).
+		const target = selection && e ? targetRange(e) : null;
+		const replaced = target ? deps.backend.rawRangeOf(target) : selection;
+		preEditSelection = replaced && replaced.start < replaced.end ? replaced : null;
 	};
 
 	// For a typed line break only: a rewrite of the block's own text keeps the ending it has
@@ -793,7 +797,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			e.preventDefault();
 			return;
 		}
-		if (!imeOwnsInput(e)) recordPreEditOffset();
+		if (!imeOwnsInput(e)) recordPreEditOffset(e);
 		if (deps.localHistory?.(e) || runSharedBeforeInput(e)) return;
 		deps.handleBeforeInput?.(e);
 		if (e.defaultPrevented) return;
