@@ -107,4 +107,10 @@ describe('select-all over a document that is one container', () => {
 	it('still steps back off an empty line after the container', () => {
 		expect(allOf(':::foo Title\n\n:::\n\n\n', [0, 0], [1])).toBe(':::foo Title\n');
 	});
+
+	it("still steps back into a lone emptied details' summary, which has no marker", () => {
+		expect(allOf('<details open>\n<summary>D</summary>\n\n\n</details>\n', [0, 0], [0, 1])).toBe(
+			'D'
+		);
+	});
 });
