@@ -22,6 +22,9 @@ in `live` and in `source`.
   entering from above with a sticky column lands on the second line rather than on the `$$`
   line, which is a question about column landing that this file does not pin
 
+- Alt+ArrowDown in the open block, entered from above, moves it below `After`, as the chord moves
+  a code block; Alt+ArrowUp then moves it back between the two paragraphs. Both modes
+
 ## Edge cases
 
 - An empty block (`$$$$`) in live mode: showing the source completes it to an opener, an empty

@@ -5,7 +5,7 @@ import { edgeKey } from '../../platform-keys';
 import { insertText } from '../../insert-text';
 
 // Editing keys at the edges of an open `$$` source whose fence lines live mode hides: the ends of
-// the line, Enter, Backspace and Tab must all stay inside the body.
+// the line, Enter and Backspace stay inside the body, and Tab leaves the block.
 // Requirements: e2e/requirements/plugins/latex-block-live-editing.md.
 
 const BODY = '\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}';
