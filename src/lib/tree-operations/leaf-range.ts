@@ -125,8 +125,8 @@ function wholeTextInside(
 	return { start, end };
 }
 
-/** The part of a drawn range a removal, a copy or a drag takes: the range, less a title row's
- *  `:::name` where it covers the row's whole text in a reading that hides delimiters. */
+/** The part of a drawn range a copy or a drag carries off: the range, less the `:::name` a title
+ *  row's own write keeps where the range covers its whole text in a reading that hides delimiters. */
 export function drawnSpan(
 	node: NodeView,
 	range: { start: number; end: number },
