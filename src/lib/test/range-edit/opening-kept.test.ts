@@ -24,10 +24,11 @@ describe("a range from a container's first byte into its body keeps the opening"
 		});
 
 		// Controls: a range that stays on a `:::` row, or starts on its marker and runs off it. The
-		// row whole is its title in live mode (`title-row-drawn.test.ts`).
-		const row = mode === 'live' ? ':::tip \nbody\n:::\n' : '\nbody\n:::\n';
+		// row whole is its title in live mode (`title-row-drawn.test.ts`); a range that breaks the
+		// row unwraps the box (`opener-unwrap.test.ts`).
+		const row = mode === 'live' ? ':::tip \nbody\n:::\n' : 'body\n';
 		it.each([
-			['the marker alone', ':::tip Title\nbody\n:::\n', 0, 7, 'Title\nbody\n:::\n'],
+			['the marker alone', ':::tip Title\nbody\n:::\n', 0, 7, 'Title\n\nbody\n'],
 			['the row whole', ':::tip Title\nbody\n:::\n', 0, 12, row],
 			['the row and the body', ':::tip Title\nbody\n:::\n', 0, 17, ':::tip \n\n:::\n']
 		])(`a callout, %s, ${mode}`, (_, source, from, to, left) => {

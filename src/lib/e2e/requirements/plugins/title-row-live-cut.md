@@ -9,7 +9,7 @@ In live mode a selection over the whole text of a `:::` row (End then Shift+Home
 - The row selected whole, then Ctrl+C, then a paste into a paragraph: the paragraph gains `Title`, as text.
 - The row selected whole and dragged to the end of a paragraph below: the paragraph gains `Title`, and the row keeps `:::tip `.
 
-## Controls (today's answers, pinned; not the designed answer for a removal that stays on the row)
+## Controls (a removal that breaks the row unwraps the box: `title-row-unwrap.md`)
 
-- In source mode the row selected whole (Shift+End), then Backspace or a cut: the row goes, the closing line stays; the clipboard holds `:::tip Title`.
-- In live mode `:::tip ` selected alone, then Backspace: `Title` stays as a paragraph line, the closing line stays.
+- In source mode the row selected whole (Shift+End), then Backspace or a cut: the box goes with its closing line, `body` stays; the clipboard holds `:::tip Title`.
+- In live mode `:::tip ` selected alone, then Backspace: `Title`, a blank line, `body`.

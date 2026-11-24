@@ -21,6 +21,24 @@ none removed a selection inside the row, and the closing line it left read as te
 
 ## Edge cases
 
+- An untitled row selected whole: `body` alone, no paragraph above it
+- In source mode the titled row selected whole (Shift+End): `body` alone
+- The inner box of a `::::note` over a `:::tip`: the inner box only unwraps, inside the note
+- In a quote and in a list item: the paragraph, a blank line behind the markers, the body
+- A generic `:::foo` box unwraps as a callout does
+- A body that opens with a heading stays flush under the paragraph; one that opens with a rule gets a blank line, so the rule stays a rule
+- One colon selected by keys: the box unwraps
+
 ## User interactions
 
-## Error cases
+- After the unwrap the caret stands at the start of `Title`, so a letter starts it
+- `:::tip ` selected, `:` typed, then `::note `: each key lands where typed (`:Title`, then `:::note Title`), no character lost, two paragraphs and no box
+- A cut, then Ctrl+V where it left the caret: the box back, byte for byte
+- `:::tip ` pasted from outside the editor at the start of `Title`: two paragraphs, no box
+- Undo after the unwrap gives the box back; redo unwraps it again
+
+## Controls
+
+- The name selected (`tip`), then Backspace: `::: Title`, the closing line kept, so a name typed next re-forms the box
+- Backspace, a word delete or a soft keyboard's delete at a caret after the colons: today's bytes, the closing line kept
+- In live mode the titled row selected whole: the title clears and `:::tip ` stays

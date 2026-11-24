@@ -10,7 +10,8 @@ import { editRange } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
-import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import { makeContainerHarness, makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 import { noTransforms, testReading } from '../range-edit/test-host';
 
 const G = ':::foo Title\nbody\n:::\n';
@@ -75,5 +76,23 @@ describe('a selection written over an opening row', () => {
 
 	it('the same bytes written with no selection, as a word delete writes them, stay literal', async () => {
 		expect(await write(G, ':::foo Title\n', 0, 3, '', false)).toBe('foo Title\nbody\n:::\n');
+	});
+
+	// A program's write names no selection, so the rule leaves it literal.
+	it('a plugin replaceRaw of the row stays literal', async () => {
+		testReading();
+		const h = makeContainerHarness(G, [0]);
+		expect(await h.bundle.blockEdit.replaceRaw(0, 'foo Title\n')).toBe(true);
+		expect(serialize(h.deps.doc)).toBe('foo Title\nbody\n:::\n');
+	});
+
+	it('a find and replace over the marker stays literal', async () => {
+		testReading();
+		const { deps, sr } = makeSearchReplace(G);
+		await sr.replaceAll(
+			scanCompiled(deps.doc, ':::foo ', { regex: false, caseSensitive: true }),
+			''
+		);
+		expect(serialize(deps.doc)).toBe('Title\nbody\n:::\n');
 	});
 });

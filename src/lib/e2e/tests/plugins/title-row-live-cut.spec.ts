@@ -131,24 +131,24 @@ test.describe('a live selection over a title row whole text', () => {
 		await editor.bridge.waitForSourceEquals(':::tip \nbody\n:::\n\nparaTitle\n');
 	});
 
-	// Today's answers, pinned until a removal that stays on the row is ruled otherwise.
+	// A removal that breaks the row unwraps the box (`title-row-unwrap.spec.ts`).
 	for (const key of ['Backspace', 'ControlOrMeta+x'])
-		test(`source: the row selected whole, ${key}, takes the row`, async ({ page }) => {
+		test(`source: the row selected whole, ${key}, takes the box`, async ({ page }) => {
 			const [row] = ROWS;
 			await load(row.source, 'source');
 			await editor.focusBlockAtPath(row.row, 0);
 			await page.keyboard.press(extendKey('lineEnd'));
 			await page.keyboard.press(key);
-			await editor.bridge.waitForSourceEquals('\nbody\n:::\n');
+			await editor.bridge.waitForSourceEquals('body\n');
 			if (key !== 'Backspace') expect(await editor.readClipboard()).toBe(':::tip Title');
 		});
 
-	test('live: the marker alone selected, Backspace, takes the marker', async ({ page }) => {
+	test('live: the marker alone selected, Backspace, unwraps the box', async ({ page }) => {
 		const [row] = ROWS;
 		await load(row.source);
 		await editor.focusBlockAtPath(row.row, row.text[0]);
 		await page.keyboard.press(extendKey('lineStart'));
 		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('Title\nbody\n:::\n');
+		await editor.bridge.waitForSourceEquals('Title\n\nbody\n');
 	});
 });

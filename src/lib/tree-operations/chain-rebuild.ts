@@ -159,7 +159,7 @@ export function rebuildUnsharedChain(
 				reclassified.push({ siblings, index, previous: node, replacement });
 				rekinded = replacement.kind !== node.kind;
 			} else if (reading.outcome === 'diverged' && reading.blocks.length > 0) {
-				const spill = { index, node, rawBefore, blocks: reading.blocks, caret: unwrapped?.caret };
+				const spill = { index, node, rawBefore, blocks: reading.blocks, shift: unwrapped?.shift };
 				// A list of blocks takes them as it takes a typed write's; an item or a row is no block.
 				if (
 					folds &&
@@ -214,8 +214,8 @@ interface Spill {
 	node: CstNode;
 	rawBefore: string;
 	blocks: CstNode[];
-	/** Where the caret lands in the first block; its start where unset. */
-	caret?: number;
+	/** How far the caret moves from the leaf's own offset, which the relanding adds to the landing. */
+	shift?: number;
 }
 
 /**
@@ -257,7 +257,8 @@ function writeSpill(
 	const { change } = settled;
 	const stands =
 		change.op === 'replace' && change.at === index && body.children[index].kind === node.kind;
-	fold.push(change, settledCaretPosition(settled, index, spill.caret ?? 0, body.children), stands);
+	const landing = settledCaretPosition(settled, index, 0, body.children);
+	fold.push(change, { ...landing, offset: landing.offset + (spill.shift ?? 0) }, stands);
 	return true;
 }
 
@@ -316,7 +317,7 @@ function brokenOpener(
 	rawBefore: string,
 	hint: ChainWriteHint,
 	grammar: GrammarView
-): { bytes: string; caret: number } | null {
+): { bytes: string; shift: number } | null {
 	const [node, row] = [chain[i], chain[i + 1]];
 	const owner = i === 0 ? null : chain[i - 1];
 	const siblings = (owner ?? root).children;
@@ -334,10 +335,12 @@ function brokenOpener(
 		const block = host.readInSlot(slot.owner, index, text).children[0];
 		return block && { ...block, leadingTrivia: '' };
 	};
-	return unwrappedContainer(rawBefore, before, markerEnd, cut, (title, body) => {
+	const { bytes, caret } = unwrappedContainer(rawBefore, before, markerEnd, cut, (title, body) => {
 		const [upper, lower] = [first(title), first(body)];
 		return !!upper && !!lower && blankLineBelongs(host, slot, upper, lower, 'placed', false);
 	});
+	// The leaf's caret stood after the inserted text, at its byte in the row.
+	return { bytes, shift: caret - (cut.start + cut.inserted.length) };
 }
 
 /** Whether the write changed only the title on the container's title row, which no metadata comes
