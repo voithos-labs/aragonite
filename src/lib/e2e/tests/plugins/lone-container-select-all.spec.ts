@@ -112,6 +112,14 @@ const CONTROLS: Lone[] = [
 		emptied: ':::tip \n\n:::\n\n\n'
 	},
 	{
+		name: 'a lone emptied callout nested in a note',
+		seed: 'admonitions',
+		source: '::::note Outer\n:::tip Inner\n\n:::\n::::\n',
+		caret: [[0, 1, 0], 12],
+		emptied: '::::note \n::::\n',
+		enter: '::::note \n\n::::\n'
+	},
+	{
 		name: 'a callout then a paragraph',
 		seed: 'admonitions',
 		source: ':::tip Title\nbody\n:::\n\npara\n',

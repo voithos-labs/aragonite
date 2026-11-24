@@ -17,3 +17,4 @@ Select-all (Ctrl+A twice) over a document that is one callout or one `<details>`
 - A lone emptied details (`<summary>D</summary>`, an empty body): the summary empties, the body's line stays.
 - A callout then an empty line, with a body or without: the emptied callout and the empty lines after it stay.
 - A callout then a paragraph, and a paragraph then a callout: the document empties.
+- A lone emptied callout nested in a note: the inner box goes whole and the note stays, emptied (`::::note `, `::::`); Enter leaves an empty line in the note.
