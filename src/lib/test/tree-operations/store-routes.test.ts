@@ -708,8 +708,16 @@ const FAMILIES: Family[] = [
 	{
 		// Deleting `x` empties the bold, so its runs go; in a to-do or a cell `# y` then reads as text.
 		name: 'the range-edit core’s in-block writes',
-		stores: { 'range-edit/host.ts': 10 },
+		stores: { 'range-edit/host.ts': 11 },
 		rows: [
+			{
+				// A title row's store keeps its `:::name` out of a live range over its whole text.
+				shape: 'the part of a title row a copy takes',
+				run: () =>
+					copyRange(':::tip Title\nbody\n:::\n', { from: 0, to: 12 }, 'live', rangeHost(LIVE))
+						.clipboard,
+				want: 'Title'
+			},
 			{
 				shape: 'a to-do',
 				run: () =>
