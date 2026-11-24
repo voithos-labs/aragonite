@@ -163,9 +163,17 @@
 	}
 
 	/* The equation's cards keep a code block's distance from their neighbours (editor.css);
-	   padding, not margin, because block heights are measured from the host's box. */
-	:global(.block-host[data-block-kind='latex/block']) {
+	   padding, not margin, because block heights are measured from the host's box. The fence
+	   lines read at the formula's own weight, through the editor's marker token. */
+	.math-block {
 		padding-block: 6px;
+		--syntax-marker-dim: 1;
+	}
+
+	/* The `math` info string reads plain too; the editor's info-string colour has no token. */
+	.math-block :global(.math-block-source .md-lang) {
+		opacity: 1;
+		color: inherit;
 	}
 
 	/* Each half is its own card, and the positioning parent for its toggle button. */
@@ -197,12 +205,6 @@
 		background: transparent;
 		border-color: transparent;
 		border-radius: 8px;
-	}
-
-	/* The fence lines, the `math` info string too, read at the formula's own weight and colour. */
-	.math-block :global(.math-block-source .md-marker) {
-		opacity: 1;
-		color: inherit;
 	}
 
 	/* The card stretches the source so its box fills the column; without it a short formula's
