@@ -84,7 +84,7 @@
 	class:math-block-split={revealed && layout === 'split'}
 	class:math-block-stacked={revealed && layout === 'stacked'}
 >
-	<div class="math-block-card math-block-source-card">
+	<div class="math-block-card">
 		<Slot of="source" />
 		{#if revealed && layout !== 'split'}
 			{@render layoutToggle()}
@@ -173,11 +173,6 @@
 		position: relative;
 		min-width: 0;
 		border-radius: 8px;
-	}
-
-	/* Folded, the source's card holds nothing to show, so it takes no room. */
-	.math-block-source-card:has(:global([data-view-text][hidden])) {
-		display: none;
 	}
 
 	/* Keyed on editing, not on the side-by-side layout: hiding the preview leaves one card, and
