@@ -61,14 +61,15 @@ test.describe('plugin math fence: distinct kind, shared render', () => {
 
 	test('stands off its neighbours by the same padding as a $$ block', async ({ page }) => {
 		await editor.loadContent('para\n\n$$\nx\n$$\n\npara\n\n```math\nx\n```\n\npara\n');
-		const padding = (index: number) =>
-			page
-				.locator(`[data-block-path='[${index}]']`)
-				.evaluate(
-					(el) => `${getComputedStyle(el).paddingTop} ${getComputedStyle(el).paddingBottom}`
-				);
+		// The room between the host's edges and the card it shows, above and below.
+		const room = (index: number) =>
+			page.locator(`[data-block-path='[${index}]']`).evaluate((el) => {
+				const host = el.getBoundingClientRect();
+				const card = el.querySelector('.math-block-render')!.getBoundingClientRect();
+				return `${Math.round(card.top - host.top)} ${Math.round(host.bottom - card.bottom)}`;
+			});
 
-		expect(await padding(1)).toBe('6px 6px');
-		expect(await padding(3)).toBe(await padding(1));
+		expect(await room(1)).toBe('6 6');
+		expect(await room(3)).toBe(await room(1));
 	});
 });
