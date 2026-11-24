@@ -30,8 +30,8 @@ sits on the body's own line where a range through the body reaches it.
   then the `Y`, read off the source on screen (the tree sees it only on blur); the blur commits
   `X` before the body, and one undo puts the block back
 - Delete at the body's end deletes nothing, and the blur commits nothing
-- Tab leaves the block, as it leaves a paragraph, since no built-in binds it and it is the
-  browser's own focus step, and the blur it causes commits the whole draft
+- Tab leaves the block: a drawn block's text runs no tab command, so it is the browser's own
+  focus step, and the blur it causes commits the whole draft
 - Ctrl+A inside the source, then Ctrl+C, copies the same bytes Ctrl+X cuts: the whole block,
   hidden fence lines included, since the cut removes those too
 

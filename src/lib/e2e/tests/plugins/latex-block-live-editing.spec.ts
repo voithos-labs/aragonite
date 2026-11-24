@@ -105,11 +105,9 @@ test.describe('block math editing edges (live)', () => {
 		expect(await editor.bridge.getSource()).toBe(DOC);
 	});
 
-	// The same as prose: nothing built in binds Tab, so it is the browser's focus step out of the
-	// block, and the block closes on the blur that causes, committing the draft whole.
-	test('Tab leaves the block as it leaves a paragraph, and the draft commits whole', async ({
-		page
-	}) => {
+	// A drawn block's text runs no tab command, so Tab is the browser's focus step out of the block,
+	// and the block closes on the blur that causes, committing the draft whole.
+	test('Tab leaves the block, and the draft commits whole', async ({ page }) => {
 		await enterFromAbove(page);
 		await page.keyboard.type('X');
 		await page.keyboard.press('Tab');
