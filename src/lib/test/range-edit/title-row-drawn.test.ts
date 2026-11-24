@@ -3,7 +3,6 @@
 // never the core's copy of the same range, which kept the `:::name` the row's own write left alone.
 import { describe, expect, it } from 'vitest';
 import { copyRange, removalOf } from '#lib/range-edit/edit-range.js';
-import type { Mode } from '#lib/range-edit/host.js';
 import { checkHost } from './test-host';
 
 /** Each kind's titled row, with the byte its row starts at. */

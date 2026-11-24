@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, readContainer } from './helpers';
+import type { Page } from '@playwright/test';
+import { PluginsPage, readContainer, type ContainerState } from './helpers';
 
 // Select-all over a document that is one container, then a removal: the container keeps its
 // opening, emptied. Each document names where the caret starts before Ctrl+A twice.
@@ -15,6 +16,12 @@ interface Lone {
 	typed?: string;
 	/** What Enter leaves, where it differs from the removal's bytes. */
 	enter?: string;
+}
+
+/** The container's kind and blocks, read off the tree, its bytes aside. */
+async function shapeOf(page: Page): Promise<Omit<ContainerState, 'raw'>> {
+	const { raw: _bytes, ...shape } = await readContainer(page);
+	return shape;
 }
 
 const ALL_REMOVALS = ['Backspace', 'Delete', 'Enter', 'ControlOrMeta+x'] as const;
@@ -179,8 +186,9 @@ test.describe('select-all over a document that is one container', () => {
 			await editor.bridge.waitForSourceEquals(
 				'<details open>\n<summary></summary>\n\n</details>\n'
 			);
-			const emptied = await readContainer(page);
 			expect((await editor.bridge.getSelection())?.focus.path).toEqual([0, 0]);
+			expect(await editor.parseConverged()).toBe(true);
+			const emptied = await shapeOf(page);
 
 			await selectAllIn(
 				CONTROLS.find((l) => l.name === 'a lone emptied details')!,
@@ -190,7 +198,7 @@ test.describe('select-all over a document that is one container', () => {
 			await editor.bridge.waitForSourceEquals(
 				'<details open>\n<summary></summary>\n\n\n</details>\n'
 			);
-			expect(await readContainer(page)).toEqual(emptied);
+			expect(await shapeOf(page)).toEqual(emptied);
 		});
 	}
 });
