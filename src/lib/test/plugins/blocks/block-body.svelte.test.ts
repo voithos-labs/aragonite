@@ -7,6 +7,8 @@ import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 import type { BlockType } from '#lib/schema/plugin-unit.js';
 import type { Block } from '#lib/schema/doc-view.js';
+import { grammar } from '#lib/plugin.js';
+import { toc } from '#packages/toc/src/index.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -51,6 +53,20 @@ const shapes: {
 			} as never)
 	},
 	{
+		// Empty, as its open text is: `ctx.typed ?? block.body` is one string for every maker.
+		name: 'a line block with no text of its own',
+		source: '[[demo]]\n',
+		body: '',
+		make: (edit) =>
+			lineBlock({
+				...common,
+				name: 'demo',
+				match: /^\[\[demo\]\]$/,
+				sample: '[[demo]]',
+				edit
+			} as never)
+	},
+	{
 		name: 'a fenced block',
 		source: '```demo\nfirst\nsecond\n```\n',
 		// The line break before the closer is the closer's, as in a code block's body.
@@ -67,6 +83,10 @@ const shapes: {
 ];
 
 describe('Block.body', () => {
+	it("is empty for the table of contents' `[[toc]]` line", () => {
+		expect(grammar([toc]).parse('[[toc]]\n').blocks[0].body).toBe('');
+	});
+
 	for (const shape of shapes) {
 		for (const edit of EDITS) {
 			it(`is ${shape.name}'s text with edit '${edit}'`, async () => {

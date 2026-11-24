@@ -1,5 +1,7 @@
 /** `lineBlock`: a plugin block type that's exactly one line. */
 import type { BlockType } from '../../schema/plugin-unit';
+import type { NodeView } from '../../core/node-views';
+import { trimTrailingLineEnding } from '../../core/lines';
 import { madeBlockType } from '../../schema/block-type';
 import { drawnView } from '../drawn-block/drawn-view';
 import { framedDrawing, type SourceFrame } from './framed-source';
@@ -30,6 +32,11 @@ function lineMarker(shape: ReturnType<typeof lineShape>): SourceFrame {
 			return shown.slice(start, end);
 		}
 	};
+}
+
+function lineEnd(node: NodeView): { start: number; end: number } {
+	const end = trimTrailingLineEnding(node.raw).length;
+	return { start: end, end };
 }
 
 function markerSpan(text: string): HTMLSpanElement {
@@ -64,7 +71,8 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 		view: drawing ? drawnView(drawing) : textBlockView(),
 		openers: (kind) => [shape.opener(kind)],
 		completer: completerOf(spec.complete, shape.claims),
-		bodyRange: shape.range,
+		// A line with no text of its own has an empty body, as its open text is empty.
+		bodyRange: shape.range ?? lineEnd,
 		writeData: shape.writeData
 	});
 	return type;
