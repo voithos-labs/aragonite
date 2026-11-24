@@ -19,14 +19,14 @@ const LANDS: Record<'source' | 'live', Record<keyof typeof BLOCKS, string[]>> = 
 		'code block': [
 			'0.125L [1]@0', '0.125R [1]@5', '0.375L [1]@6', '0.375R [1]@16',
 			'0.625L [1]@17', '0.625R [1]@28', '0.875L [1]@29', '0.875R [1]@32',
-			'down [1]@11', 'down [1]@22', 'down [1]@32', 'down [2]@6',
+			'down [1]@6', 'down [1]@17', 'down [1]@29', 'down [2]@0',
 			'up [1]@17', 'up [1]@6', 'up [1]@0', 'up [0]@0', 'up [0]@0',
 			'end [0]@6', 'start [0]@0'
 		],
 		'%%% block': [
 			'0.125L [3]@1', '0.125R [3]@3', '0.375L [3]@5', '0.375R [3]@14',
 			'0.625L [3]@16', '0.625R [3]@26', '0.875L [3]@28', '0.875R [3]@30',
-			'down [3]@3', 'down [3]@7', 'down [3]@18', 'down [3]@30',
+			'down [3]@0', 'down [3]@4', 'down [3]@15', 'down [3]@27',
 			'up [3]@27', 'up [3]@15', 'up [3]@4', 'up [3]@0', 'up [2]@0',
 			'end [2]@7', 'start [2]@0'
 		]
@@ -35,14 +35,14 @@ const LANDS: Record<'source' | 'live', Record<keyof typeof BLOCKS, string[]>> = 
 		'code block': [
 			'0.125L [1]@6', '0.125R [1]@16', '0.375L [1]@6', '0.375R [1]@16',
 			'0.625L [1]@17', '0.625R [1]@28', '0.875L [1]@17', '0.875R [1]@28',
-			'down [1]@11', 'down [1]@22', 'down [2]@6', 'down [3]@10',
+			'down [1]@6', 'down [1]@17', 'down [2]@0', 'down [3]@4',
 			'up [1]@17', 'up [1]@6', 'up [0]@0', 'up [0]@0', 'up [0]@0',
 			'end [0]@6', 'start [0]@0'
 		],
 		'%%% block': [
 			'0.125L [3]@5', '0.125R [3]@14', '0.375L [3]@5', '0.375R [3]@14',
 			'0.625L [3]@16', '0.625R [3]@26', '0.875L [3]@16', '0.875R [3]@26',
-			'down [3]@11', 'down [3]@22', 'down [4]@5', 'down [5]@15',
+			'down [3]@4', 'down [3]@15', 'down [4]@0', 'down [5]@8',
 			'up [3]@15', 'up [3]@4', 'up [2]@0', 'up [1]@17', 'up [1]@6',
 			'end [1]@16', 'start [1]@6'
 		]
@@ -74,11 +74,11 @@ async function clicks(page: Page, path: number): Promise<string[]> {
 	return landed;
 }
 
-/** The caret walked down from the line above the block, up from the line below it, then to the
- *  ends of the line the walk ends on. */
+/** The caret walked down from the line above the block and up from the line below it, both from
+ *  column 0 so no landing hangs on a font's widths, then to the ends of the line the walk ends on. */
 async function walks(page: Page, path: number): Promise<string[]> {
 	const landed: string[] = [];
-	await page.evaluate((p) => (window as any).__test.placeCaret([p - 1], 'end'), path);
+	await page.evaluate((p) => (window as any).__test.placeCaret([p - 1], 'start'), path);
 	// Four steps down, short of the `%%plain` block's closing line, which no row here reads.
 	for (let i = 0; i < 4; i++) {
 		await page.keyboard.press('ArrowDown');
