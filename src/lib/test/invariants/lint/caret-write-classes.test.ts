@@ -62,7 +62,7 @@ const CLASSED: Record<string, string> = {
 	[`${BLOCKS}editable/surface-backend.ts :: setRaw`]: 'exact: the offset its caller resolved',
 	[`${BLOCKS}editable/surface-backend.ts :: clampOutOfMarkerPrefix`]:
 		'exact: a caret inside the marker prefix, put at the raw 0 it means',
-	[`${BLOCKS}editable/editable-leaf.ts :: createEditableLeaf`]:
+	[`${BLOCKS}editable/editable-leaf.ts :: createSourceLeaf`]:
 		'exact: an edit’s caret, and the landing `parkCaret` resolved',
 	[`${BLOCKS}code/CodeBlock.svelte :: <module>`]:
 		'exact: an edit’s caret, and the landing `parkCaret` resolved',
