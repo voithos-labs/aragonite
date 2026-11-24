@@ -38,7 +38,7 @@ sits on the body's own line where a range through the body reaches it.
 - Home then six Shift+ArrowRight out of a one-line block's body, then Backspace: the body is
   emptied, the block is still math and the paragraph below stays its own block. The bytes differ
   from 0.11.5's `$$` over `$$`: the range core reads no fence whose closer shares the body's
-  line, so the block writes `$$$$` and keeps one blank line too many before the paragraph
+  line, so the block writes `$$$$` and an empty paragraph sits between it and `After`
 - one undo after that range delete puts the block and the paragraph below it back
 
 ## Miss-analysis

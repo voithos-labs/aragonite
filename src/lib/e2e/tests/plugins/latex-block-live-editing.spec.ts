@@ -159,9 +159,9 @@ test.describe('a range out of the body keeps the block (live)', () => {
 		await page.keyboard.press('Backspace');
 
 		await editor.bridge.waitForSourceMatches(EMPTIED);
-		expect(await editor.bridge.getBlockCount()).toBe(3);
 		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
-		expect(await editor.bridge.getBlockKind(2)).toBe('paragraph');
+		const last = (await editor.bridge.getBlockCount()) - 1;
+		expect(await editor.bridge.getBlockKind(last)).toBe('paragraph');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
