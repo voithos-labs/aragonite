@@ -30,14 +30,21 @@ export function cutOf(before: string, after: string, start: number, end: number)
 	return { start, end, inserted: after.slice(start, after.length - kept) };
 }
 
-/** Whether `cut` breaks the opener `row`, whose marker (colons, name and gap) ends at `markerEnd`:
+/** Whether `cut`, which left `written`, breaks the opener `row` whose marker ends at `markerEnd`:
  *  with the selection out and before its text, fewer colons than a container needs are left. */
-export function breaksOpener(row: string, markerEnd: number, cut: RowCut): boolean {
-	if (cut.start >= markerEnd || colonsAt(row) < CONTAINER_COLONS) return false;
-	if (colonsAt(row.slice(0, cut.start) + row.slice(cut.end)) >= CONTAINER_COLONS) return false;
+export function breaksOpener(
+	row: string,
+	written: string,
+	markerEnd: number,
+	cut: RowCut
+): boolean {
+	const colons = colonsAt(row);
+	if (cut.start >= markerEnd || colons < CONTAINER_COLONS) return false;
+	// The colons before the selection run on into those after it.
+	const left = cut.start < colons ? cut.start + colonsAt(row.slice(cut.end)) : colons;
+	if (left >= CONTAINER_COLONS) return false;
 	// A write that still opens with the whole marker took none of it: a live selection of the
 	// title's whole text keeps `:::name `.
-	const written = row.slice(0, cut.start) + cut.inserted + row.slice(cut.end);
 	return !written.startsWith(row.slice(0, markerEnd));
 }
 

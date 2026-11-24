@@ -544,6 +544,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function typeText(text: string, offset: number): Promise<boolean> {
 		const display = trimTrailingLineEnding(deps.getNode().raw);
 		preEditOffset = offset;
+		preEditSelection = null;
 		return writeText({
 			text: display.slice(0, offset) + text + display.slice(offset),
 			caretAfter: offset + text.length,
@@ -586,8 +587,12 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
 	// its start: Chromium fires the composition's own beforeinput events after that.
 	let preEditOffset = 0;
+	// The selection the edit replaces, read with that caret and spent by the block's next write.
+	let preEditSelection: RawRange | null = null;
 	const recordPreEditOffset = (): void => {
-		if (!composing()) preEditOffset = deps.backend.getRaw() ?? 0;
+		if (composing()) return;
+		preEditOffset = deps.backend.getRaw() ?? 0;
+		preEditSelection = deps.backend.getRawSelection();
 	};
 
 	// For a typed line break only: a rewrite of the block's own text keeps the ending it has
@@ -614,13 +619,16 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		...deps.blockEdit,
 		updateBlockContent(index, text, mode, history, preEditOffset, caret) {
 			const open = droppedOpenLines(deps.getNode(), text);
+			const selection = preEditSelection ?? undefined;
+			preEditSelection = null;
 			const written = deps.blockEdit.updateBlockContent(
 				index,
 				text,
 				mode,
 				history,
 				preEditOffset,
-				caret
+				caret,
+				selection
 			);
 			if (open && caret === open.end && written.admitted) {
 				void written.then((wrote) => wrote && openBreakAtEnd(open.lines));
@@ -918,6 +926,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function openComposition(): void {
 		deps.compositionSeat?.noteStart();
 		preEditOffset = deps.backend.getRaw() ?? 0;
+		preEditSelection = deps.backend.getRawSelection();
 		heldForComposition?.finish(true);
 		heldForComposition = holdInsertion();
 		deps.caretMemory.forget();
@@ -1084,6 +1093,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		},
 		notePreEditOffset: (offset) => {
 			preEditOffset = offset;
+			preEditSelection = null;
 		}
 	};
 }

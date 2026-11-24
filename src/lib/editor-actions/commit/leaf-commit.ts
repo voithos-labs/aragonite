@@ -149,7 +149,7 @@ export function createLeafCommit(
 						deps.sharing,
 						folds,
 						deps.reading.grammar,
-						{ path: leafPath, leafPreviousRaw }
+						{ path: leafPath, leafPreviousRaw, selection: write.selection }
 					);
 					unwindFolds = publishAncestryFolds(deps, folds);
 					// A collapse at the top level merged the leaf's block with the blocks beside it.

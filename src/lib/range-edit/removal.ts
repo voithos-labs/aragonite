@@ -94,7 +94,7 @@ function unwrappedAt(doc: Doc, from: number, to: number): Removal | null {
 	const [start, end] = [from - row.from, to - row.from];
 	const write = doc.host.leaf.replace(doc.tree, row.path, start, end, '', doc.mode);
 	const cut = cutOf(raw, write.bytes, start, end);
-	if (!cut || !breaksOpener(raw, markerEnd, cut)) return null;
+	if (!cut || !breaksOpener(raw, write.bytes, markerEnd, cut)) return null;
 	const container = nodeAt(doc, owner.path).raw;
 	const parent = owner.path.slice(0, -1);
 	const index = owner.path.at(-1)!;
