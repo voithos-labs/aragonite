@@ -198,8 +198,12 @@ async function rowsOf(
 		const push = (of: CheckRow['of'], subject: string, check: CheckName, outcome: Outcome) =>
 			rows.push({ of, subject, check, ...heard(outcome, said) });
 		const own = run.units.find((unit) => unit.name === plugin.name)?.contribution;
-		// A type the install left out is in `install`'s row, and nowhere else.
-		const kinds = run.kinds.filter((kind) => kind.startsWith(`${plugin.name}/`));
+		// A type the install left out is in `install`'s row, and nowhere else; a title row is checked
+		// with its container.
+		const listed = new Set(own?.blocks?.map((type) => type.name));
+		const kinds = run.kinds.filter(
+			(kind) => kind.startsWith(`${plugin.name}/`) && listed.has(kind)
+		);
 		for (const kind of kinds) {
 			const type = own?.blocks?.find((each) => each.name === kind);
 			const kindRows = await blockRows(run.context, kind, type && makingOf(type)?.oneLine);

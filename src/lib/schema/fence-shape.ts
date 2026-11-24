@@ -40,7 +40,7 @@ import { writtenSpan } from '../core/written-span';
 import type { BlockOpener, ClosedReading, OpenContext } from './block-openers';
 import type { WriteContext, WriteRule } from './block-kind-descriptor';
 import { fenceRawWrite, fenceShapeOfRaw } from './fenced-code-raw';
-import { TITLE_ROW } from './title-row-leaf';
+import { titleRowKind } from './title-row-leaf';
 import type { Fence } from './block-shapes';
 
 /* -------------------------------------------------------------------------- */
@@ -384,6 +384,15 @@ function matchAtStart(pattern: RegExp): (text: string) => RegExpExecArray | null
 	};
 }
 
+// An escape that leaves a body line ending the block passes every read, so the write says so.
+function warnEscapeLeft(ctx: WriteContext, line: string): void {
+	devWarn(
+		'fence-escape',
+		`block '${ctx.node.kind}': its escape leaves a body line ${line}, so the block ends there: ` +
+			`return a line that doesn't`
+	);
+}
+
 /** An opener's bytes wait while the reading `read` gives them finds no closing line. */
 function waitingReading(
 	read: (raw: string) => { closing: number; closer: string } | null,
@@ -538,17 +547,12 @@ function escapedBody(
 	return escapeLines(lines, spellsCloser, escape, caret);
 }
 
-// An escape that leaves the line closing the block passes every read, so the write says so.
 function warnIfStillClosed(fixed: readonly FixedFence[], text: string, ctx: WriteContext): void {
 	if (!devChecksOn) return;
 	const parsed = splitFixed(fixed, text, false);
 	const held = splitFixed(fixed, text, true);
 	if (!parsed || !held || parsed.closerStart === held.closerStart) return;
-	devWarn(
-		'fence-escape',
-		`block '${ctx.node.kind}': its escape leaves a body line reading as its closer ` +
-			`${JSON.stringify(parsed.closer)}, so the block ends there: return a line that doesn't`
-	);
+	warnEscapeLeft(ctx, `reading as its closer ${JSON.stringify(parsed.closer)}`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -560,14 +564,25 @@ export interface FencedSpec<D extends object> {
 	open: RegExp;
 	data(match: RegExpExecArray): D;
 	write(data: D): string;
-	title?: { match: RegExp; write(title: string): string };
+	title?: FencedTitle;
 	close: { match: RegExp; write(data: D): string };
 	escape(line: string): string;
 }
 
+/** The line under the opening one that holds the title row, with the row's name and class. */
+export interface FencedTitle {
+	match: RegExp;
+	write(title: string): string;
+	/** What a screen reader and the block menu call the row; default "Title". */
+	label?: string;
+	/** The class on the row's text element; default `title-row`. */
+	className?: string;
+}
+
 /** What the editor reads off a fenced container's lines. */
 export interface FencedReading<D extends object> {
-	readonly titled: boolean;
+	/** The title line, where the lines have one. */
+	readonly title: FencedTitle | null;
 	opener(kind: PluginBlockKind, priority: number, interrupts: boolean): BlockOpener;
 	/** Lines a completion wrote: the opening line first, the line closing it last. */
 	claims(lines: readonly string[]): boolean;
@@ -623,7 +638,7 @@ export function fencedReading<D extends object>(spec: FencedSpec<D>): FencedRead
 	};
 
 	return {
-		titled: titleOf !== null,
+		title: spec.title ?? null,
 		opener: (kind, priority, interrupts) => ({
 			priority,
 			interruptsParagraph: interrupts && ((text) => opening(text) !== null),
@@ -636,7 +651,7 @@ export function fencedReading<D extends object>(spec: FencedSpec<D>): FencedRead
 					depth: ctx.depth + 1,
 					grammar: ctx.grammar
 				});
-				const row = titleOf ? [titleRow(read.title)] : [];
+				const row = titleOf ? [titleRow(kind, read.title)] : [];
 				const node = makeBlockNode({
 					kind,
 					leadingTrivia: ctx.leadingTrivia,
@@ -686,9 +701,10 @@ function titleReader(match: RegExp): (line: string) => { text: string; start: nu
 	};
 }
 
-/** A title row holding `title`: one line, ended with a line feed whatever the document's ending. */
-const titleRow = (title: string): CstNode =>
-	makeBlockNode({ kind: TITLE_ROW, leadingTrivia: '', raw: `${title}\n` });
+/** The title row of a `container` holding `title`: one line, ended with a line feed whatever the
+ *  document's ending. */
+const titleRow = (container: PluginBlockKind, title: string): CstNode =>
+	makeBlockNode({ kind: titleRowKind(container), leadingTrivia: '', raw: `${title}\n` });
 
 /** Each line of `[from, end)` with its role, in order, until `visit` returns true; a code fence's
  *  lines are skipped whole, since a closing line inside one is code. */
@@ -744,17 +760,11 @@ function unpairedLines(
 	return stray;
 }
 
-// An escape that leaves a line still opening or closing a section passes every read, so the write
-// says so.
 function warnIfStillStray(
 	text: string,
 	roleOf: (text: string) => ShapeLine,
 	ctx: WriteContext
 ): void {
-	if (unpairedLines(splitLines(text), roleOf).size === 0) return;
-	devWarn(
-		'fence-escape',
-		`block '${ctx.node.kind}': its escape leaves a body line that still opens or closes it, so ` +
-			`the block ends there: return a line that doesn't`
-	);
+	if (unpairedLines(splitLines(text), roleOf).size > 0)
+		warnEscapeLeft(ctx, 'that opens or closes it');
 }

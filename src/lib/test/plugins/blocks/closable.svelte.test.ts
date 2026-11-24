@@ -130,6 +130,21 @@ describe('a fold in reading mode', () => {
 	});
 });
 
+describe('a fold with no title row', () => {
+	it('is refused when the type is made, the message naming the title row it needs', () => {
+		const make = () =>
+			container<{ open: boolean }>({
+				name: 'quoted',
+				label: 'Quoted',
+				lines: { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true },
+				closable: { closed: (d) => !d.open, set: (d, closed) => ({ ...d, open: !closed }) },
+				sample: '%> body',
+				insert: { none: 'a test block type' }
+			});
+		expect(make).toThrow(/closable needs a title row, for now fenced lines with a title/);
+	});
+});
+
 describe('a reveal into a folded body', () => {
 	it('opens the fold as one undo step', async () => {
 		const { m, ctx } = await mounted(AROUND(FOLD_SAMPLE));

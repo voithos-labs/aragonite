@@ -18,10 +18,11 @@ import {
 	type IndentedLines,
 	type MarkedLines
 } from '../../core/strip-lines';
-import type { CstNode } from '../../core/nodes';
+import type { CstNode, PluginBlockKind } from '../../core/nodes';
 import { writeContainerRaw } from '../../schema/container-writer';
 import { cloneNode } from '../../tree-operations/clone';
-import { TITLE_ROW, titleRowRegistration } from '../../schema/title-row-leaf';
+import { titleRowKind, titleRowRegistration } from '../../schema/title-row-leaf';
+import type { FencedTitle } from '../../schema/fence-shape';
 import { textBlockView } from '../blocks/text/text-block-view';
 
 /** Makes a container block type; the editor reads and writes its lines from `lines`, so the plugin
@@ -42,6 +43,7 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		...(lines.shape === 'indented' ? { ambientPrefix: (node) => ambientMarker(lines, node) } : {})
 	};
 	const strip = spec.lines as ContainerLines<D>;
+	const row = fenced?.title ? titleRowParts(fenced.title) : null;
 	const type: BlockType<D> = madeBlockType<D>({
 		local: spec.name,
 		label: spec.label,
@@ -50,7 +52,9 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		chords: spec.chords,
 		actions: spec.actions,
 		priority,
-		registration: containerRegistration(spec as ContainerSpec<object>, lines),
+		registration: containerRegistration(spec as ContainerSpec<object>, lines, () =>
+			titleRowKind(type.name as PluginBlockKind)
+		),
 		view: drawnView(drawing),
 		openers: (kind) => [
 			fenced
@@ -60,7 +64,7 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		completer: completerOf(spec.complete, (written) =>
 			fenced ? fenced.claims(written) : stripClaims(strip, written)
 		),
-		rows: fenced?.titled ? [TITLE_ROW_BLOCK] : [],
+		rows: (kind) => (row ? [{ kind: titleRowKind(kind), ...row }] : []),
 		writeData(node, data, grammar) {
 			const copy = cloneNode(node);
 			copy.metadata = data as CstNode['metadata'];
@@ -73,12 +77,12 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 
 const children = (ctx: object): HTMLElement => (ctx as { children: HTMLElement }).children;
 
-/** The title row every titled fenced container holds, one kind for all, styled by its container. */
-const TITLE_ROW_BLOCK: BlockRow = {
-	kind: TITLE_ROW,
-	registration: titleRowRegistration({ label: 'Title' }),
-	view: textBlockView({ blockClass: 'title-row' })
-};
+/** What the title row of a titled fenced container declares and draws, named and classed as its
+ *  title line says. */
+const titleRowParts = (title: FencedTitle): Omit<BlockRow, 'kind'> => ({
+	registration: titleRowRegistration({ label: title.label ?? 'Title' }),
+	view: textBlockView({ blockClass: title.className ?? 'title-row' })
+});
 
 // A head line brings its own writer.
 function writtenLines<D extends object>(

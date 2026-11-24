@@ -73,5 +73,7 @@ export function titleRowRegistration(opts: RowLeafOptions = {}): BuiltinRegistra
 	};
 }
 
-/** The title row of a container on fenced lines with a title line: all of the row is its title. */
-export const TITLE_ROW = 'titleRow' as PluginBlockKind;
+/** The kind of the title row a container on fenced lines reads under its opening line, one per
+ *  container type and named after it (`details/details.title`): a local name never holds a `.`. */
+export const titleRowKind = (container: AnyBlockKind): PluginBlockKind =>
+	`${container}.title` as PluginBlockKind;
