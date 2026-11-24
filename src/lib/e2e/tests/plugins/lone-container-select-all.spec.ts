@@ -77,6 +77,14 @@ const FIXED: Lone[] = [
 		source: '> <details open>\n> <summary>D</summary>\n>\n> x\n> </details>\n',
 		caret: [[0, 0, 1], 1],
 		emptied: '> <details open>\n> <summary></summary>\n> \n> </details>\n'
+	},
+	{
+		name: 'a lone details in a list item',
+		seed: 'details',
+		source: '- <details open>\n  <summary>D</summary>\n\n  x\n  </details>\n',
+		caret: [[0, 0, 0, 1], 1],
+		emptied: '- <details open>\n  <summary></summary>\n  \n  </details>\n',
+		typed: '- <details open>\n  <summary>Q</summary>\n  \n  </details>\n'
 	}
 ];
 

@@ -18,7 +18,7 @@ import {
 	type Doc
 } from './document';
 import { byteAt } from './leaf-splice';
-import { pastMarkers } from './apart';
+import { lineHead } from './lines';
 
 /** The range narrowed to what a removal takes: a live code block's hidden opening fence and the
  *  last line ending stay, a title row loses only its text, an emptied container keeps its markers. */
@@ -65,8 +65,9 @@ function pastOpening(doc: Doc, from: number, to: number): number {
 		(b) => !!b.text && b.text.from >= from && b.text.from <= to
 	);
 	const owner = row && titleOwner(doc, row);
-	if (!owner || titleAt(doc, to) === row || pastMarkers(doc.source, from) < owner.from) return from;
-	return row.text!.from;
+	if (!owner) return from;
+	// The opening is the container's first line, an item's or a quote's markers before it included.
+	return from < owner.from - lineHead(doc.source, owner.from).length ? from : row.text!.from;
 }
 
 /** The first block, outermost first, that the range starting at its first byte holds whole. */

@@ -126,12 +126,10 @@ export function rangeBytes(
 	let from = endByte(doc, layout, start, 'start');
 	let to = endByte(doc, layout, end, 'end');
 	if (from === null || to === null) return null;
-	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
-	// Select-all from a title row's marker runs past the row, so its end never steps back onto it.
+	// A range from a title row's marker runs off the row, so its end never steps back onto it.
 	const inMarker =
 		!!titleRowOwner(doc, start.path) && from < (layout.block(start.path)?.text?.from ?? from);
-	const offRow = !!edges && inMarker && from <= edges.first && to >= edges.last;
-	to = Math.max(from, endBesideText(doc, layout, coverage, to, offRow));
+	to = Math.max(from, endBesideText(doc, layout, coverage, to, inMarker));
 	// After the end steps back, so it never stops inside a block held whole (a closed details).
 	const held = heldSpans(doc, coverage, layout);
 	if (!held) return null;
@@ -142,6 +140,7 @@ export function rangeBytes(
 	to = Math.max(to, suffixEnd(doc, layout, end, from, to));
 	// A range across blocks from the first caret position to the last is select-all's, which takes
 	// every container's markers with it.
+	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
 	if (edges && from <= edges.first && to >= edges.last) from = 0;
 	assertInvariant('range-holds-whole', () => checkRangeHoldsWhole({ from, to }, held));
 	return { from, to };

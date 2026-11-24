@@ -9,6 +9,7 @@ Select-all (Ctrl+A twice) over a document that is one callout or one `<details>`
 - The same lone emptied callout in a quote, in a list item, and as a generic `:::foo`: the opening stays, `> :::tip `, `- :::tip `, `:::foo `.
 - `<details open>`, `<summary>D</summary>`, a blank line, `x`, `</details>`; select-all from the body, then Backspace, Delete or a cut: `<details open>`, `<summary></summary>`, a blank line, `</details>`, which reads back as the same tree as the lone emptied details below, with the caret in the summary. A letter instead: the summary holds it. Miss-analysis: no row ran select-all over a lone `<details>` with a body, whose opening sits in the container's own bytes before its summary, where no row's write keeps it.
 - The same details in a quote: the opening stays, the summary and the body empty.
+- The same details in a list item: the opening stays, the summary and the body empty, and a letter lands in the summary. Miss-analysis: the details rows ran at the top level and in a quote, whose `> ` the opening's test skipped as markers, never in a list item, whose `- ` it took for a byte before the opening, so the letter went into a new paragraph above the list.
 - Each of these, cut and pasted back with Ctrl+V: the document comes back.
 
 ## Controls (today's answers, pinned)

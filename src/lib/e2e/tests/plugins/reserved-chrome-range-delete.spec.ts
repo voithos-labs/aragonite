@@ -77,6 +77,27 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	for (const mode of ['live', 'source'] as const)
+		test(`Gate 4i, ${mode}: Shift+ArrowUp from the body's start onto the row keeps the opener`, async ({
+			page
+		}) => {
+			const source = ':::callout Title\nBody\n:::\n';
+			await editor.setPresentationMode(mode);
+			await editor.loadContent(source);
+			await editor.focusBlockAtPath([0, 1], 0);
+			await page.keyboard.press('Shift+ArrowUp');
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals(':::callout \nBody\n:::\n');
+			await editor.undo();
+			await editor.bridge.waitForSourceEquals(source);
+			await editor.focusBlockAtPath([0, 1], 0);
+			await page.keyboard.press('Shift+ArrowUp');
+			await page.keyboard.press('ControlOrMeta+x');
+			await editor.bridge.waitForSourceEquals(':::callout \nBody\n:::\n');
+			await editor.paste();
+			await editor.bridge.waitForSourceEquals(source);
+		});
+
 	test('Gate 4c: chrome-between; start truncates, the opening stays, end body child keeps its tail in place', async ({
 		page
 	}) => {
