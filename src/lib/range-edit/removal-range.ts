@@ -12,6 +12,7 @@ import {
 	isCell,
 	leafAt,
 	nodeAt,
+	rowSpan,
 	titleAt,
 	titleOwner,
 	type Doc
@@ -33,7 +34,7 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 	if (to === doc.source.length && to - final.length > from) to -= final.length;
 	from = pastOpening(doc, from, to);
 	const row = titleAt(doc, from);
-	if (row && row === titleAt(doc, to)) return { from, to: Math.min(to, row.text!.to) };
+	if (row && row === titleAt(doc, to)) return rowSpan(doc, row, from, to);
 	// A start at a title row's line ending moves to the body's first text.
 	if (row && from >= row.text!.to) {
 		const after = row.text!.to;

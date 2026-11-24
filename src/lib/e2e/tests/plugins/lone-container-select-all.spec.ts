@@ -13,6 +13,8 @@ interface Lone {
 	emptied: string;
 	/** What a letter typed over the range leaves, where a row pins it. */
 	typed?: string;
+	/** What Enter leaves, where it differs from the removal's bytes. */
+	enter?: string;
 }
 
 const ALL_REMOVALS = ['Backspace', 'Delete', 'Enter', 'ControlOrMeta+x'] as const;
@@ -107,14 +109,16 @@ const CONTROLS: Lone[] = [
 		seed: 'admonitions',
 		source: ':::tip Title\nbody\n:::\n\npara\n',
 		caret: [[0, 1], 2],
-		emptied: '\n'
+		emptied: '\n',
+		enter: '\n\n'
 	},
 	{
 		name: 'a paragraph then a callout',
 		seed: 'admonitions',
 		source: 'para\n\n:::tip Title\nbody\n:::\n',
 		caret: [[0], 2],
-		emptied: '\n'
+		emptied: '\n',
+		enter: '\n\n'
 	}
 ];
 
@@ -141,7 +145,9 @@ test.describe('select-all over a document that is one container', () => {
 				test(`${mode}: ${lone.name}, ${key}`, async ({ page }) => {
 					await selectAllIn(lone, mode);
 					await page.keyboard.press(key);
-					await editor.bridge.waitForSourceEquals(lone.emptied);
+					await editor.bridge.waitForSourceEquals(
+						key === 'Enter' ? (lone.enter ?? lone.emptied) : lone.emptied
+					);
 					expect(await editor.parseConverged()).toBe(true);
 				});
 

@@ -183,6 +183,18 @@ export function titleAt(doc: Doc, byte: number): LaidBlock | undefined {
 	return undefined;
 }
 
+/** The bytes a range inside the one title row `row` takes: to the row's text end, from where the
+ *  row's own write reads the range (a live range over its whole text leaves the name). */
+export function rowSpan(doc: Doc, row: LaidBlock, from: number, to: number) {
+	const end = Math.min(to, row.text!.to);
+	const at = doc.layout.pointAt(from);
+	if (!at || at.path.length !== row.path.length || at.path.some((i, d) => i !== row.path[d]))
+		return { from, to: end };
+	// One line, so the row's offsets run with the document's bytes.
+	const span = doc.host.leaf.drawn(doc.tree, row.path, at.offset, at.offset + end - from, doc.mode);
+	return { from: from + span.start - at.offset, to: end };
+}
+
 /** The container whose title row is `leaf`, when it is one. */
 export function titleOwner(doc: Doc, leaf: LaidBlock): LaidBlock | undefined {
 	const parent = parentOf(doc, leaf);
