@@ -14,6 +14,7 @@ import {
 	lineOf,
 	nodeAt,
 	parentOf,
+	rowSpan,
 	titleAt,
 	type Doc
 } from './document';
@@ -28,8 +29,10 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 	// entered from there.
 	const startRow = titleAt(doc, from);
 	const endRow = titleAt(doc, to);
-	if (startRow && startRow === endRow)
-		return doc.source.slice(from, Math.min(to, startRow.text!.to));
+	if (startRow && startRow === endRow) {
+		const span = rowSpan(doc, startRow, from, to);
+		return doc.source.slice(span.from, span.to);
+	}
 	const titled = new Set([startRow, endRow].map((row) => row && parentOf(doc, row)));
 	// A container the range starts at the first byte of (select-all's) keeps its markers in the
 	// bytes; live, one the range runs past the end of is left whole.

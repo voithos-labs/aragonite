@@ -20,6 +20,7 @@ import type { StoredAs } from '../schema/stored-as';
 import { legalizeWrite } from '../tree-operations/content-write';
 import {
 	bytesLeavingLeaf,
+	drawnSpan,
 	joinLeaves,
 	replaceDrawnRange,
 	replaceRangeInLeaf,
@@ -145,6 +146,15 @@ export interface RangeHost {
 			to: number,
 			mode: Mode
 		): string;
+		/** The part of `[from, to)` a gesture over it takes, as the block's own write reads a drawn
+		 *  range: a live range over a title row's whole text leaves its name out. */
+		drawn(
+			doc: DocumentView,
+			path: readonly number[],
+			from: number,
+			to: number,
+			mode: Mode
+		): { start: number; end: number };
 	};
 	/** What the item Enter opens after the list item at `path` starts with: its marker one on, and
 	 *  an unchecked box where it has a box. */
@@ -345,6 +355,10 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			carried(doc, path, from, to, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));
 				return bytesLeavingLeaf(leafAt(doc, path), { start: from, end: to }, store);
+			},
+			drawn(doc, path, from, to, mode) {
+				const store = storedAsAt(doc, path, readingIn(mode));
+				return drawnSpan(leafAt(doc, path), { start: from, end: to }, store);
 			}
 		},
 		itemAfter(doc, path) {
