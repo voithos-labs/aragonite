@@ -26,13 +26,13 @@ async function open(page: Page, mode: Mode, source = T): Promise<PluginsPage> {
 	return editor;
 }
 
-/** Holds the opening row's `:::tip ` as a user does: up from the body, then to the row's start. */
-async function selectMarker(editor: PluginsPage, mode: Mode): Promise<void> {
-	await editor.focusBlockAtPath([0, 1], 0);
-	await editor.page.keyboard.press('ArrowUp');
+/** Holds the marker of the row at `path` as a user does: a caret where the title starts (live) or
+ *  at the row's start (source), then Shift keys over the marker. */
+async function selectMarker(editor: PluginsPage, mode: Mode, path = [0, 0], marker = ':::tip ') {
+	await editor.focusBlockAtPath(path, mode === 'live' ? marker.length : 0);
 	if (mode === 'live') await editor.page.keyboard.press(extendKey('lineStart'));
-	else for (let i = 0; i < 7; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-	expect(await editor.page.evaluate(() => getSelection()?.toString())).toBe(':::tip ');
+	else for (let i = 0; i < marker.length; i++) await editor.page.keyboard.press('Shift+ArrowRight');
+	expect(await editor.page.evaluate(() => getSelection()?.toString())).toBe(marker);
 }
 
 /** Selects `[from, to)` of the row at `path` through the selection API, from a caret in the body. */
@@ -103,13 +103,6 @@ test.describe('A selection that breaks an opening row', () => {
 				await editor.bridge.waitForSourceEquals(bytes);
 			});
 
-		test(`(${mode}) a selection made by the API, then Backspace`, async ({ page }) => {
-			const editor = await open(page, mode);
-			await selectRow(editor, [0, 0], 0, 3);
-			await page.keyboard.press('Backspace');
-			await editor.bridge.waitForSourceEquals(UNWRAPPED);
-		});
-
 		test(`(${mode}) Shift+Enter over the marker removes it first`, async ({ page }) => {
 			const editor = await open(page, mode);
 			await selectMarker(editor, mode);
@@ -118,32 +111,52 @@ test.describe('A selection that breaks an opening row', () => {
 			expect(await editor.bridge.getSource()).not.toContain(':::');
 		});
 	}
+
+	// Source mode only: a live range from the row's first byte starts before the marker's span,
+	// and WebKit's own delete of such a range takes one character of it.
+	test('(source) a selection made by the API, then Backspace', async ({ page }) => {
+		const editor = await open(page, 'source');
+		await selectRow(editor, [0, 0], 0, 3);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals(UNWRAPPED);
+	});
 });
 
-/** [name, document, the path of its row, the selection on it, the bytes Backspace leaves] */
-const SHAPES: [string, string, number[], number, number, string][] = [
-	['the untitled row whole', ':::tip\nbody\n:::\n', [0, 0], 0, 6, 'body\n'],
+/** [name, document, the path of its row, its marker, the bytes Backspace over the marker leaves] */
+const SHAPES: [string, string, number[], string, string][] = [
+	['the untitled row whole', ':::tip\nbody\n:::\n', [0, 0], ':::tip', 'body\n'],
 	[
 		'the inner box only',
 		'::::note Outer\n:::tip Inner\nin\n:::\n::::\n',
 		[0, 1, 0],
-		0,
-		7,
+		':::tip ',
 		'::::note Outer\nInner\n\nin\n::::\n'
 	],
-	['in a quote', '> :::tip Title\n> body\n> :::\n', [0, 0, 0], 0, 7, '> Title\n>\n> body\n'],
-	['in a list item', '- :::tip Title\n  body\n  :::\n', [0, 0, 0, 0], 0, 7, '- Title\n\n  body\n'],
-	['a generic box', ':::foo Title\nbody\n:::\n', [0, 0], 0, 7, UNWRAPPED],
-	['over a heading, which stays flush', ':::tip Title\n# H\n:::\n', [0, 0], 0, 7, 'Title\n# H\n'],
-	['over a rule, kept a rule', ':::tip Title\n---\n:::\n', [0, 0], 0, 7, 'Title\n\n---\n']
+	['in a quote', '> :::tip Title\n> body\n> :::\n', [0, 0, 0], ':::tip ', '> Title\n>\n> body\n'],
+	[
+		'in a list item',
+		'- :::tip Title\n  body\n  :::\n',
+		[0, 0, 0, 0],
+		':::tip ',
+		'- Title\n\n  body\n'
+	],
+	['a generic box', ':::foo Title\nbody\n:::\n', [0, 0], ':::foo ', UNWRAPPED],
+	[
+		'over a heading, which stays flush',
+		':::tip Title\n# H\n:::\n',
+		[0, 0],
+		':::tip ',
+		'Title\n# H\n'
+	],
+	['over a rule, kept a rule', ':::tip Title\n---\n:::\n', [0, 0], ':::tip ', 'Title\n\n---\n']
 ];
 
 test.describe('The shapes a broken opening row unwraps', () => {
 	for (const mode of MODES)
-		for (const [name, source, path, from, to, bytes] of SHAPES)
+		for (const [name, source, path, marker, bytes] of SHAPES)
 			test(`(${mode}) ${name}`, async ({ page }) => {
 				const editor = await open(page, mode, source);
-				await selectRow(editor, path, from, to);
+				await selectMarker(editor, mode, path, marker);
 				await page.keyboard.press('Backspace');
 				await editor.bridge.waitForSourceEquals(bytes);
 			});

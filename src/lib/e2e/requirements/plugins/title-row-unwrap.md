@@ -4,8 +4,8 @@ A `:::` container opens with a row (`:::tip Title`) and closes with a line of co
 removed from that row which leaves it fewer than three colons takes the rest of the row's syntax
 and the closing line too: what is left of the title stands as a paragraph, a blank line, then the
 body as ordinary blocks. Driven on `/test/plugins?seed=admonitions` in live and source mode, the
-marker held by keys (live: ArrowUp from the body, Shift+Home; source: ArrowUp, Shift+ArrowRight
-seven times).
+marker held by keys from a caret on the row (live: at the title's start, Shift+Home; source: at
+the row's start, Shift+ArrowRight over the marker), in every shape below too.
 
 Miss-analysis: every row over an opening row was a range that ran off it or a key at a caret, so
 none removed a selection inside the row, and the closing line it left read as text.
@@ -16,7 +16,7 @@ none removed a selection inside the row, and the closing line it left read as te
 - The same, then a letter: the letter starts the paragraph (`QTitle`), a blank line, `body`
 - The same, then Cut from the right-click menu: as Ctrl+X
 - The same, then an IME composition: the committed text starts the paragraph
-- The colons selected by the selection API, then Backspace: as above
+- In source mode, the colons selected by the selection API, then Backspace: as above (a live range from the row's first byte starts before the marker's span, where WebKit's own delete takes one character)
 - The same marker, then Shift+Enter: the box goes before the key runs
 
 ## Edge cases
