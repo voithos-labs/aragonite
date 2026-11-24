@@ -95,4 +95,24 @@ describe('a selection written over an opening row', () => {
 		);
 		expect(serialize(deps.doc)).toBe('Title\nbody\n:::\n');
 	});
+
+	// A box flush under a paragraph: what the unwrap leaves joins it, as any pair an edit uncovers.
+	it.each([
+		['its colons', 0, 3, 'x\nner\n\n# h\n'],
+		['its row whole', 0, 6, 'x\nner\n\n# h\n']
+	] as const)(
+		'a box under a paragraph, %s removed, unwraps as the core does',
+		async (_, start, end, after) => {
+			testReading();
+			const h = makeNestedHarness('x\n:::tip\nner\n:::\n\n# h\n', { index: 1 });
+			const row = ':::tip\n';
+			const text = row.slice(0, start) + row.slice(end);
+			await h.bundle.blockEdit.updateBlockContent(0, text, 'authored', 'join-typing', end, start, {
+				start,
+				end
+			});
+			expect(serialize(h.deps.doc)).toBe(after);
+			expect(core('x\n:::tip\nner\n:::\n\n# h\n', start + 2, end + 2, '')).toBe(after);
+		}
+	);
 });

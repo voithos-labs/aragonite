@@ -35,7 +35,8 @@ describe('format command branches on a table cell', () => {
 			'literal',
 			'entry',
 			0,
-			0
+			0,
+			expect.any(Object)
 		);
 	});
 });

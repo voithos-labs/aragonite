@@ -95,7 +95,8 @@ describe('Enter in an editable leaf', () => {
 			'authored',
 			'entry',
 			6,
-			6
+			6,
+			undefined
 		);
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
 

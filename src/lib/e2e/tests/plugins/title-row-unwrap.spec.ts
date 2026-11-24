@@ -3,6 +3,7 @@ import { test, expect } from '../../fixtures';
 import { attachIme } from '../../simulation/ime';
 import { keylessEdit } from '../../insert-text';
 import { pointAtRaw } from '../../text-runs';
+import { extendKey } from '../../platform-keys';
 import { PluginsPage } from './helpers';
 
 // A selection removed from a `:::` opening row that leaves it fewer than three colons unwraps the
@@ -29,7 +30,7 @@ async function open(page: Page, mode: Mode, source = T): Promise<PluginsPage> {
 async function selectMarker(editor: PluginsPage, mode: Mode): Promise<void> {
 	await editor.focusBlockAtPath([0, 1], 0);
 	await editor.page.keyboard.press('ArrowUp');
-	if (mode === 'live') await editor.page.keyboard.press('Shift+Home');
+	if (mode === 'live') await editor.page.keyboard.press(extendKey('lineStart'));
 	else for (let i = 0; i < 7; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 	expect(await editor.page.evaluate(() => getSelection()?.toString())).toBe(':::tip ');
 }
@@ -159,7 +160,7 @@ test.describe('The shapes a broken opening row unwraps', () => {
 		const editor = await open(page, 'source');
 		await editor.focusBlockAtPath([0, 1], 0);
 		await page.keyboard.press('ArrowUp');
-		await page.keyboard.press('Shift+End');
+		await page.keyboard.press(extendKey('lineEnd'));
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceEquals('body\n');
 	});
@@ -192,7 +193,7 @@ test.describe('After the unwrap', () => {
 			await selectMarker(editor, mode);
 			await page.keyboard.press('ControlOrMeta+x');
 			await editor.bridge.waitForSourceEquals(UNWRAPPED);
-			await page.keyboard.press('ControlOrMeta+v');
+			await editor.paste();
 			await editor.bridge.waitForSourceEquals(T);
 		});
 

@@ -53,7 +53,8 @@ describe('format command branches on a prose block', () => {
 			'literal',
 			'entry',
 			0,
-			3
+			3,
+			expect.any(Object)
 		);
 	});
 });
