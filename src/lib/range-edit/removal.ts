@@ -37,8 +37,9 @@ import {
 import { apartAt, deepestAt, openedApart, pastMarkers, type Join } from './apart';
 import { numberedOn } from './list-numbers';
 import { heldAt, heldWhole, removalRange } from './removal-range';
-import { byteAt, lineTextStart, writeLeaf, type Edit } from './leaf-splice';
+import { byteAt, lineTextStart, spliced, writeLeaf, type Edit } from './leaf-splice';
 import { lineEnd, lineEndBefore, lineHead, lineRest } from './lines';
+import { breaksOpener, cutOf, unwrappedContainer } from '../tree-operations/broken-openers';
 
 /** A removal's new bytes. `after` is set when the blocks at its start went whole and no text stayed:
  *  the byte where what followed the range begins, so Backspace's caret goes to the block before and
@@ -57,6 +58,8 @@ export interface Removal extends Edit {
 export function removeRange(doc: Doc, start: number, end: number): Removal {
 	const { from, to } = removalRange(doc, start, end);
 	if (from === to) return { source: doc.source, caret: from };
+	const unwrapped = unwrappedAt(doc, from, to);
+	if (unwrapped) return unwrapped;
 	const head = leafAt(doc, from);
 	const tail = leafAt(doc, to);
 	const held = heldAt(doc, from, to);
@@ -78,6 +81,32 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 	} else removed = across(doc, from, to, head?.leaf, false, { lineFrom: from, lines: null });
 	const line = from - lineHead(doc.source, from).length;
 	return { ...removed, source: oneEmptyLine(removed.source, line) };
+}
+
+/** The removal of `[from, to)` inside one title row, where it breaks a `:::` container's opener:
+ *  the container unwrapped where it stood, behind the markers of its lines. */
+function unwrappedAt(doc: Doc, from: number, to: number): Removal | null {
+	const row = titleAt(doc, from);
+	const owner = row && row === titleAt(doc, to) ? titleOwner(doc, row) : undefined;
+	if (!row || !owner || !factsOf(doc, owner).titleRow!.nameNeverEntered) return null;
+	const raw = nodeAt(doc, row.path).raw;
+	const markerEnd = row.text!.from - row.from;
+	const [start, end] = [from - row.from, to - row.from];
+	const write = doc.host.leaf.replace(doc.tree, row.path, start, end, '', doc.mode);
+	const cut = cutOf(raw, write.bytes, start, end);
+	if (!cut || !breaksOpener(raw, markerEnd, cut)) return null;
+	const container = nodeAt(doc, owner.path).raw;
+	const parent = owner.path.slice(0, -1);
+	const index = owner.path.at(-1)!;
+	const { bytes, caret } = unwrappedContainer(container, raw, markerEnd, cut, (title, body) =>
+		doc.host.parts(doc.tree, parent, index, { raw: title }, { raw: body }, true, null)
+	);
+	const close = owner.to - ownTrailingLineEnding(container).length;
+	const text = spliced(doc, owner.from, close)(trimTrailingLineEnding(bytes));
+	return {
+		source: doc.source.slice(0, owner.from) + text + doc.source.slice(close),
+		caret: owner.from + caret
+	};
 }
 
 /** `removeRange` for a gesture that writes no text where the range was: a first line it leaves
