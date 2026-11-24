@@ -9,8 +9,8 @@ import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 const blocks = (...lines: string[]) =>
 	lines.map((line) =>
 		line.startsWith('~')
-			? { raw: `${line.slice(1)}\n`, leadingTrivia: '\n' }
-			: { raw: `${line}\n`, leadingTrivia: '' }
+			? { raw: `${line.slice(1)}\n`, leadingTrivia: '\n', kind: 'paragraph' as const }
+			: { raw: `${line}\n`, leadingTrivia: '', kind: 'paragraph' as const }
 	);
 
 const STARTED = ['[a]: /u', '    "code', '[b]: /v', 'end'];

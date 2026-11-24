@@ -26,6 +26,7 @@ export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 	'data-placeholder',
 	'data-plain-click-follows',
 	'data-presentation',
+	'data-press-held',
 	'data-source-at-caret',
 	'data-source-start',
 	'data-table-row-idx',

@@ -133,6 +133,17 @@ describe.each(Object.keys(LEVELS) as Level[])('every block edit at %s', (level) 
 		expect(await h.actions.mergeWithPrevious(1)).toBe(false);
 		expect(h.bytes()).toBe(focusOnly);
 	});
+
+	// A write of the block's own bytes commits nothing; the key resolves as landed, keeping its caret.
+	it('a write of the block’s own bytes adds no undo entry', async () => {
+		const h = actionsAt(level, source);
+		expect(await h.actions.updateBlockContent(1, 'two\n', 'authored', 'join-typing', 1, 1)).toBe(
+			true
+		);
+		expect(await h.actions.replaceRaw(1, 'two\n')).toBe(false);
+		expect(h.bytes()).toBe(source);
+		expect(h.entries()).toBe(0);
+	});
 });
 
 describe('completeMarker, the space that finishes a container marker', () => {

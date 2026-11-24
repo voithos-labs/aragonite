@@ -118,6 +118,9 @@ export function contentUpdate(
 		if (!admitsWrite(scope, 'updateContent', kind)) return refusedWrite();
 		const write = legalizeWrite(scope.target(), index, text, mode, scope.reading.grammar);
 		const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset);
+		// Before `typeIn` pushes an entry for it: the block holds these bytes already, so the key
+		// resolves as a write that landed and the block puts its caret back without a repaint.
+		if (write.unchanged) return withStoredCaret(Promise.resolve(true), caret, write.storedOffset);
 		// Decided before `work` first yields, which `typeIn` runs up to before it returns.
 		let keepsCaret = false;
 		const done = scope.typeIn(index, preEditOffset, history, async () => {
@@ -148,8 +151,8 @@ export function contentUpdate(
 // ── One leaf's new text through a commit ─────────────────────────────────────
 
 /**
- * Commit new text into child `index`. Offsets are in stored bytes: `snapshotOffset` is where undo
- * puts the caret back when nothing is focused, `caret` where it goes after the write.
+ * Commit new text into child `index`, nothing when it is the child's bytes already. Offsets are
+ * stored bytes: `snapshotOffset` is undo's caret when nothing is focused, `caret` the one after.
  */
 export async function commitLeafText(
 	scope: CommitScope,
@@ -166,6 +169,7 @@ export async function commitLeafText(
 		op?: OpDescriptor;
 	}
 ): Promise<LeafWriteResult> {
+	if (write.unchanged) return { wrote: false };
 	let readSettled = (): FixedUpWrite | null => null;
 	let landed: LeafWriteLanded | null = null;
 	// Read after the commit: the list's fix-up can move the written block.

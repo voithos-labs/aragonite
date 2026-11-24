@@ -49,12 +49,12 @@ describe.each(['source', 'live'] as const)('%s mode: keys at the text', (mode) =
 		expect(mounted.source()).toBe('# Hix #\n');
 	});
 
-	it('a heading level chord rewrites the marker and drops the closing run', async () => {
+	it('a heading level chord rewrites the marker and keeps the closing run', async () => {
 		const mounted = mountEditor({ source: '# Hi #\n', presentationMode: mode });
 
 		await pressKeyAt(mounted, [0], 3, { key: '2', ctrlKey: true });
 		await mounted.settle();
-		expect(mounted.source()).toBe('## Hi\n');
+		expect(mounted.source()).toBe('## Hi #\n');
 	});
 });
 

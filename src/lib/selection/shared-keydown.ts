@@ -17,7 +17,12 @@ import type { Reading } from '../schema/reading';
 import { extendFocusToNextBlock, extendFocusToPreviousBlock } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../caret/sticky-measure';
 import { reachableRawBounds } from '../browser/offsets';
-import { handleMotion, stepBesideWidget, type MotionKeyContext } from './motion-keys';
+import {
+	handleMotion,
+	leftEdgeArrival,
+	stepBesideWidget,
+	type MotionKeyContext
+} from './motion-keys';
 import { isAtFirstVisualLine, isAtLastVisualLine, lineHeightOf } from '../browser/visual-lines';
 import { caretEdgeKey, endsSelectAllRun, eventToChord, motionKey } from '../schema/keybindings';
 import { isDefaultGlobalChord } from '../schema/commands';
@@ -185,7 +190,7 @@ export async function handleSharedKeydown(
 }
 
 /** A plain arrow over a range in the block collapses it ahead of every check that could leave the
- *  block: Left to its start, Right to its end, Up and Down to its moving end. True if it did. */
+ *  block: Left as `leftEdgeArrival` says, Right to its end, Up and Down to its moving end; true if so. */
 function collapseRangeForArrow(
 	e: KeyboardEvent,
 	ctx: SharedKeydownContext,
@@ -195,7 +200,11 @@ function collapseRangeForArrow(
 	const range = browserRangeIn(el);
 	if (!range || range.start === null || range.end === null) return false;
 	const at =
-		e.key === 'ArrowLeft' ? range.start : e.key === 'ArrowRight' ? range.end : ctx.getFocusOffset();
+		e.key === 'ArrowLeft'
+			? leftEdgeArrival(range.start, ctx, el)
+			: e.key === 'ArrowRight'
+				? range.end
+				: ctx.getFocusOffset();
 	if (at === null) return false;
 	// Reading mode declines the caret and drops the range, leaving the arrow at the block's edge.
 	return ctx.caretWriter.placeCaretAtRaw(el, at, { clamp: 'reachable' });

@@ -42,6 +42,7 @@ function writerOver(raw: string, keepsCaret: boolean, reading = fixtureReading()
 		getNode: () => node,
 		getIndex: () => 0,
 		getPath: () => [0],
+		getDoc: () => parse(''),
 		blockEdit,
 		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 		getPreEditOffset: () => 0,

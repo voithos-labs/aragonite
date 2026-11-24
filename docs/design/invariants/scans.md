@@ -194,7 +194,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.240 | Every `ResizeObserver` is made in `windowing/observe-resize.ts` | L |
 | G4.241 | _Retired upward_: the run layout and the joins are the commit’s own steps (G4.258) | L |
 | G4.243 | A caret's line is read through one step; `Selection.modify` is the caret writer's (G4.270) | L |
-| G4.245 | A kind's write rule is run through `kindWriteRule` | L |
+| G4.245 | A write rule is run through `kindWriteRule` or `writeRuleAt` | L |
 | G4.247 | A production build of the published package carries no dev check | harness |
 | G4.248 | Dev-only code reads one switch, in `dev-checks.ts`, imported by its package name | L |
 | G4.249 | A measured height enters the height table only through `applyMeasured` | L |
@@ -263,6 +263,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.373 | The core imports no highlight.js | L |
 | G4.374 | A conformance cell reads through its context | L |
 | G4.375 | A host importing from `/testing` ships none of its checks | harness |
+| G4.389 | Every caret the editor writes says whether it arrives, steps or puts back a byte | L |
 
 ### The entries
 
@@ -533,7 +534,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.163 · One caller per mark gesture.** A call into a mark's `interactive.onClick`, `onHover` or `onActivate` sits only in `decorations/mark-hover.ts` (the hover lifecycle, keyed by the decoration), `decorations/mark-activation.ts` (the activate command) and `decorations/decoration-state.svelte.ts :: clickMark` (the click, before the caret lands), each inside the engine's `runMarkHandler`. A new route that called a handler itself would skip the one-end rule or the `error` event. `test/invariants/lint/file-rules.test.ts`.
 
-**G4.165 · Text that moves inside an unresized block is reported.** An overlay is measured against the text under it, and a resize observer misses text sliding in a box that keeps its size, as when markers show or hide. Every marker-hook write (`data-focused`, the reveal class, the root's mode and theme) reports to `createTextMoves`, as do a widget swapping to its source, focus crossing a markers-only block, and image and font loads. `lint/file-rules.test.ts` lists the hook writers; `mark-overlay-follows-text.spec.ts` holds the swap and the focus.
+**G4.165 · Text that moves inside an unresized block is reported.** An overlay is measured against the text under it, and a resize observer misses text sliding in a box that keeps its size, as when markers show or hide. Every marker-hook write (`data-focused`, the reveal class, the root's mode, theme and held press) reports to `createTextMoves`, as do a widget swapping to its source, focus crossing a markers-only block, and image and font loads. `lint/file-rules.test.ts` lists the hook writers; `mark-overlay-follows-text.spec.ts` holds the swap and the focus.
 
 **G4.166 · The drawn caret stays on the device grid.** The paint puts the bar's edges on whole device pixels (`caret/drawn-caret-target.ts`) and hands the stylesheet the device pixel ratio, so each width rounds to the nearest whole device pixel, like the browser's caret, and each offset down to one. A shape whose length skips that rounding blurs across two pixel columns at a fractional display scale. `lint/drawn-caret-guards.test.ts` fails a length set in a `.md-drawn-caret` rule with no twin in `editor.css`'s device-rounding block, and a width there not rounded to the nearest.
 
@@ -629,7 +630,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.243 · One read of the caret's line.** At a soft wrap a caret's one DOM position is on two lines, and `caretRectAt` reads one of them whatever the browser shows. So at a wrap the line checks in `browser/visual-lines.ts` ask the browser through the caret writer, the one file G4.270 lets call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line wrong at a wrap is harmless or a known gap. `lint/file-rules.test.ts`.
 
-**G4.245 · One way to run a write rule.** A kind's `rawWrite` is read only by `tree-operations/node-primitives.ts :: kindWriteRule`, which checks every run against G1.143. The leaf-text reader (it reads the rule's `text`) and the conformance kit are the listed exceptions. `lint/file-rules.test.ts`.
+**G4.245 · One way to run a write rule.** A kind's `rawWrite` is read only by `tree-operations/node-primitives.ts :: kindWriteRule`, which checks every run against G1.143, and a title row's one-line rule (`schema/reserved-chrome.ts :: titleRowWrite`) only by `writeRuleAt`, which runs it after the row kind's own. The leaf-text reader (it reads the rule's `text`) and the conformance kit are the listed exceptions. `lint/file-rules.test.ts`.
 
 **G4.247 · A production build carries no dev check.** Under the `production` condition the editor's dev-checks import gets `dev-checks-stripped.ts`: a constant-`false` switch and empty reporters. `scripts/pack/verify-dev-strip.mjs` (run by verify-pack) builds a page through both builds with Vite and fails on any check tag the production build keeps; the page imports `configureEditorEnv`, so only the swap can prove the switch off. `test/dev-checks-stripped.test.ts` holds the copy to the real module's names and to the side-effect annotations esbuild needs.
 
@@ -766,3 +767,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.374 · A conformance cell reads through its context.** No file under `src/lib/testing/` names a parse, a descriptor lookup or the default grammar of its own: each read goes through the `CheckContext` it was handed (`testing/check-context.ts`), so a plugin value is checked as its own editor reads it. A short list may, each with why: the context, the legacy runner, the helpers whose default it replaces. A round trip stays green under the wrong grammar, hence a scan. `lint/kit-cells-read-context.test.ts`; behaviour: `check-context.test.ts`.
 
 **G4.375 · A host importing from `/testing` ships none of its checks.** The minimal page imports `configureEditorEnv` from `/testing`, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name any of that entry's own code, through either build. A check table built by a call at load time ships this way, since a bundler can't prove the call does nothing; work a module does when loaded goes inside a function, or its call is marked pure.
+
+**G4.389 · A caret write names its kind.** Every function that writes a caret at a raw offset (`placeCaretAtRaw`, a backend's `setRaw`, a landing's `restore`) is listed as an arrival, a step or an exact byte. An arrival has no byte in hand, so on a `:::` row in live mode it rests no earlier than the title's start, and its function must read `arrivalRawStart` or a reader of it. A collapse, a page step and `navigateTo` once landed before the colons, each a write nobody had to classify. `lint/caret-write-classes.test.ts`.
