@@ -26,7 +26,14 @@ type BlockCheck =
 	| 'dataWriteback'
 	| 'docPositions';
 type ContainerCheck =
-	'localIndex' | 'ancestry' | 'focusBubble' | 'openerLine' | 'containerCopy' | 'containerDeclared';
+	| 'localIndex'
+	| 'ancestry'
+	| 'focusBubble'
+	| 'openerLine'
+	| 'containerCopy'
+	| 'containerDeclared'
+	| 'terminatorCollision'
+	| 'titleRow';
 type InlineCheck =
 	| 'sample'
 	| 'claims'
@@ -201,6 +208,11 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		}
 	},
 	containerCopy: { excusable: false, contract: box('copyMarkers') },
+	terminatorCollision: { excusable: false, contract: box('terminatorCollision') },
+	titleRow: {
+		excusable: false,
+		contract: { block: promise('typing in your title row leaves your data true') }
+	},
 	containerDeclared: {
 		excusable: false,
 		contract: { block: promise('your line shape reads back every marker and line it writes') }

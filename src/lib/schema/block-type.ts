@@ -36,6 +36,15 @@ export interface BlockMaking<D = unknown> {
 	readonly writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
 	readonly chords?: BlockCommon<unknown>['chords'];
 	readonly actions?: readonly BlockAction<D>[];
+	/** The rows its blocks hold that no line opens (a title row), held while the type is. */
+	readonly rows?: readonly BlockRow[];
+}
+
+/** A block kind only its container's reader makes, with what it declares and draws. */
+export interface BlockRow {
+	readonly kind: AnyBlockKind;
+	readonly registration: BuiltinRegistration;
+	readonly view: BlockView;
 }
 
 /** One of an editor's own block types, named and ready to read. */
@@ -96,6 +105,12 @@ export function installBlockTypes(
 			const registration = withChords(making.registration, making.chords);
 			held.push(holdBlockKind(kind, registration, openers.length > 0, plugin));
 			blocks.push({ kind, openers, view: making.view, completer: making.completer });
+			for (const row of making.rows ?? []) {
+				held.push(holdBlockKind(row.kind, row.registration, false, plugin));
+				if (!blocks.some((b) => b.kind === row.kind)) {
+					blocks.push({ kind: row.kind, openers: [], view: row.view, completer: null });
+				}
+			}
 		}
 	}
 	return blocks;

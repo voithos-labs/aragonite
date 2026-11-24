@@ -382,13 +382,22 @@ function sampleProblem(context: CheckContext, kind: AnyBlockKind, sample: string
 	return `${show(sample)} reads as ${first ? `a "${first.kind}"` : 'nothing'} first, not as "${kind}"`;
 }
 
-type ContainerCell = 'localIndex' | 'ancestry' | 'focusBubble' | 'openerLine' | 'copyMarkers';
+type ContainerCell =
+	| 'localIndex'
+	| 'ancestry'
+	| 'focusBubble'
+	| 'openerLine'
+	| 'copyMarkers'
+	| 'terminatorCollision'
+	| 'titleRow';
 const CONTAINER_CELLS = new Set<string>([
 	'localIndex',
 	'ancestry',
 	'focusBubble',
 	'openerLine',
-	'copyMarkers'
+	'copyMarkers',
+	'terminatorCollision',
+	'titleRow'
 ]);
 
 /** The container cells a maker's type takes, over fixtures derived from `sample`. */

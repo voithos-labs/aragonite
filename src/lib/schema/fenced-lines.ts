@@ -1,24 +1,32 @@
 /** Lines of a container's own around its body (`<details>` … `</details>`), which bring their own
- *  writer so an app with no such container doesn't ship it. */
+ *  reader and writer so an app with no such container ships neither. */
 
 import type { CstNode } from '../core/nodes';
 import { concatChildren } from '../core/serializer';
 import { firstLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { WRITES_LINES, type FencedLines } from '../core/strip-lines';
+import { READS_LINES, WRITES_LINES, type FencedLines } from '../core/strip-lines';
+import { fencedReading, type FencedSpec } from './fence-shape';
 
-/** A container with opening lines written from its data and title row (child 0), and a closing
- *  line; every line takes the opening line's ending, the closing one only where it had one. */
-export function fencedLines<D extends object>(write: FencedLines<D>['write']): FencedLines<D> {
-	return { shape: 'fenced', write, [WRITES_LINES]: (node) => writeFenced(node, write) };
+/** A container opened by a line read into data (`<details open>`), titled by the line under it
+ *  where `title` names one, and closed by a line of its own; the editor writes every line. */
+export function fencedLines<D extends object>(spec: FencedSpec<D>): FencedLines<D> {
+	const reading = fencedReading(spec);
+	return {
+		shape: 'fenced',
+		[WRITES_LINES]: (node) => writeFenced(node, spec, reading.titled),
+		[READS_LINES]: reading
+	};
 }
 
-function writeFenced<D extends object>(node: CstNode, write: FencedLines<D>['write']): void {
-	const [row, ...body] = node.children!;
+// Every line takes the opening line's ending, the closing one only where it had one.
+function writeFenced<D extends object>(node: CstNode, spec: FencedSpec<D>, titled: boolean): void {
+	const children = node.children!;
+	const body = titled ? children.slice(1) : children;
 	const data = (node.metadata ?? {}) as D;
 	const ending = firstLineEnding(node.raw) ?? '\n';
-	const title = row ? trimTrailingLineEnding(row.raw) : '';
-	const opening = write.open(data, title).map((line) => line + ending);
+	const title = titled && children[0] ? trimTrailingLineEnding(children[0].raw) : '';
+	const opening = [spec.write(data), ...(spec.title ? [spec.title.write(title)] : [])];
 	const inner = (node.innerPrefix ?? '') + concatChildren(body) + (node.innerSuffix ?? '');
-	const closer = write.close(data) + (ownTrailingLineEnding(node.raw) ? ending : '');
-	node.raw = opening.join('') + inner + closer;
+	const closer = spec.close.write(data) + (ownTrailingLineEnding(node.raw) ? ending : '');
+	node.raw = opening.map((line) => line + ending).join('') + inner + closer;
 }

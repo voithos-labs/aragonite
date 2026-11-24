@@ -10,6 +10,7 @@ import type { Block } from './doc-view';
 import type { CodePainter } from './code-highlighter';
 import type { BlockView } from './block-view';
 import type { BlockType, Editor } from './plugin-unit';
+import type { Closable } from './container-block';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -41,10 +42,15 @@ export interface TextDrawContext extends DrawContext {
 }
 
 /** The context of a block holding blocks: `children` is the editor's element for them, to place in
- *  your drawing (the editor fills it); `title` is its title row's, or null for one without. */
+ *  your drawing (the editor fills it), a title row first among them; `title` is null. */
 export interface ContainerDrawContext extends DrawContext {
 	readonly children: HTMLElement;
 	readonly title: HTMLElement | null;
+	/** Its body is folded away: as its data says, or in reading mode as the reader left it. */
+	readonly closed: boolean;
+	/** Folds or opens the body: one undo step writing `closable.set`'s data, a caret in the body put
+	 *  on the title row; in reading mode only what shows changes. */
+	setClosed(closed: boolean): void;
 }
 
 /** The context of a block focused whole (`edit: 'box'`). */
@@ -114,6 +120,8 @@ export interface Drawing {
 	): { text: string; caret: number } | null;
 	/** The read-only marker shown ahead of a container's first child (a footnote's `[^1]: `). */
 	ambientPrefix?(node: NodeView): string;
+	/** A container whose body folds away, as its data says. */
+	closable?: Closable<unknown>;
 }
 
 export function drawingOf(view: BlockView): Drawing {

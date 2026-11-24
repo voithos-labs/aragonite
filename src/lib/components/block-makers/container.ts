@@ -1,20 +1,28 @@
 /** `container`: a plugin block type whose content is other blocks. */
 import type { BlockType } from '../../schema/plugin-unit';
-import { madeBlockType } from '../../schema/block-type';
+import { madeBlockType, type BlockRow } from '../../schema/block-type';
 import type { Drawing } from '../../schema/drawing';
 import { drawnView } from '../drawn-block/drawn-view';
 import { checkLocalName, completerOf, priorityBefore } from '../../schema/block-shapes';
 import {
 	ambientMarker,
 	containerRegistration,
+	type Closable,
 	type ContainerSpec
 } from '../../schema/container-block';
 import { stripClaims, stripOpener, type ContainerLines } from '../../core/parsers/strip-container';
 import { headedLines } from '../../schema/headed-lines';
-import type { IndentedLines, MarkedLines } from '../../core/strip-lines';
+import {
+	READS_LINES,
+	type FencedLines,
+	type IndentedLines,
+	type MarkedLines
+} from '../../core/strip-lines';
 import type { CstNode } from '../../core/nodes';
 import { writeContainerRaw } from '../../schema/container-writer';
 import { cloneNode } from '../../tree-operations/clone';
+import { TITLE_ROW, titleRowRegistration } from '../../schema/title-row-leaf';
+import { textBlockView } from '../blocks/text/text-block-view';
 
 /** Makes a container block type; the editor reads and writes its lines from `lines`, so the plugin
  *  never writes its bytes. */
@@ -22,6 +30,7 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 	checkLocalName('container', spec.name);
 	const priority = priorityBefore(spec.before);
 	const lines = writtenLines(spec.lines);
+	const fenced = lines.shape === 'fenced' ? lines[READS_LINES] : null;
 	const drawing: Drawing = {
 		type: () => type,
 		edit: 'container',
@@ -29,8 +38,10 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		draw: (spec.draw as Drawing['draw'] | undefined) ?? ((_block, ctx) => ({ dom: children(ctx) })),
 		// The editor's own drawing reads no answers, so a spec with no `draw` starts no watch.
 		depends: spec.draw && spec.depends,
+		...(spec.closable && { closable: spec.closable as Closable<unknown> }),
 		...(lines.shape === 'indented' ? { ambientPrefix: (node) => ambientMarker(lines, node) } : {})
 	};
+	const strip = spec.lines as ContainerLines<D>;
 	const type: BlockType<D> = madeBlockType<D>({
 		local: spec.name,
 		label: spec.label,
@@ -41,8 +52,15 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		priority,
 		registration: containerRegistration(spec as ContainerSpec<object>, lines),
 		view: drawnView(drawing),
-		openers: (kind) => [stripOpener(kind, spec.lines, priority, spec.interrupts ?? false)],
-		completer: completerOf(spec.complete, (written) => stripClaims(spec.lines, written)),
+		openers: (kind) => [
+			fenced
+				? fenced.opener(kind, priority, spec.interrupts ?? false)
+				: stripOpener(kind, strip, priority, spec.interrupts ?? false)
+		],
+		completer: completerOf(spec.complete, (written) =>
+			fenced ? fenced.claims(written) : stripClaims(strip, written)
+		),
+		rows: fenced?.titled ? [TITLE_ROW_BLOCK] : [],
 		writeData(node, data, grammar) {
 			const copy = cloneNode(node);
 			copy.metadata = data as CstNode['metadata'];
@@ -55,7 +73,16 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 
 const children = (ctx: object): HTMLElement => (ctx as { children: HTMLElement }).children;
 
+/** The title row every titled fenced container holds, one kind for all, styled by its container. */
+const TITLE_ROW_BLOCK: BlockRow = {
+	kind: TITLE_ROW,
+	registration: titleRowRegistration({ label: 'Title' }),
+	view: textBlockView({ blockClass: 'title-row' })
+};
+
 // A head line brings its own writer.
-function writtenLines<D extends object>(lines: ContainerLines<D>): MarkedLines | IndentedLines<D> {
+function writtenLines<D extends object>(
+	lines: ContainerLines<D> | FencedLines<D>
+): MarkedLines | IndentedLines<D> | FencedLines<D> {
 	return lines.shape === 'marked' && 'head' in lines ? headedLines(lines) : lines;
 }

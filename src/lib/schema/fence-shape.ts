@@ -1,14 +1,22 @@
 /**
- * A fenced block's shape read from its fences: its openers, its text range (the body between the
- * fence lines), the rule that keeps a write of its bytes legal, and what a completion must look
- * like to read back as it. An info fence follows the code fence's rules, closer growth included.
- * A fixed fence is read in one place, `readFixed`, which every one of those asks.
+ * The shapes read from fence lines, each in one place. A fenced block's: its openers, its text
+ * range (the body between the fence lines), the rule that keeps a write of its bytes legal, and
+ * what a completion must look like to read back as it; an info fence follows the code fence's
+ * rules, closer growth included, and a fixed fence is read by `readFixed`, which every one of those
+ * asks. A fenced container's, from its opening and closing lines paired by depth (`fencedReading`).
+ * Both share the sticky opener, the waiting reading and the line escape with its caret map.
  */
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
-import type { CstNode, PluginBlockKind } from '../core/nodes';
+import {
+	makeBlockNode,
+	setPluginMetadata,
+	type CstNode,
+	type PluginBlockKind
+} from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import {
 	displayLength,
+	displayLines,
 	firstDisplayLine,
 	ownTrailingLineEnding,
 	splitLines,
@@ -18,11 +26,13 @@ import {
 	type LineEnding,
 	type ParsedLine
 } from '../core/lines';
-import { joinRaw } from '../core/parser';
+import { joinRaw, parseContainerBody, type ContainerBodyWrap } from '../core/parser';
 import {
 	fenceAnatomy,
 	fenceReading,
+	findFenceCloser,
 	matchFenceInfo,
+	matchFenceOpen,
 	type FenceOpen
 } from '../core/parsers/fence-syntax';
 import { scanFence } from '../core/parsers/fenced-code';
@@ -30,6 +40,7 @@ import { writtenSpan } from '../core/written-span';
 import type { BlockOpener, ClosedReading, OpenContext } from './block-openers';
 import type { WriteContext, WriteRule } from './block-kind-descriptor';
 import { fenceRawWrite, fenceShapeOfRaw } from './fenced-code-raw';
+import { TITLE_ROW } from './title-row-leaf';
 import type { Fence } from './block-shapes';
 
 /* -------------------------------------------------------------------------- */
@@ -220,13 +231,8 @@ function fixedFence(fence: Extract<Fence, { open: RegExp }>): FixedFence {
 				'the start of a one-line block: drop the $'
 		);
 	}
-	// Sticky, so a line is matched at its start and the rest of it is never scanned.
-	const pattern = new RegExp(fence.open.source, fence.open.flags.replace(/[gy]/g, '') + 'y');
 	return {
-		openAt(text) {
-			pattern.lastIndex = 0;
-			return pattern.exec(text);
-		},
+		openAt: matchAtStart(fence.open),
 		fixedCloser: typeof fence.close === 'string' ? fence.close : null,
 		closer: (open) => (typeof fence.close === 'string' ? fence.close : fence.close(open)),
 		oneLine: fence.oneLine ?? false,
@@ -353,13 +359,63 @@ function splitWhole(fixed: readonly FixedFence[], text: string, held: boolean): 
 
 /** A fixed opener's text waits, read as a paragraph, until a line below it closes it. */
 function fixedReading(fixed: readonly FixedFence[]): ClosedReading {
-	const read = (raw: string) => splitFixed(fixed, raw, false);
+	return waitingReading(
+		(raw) => splitFixed(fixed, raw, false),
+		// A closer worked out from the opener can be any line, so every line may be the one.
+		(text) => fixed.some((f) => f.fixedCloser === null || f.fixedCloser === text)
+	);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                      What both fence readings share                        */
+/* -------------------------------------------------------------------------- */
+
+/** `pattern` matched at the start of a line, wherever the match ends. */
+function matchAtStart(pattern: RegExp): (text: string) => RegExpExecArray | null {
+	// Sticky, so a line is matched at its start and the rest of it is never scanned.
+	const sticky = new RegExp(pattern.source, pattern.flags.replace(/[gy]/g, '') + 'y');
+	return (text) => {
+		sticky.lastIndex = 0;
+		return sticky.exec(text);
+	};
+}
+
+/** An opener's bytes wait while the reading `read` gives them finds no closing line. */
+function waitingReading(
+	read: (raw: string) => { closing: number; closer: string } | null,
+	mayClose: (text: string) => boolean
+): ClosedReading {
 	return {
 		notFinal: (raw) => read(raw)?.closing === -1,
-		// A closer worked out from the opener can be any line, so every line may be the one.
-		mayClose: (text) => fixed.some((f) => f.fixedCloser === null || f.fixedCloser === text),
+		mayClose,
 		closer: (raw) => read(raw)?.closer ?? ''
 	};
+}
+
+/** The text with each line `escapes` names passed through `escape`, the caret moved by what each
+ *  escape put in before it. */
+function escapeLines(
+	lines: readonly ParsedLine[],
+	escapes: (index: number) => boolean,
+	escape: (line: string) => string,
+	caret: number
+): { text: string; caret: number; escaped: boolean } {
+	let text = '';
+	let moved = caret;
+	let escaped = false;
+	lines.forEach((line, index) => {
+		const escapesLine = escapes(index);
+		const out = escapesLine ? escape(line.text) : line.text;
+		escaped ||= escapesLine;
+		if (caret > line.start && out !== line.text) {
+			const span = writtenSpan(line.text, out);
+			const at = caret - line.start;
+			if (at >= span.removedEnd) moved += out.length - line.text.length;
+			else if (at > span.start) moved += span.end - at;
+		}
+		text += out + line.lineEnding;
+	});
+	return { text, caret: moved, escaped };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -469,30 +525,16 @@ function onOwnLines(
 	return { text: text.slice(0, openEnd) + ending + body + ending + closer, caret: caret + shift };
 }
 
-/** The held text with each body line spelling the closer escaped, the caret moved by what each
- *  escape put in before it. */
+/** The held text with each body line spelling the closer escaped. */
 function escapedBody(
 	{ lines, closing, closer, fence: { escape } }: FixedSplit,
 	display: string,
 	caret: number
 ): { text: string; caret: number; escaped: boolean } {
 	if (!escape) return { text: display, caret, escaped: false };
-	let text = '';
-	let moved = caret;
-	let escaped = false;
-	lines.forEach((line, index) => {
-		const escapes = index > 0 && index < closing && line.text === closer;
-		const out = escapes ? escape(line.text) : line.text;
-		escaped ||= escapes;
-		if (caret > line.start && out !== line.text) {
-			const span = writtenSpan(line.text, out);
-			const at = caret - line.start;
-			if (at >= span.removedEnd) moved += out.length - line.text.length;
-			else if (at > span.start) moved += span.end - at;
-		}
-		text += out + line.lineEnding;
-	});
-	return { text, caret: moved, escaped };
+	const spellsCloser = (index: number) =>
+		index > 0 && index < closing && lines[index].text === closer;
+	return escapeLines(lines, spellsCloser, escape, caret);
 }
 
 // An escape that leaves the line closing the block passes every read, so the write says so.
@@ -505,5 +547,213 @@ function warnIfStillClosed(fixed: readonly FixedFence[], text: string, ctx: Writ
 		'fence-escape',
 		`block '${ctx.node.kind}': its escape leaves a body line reading as its closer ` +
 			`${JSON.stringify(parsed.closer)}, so the block ends there: return a line that doesn't`
+	);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                       The fenced container's reading                       */
+/* -------------------------------------------------------------------------- */
+
+/** A container's own lines around its body, as `fencedLines` takes them. */
+export interface FencedSpec<D extends object> {
+	open: RegExp;
+	data(match: RegExpExecArray): D;
+	write(data: D): string;
+	title?: { match: RegExp; write(title: string): string };
+	close: { match: RegExp; write(data: D): string };
+	escape(line: string): string;
+}
+
+/** What the editor reads off a fenced container's lines. */
+export interface FencedReading<D extends object> {
+	readonly titled: boolean;
+	opener(kind: PluginBlockKind, priority: number, interrupts: boolean): BlockOpener;
+	/** Lines a completion wrote: the opening line first, the line closing it last. */
+	claims(lines: readonly string[]): boolean;
+	/** A write into the body, with each line that would open or close a section and pairs with none
+	 *  in it passed through `escape`. */
+	readonly bodyWrite: WriteRule;
+	/** The closing line written for `data`. */
+	closer(data: D): string;
+	/** Where the title starts on `line`, which reads as the title line; null on any other line. */
+	titleColumn(line: string): number | null;
+}
+
+// The body sits between the shape's own lines, each taking the blank line beside it.
+const FENCED_BODY: ContainerBodyWrap = { afterOpenerLine: true, beforeCloserLine: true };
+
+export function fencedReading<D extends object>(spec: FencedSpec<D>): FencedReading<D> {
+	const openAt = matchAtStart(spec.open);
+	const closeAt = matchAtStart(spec.close.match);
+	const titleOf = spec.title ? titleReader(spec.title.match) : null;
+	const escape = spec.escape ?? ((line: string) => line);
+
+	// Any spelling `open` reads counts toward the depth; only `write`'s opens a section.
+	const opening = (text: string): D | null => {
+		const match = openAt(text);
+		const data = match && spec.data(match);
+		return data && spec.write(data) === text ? data : null;
+	};
+	const roleOf = (text: string): ShapeLine =>
+		openAt(text) ? 'open' : closeAt(text) ? 'close' : null;
+
+	/** How lines read from `from`: the data, the title, where the body starts and the line closing it
+	 *  (-1 while none does, or while the title line is still to come). */
+	const readLines = (lines: readonly { text: string }[], from = 0, end = lines.length) => {
+		const data = opening(lines[from].text);
+		if (!data) return null;
+		const closer = spec.close.write(data);
+		const read = (title: string, body: number, closing: number) =>
+			({ data, title, body, closing, closer }) as const;
+		if (!titleOf) return read('', from + 1, pairedClosing(lines, from + 1, end, roleOf));
+		const row = lines[from + 1];
+		// The title line is still to come while the opening line stands alone.
+		if (row === undefined || (row.text === '' && from + 2 === end)) return read('', from + 1, -1);
+		const title = titleOf(row.text);
+		if (title === null) return null;
+		return read(title.text, from + 2, pairedClosing(lines, from + 2, end, roleOf));
+	};
+	const readRaw = (raw: string) => readLines(displayLines(raw));
+
+	const strayLines = (raw: string, caret: number) => {
+		const lines = splitLines(raw);
+		const stray = unpairedLines(lines, roleOf);
+		return escapeLines(lines, (index) => stray.has(index), escape, caret);
+	};
+
+	return {
+		titled: titleOf !== null,
+		opener: (kind, priority, interrupts) => ({
+			priority,
+			interruptsParagraph: interrupts && ((text) => opening(text) !== null),
+			readingNotFinal: waitingReading(readRaw, (text) => closeAt(text) !== null),
+			tryOpen(ctx) {
+				const read = readLines(ctx.lines, ctx.index, ctx.end);
+				if (read === null || read.closing === -1) return null;
+				const body = parseContainerBody(joinRaw(ctx.lines, read.body, read.closing), FENCED_BODY, {
+					scope: 'fragment',
+					depth: ctx.depth + 1,
+					grammar: ctx.grammar
+				});
+				const row = titleOf ? [titleRow(read.title)] : [];
+				const node = makeBlockNode({
+					kind,
+					leadingTrivia: ctx.leadingTrivia,
+					raw: joinRaw(ctx.lines, ctx.index, read.closing + 1),
+					innerPrefix: body.prefix,
+					children: [...row, ...body.children],
+					innerSuffix: body.suffix
+				});
+				setPluginMetadata(node, read.data);
+				return { node, consumed: read.closing + 1 - ctx.index };
+			}
+		}),
+		claims(lines) {
+			if (lines.length === 0) return false;
+			const read = readLines(lines.map((text) => ({ text })));
+			return read?.closing === lines.length - 1;
+		},
+		bodyWrite: {
+			normalize(raw, ctx) {
+				const written = strayLines(raw, 0);
+				if (devChecksOn && written.escaped) warnIfStillStray(written.text, roleOf, ctx);
+				return written.text;
+			},
+			mapOffset: (raw, offset) => strayLines(raw, offset).caret
+		},
+		closer: (data) => spec.close.write(data),
+		titleColumn: (line) => titleOf?.(line)?.start ?? null
+	};
+}
+
+/** What a body line is to a fenced shape: one that opens a section, one that closes one, or text. */
+type ShapeLine = 'open' | 'close' | null;
+
+/** The title a line holds and where it starts, read whole by `match`, its `text` group the title;
+ *  null for a line that isn't the title line. */
+function titleReader(match: RegExp): (line: string) => { text: string; start: number } | null {
+	if (!/\(\?<text>/.test(match.source)) {
+		throw new Error(`fencedLines: title.match ${match} needs a \`text\` group, the title it reads`);
+	}
+	// `d` for the group's indices; `g` and `y` would carry a position between calls.
+	const pattern = new RegExp(match.source, match.flags.replace(/[gyd]/g, '') + 'd');
+	return (line) => {
+		const read = pattern.exec(line);
+		if (read?.index !== 0 || read[0].length !== line.length) return null;
+		const at = read.indices?.groups?.text;
+		return at ? { text: line.slice(at[0], at[1]), start: at[0] } : { text: '', start: line.length };
+	};
+}
+
+/** A title row holding `title`: one line, ended with a line feed whatever the document's ending. */
+const titleRow = (title: string): CstNode =>
+	makeBlockNode({ kind: TITLE_ROW, leadingTrivia: '', raw: `${title}\n` });
+
+/** Each line of `[from, end)` with its role, in order, until `visit` returns true; a code fence's
+ *  lines are skipped whole, since a closing line inside one is code. */
+function visitShapeLines(
+	lines: readonly { text: string }[],
+	from: number,
+	end: number,
+	roleOf: (text: string) => ShapeLine,
+	visit: (index: number, role: ShapeLine) => boolean | void
+): void {
+	for (let i = from; i < end; i++) {
+		const fence = matchFenceOpen(lines[i].text);
+		if (fence) {
+			const closer = findFenceCloser(lines, i + 1, end, fence);
+			i = closer === -1 ? end : closer;
+			continue;
+		}
+		if (visit(i, roleOf(lines[i].text))) return;
+	}
+}
+
+/** The line closing a section whose body starts at `from`, or -1; depth-counted, so a nested
+ *  section's closing line doesn't end the outer one. */
+function pairedClosing(
+	lines: readonly { text: string }[],
+	from: number,
+	end: number,
+	roleOf: (text: string) => ShapeLine
+): number {
+	let depth = 1;
+	let closing = -1;
+	visitShapeLines(lines, from, end, roleOf, (i, role) => {
+		if (role === 'open') depth++;
+		else if (role === 'close' && --depth === 0) closing = i;
+		return closing !== -1;
+	});
+	return closing;
+}
+
+/** The lines that open or close a section and pair with none: a closing line with no opening one
+ *  above it, and each opening line nothing closes. */
+function unpairedLines(
+	lines: readonly { text: string }[],
+	roleOf: (text: string) => ShapeLine
+): Set<number> {
+	const open: number[] = [];
+	const stray = new Set<number>();
+	visitShapeLines(lines, 0, lines.length, roleOf, (i, role) => {
+		if (role === 'open') open.push(i);
+		else if (role === 'close' && open.pop() === undefined) stray.add(i);
+	});
+	for (const i of open) stray.add(i);
+	return stray;
+}
+
+// An escape that leaves a line still opening or closing a section passes every read, so the write
+// says so.
+function warnIfStillStray(
+	text: string,
+	roleOf: (text: string) => ShapeLine,
+	ctx: WriteContext
+): void {
+	if (unpairedLines(splitLines(text), roleOf).size === 0) return;
+	devWarn(
+		'fence-escape',
+		`block '${ctx.node.kind}': its escape leaves a body line that still opens or closes it, so ` +
+			`the block ends there: return a line that doesn't`
 	);
 }

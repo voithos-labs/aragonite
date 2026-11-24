@@ -37,6 +37,7 @@
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import { makeBlock, DETACHED_READING, type KeyWatch } from '../../schema/doc-view';
+	import { getPluginMetadata } from '../../core/nodes';
 	import { modeOf } from '../../presentation-mode';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
@@ -168,6 +169,38 @@
 				})
 			: null;
 
+	// ── A fold ────────────────────────────────────────────────────────────────
+	// Reading mode folds without writing, and leaving it shows what the bytes say again.
+	let readerClosed: boolean | null = $state(null);
+	const reading = () => editorDoc.reading.mode() === 'reading';
+	const closedByData = () => view.closable?.closed(getPluginMetadata<object>(node) ?? {}) ?? false;
+	const closedNow = () => (reading() ? (readerClosed ?? closedByData()) : closedByData());
+	if (view.closable) {
+		$effect(() => {
+			if (!reading() && untrack(() => readerClosed) !== null) readerClosed = null;
+		});
+	}
+
+	function setClosed(closed: boolean): void {
+		const closable = view.closable;
+		if (!closable || !container) return;
+		if (reading()) {
+			readerClosed = closed;
+			return;
+		}
+		if (closed === closedByData()) return;
+		// Read at the click, never reactively: a caret in the body goes to the title row, and a range
+		// across blocks keeps its ends.
+		const caret = closed && !services?.selection.ownsRange;
+		const at = caret ? container.containerApi.getCursorPosition?.() : null;
+		const inBody = at != null && at.path[0] >= 1;
+		const data = closable.set(getPluginMetadata<object>(node) ?? {}, closed);
+		void container.updateOwnMetadata(
+			data as Record<string, unknown>,
+			inBody ? { caret: { path: [0], offset: 0 } } : undefined
+		);
+	}
+
 	const container =
 		view.edit === 'container'
 			? createContainerBlock({
@@ -175,6 +208,7 @@
 					getIndex: () => index,
 					getPath: () => myPath,
 					getBoxEl: () => childBox ?? undefined,
+					...(view.closable && { isCollapsed: closedNow }),
 					...(view.ambientPrefix && { getAmbientPrefix: () => view.ambientPrefix!(node) })
 				})
 			: null;
@@ -222,6 +256,10 @@
 		keepScroll,
 		children: childBox!,
 		title: null,
+		get closed() {
+			return closedNow();
+		},
+		setClosed,
 		leave(edge, x) {
 			if (!box || !target) return;
 			box.leave(edge, x === undefined ? null : editorXOf(target, x));
@@ -310,7 +348,8 @@
 	}
 
 	function watched(): unknown[] {
-		return [node.raw, myPath.join(), editorDoc.reading.mode(), policies.theme(), focused(), typed];
+		const mode = editorDoc.reading.mode();
+		return [node.raw, myPath.join(), mode, policies.theme(), focused(), typed, readerClosed];
 	}
 
 	let seen: unknown[] = [];

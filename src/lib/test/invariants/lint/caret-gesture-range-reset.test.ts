@@ -110,7 +110,9 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'packages/mermaid/src/MermaidBlock.svelte':
 		'stopPropagation on its toolbar and a diagram-surface press that selects the block',
 	'src/routes/test/plugins/+page.svelte':
-		'harness chrome — preventDefault on a mode toggle so the press takes no focus'
+		'harness chrome — preventDefault on a mode toggle so the press takes no focus',
+	'src/routes/test/plugins/folds/folds-plugin.ts':
+		'preventDefault on the fold toggle so the press keeps the caret where it was'
 };
 
 /** The only files allowed to call `parkCaret`. A new entry asserts the caller runs while an

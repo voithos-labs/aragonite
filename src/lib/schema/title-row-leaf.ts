@@ -4,10 +4,15 @@
  * rows, never for a kind with its own parser (`docs/design/plugin-contract.md`).
  */
 
-import { registerBlockKind, type ContentStart, type MergeRole } from './block-kind-descriptor';
+import {
+	registerBlockKind,
+	type BuiltinRegistration,
+	type ContentStart,
+	type MergeRole
+} from './block-kind-descriptor';
 import type { BlockView } from './block-view';
 import { normalizeChord, type KeyBinding } from './keybindings';
-import type { AnyBlockKind } from '../core/nodes';
+import type { AnyBlockKind, PluginBlockKind } from '../core/nodes';
 
 export interface ChromeLeafOptions {
 	/** What a screen reader and the block menu call the row; defaults to the kind in words. */
@@ -49,8 +54,12 @@ export function registerTitleRowLeaf(
 	view: BlockView,
 	opts: RowLeafOptions = {}
 ): void {
-	registerBlockKind(kind, {
-		view,
+	registerBlockKind(kind, { view, ...titleRowRegistration(opts) });
+}
+
+/** What a title row's kind declares. */
+export function titleRowRegistration(opts: RowLeafOptions = {}): BuiltinRegistration {
+	return {
 		...(opts.contentStart ? { contentStart: opts.contentStart } : {}),
 		...(opts.label !== undefined ? { label: opts.label } : {}),
 		gapEdges: 'none',
@@ -61,5 +70,8 @@ export function registerTitleRowLeaf(
 		keymap: mergeChromeKeymap(opts.keymap)
 		// No sample: the container's parser creates child 0, so a title-row leaf
 		// never comes out of a document parse on its own.
-	});
+	};
 }
+
+/** The title row of a container on fenced lines with a title line: all of the row is its title. */
+export const TITLE_ROW = 'titleRow' as PluginBlockKind;

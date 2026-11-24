@@ -169,10 +169,18 @@ function mapStrayEscapeOffset(raw: string, offset: number): number {
 	return strayEscapePoints(raw).reduce((at, point) => (point < offset ? at + grown : at), offset);
 }
 
-/** The tag lines around the body: `<details>` (`open` when shown) and the summary, `</details>`. */
-const DETAILS_LINES = fencedLines<DetailsMetadata>({
-	open: (data, title) => [`<details${data.open ? ' open' : ''}>`, `<summary>${title}</summary>`],
-	close: () => CLOSE_TAG
+/** The tag lines around the body, which the editor writes: `<details>` (`open` when shown) and the
+ *  summary, `</details>`. The opener below reads them. */
+const DETAILS_LINES = fencedLines<{ open: boolean }>({
+	open: OPEN_LINE,
+	data: (match) => ({ open: match[1] !== undefined }),
+	write: (data) => `<details${data.open ? ' open' : ''}>`,
+	title: {
+		match: /^<summary>(?<text>.*)<\/summary>$/,
+		write: (title) => `<summary>${title}</summary>`
+	},
+	close: { match: CLOSE_LINE, write: () => CLOSE_TAG },
+	escape: (line) => line.replace('<', ESCAPED_LT)
 });
 
 export function registerDetailsKind(view: BlockView): void {

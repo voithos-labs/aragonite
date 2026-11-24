@@ -1,11 +1,19 @@
 // @vitest-environment jsdom
 // Which edges of a maker's block type take a gap caret, read through the eligibility check: both
-// sides of a block whose text spans lines or shows only once the caret comes in, above a box, and
-// none beside a one-line text Enter splits.
+// sides of a block whose text spans lines or shows only once the caret comes in and of a container
+// on lines of its own, above a box, and none beside a one-line text Enter splits or a container
+// marked line by line.
 // Miss-analysis: the derived edges were pinned on one twin per maker, so no row read a drawn line
 // type whose picture leaves the caret nowhere above it.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { definePlugin, fencedBlock, lineBlock, type TextDrawContext } from '#lib/plugin.js';
+import {
+	container,
+	definePlugin,
+	fencedBlock,
+	fencedLines,
+	lineBlock,
+	type TextDrawContext
+} from '#lib/plugin.js';
 import type { FencedBlockSpec, LineBlockSpec } from '#lib/schema/block-shapes.js';
 import type { BlockType } from '#lib/schema/plugin-unit.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
@@ -47,6 +55,25 @@ const fenced = (spec: Partial<FencedBlockSpec>) =>
 
 const LINE = '[a]\n';
 const FENCE = '%%%\na\n%%%\n';
+const BOX = '%> a\n';
+const SECTION = '%%% s\na\n%%% end\n';
+
+const box = (lines: object) =>
+	container({
+		name: 'demo',
+		label: 'Demo',
+		lines: lines as never,
+		sample: '%> a',
+		insert: { none: 'a test block type' }
+	});
+const MARKED = { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true };
+const SECTIONS = fencedLines({
+	open: /^%%% s/,
+	data: () => ({}),
+	write: () => '%%% s',
+	close: { match: /^%%% end/, write: () => '%%% end' },
+	escape: (line) => `\\${line}`
+});
 
 type Edges = { above: boolean; between: boolean };
 const ROWS: { name: string; type: BlockType<never>; block: string; edges: Edges }[] = [
@@ -80,6 +107,18 @@ const ROWS: { name: string; type: BlockType<never>; block: string; edges: Edges 
 		name: 'a drawn fence that opens its text',
 		type: fenced({ draw: placed }),
 		block: FENCE,
+		edges: { above: true, between: true }
+	},
+	{
+		name: 'a container marked line by line',
+		type: box(MARKED),
+		block: BOX,
+		edges: { above: false, between: false }
+	},
+	{
+		name: 'a container on lines of its own',
+		type: box(SECTIONS),
+		block: SECTION,
 		edges: { above: true, between: true }
 	}
 ];

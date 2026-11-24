@@ -213,13 +213,8 @@ export function leafRegistration(spec: LeafCommon<unknown>, text: LeafText): Bui
 		editable: true,
 		pageRole: role,
 		mergeRole: role === 'prose' ? ('prose-absorber' as const) : ('not-mergeable' as const),
-		// A gap caret sits where the caret can't reach an edge: by a text that spans lines or shows only
-		// once the caret comes in, above a box (Enter opens one below); a one-line text splits instead.
-		gapEdges: box
-			? ('before' as const)
-			: multiLine || edit === 'source'
-				? ('both' as const)
-				: ('none' as const),
+		// Enter in a text that spans lines types a break, and a text shown on focus isn't there yet.
+		gapEdges: gapEdgesOf({ box, edgesInText: !multiLine && edit !== 'source' }),
 		...samplesOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
 		...(writes ? { rawWrite: writes } : {})
@@ -237,6 +232,13 @@ export function leafRegistration(spec: LeafCommon<unknown>, text: LeafText): Bui
 			? { textPosition: 'while-source-shows' as const, caretTargetAtPoint: drawnCaretAt }
 			: {})
 	};
+}
+
+/** Where a block type's edges take a gap caret, the caret reaching no edge to type a paragraph at:
+ *  above a box (Enter opens one below), else both sides unless its edges are text it splits. */
+export function gapEdgesOf(block: { box?: boolean; edgesInText: boolean }) {
+	if (block.box) return 'before' as const;
+	return block.edgesInText ? ('none' as const) : ('both' as const);
 }
 
 /** What the draw host runs for a leaf with a `draw`; null for one drawn as plain text. */

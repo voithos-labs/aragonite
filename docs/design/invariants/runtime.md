@@ -146,6 +146,7 @@ These checks run in three kinds of place:
 | G1.230 | The answers a surface's `depends` keeps equal asking every top-level block again | A·N |
 | G1.233 | `check` runs every check over every sample of everything a plugin value lists; an excuse that doesn't stand, or a dev warning, fails it | harness·N |
 | G1.237 | A keystroke that made an ancestor read again finds the leaf's byte in it | A·N |
+| G1.245 | A closed container's body holds no collapsed caret | A·N |
 | G4.371 | A block a plugin holds answers only where its node stands, and loses it only where a write said it changed | A·N |
 
 ### The entries
@@ -407,5 +408,7 @@ These checks run in three kinds of place:
 **G1.233 · `check` runs everything over every sample** (`check`). It installs a plugin value as an editor does, defaults and `options` at once, and runs each check over every sample of what it lists: block types (`sample` gates the rest), containers, inlines, commands and menus on a stand-in editor, rewrites, paint, a highlighter. An excuse that doesn't stand fails the run, as a dev warning does. A wait past `timeout` fails its row, unexcused; what a call leaves running is heard on its row for one macrotask, then on a later row. `testing/check.ts` and its cell files · `test/plugins/check/`.
 
 **G1.237 · A relanding finds its byte** (`relanding-byte`). A keystroke that makes an ancestor read its bytes again (a `:::` fence grown by a colon) puts the caret back by the leaf's byte in that ancestor, found through the same byte map as the document's, an opaque body included. A null byte means the settled path is not in the ancestor, and the caret falls to the ancestor's first byte. Inline in `editor-actions/commit/leaf-commit.ts :: relandingAfter` · `keystroke-relanding.test.ts`, `opener-fence-growth.spec.ts`.
+
+**G1.245 · A closed body holds no caret** (`closed-body-caret`). A caret landing (an edit's, a fold's, an undo's) resolves its leaf on the tree first, and one aimed into the body a closed container hides lands on its title row; a fold also moves a caret in the body there itself. Dev fails a collapsed caret placed in such a body. A range's end may stay in a body a fold closed over it, as it always has. `checkNoCaretInClosedBody` · run by `selection/caret-landing.ts` · `closed-body-caret.test.ts`, `closable.svelte.test.ts`.
 
 **G4.371 · A held block reads only its node's place** (`held-block-place`). A held block moves where it was last seen through the runs each write reports and answers only where its own node stands, so a block a write replaced reads -1, never a neighbour. Dev compares each moved read with a fresh walk once per version: a read the walk disagrees with, or a block lost from a slot no run named, means a write under-reported. `checkHeldBlockPlace` · `commit/document-read.ts` · `held-block.svelte.test.ts`, `held-block-routes.svelte.test.ts`.

@@ -44,7 +44,15 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 		let calls = 0;
 		const kind = testLeaf('spec-shape-nondet', {
 			mergeRole: 'container',
-			container: { lines: fencedLines({ open: () => [`::x ${calls++}`], close: () => '::' }) }
+			container: {
+				lines: fencedLines({
+					open: /^::x/,
+					data: () => ({}),
+					write: () => `::x ${calls++}`,
+					close: { match: /^::$/, write: () => '::' },
+					escape: (line) => line
+				})
+			}
 		});
 		expect(checkOpaqueRebuildDeterminism(opaqueNode(kind), defaultGrammarView)?.code).toBe(
 			'opaque-rebuild-nondeterministic'

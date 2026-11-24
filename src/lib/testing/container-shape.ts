@@ -7,7 +7,12 @@
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { getPluginMetadata } from '../core/nodes';
 import { documentLineEnding, splitLines } from '../core/lines';
-import type { HeadedLines, IndentedLines, LineShape } from '../core/strip-lines';
+import {
+	READS_LINES,
+	type HeadedLines,
+	type IndentedLines,
+	type LineShape
+} from '../core/strip-lines';
 import { writeContainerRaw } from '../schema/container-writer';
 import type { CheckContext } from './check-context';
 import {
@@ -29,8 +34,12 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const ASSERT = { mode: 'assert' } as const;
-// The kit asks for these two, and a check over a maker's container never runs them.
+// The kit asks for it, and a check over a maker's container never runs it.
 const NOT_RUN = { mode: 'exempt', reason: 'not a check over a container a maker made' } as const;
+const NO_CLOSING_LINE = {
+	mode: 'exempt',
+	reason: 'a container marked line by line has no closing line a body line could spell'
+} as const;
 
 /** The container cells' fixtures from `sample`: the type grown to two children through its own
  *  writer, then quoted, so it sits one level down with a leaf under it. */
@@ -52,6 +61,7 @@ export function derivedProfile(
 		leafPath.push(0);
 		leaf = leaf.children[0];
 	}
+	const collision = closingLineOf(context, kind, sample);
 	return {
 		deepNesting: { source: quoted, leafPath },
 		localIndexFixture: { source: quoted, containerChain: [0, 0], targetChild: last },
@@ -60,8 +70,20 @@ export function derivedProfile(
 		ancestry: ASSERT,
 		focusBubble: ASSERT,
 		multiScope: NOT_RUN,
-		terminatorCollision: NOT_RUN
+		terminatorCollision: collision === null ? NO_CLOSING_LINE : ASSERT,
+		...(collision !== null && {
+			terminatorCollisionFixture: { source: grown, bodyRaw: collision }
+		})
 	};
+}
+
+/** The closing line a fenced container writes for the sample's data, as a body line; null for a
+ *  shape with none. */
+function closingLineOf(context: CheckContext, kind: AnyBlockKind, sample: string): string | null {
+	const lines = context.descriptor(kind).lines;
+	if (lines?.shape !== 'fenced') return null;
+	const node = subjectNode(context.parse(sample), kind, [0], 'the sample');
+	return lines[READS_LINES].closer(getPluginMetadata(node) ?? {}) + '\n';
 }
 
 /** The type's bytes from `sample`, with a paragraph written in for each child short of two. */

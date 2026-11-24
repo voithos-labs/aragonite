@@ -14,6 +14,7 @@ import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';
 import { checkReadingLandingLeavesNoCaret } from '../invariants/reading-landing-caret';
+import { checkNoCaretInClosedBody } from '../invariants/closed-body-caret';
 import { widgetTabStopEndingAt } from '../core/inline/inline-widgets';
 import { componentAt, descendTo, type ChildList } from '../block-lists/child-list';
 import { landsRestoredCaret } from './restored-caret';
@@ -22,7 +23,11 @@ import { applySelectionToDom } from './native-bridge';
 import { readNativeSelection } from '../browser/selection-read';
 import type { CaretWriter } from '../browser/caret-writer';
 import { caretRectAt, caretRectAtRaw, lineHeightOf } from '../browser/visual-lines';
-import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
+import {
+	collapsedContainerHiding,
+	findBlockPathForElement,
+	findCellPathForElement
+} from './path-lookup';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
 import {
 	resolveSelectionPoint,
@@ -276,6 +281,9 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 				? focusWithoutCaret(component, target.leafPath, target.offset)
 				: component.focus(target.offset)
 		);
+		assertInvariant('closed-body-caret', () =>
+			checkNoCaretInClosedBody(deps.getDoc(), target.leafPath, collapsedContainerHiding)
+		);
 		// A split's second half starts plain, whatever format the text after the cut carries.
 		if (pos.fresh) deps.caretMemory.noteOutside();
 		await bringIntoView(target.leafPath, reveal);
@@ -324,6 +332,11 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			const route = deps.selectionState.restoreRoute(anchor, focus);
 			const holdsCaret = route === 'collapsed' || route === 'custom';
 			const mountPath = holdsCaret ? caretAt(focus).path : focus.path;
+			if (route === 'collapsed') {
+				assertInvariant('closed-body-caret', () =>
+					checkNoCaretInClosedBody(doc, mountPath, collapsedContainerHiding)
+				);
+			}
 			const mounted = await descendTo(deps.root, mountPath, { current: at(stamp) });
 			if (generation !== stamp) return 'unplaced';
 			forgetFor(opts);

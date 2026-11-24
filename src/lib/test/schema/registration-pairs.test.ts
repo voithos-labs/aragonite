@@ -137,7 +137,16 @@ describe('registerBlockKind refuses an incoherent pair the types refuse', () => 
 	// closing line implies it, after the pairs were read.
 	describe.each([
 		['colon', COLON_LINES],
-		['fenced', fencedLines({ open: () => ['<x>'], close: () => '</x>' })]
+		[
+			'fenced',
+			fencedLines({
+				open: /^<x>/,
+				data: () => ({}),
+				write: () => '<x>',
+				close: { match: /^<\/x>/, write: () => '</x>' },
+				escape: (line) => line
+			})
+		]
 	])('a %s line shape, which writes a closing line', (shape, lines) => {
 		const declares = 'declares container.merges with a closing line of its own;';
 		const shaped = (over: object) =>

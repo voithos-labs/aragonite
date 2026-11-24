@@ -36,6 +36,7 @@
 	import { docLinkMenu, docLinkMenuPlugin } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { drawnPlugin } from './drawn/drawn-plugin';
+	import { foldsPlugin } from './folds/folds-plugin';
 	import { fenceLinesPlugin } from './fence-lines/fence-lines-plugin';
 	import { outlinePlugin } from './outline/outline-plugin';
 	import { noteNumbersPlugin } from './note-numbers/note-numbers-plugin';
@@ -113,6 +114,8 @@
 		badge: [blockBadgePlugin],
 		// Blocks drawn by a block type's `draw`; their types open only in this seed.
 		drawn: [drawnPlugin],
+		// A container on fenced lines that folds; its type opens only in this seed.
+		folds: [foldsPlugin],
 		// Fenced blocks whose fence lines the editor draws; without the base plugins, whose math block
 		// would take the ```math fence.
 		'fence-lines': [fenceLinesPlugin],
@@ -264,6 +267,8 @@
 			'before\n\n```js\nfirst line\nsecond line\n```\n\nbetween\n\n%%%\nfirst line\nsecond line\n%%%\n\nafter\n\n%%plain\nplain body\n%%\n',
 		drawn:
 			'above the field, a line\n\n```field\nfirst line here\nsecond line here\n```\n\nbelow the field, a line\n\n```shown\nhello\n```\n\n%> aside text\n',
+		// A paragraph above a fold, open, and a paragraph below.
+		folds: 'above\n\n[fold open]\ntitle: T\n\nbody\n\n[/fold]\n\nbelow\n',
 		// Three headings under an outline, the last far enough down that the outline leaves the
 		// window when the editor scrolls to its end.
 		outline:

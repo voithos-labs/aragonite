@@ -7,6 +7,7 @@ import type { CstNode } from './nodes';
 import { lineStartsOuterBlock, type GrammarView } from '../schema/block-openers';
 import type { ChildRawChange } from '../schema/child-spans';
 import type { StripRebuild } from '../schema/strip-rebuild';
+import type { FencedReading } from '../schema/fence-shape';
 import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
 
 // ── Line shapes ──────────────────────────────────────────────────────────────
@@ -58,12 +59,16 @@ export type ShapeWriter = (
 	changed?: ChildRawChange
 ) => StripRebuild | void;
 
-/** Opening lines and a closing line around the body, the title row as child 0 (`<details>`). */
+/** An opening line, a title line if it has one, and a closing line around the body (`<details>`),
+ *  the title line's title as child 0; `fencedLines` makes one. */
 export interface FencedLines<D extends object> {
 	shape: 'fenced';
-	write: { open(data: D, title: string): readonly string[]; close(data: D): string };
 	readonly [WRITES_LINES]: ShapeWriter;
+	readonly [READS_LINES]: FencedReading<D>;
 }
+
+/** The reader a fenced shape brings along, so an app that never uses one doesn't ship it. */
+export const READS_LINES = Symbol('reads the container');
 
 /** A `:::name` fence around the body, the opener line as child 0. */
 export interface ColonLines {

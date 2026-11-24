@@ -2,7 +2,7 @@
  * Maps between a byte offset in a block's `raw` (or a whole document's bytes) and a caret position
  * in one of its leaves, and finds where a container's marker takes its space. A container's raw
  * re-prefixes its children's lines (`> `, an item's indent) or holds them between lines of its own
- * (a fence, a title tag), so the map pairs the container's lines with its children's: one child's
+ * (a fence, a title line), so the map pairs the container's lines with its children's: one child's
  * alone where its span says where it sits (a quote, a table), every line where none does.
  */
 
@@ -14,6 +14,7 @@ import {
 	splitLines,
 	type ParsedLine
 } from '../core/lines';
+import { READS_LINES } from '../core/strip-lines';
 import { recordByteMapRead, recordLinesLaid, recordLinesPaired } from '../perf/instruments';
 import { blockFacts } from '../schema/block-facts';
 import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -352,7 +353,7 @@ function lineMap(node: NodeView, titled: boolean): ContainerMap {
 	append(node.innerPrefix ?? '');
 	for (let i = titled ? 1 : 0; i < children.length; i++) add(i);
 	append(node.innerSuffix ?? '');
-	const pairing = pairLines(node.raw, body, (index) => childStarts[index], markerOf(node));
+	const pairing = pairLines(node.raw, body, (index) => childStarts[index], lineReaderOf(node));
 	return {
 		...throughBody(children, pairing),
 		lineAt: (rawOffset) => pairedLineAt(pairing, rawOffset)
@@ -394,7 +395,10 @@ function spannedMap(node: NodeView): ContainerMap {
 			const to = k === children.length ? node.raw.length : spans[k * 2];
 			const body =
 				k === 0 ? (node.innerPrefix ?? '') : k === children.length ? (node.innerSuffix ?? '') : '';
-			gaps.set(k, (pairing = pairLines(node.raw.slice(from, to), body, () => 0, markerOf(node))));
+			gaps.set(
+				k,
+				(pairing = pairLines(node.raw.slice(from, to), body, () => 0, lineReaderOf(node)))
+			);
 		}
 		return pairing;
 	};
@@ -451,7 +455,12 @@ function regionMap(node: NodeView, index: number): Pairing | null {
 	const spans = node.childSpans!;
 	const region = node.raw.slice(spans[index * 2], spans[index * 2 + 1]);
 	const trivia = child.leadingTrivia.length;
-	const pairing = pairLines(region, child.leadingTrivia + child.raw, () => trivia, markerOf(node));
+	const pairing = pairLines(
+		region,
+		child.leadingTrivia + child.raw,
+		() => trivia,
+		lineReaderOf(node)
+	);
 	return pairing.oneForOne ? pairing : null;
 }
 
@@ -469,7 +478,7 @@ function pairLines(
 	rawText: string,
 	body: string,
 	childStart: (index: number) => number,
-	isMarker: ReadsMarker
+	reader: LineReader
 ): Pairing {
 	const raw = splitLines(rawText);
 	const bodyLines = splitLines(body);
@@ -477,7 +486,7 @@ function pairLines(
 	const carrier: number[] = [];
 	let next = 0;
 	for (let r = 0; r < raw.length; r++) {
-		const at = next < bodyLines.length ? textColumn(raw[r], bodyLines[next], isMarker) : null;
+		const at = next < bodyLines.length ? textColumn(raw[r], bodyLines[next], reader) : null;
 		paired.push(at === null ? null : { line: next, at });
 		if (at !== null) carrier[next++] = r;
 	}
@@ -583,36 +592,47 @@ function cellStarts(node: NodeView): BodyMap {
 	return { childStart: (index) => childStarts[index], toBody: same, toRaw: same };
 }
 
-/** Whether the first `width` characters of `line` are a marker of the container's and no more. */
-type ReadsMarker = (line: string, width: number) => boolean;
+/** How a container's lines carry its children: whether the first `width` characters of `line`
+ *  are a marker of the container's and no more, and where a title line's title starts. */
+interface LineReader {
+	isMarker(line: string, width: number): boolean;
+	titleColumn(line: string): number | null;
+}
 
 /** A marker run alone on a line, for a kind that states no line shape: quote markers, a list
  *  marker and its task box. */
 const MARKER_ONLY = /^[ \t>]*(?:(?:[-*+]|\d{1,9}[.)])(?:[ \t]+\[[ xX]\])?[ \t]*)?$/;
 
-/** How `node`'s lines carry their marker, as its kind's line shape reads one. */
-function markerOf(node: NodeView): ReadsMarker {
+/** How `node`'s lines carry their marker and title, as its kind's line shape reads them. */
+function lineReaderOf(node: NodeView): LineReader {
 	const shape = tryGetBlockKindDescriptor(node.kind)?.lines;
 	const own =
 		shape?.shape === 'marked' ? shape.reads : shape?.shape === 'indented' ? shape.open : null;
-	if (!own) return (line, width) => MARKER_ONLY.test(line.slice(0, width));
-	return (line, width) => {
-		// A lazy line carries no marker, and an indented line only its indent.
-		if (isBlankText(line.slice(0, width))) return true;
-		const read = own.exec(line);
-		return read?.index === 0 && read[0].length === width;
+	const titleColumn =
+		shape?.shape === 'fenced' ? (line: string) => shape[READS_LINES].titleColumn(line) : () => null;
+	if (!own)
+		return { isMarker: (line, width) => MARKER_ONLY.test(line.slice(0, width)), titleColumn };
+	return {
+		isMarker(line, width) {
+			// A lazy line carries no marker, and an indented line only its indent.
+			if (isBlankText(line.slice(0, width))) return true;
+			const read = own.exec(line);
+			return read?.index === 0 && read[0].length === width;
+		},
+		titleColumn
 	};
 }
 
 /** Where `body`'s text starts in raw line `raw`, or null when the line carries none of it: its
- *  tail behind a marker, its text behind a marker a tab was cut in, or a title inside tags. */
-function textColumn(raw: ParsedLine, body: ParsedLine, isMarker: ReadsMarker): number | null {
+ *  tail behind a marker, its text behind a marker a tab was cut in, or a title line's title. */
+function textColumn(raw: ParsedLine, body: ParsedLine, reader: LineReader): number | null {
 	const { text } = body;
+	const { isMarker } = reader;
 	const behind = raw.text.length - text.length;
 	if (isBlankText(text)) {
 		// A blank body line's spaces sit at the end of its marker; a title with no text, in its tags.
 		const width = raw.text.endsWith(text) ? behind : raw.text.length;
-		return isMarker(raw.text, width) ? width : inTags(raw.text, text);
+		return isMarker(raw.text, width) ? width : titleIn(raw.text, text, reader);
 	}
 	if (raw.text.endsWith(text) && isMarker(raw.text, behind)) return behind;
 	const content = text.trimStart();
@@ -621,12 +641,12 @@ function textColumn(raw: ParsedLine, body: ParsedLine, isMarker: ReadsMarker): n
 		// Negative where the cut tab stands for more spaces than the marker left behind.
 		return width - (text.length - content.length);
 	}
-	return inTags(raw.text, text);
+	return titleIn(raw.text, text, reader);
 }
 
-function inTags(line: string, text: string): number | null {
-	const at = line.indexOf('>' + text + '<');
-	return at < 0 ? null : at + 1;
+function titleIn(line: string, text: string, reader: LineReader): number | null {
+	const at = reader.titleColumn(line);
+	return at !== null && line.startsWith(text, at) && at + text.length <= line.length ? at : null;
 }
 
 /** The index of the line `offset` falls on; an offset on a line's ending counts as that line. */
