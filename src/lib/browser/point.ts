@@ -31,34 +31,13 @@ export function caretOffsetAtPoint(
 }
 
 /** A viewport point handed to a plugin's `caret`, which turns itself into an offset in an element
- *  of the plugin's own, moved first onto the box its text paints in (a centred formula's). */
+ *  of the plugin's own. */
 export function viewportPointAt(clientX: number, clientY: number) {
 	return {
 		x: clientX,
 		y: clientY,
-		offsetIn(el: HTMLElement) {
-			const ink = inkBox(el);
-			const at = ink ? clampPointIntoBox(ink, clientX, clientY) : { x: clientX, y: clientY };
-			return caretOffsetAtPoint(el, at.x, at.y);
-		}
+		offsetIn: (el: HTMLElement) => caretOffsetAtPoint(el, clientX, clientY)
 	};
-}
-
-type Box = Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>;
-
-// The elements holding `el`'s text, their boxes joined; null where none of them is laid out.
-function inkBox(el: HTMLElement): Box | null {
-	const ink = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
-	const walker = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-		const box = node.parentElement?.getBoundingClientRect();
-		if (!box || box.width === 0 || box.height === 0) continue;
-		ink.left = Math.min(ink.left, box.left);
-		ink.top = Math.min(ink.top, box.top);
-		ink.right = Math.max(ink.right, box.right);
-		ink.bottom = Math.max(ink.bottom, box.bottom);
-	}
-	return ink.left === Infinity ? null : ink;
 }
 
 /**
@@ -123,7 +102,7 @@ function browserCaretAtPoint(
 }
 
 /** A point one pixel inside `rect`, so the topmost element there is the box's own content. */
-export function clampPointIntoBox(rect: Box, x: number, y: number): { x: number; y: number } {
+export function clampPointIntoBox(rect: DOMRect, x: number, y: number): { x: number; y: number } {
 	return {
 		x: clamp(x, rect.left + 1, rect.right - 1),
 		y: clamp(y, rect.top + 1, rect.bottom - 1)
