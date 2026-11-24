@@ -6,7 +6,7 @@ import type { InlineNode } from '#lib';
 import {
 	INLINE_PRIORITIES,
 	inline,
-	type CaretPoint,
+	type ViewportPoint,
 	registerInlineSyntax,
 	type ImagePiece,
 	type Inline,
@@ -351,7 +351,9 @@ describe("inline(): what a widget's arrows and click do", () => {
 
 // Miss-analysis: no row asked what `caret` is handed, so the claim's bytes went missing unseen.
 it("inline(): a widget's caret gets the click's point and the claim's bytes", () => {
-	const caret = vi.fn((_el: HTMLElement, _point: CaretPoint, source: string) => source.length - 1);
+	const caret = vi.fn(
+		(_el: HTMLElement, _point: ViewportPoint, source: string) => source.length - 1
+	);
 	const chip = inline({
 		name: 'chip',
 		label: 'Chip',
@@ -365,7 +367,7 @@ it("inline(): a widget's caret gets the click's point and the claim's bytes", ()
 	const { grammar } = editorReading([['chips', [chip]]]);
 	const editing = grammar.inlines!().get('chips/chip' as never)!.widget!.editing as WidgetEditing;
 	const el = document.createElement('span');
-	const point: CaretPoint = { x: 3, y: 4, offsetIn: () => 1 };
+	const point: ViewportPoint = { x: 3, y: 4, offsetIn: () => 1 };
 	expect(editing.revealOffsetAtPoint!(el, '{xyz}', 3, 4, point)).toBe(4);
 	expect(caret).toHaveBeenCalledWith(el, point, '{xyz}');
 });

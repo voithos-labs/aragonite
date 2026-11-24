@@ -32,7 +32,7 @@ export function caretOffsetAtPoint(
 
 /** A viewport point handed to a plugin's `caret`, which turns itself into an offset in an element
  *  of the plugin's own, moved first onto the box its text paints in (a centred formula's). */
-export function caretPointAt(clientX: number, clientY: number) {
+export function viewportPointAt(clientX: number, clientY: number) {
 	return {
 		x: clientX,
 		y: clientY,

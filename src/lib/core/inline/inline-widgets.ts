@@ -19,7 +19,7 @@ import type { PluginView } from '../../plugin-view';
 import type { WidgetProps } from '../../schema/inline-type';
 import type { Editor } from '../../schema/plugin-unit';
 import type { Block } from '../../schema/doc-view';
-import type { CaretPoint } from '../../schema/drawing';
+import type { ViewportPoint } from '../../schema/drawing';
 
 /** The inline-widget element whose source starts at `start`, or null. The only place this
  *  selector is written: a mistyped copy would fail silently as a null `querySelector`. */
@@ -155,7 +155,7 @@ export type WidgetEditing = Omit<InlineWidgetEditingPolicy, 'revealOffsetAtPoint
 		source: string,
 		clientX: number,
 		clientY: number,
-		point?: CaretPoint
+		point?: ViewportPoint
 	) => number | null;
 };
 
