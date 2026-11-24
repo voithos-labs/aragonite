@@ -53,28 +53,25 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 	const opensInfo = (raw: string) => infoOpen(firstDisplayLine(raw).text) !== null;
 	const infoRule = fenceRawWrite(fenceShapeOfRaw);
 
-	// The body runs from the end of the opening line to the start of the closing line, or to the end
-	// of an unclosed fence; with no fence line to leave out, it's all of the bytes.
+	// Where the fence lines sit: the body runs from the end of the opening line to the start of the
+	// closing line, or to the end of an unclosed fence. `held` reads a fixed fence as the write holds it.
+	const parts = (text: string, held: boolean): FenceParts | null => {
+		const anatomy = opensInfo(text) && fenceAnatomy(text);
+		if (anatomy) return { ...anatomy, closerEnd: text.length };
+		return splitFixed(fixed, text, held) ?? brokenSplit(fixed, text);
+	};
+
+	// With no fence line to leave out, the body is all of the bytes.
 	const range = (raw: string): { start: number; end: number } => {
-		const anatomy = opensInfo(raw) && fenceAnatomy(raw);
-		if (anatomy) return { start: anatomy.bodyStart, end: anatomy.closerStart };
-		const split = splitFixed(fixed, raw, false) ?? brokenSplit(fixed, raw);
-		return split
-			? { start: split.bodyStart, end: split.closerStart }
-			: { start: 0, end: raw.length };
+		const at = parts(raw, false);
+		return at ? { start: at.bodyStart, end: at.closerStart } : { start: 0, end: raw.length };
 	};
 
 	// A shown text splits as the write holds it, so a body line an `escape` will rewrite stays body.
 	const split = (text: string): ShownFence | null => {
-		const anatomy = opensInfo(text) && fenceAnatomy(text);
-		if (anatomy) {
-			const { bodyStart, closerStart } = anatomy;
-			const [opener, body] = [text.slice(0, bodyStart), text.slice(bodyStart, closerStart)];
-			return { opener, body, closer: text.slice(closerStart), after: '' };
-		}
-		const fixedSplit = splitFixed(fixed, text, true) ?? brokenSplit(fixed, text);
-		if (!fixedSplit) return null;
-		const { bodyStart, closerStart, closerEnd } = fixedSplit;
+		const at = parts(text, true);
+		if (!at) return null;
+		const { bodyStart, closerStart, closerEnd } = at;
 		return {
 			opener: text.slice(0, bodyStart),
 			body: text.slice(bodyStart, closerStart),
@@ -304,9 +301,16 @@ function closingLine(
 	return closing;
 }
 
-/** A text read whole as a fixed fence: its body from `bodyStart`, its closer from `closerStart` to
- *  `closerEnd`, and what follows from there; an unclosed one's body runs to the end. */
-interface FixedSplit extends FixedRead {
+/** A fenced text's body from `bodyStart`, its closer from `closerStart` to `closerEnd`, and what
+ *  follows from there; an unclosed one's body runs to the end. */
+interface FenceParts {
+	bodyStart: number;
+	closerStart: number;
+	closerEnd: number;
+}
+
+/** A text read whole as a fixed fence. */
+interface FixedSplit extends FixedRead, FenceParts {
 	lines: ParsedLine[];
 	bodyStart: number;
 	closerStart: number;
@@ -423,10 +427,7 @@ function brokenOneLine(fixed: readonly FixedFence[], text: string): BrokenOneLin
 
 /** A broken one-line block read as the write will shape it: its opener, the text after it, and
  *  the closer where the text still ends with one. */
-function brokenSplit(
-	fixed: readonly FixedFence[],
-	text: string
-): { bodyStart: number; closerStart: number; closerEnd: number } | null {
+function brokenSplit(fixed: readonly FixedFence[], text: string): FenceParts | null {
 	const broken = brokenOneLine(fixed, text);
 	if (!broken) return null;
 	const closerStart = broken.closed ? text.length - broken.closer.length : text.length;
