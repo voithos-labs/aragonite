@@ -9,7 +9,7 @@ import type { InlineHandler } from '../core/inline/scan/plugin-syntax';
 import type { WidgetEntry } from '../core/inline/inline-widgets';
 import type { Mode } from '../presentation-mode';
 import type { Block, InlineType } from './doc-view';
-import type { CaretPoint } from './drawing';
+import type { ViewportPoint } from './drawing';
 import type { Contribution, Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { qualifiedName } from './plugin-name';
 import { claimCommand, type Command } from './plugin-command';
@@ -131,7 +131,7 @@ export interface Widget {
 	inner?(source: string): { start: number; end: number } | null;
 	/** The offset into `source`, the claim's bytes, a click at `point` names, for a drawing only the
 	 *  plugin can map; null keeps the editor's own landing. */
-	caret?(el: HTMLElement, point: CaretPoint, source: string): number | null;
+	caret?(el: HTMLElement, point: ViewportPoint, source: string): number | null;
 }
 
 /** What a widget's drawing gets, updated when its bytes, position, mode or theme change. `from` and

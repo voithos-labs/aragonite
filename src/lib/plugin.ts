@@ -102,11 +102,11 @@ export type { BlockPaint, MarkAt, Paint, PaintContext } from './decorations/pain
 export type {
 	BoxDrawContext,
 	BoxFocus,
-	CaretPoint,
 	ContainerDrawContext,
 	DrawContext,
 	Drawn,
-	TextDrawContext
+	TextDrawContext,
+	ViewportPoint
 } from './schema/drawing';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.

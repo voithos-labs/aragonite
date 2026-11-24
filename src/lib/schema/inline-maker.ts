@@ -3,7 +3,7 @@ import type { ImageFields, InlineNode, PluginInlineKind } from '../core/nodes';
 import { isBuiltInTrigger } from '../core/inline/scan/plugin-syntax';
 import type { WidgetEditing } from '../core/inline/inline-widgets';
 import { checkLocalName } from './block-shapes';
-import type { CaretPoint } from './drawing';
+import type { ViewportPoint } from './drawing';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import {
 	madeInline,
@@ -239,7 +239,7 @@ function widgetEditing(
 				source: string,
 				_x: number,
 				_y: number,
-				point?: CaretPoint
+				point?: ViewportPoint
 			) => (point ? caret(el, point, source) : null)
 		})
 	};

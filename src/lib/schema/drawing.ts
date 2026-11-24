@@ -68,7 +68,7 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 	dom: HTMLElement;
 	/** Where a click on a picture of the text lands: an element whose text is the block's text, or a
 	 *  point to an offset in that text. */
-	caret?: HTMLElement | ((point: CaretPoint) => number);
+	caret?: HTMLElement | ((point: ViewportPoint) => number);
 	/** The bytes, position, mode, theme, focus, typed text or `depends` answers changed; false draws
 	 *  it again. Without it, what `draw` drew stays. */
 	update?(block: Block<D>, ctx: C): boolean | void;
@@ -80,11 +80,11 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 }
 
 /** A viewport point a click names, for a drawing that maps it to an offset itself. */
-export interface CaretPoint {
+export interface ViewportPoint {
 	readonly x: number;
 	readonly y: number;
-	/** The character offset in `el`'s own text nearest the point, clamped into the box its text
-	 *  paints in; null where `el` holds no text. */
+	/** The character offset in `el`'s own text nearest the point, clamped into its box; null where
+	 *  `el` holds no text. */
 	offsetIn(el: HTMLElement): number | null;
 }
 

@@ -16,6 +16,8 @@ export interface SvelteBlockProps<D = never, C extends DrawContext = DrawContext
 }
 
 export interface SvelteBlockOptions {
+	/** Classes for the block's element. */
+	className?: string;
 	/** Context the component reads with `getContext`, as `mount` takes it: state made in
 	 *  `contributes`, say, which is one editor's. */
 	context?: Map<unknown, unknown>;
@@ -28,10 +30,11 @@ const DRAWN_CONTEXT = Symbol('drawn-parts');
 
 export function svelteBlock<D = never, C extends DrawContext = DrawContext>(
 	Component: Component<SvelteBlockProps<D, C>>,
-	options: SvelteBlockOptions = {}
+	{ className, context }: SvelteBlockOptions = {}
 ): (block: Block<D>, ctx: C) => Drawn<D, C> {
 	return (block, ctx) => {
 		const dom = document.createElement('div');
+		if (className) dom.className = className;
 		// Raw: a block and its context are read whole, never deep-tracked.
 		let current = $state.raw({ block, ctx });
 		const declared = { parts: (): DrawnParts => ({}) };
@@ -47,7 +50,7 @@ export function svelteBlock<D = never, C extends DrawContext = DrawContext>(
 				Slot: DrawnSlot
 			},
 			context: new Map<unknown, unknown>([
-				...(options.context ?? []),
+				...(context ?? []),
 				[SLOT_CONTEXT, () => current.ctx],
 				[DRAWN_CONTEXT, declared]
 			])

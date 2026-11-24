@@ -24,7 +24,7 @@ import {
 	lineBlock,
 	type Block,
 	type EditorPlugin,
-	type CaretPoint,
+	type ViewportPoint,
 	type TextDrawContext
 } from '#lib/plugin.js';
 import { caretOffsetAtPoint } from '#lib/browser/point.js';
@@ -346,7 +346,7 @@ describe('a drawn picture that opens its text (edit: source)', () => {
 	});
 
 	it('opens where its caret function puts the point, and at the line’s start without a caret', async () => {
-		const caret = vi.fn((_point: CaretPoint) => 2);
+		const caret = vi.fn((_point: ViewportPoint) => 2);
 		const at = mount(
 			marked({
 				draw: (_block: Block<never>, ctx: TextDrawContext) => ({ ...pictureDom(ctx), caret })

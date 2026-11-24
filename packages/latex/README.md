@@ -43,10 +43,6 @@ Hand `plugins` to the editor. Each editor keeps its own renderings, so two edito
 - The formula's source is colored when the editor also lists the highlight package (`@voithos-labs/aragonite-highlight`); without it the source shows plain.
 - With latex listed, the code block's language picker offers `math`, which turns the block into a math block.
 
-## Upgrading from 0.11.5
-
-`latexPlugin(options)` is `latex(options)` now, and a bare `latex` works too. Both block forms are one block type, `latex/block`, and inline math is `latex/math`; the insert row's id is `latex/block`. `MATH_INLINE`, `MATH_BLOCK` and `MATH_FENCE` are gone: compare against `'latex/math'` and `'latex/block'` if you need to.
-
 ## More
 
 The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the [plugin guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide.md) is where to go if you'd rather write your own.

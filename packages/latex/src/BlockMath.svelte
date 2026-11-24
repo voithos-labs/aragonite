@@ -84,7 +84,7 @@
 	class:math-block-split={revealed && layout === 'split'}
 	class:math-block-stacked={revealed && layout === 'stacked'}
 >
-	<div class="math-block-card math-block-source-card">
+	<div class="math-block-card">
 		<Slot of="source" />
 		{#if revealed && layout !== 'split'}
 			{@render layoutToggle()}
@@ -162,10 +162,17 @@
 		gap: 6px;
 	}
 
-	/* The equation's cards keep a code block's distance from their neighbours (editor.css);
-	   padding, not margin, because block heights are measured from the host's box. */
-	:global(.block-host[data-block-kind='latex/block']) {
+	/* A code block's distance from its neighbours, as padding: block heights are measured from
+	   the host's box. The marker token keeps the fence lines at the formula's own weight. */
+	.math-block {
 		padding-block: 6px;
+		--syntax-marker-dim: 1;
+	}
+
+	/* The `math` info string reads plain too; the editor's info-string colour has no token. */
+	.math-block :global(.math-block-source .md-lang) {
+		opacity: 1;
+		color: inherit;
 	}
 
 	/* Each half is its own card, and the positioning parent for its toggle button. */
@@ -173,11 +180,6 @@
 		position: relative;
 		min-width: 0;
 		border-radius: 8px;
-	}
-
-	/* Folded, the source's card holds nothing to show, so it takes no room. */
-	.math-block-source-card:has(:global([data-view-text][hidden])) {
-		display: none;
 	}
 
 	/* Keyed on editing, not on the side-by-side layout: hiding the preview leaves one card, and
@@ -202,12 +204,6 @@
 		background: transparent;
 		border-color: transparent;
 		border-radius: 8px;
-	}
-
-	/* The fence lines, the `math` info string too, read at the formula's own weight and colour. */
-	.math-block :global(.math-block-source .md-marker) {
-		opacity: 1;
-		color: inherit;
 	}
 
 	/* The card stretches the source so its box fills the column; without it a short formula's

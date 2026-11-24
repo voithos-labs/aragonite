@@ -31,17 +31,16 @@ class LayoutPage extends BlockMathPage {
 		return this.page.evaluate(() => document.activeElement?.closest('.math-block-source') !== null);
 	}
 
-	/** The block host's distance outside the equation's box, above and below. */
+	/** The room between the block host's edges and the cards it shows, above and below. */
 	async room(): Promise<[number, number]> {
 		return this.page.evaluate(() => {
 			const host = document.querySelector('[data-block-path="[1]"]')!.getBoundingClientRect();
-			const block = document
-				.querySelector('[data-block-path="[1]"] .math-block')!
-				.getBoundingClientRect();
-			return [block.top - host.top, host.bottom - block.bottom].map((v) => Math.round(v)) as [
-				number,
-				number
-			];
+			const cards = [...document.querySelectorAll('[data-block-path="[1]"] .math-block-card')]
+				.map((card) => card.getBoundingClientRect())
+				.filter((box) => box.height > 0);
+			const top = Math.min(...cards.map((box) => box.top));
+			const bottom = Math.max(...cards.map((box) => box.bottom));
+			return [top - host.top, host.bottom - bottom].map((v) => Math.round(v)) as [number, number];
 		});
 	}
 }

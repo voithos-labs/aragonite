@@ -60,6 +60,20 @@ for (const mode of ['live', 'source'] as const) {
 			await expect(editor.source).toHaveCount(0);
 			expect(await editor.landedIn()).toBe(2);
 		});
+
+		test('Alt+ArrowDown moves the open block below the next one, as a code block moves; Alt+ArrowUp moves it back', async ({
+			page
+		}) => {
+			await editor.getBlock(0).click();
+			await page.keyboard.press(edgeKey('lineEnd'));
+			await page.keyboard.press('ArrowRight');
+			await expect(editor.source).toBeFocused();
+
+			await page.keyboard.press('Alt+ArrowDown');
+			await editor.bridge.waitForSourceEquals(`Before\n\nAfter\n\n${SOURCE}\n`);
+			await page.keyboard.press('Alt+ArrowUp');
+			await editor.bridge.waitForSourceEquals(`Before\n\n${SOURCE}\n\nAfter\n`);
+		});
 	});
 }
 

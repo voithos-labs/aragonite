@@ -56,7 +56,7 @@ import { hidesRowSource } from '../../../browser/painted';
 import { spanAround } from '../../../selection/multi-click';
 import { selectedWidgetKeeps } from './selected-widget-keys';
 import { caretEdgeKey, pageKey, typesCharacter } from '../../../schema/keybindings';
-import { caretPointAt, elementAtPoint } from '../../../browser/point';
+import { viewportPointAt, elementAtPoint } from '../../../browser/point';
 import {
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
@@ -414,7 +414,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const atPoint = widgetEditing(inline.kind)?.revealOffsetAtPoint;
 		if (!widget || !atPoint) return null;
 		const source = deps.node.raw.slice(inline.start, inline.end);
-		const seat = atPoint(widget, source, x, y, caretPointAt(x, y));
+		const seat = atPoint(widget, source, x, y, viewportPointAt(x, y));
 		return seat === null ? null : Math.max(0, Math.min(seat, source.length));
 	}
 

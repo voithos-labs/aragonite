@@ -7,7 +7,7 @@ import type { CaretTarget } from '#lib/plugin.js';
 // The pieces a kind answers `caretTargetAtPoint` with. A field the platform reads but a plugin
 // cannot honestly fill looks supported and is not, so each is pinned to where it lives.
 describe('caret-geometry barrel surface', () => {
-	// A drawing's point turns itself into an offset (`CaretPoint.offsetIn`), so the free probe is
+	// A drawing's point turns itself into an offset (`ViewportPoint.offsetIn`), so the free probe is
 	// the editor's own.
 	it('publishes no free point probe', () => {
 		expect('caretOffsetAtPoint' in pluginBarrel).toBe(false);

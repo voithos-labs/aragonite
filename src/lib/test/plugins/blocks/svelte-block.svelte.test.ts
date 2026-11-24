@@ -68,6 +68,31 @@ describe('svelteBlock', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
+	it("puts `className` on the block's element, as `reactBlock` and `vueBlock` do", async () => {
+		const framed = definePlugin({
+			name: 'framed',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				blocks: [
+					lineBlock({
+						name: 'note',
+						label: 'Note',
+						match: /^%%note(?: (?<text>.*))?$/,
+						sample: '%%note hi',
+						insert: { none: 'a test block type' },
+						edit: 'text',
+						draw: svelteBlock(SlottedNote, { className: 'note-frame wide' })
+					})
+				]
+			})
+		});
+		const editor = mountEditor({ source: SOURCE, plugins: [framed] });
+		await editor.settle();
+		const frame = blockHostAt(editor, NOTE).querySelector('.note-frame.wide');
+		expect(frame?.querySelector('.caption')?.textContent).toBe('abcd');
+	});
+
 	it('renders the component again on each edit', async () => {
 		const editor = mountEditor({ source: SOURCE, plugins: [notes] });
 		await editor.settle();

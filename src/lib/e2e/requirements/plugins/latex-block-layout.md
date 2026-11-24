@@ -8,7 +8,7 @@ block's room above and below in every one of them. Driven with the mouse on both
 ## Happy paths
 
 - A click on the toggle while the source is open cycles split, stacked, source and back to split
-- The block's host sits 6px outside the equation's own box, above and below, folded and open
+- The block's host sits 6px outside the cards it shows, above and below, folded and open
 
 ## User interactions
 

@@ -6,7 +6,7 @@
 import {
 	inline,
 	isUnicodeWhitespace,
-	type CaretPoint,
+	type ViewportPoint,
 	type WidgetProps
 } from '@voithos-labs/aragonite/plugin';
 import type { MathRenders } from './math-renders';
@@ -73,7 +73,7 @@ function formulaSpan(source: string): { start: number; end: number } | null {
 /** How far along the painted glyphs a point falls, scaled into the span they draw. */
 export function glyphOffset(
 	rendered: HTMLElement,
-	point: CaretPoint,
+	point: ViewportPoint,
 	span: { start: number; end: number }
 ): number | null {
 	// `.katex-html` is the half that paints: the MathML copy beside it is clipped to a pixel.

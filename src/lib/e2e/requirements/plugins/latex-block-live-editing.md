@@ -30,14 +30,15 @@ sits on the body's own line where a range through the body reaches it.
   then the `Y`, read off the source on screen (the tree sees it only on blur); the blur commits
   `X` before the body, and one undo puts the block back
 - Delete at the body's end deletes nothing, and the blur commits nothing
-- Tab leaves the block, as it leaves a paragraph, since no built-in binds it and it is the
-  browser's own focus step, and the blur it causes commits the whole draft
+- Tab leaves the block: a drawn block's text runs no tab command, so it is the browser's own
+  focus step, and the blur it causes commits the whole draft
 - Ctrl+A inside the source, then Ctrl+C, copies the same bytes Ctrl+X cuts: the whole block,
   hidden fence lines included, since the cut removes those too
 
-- Home then six Shift+ArrowRight out of a one-line block's body, then Backspace: the range is
-  deleted, the text it reached is absorbed into the body, and the block is still math
-  (`$$After$$`), never a paragraph opening with a stray `$$`
+- Home then six Shift+ArrowRight out of a one-line block's body, then Backspace: the body is
+  emptied, the block is still math and the paragraph below stays its own block. The bytes differ
+  from 0.11.5's `$$` over `$$`: the range core reads no fence whose closer shares the body's
+  line, so the block writes `$$$$` and an empty paragraph sits between it and `After`
 - one undo after that range delete puts the block and the paragraph below it back
 
 ## Miss-analysis

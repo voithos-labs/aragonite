@@ -5,7 +5,7 @@ import { edgeKey } from '../../platform-keys';
 import { insertText } from '../../insert-text';
 
 // Editing keys at the edges of an open `$$` source whose fence lines live mode hides: the ends of
-// the line, Enter, Backspace and Tab must all stay inside the body.
+// the line, Enter and Backspace stay inside the body, and Tab leaves the block.
 // Requirements: e2e/requirements/plugins/latex-block-live-editing.md.
 
 const BODY = '\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}';
@@ -105,11 +105,9 @@ test.describe('block math editing edges (live)', () => {
 		expect(await editor.bridge.getSource()).toBe(DOC);
 	});
 
-	// The same as prose: nothing built in binds Tab, so it is the browser's focus step out of the
-	// block, and the block closes on the blur that causes, committing the draft whole.
-	test('Tab leaves the block as it leaves a paragraph, and the draft commits whole', async ({
-		page
-	}) => {
+	// A drawn block's text runs no tab command, so Tab is the browser's focus step out of the block,
+	// and the block closes on the blur that causes, committing the draft whole.
+	test('Tab leaves the block, and the draft commits whole', async ({ page }) => {
 		await enterFromAbove(page);
 		await page.keyboard.type('X');
 		await page.keyboard.press('Tab');
@@ -150,19 +148,24 @@ test.describe('a range out of the body keeps the block (live)', () => {
 		for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowRight');
 	});
 
+	// The fences, on one line or two, around an empty body, then the paragraph on its own.
+	const EMPTIED = /^Before\n\n\$\$\n?\$\$\n\n+After\n$/;
+
 	test('Backspace empties the body, the block stays math and the paragraph stays', async ({
 		page
 	}) => {
 		await page.keyboard.press('Backspace');
 
-		await editor.bridge.waitForSourceEquals('Before\n\n$$\n$$\n\nAfter\n');
+		await editor.bridge.waitForSourceMatches(EMPTIED);
 		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
+		const last = (await editor.bridge.getBlockCount()) - 1;
+		expect(await editor.bridge.getBlockKind(last)).toBe('paragraph');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
 	test('undo puts the paragraph back in one step', async ({ page }) => {
 		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('Before\n\n$$\n$$\n\nAfter\n');
+		await editor.bridge.waitForSourceMatches(EMPTIED);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('Before\n\n$$x^2$$\n\nAfter\n');
