@@ -38,6 +38,10 @@ Hand `plugins` to the editor, and build the array once for the whole app, not on
 - Click an entry (or press Enter on it) to jump to its heading. To edit the `[[toc]]` line itself, click the block anywhere but an entry.
 - `maxDepth` (1 to 6, default 6) is the deepest heading level listed, in the editor whose `plugins` holds it: `[toc({ maxDepth: 3 })]`.
 
+## Upgrading from 0.11.5
+
+`tocPlugin(options)` is `toc(options)` now, and a bare `toc` works too. The block's kind and its insert row's id are both `toc/toc`, and `TOC_BLOCK` is gone: compare against `'toc/toc'` if you need to.
+
 ## More
 
 The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the plugin guide's page on [reading the document above your block](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/reading-the-document.md) builds a block like this one.
