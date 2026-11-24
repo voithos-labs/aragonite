@@ -8,6 +8,7 @@ import { checkHost } from './test-host';
 
 const D = '<details open>\n<summary>D</summary>\n\nx\n</details>\n';
 const QD = '> <details open>\n> <summary>D</summary>\n>\n> x\n> </details>\n';
+const LD = '- <details open>\n  <summary>D</summary>\n\n  x\n  </details>\n';
 
 describe("a range from a container's first byte into its body keeps the opening", () => {
 	for (const mode of ['live', 'source'] as Mode[]) {
@@ -18,6 +19,12 @@ describe("a range from a container's first byte into its body keeps the opening"
 				QD,
 				QD.indexOf('x') + 1,
 				'> <details open>\n> <summary></summary>\n> \n> </details>\n'
+			],
+			[
+				'a details in a list item',
+				LD,
+				LD.indexOf('x') + 1,
+				'- <details open>\n  <summary></summary>\n  \n  </details>\n'
 			]
 		])(`%s, ${mode}`, (_, source, to, left) => {
 			expect(removalOf(source, { from: 0, to }, 'backspace', mode, checkHost()).source).toBe(left);
