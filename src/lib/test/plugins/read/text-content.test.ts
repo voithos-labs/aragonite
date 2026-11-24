@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { definePlugin, grammar, inline, type Block } from '#lib/plugin.js';
 import { makeBlock, DETACHED_READING } from '#lib/schema/doc-view.js';
 import { parse } from '#lib';
+import { toc } from '#packages/toc/src/index.js';
 
 const read = (text: string, plugins: Parameters<typeof grammar>[0] = []): Block =>
 	grammar(plugins).parse(text).blocks[0];
@@ -73,6 +74,12 @@ describe('Block.textContent', () => {
 			contributes: () => ({ inlines: [shown, plain] })
 		});
 		expect(read('say {{hi}} and <<yo>>\n', [plugin]).textContent).toBe('say HI and <<yo>>');
+	});
+
+	// A drawn block reads as its body, and a line that is all marker has none.
+	it("reads the table of contents' `[[toc]]` line as nothing, alone or in a quote", () => {
+		expect(read('[[toc]]\n', [toc]).textContent).toBe('');
+		expect(read('> [[toc]]\n>\n> after\n', [toc]).textContent).toBe('\nafter');
 	});
 
 	it('reads a block parsed outside any editor', () => {
