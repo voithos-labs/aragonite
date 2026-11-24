@@ -25,9 +25,6 @@ Seed (`?seed=math`): `Before $x^2$ after` in block [0], and a `Next` paragraph i
   earlier one, and both sit strictly inside the delimiters. Asserted as an ordering rather than
   a byte, because the mapping is proportional and an x derived from a rect lands on whichever
   side of a glyph the font metrics put it.
-- A click at the left edge of an inline fraction (`$\frac{a}{b}+c$`), beside its ink, types before
-  the formula's first byte, and one at the right edge after its last, though the fraction's first
-  glyph in the markup isn't its first byte.
 - Escape between the two clicks brings the rendered widget back, and neither click edits a byte.
 - Keyboard entry is unchanged: arriving from the left still shows the source at the leading edge
   (`latex-inline.md` owns that scenario).

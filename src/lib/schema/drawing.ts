@@ -77,8 +77,8 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 export interface ViewportPoint {
 	readonly x: number;
 	readonly y: number;
-	/** The character offset in `el`'s own text nearest the point, clamped into its box; null where
-	 *  `el` holds no text. */
+	/** The character offset in `el`'s own text nearest the point, clamped into the box its text
+	 *  paints in; null where `el` holds no text. */
 	offsetIn(el: HTMLElement): number | null;
 }
 

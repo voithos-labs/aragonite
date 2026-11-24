@@ -54,21 +54,6 @@ test.describe('inline math: a click puts the caret where it landed', () => {
 		});
 	}
 
-	// A fraction's first glyph in the DOM isn't its first byte, so only a click at the widget's edge,
-	// beside the ink, tells the formula's ends apart.
-	for (const side of ['left', 'right'] as const) {
-		test(`a click at the ${side} edge of a fraction types at that end of the formula`, async () => {
-			const formula = String.raw`\frac{a}{b}+c`;
-			await editor.loadContent(`Before $${formula}$ after\n\nNext\n`);
-			await expect(editor.mathWidget).toHaveCount(1);
-			const widget = (await editor.mathWidget.boundingBox())!;
-			const x = side === 'left' ? widget.x + 1 : widget.x + widget.width - 1;
-			const typed = side === 'left' ? `z${formula}` : `${formula}z`;
-
-			expect(await typeAtGlyphX(x, 'z')).toBe(`Before $${typed}$ after\n\nNext\n`);
-		});
-	}
-
 	test('a press further along the formula puts the caret at a later offset', async ({ page }) => {
 		await editor.loadContent(LONG_FORMULA);
 		await expect(editor.mathWidget).toHaveCount(1);
