@@ -30,6 +30,18 @@ describe("a range from a container's first byte into its body keeps the opening"
 			expect(removalOf(source, { from: 0, to }, 'backspace', mode, checkHost()).source).toBe(left);
 		});
 
+		// No route draws it today; the core still keeps the opening and clears the summary it covers.
+		it(`a range from a details' first byte to its summary's end, ${mode}`, () => {
+			const left = removalOf(
+				D,
+				{ from: 0, to: D.indexOf('D<') + 1 },
+				'backspace',
+				mode,
+				checkHost()
+			);
+			expect(left.source).toBe('<details open>\n<summary></summary>\n\nx\n</details>\n');
+		});
+
 		// Controls: a range that stays on a `:::` row, or starts on its marker and runs off it. The
 		// row whole is its title in live mode (`title-row-drawn.test.ts`).
 		const row = mode === 'live' ? ':::tip \nbody\n:::\n' : '\nbody\n:::\n';

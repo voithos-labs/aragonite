@@ -65,7 +65,7 @@ function pastOpening(doc: Doc, from: number, to: number): number {
 		(b) => !!b.text && b.text.from >= from && b.text.from <= to
 	);
 	const owner = row && titleOwner(doc, row);
-	if (!owner || titleAt(doc, to) === row) return from;
+	if (!owner) return from;
 	// The opening is the container's first line, an item's or a quote's markers before it included.
 	return from < owner.from - lineHead(doc.source, owner.from).length ? from : row.text!.from;
 }
