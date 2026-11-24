@@ -47,7 +47,7 @@ function markerSpan(text: string): HTMLSpanElement {
 }
 
 /** Makes a one-line block type; what it claims is the line it matched, so its bytes can't be wrong. */
-export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
+export function lineBlock<D = never, H = unknown>(spec: LineBlockSpec<D, H>): BlockType<D> {
 	checkLocalName('lineBlock', spec.name);
 	const priority = priorityBefore(spec.before);
 	const shape = lineShape(spec as LineBlockSpec<unknown>, priority);
@@ -73,7 +73,8 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 		completer: completerOf(spec.complete, shape.claims),
 		// A line with no text of its own has an empty body, as its open text is empty.
 		bodyRange: shape.range ?? lineEnd,
-		writeData: shape.writeData
+		writeData: shape.writeData,
+		writeBody: shape.writeBody
 	});
 	return type;
 }

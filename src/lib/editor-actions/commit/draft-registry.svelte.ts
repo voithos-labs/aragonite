@@ -3,7 +3,8 @@
  * A draft holds its ranges in the bytes it opened on and maps them through every write since; a
  * write that touched one makes it stale, and its commit is one byte splice, refused with a reason
  * rather than thrown, except that a dev build also throws one started inside another write
- * (`docs/design/commit-and-undo.md` § Drafts).
+ * (`docs/design/commit-and-undo.md` § Drafts). The drawings' saves are held here too, so the
+ * undo, the redo and the mode change that close the drafts save them first.
  */
 
 import type { Draft, DraftCloseCause, DraftResult, DraftSpec } from '../../schema/drafts';
@@ -14,11 +15,12 @@ import type { DocumentStamps } from './document-stamp';
 import { startsAlone, type OpenWriteCheck } from './reading-write-gate';
 import { serialize } from '../../core/serializer';
 import { trimTrailingLineEnding } from '../../core/lines';
-import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
+import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
+import { checkSavesCommitted } from '../../invariants/history-install';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { documentByteMap, leafAtByte } from '../../tree-operations/container-offsets';
-import { splitLines } from '../../core/lines';
+import { documentLineEnding, firstLineEnding, splitLines, type ParsedLine } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
 import { makingOf } from '../../schema/block-type';
 import { nodeOfBlock, type Block } from '../../schema/doc-view';
@@ -44,9 +46,11 @@ export interface DraftRegistry {
 	/** A block's draft over the bytes of the block at `path`, or over none, which the editor closes
 	 *  through `spec` until it ends. */
 	open(spec: DraftSpec, path?: readonly number[]): Draft;
-	/** A document swap, a re-read, a mode change, and an undo or redo call it; each block draft it
-	 *  closes is ended, and at a swap or a re-read it can't land, since its block is torn down. */
+	/** Run by a swap, a re-read, a mode change, an undo and a redo: the held saves first, but at a
+	 *  swap or a re-read (G1.246), then each block draft ends, landing nothing at those two. */
 	closeAll(cause: DraftCloseCause): void;
+	/** A mounted drawing's save, held until the returned release. */
+	holdSave(save: () => void): () => void;
 	/** Whether a write must record what it changed: true while a draft is open. */
 	watching(): boolean;
 	record(change: RecordedChange | null): void;
@@ -94,6 +98,9 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 	let base = 0;
 	const open = new Set<Opened>();
 	const closers = new Map<Draft, DraftSpec>();
+	const saves = new Set<() => void>();
+	// The drafts a save opens, while one runs, for the dev check that each commits before it returns.
+	let saving: { committed: () => boolean }[] | null = null;
 	const torn = new WeakSet<Draft>();
 	// Read by `stale`, so a box drawn from it hears a write while it is open.
 	let version = $state(0);
@@ -122,11 +129,14 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		const since = () => (open.has(opened) ? log.slice(opened.start - base) : []);
 		const writes: { range: PartRange; text: string }[] = [];
 		const datas: { block: Block<unknown>; data: unknown }[] = [];
+		const bodies: { block: Block<unknown>; text: string }[] = [];
 		const inserts: { markdown: string; below: boolean; asksRewrites: boolean }[] = [];
 		let lengths: number[] | null = null;
 		let illegal: string | null = null;
 		let ended = false;
 		let closed = false;
+		let committing = false;
+		saving?.push({ committed: () => committing || ended });
 		// Fixed at its end, since an ended draft stops hearing writes.
 		let touchedAtEnd = false;
 
@@ -159,7 +169,8 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				return refused('moved', 'an undo was replacing the document');
 			if (illegal) return refused('illegal', illegal);
 			const doc = deps.doc();
-			if (writes.length === 0 && datas.length === 0) return write(doc, [], caret);
+			if (writes.length === 0 && datas.length === 0 && bodies.length === 0)
+				return write(doc, [], caret);
 			const placed: PartRange[] = [];
 			for (const pending of writes) {
 				const at = current(pending.range);
@@ -167,16 +178,20 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				placed.push(at);
 			}
 			const owned: Owned[] = [];
-			for (const { block, data } of datas) {
-				const node = nodeOfBlock(block);
+			const bodied: Owned[] = [];
+			for (const [list, value] of [
+				...datas.map(({ block, data }) => [owned, { block, data }] as const),
+				...bodies.map(({ block, text }) => [bodied, { block, data: text }] as const)
+			]) {
+				const node = nodeOfBlock(value.block);
 				const path = node && pathOfNode(doc, node);
 				if (!node || !path) return refused('moved', 'its block was rewritten or removed');
-				owned.push({ block, node, path, data });
+				list.push({ ...value, node, path });
 			}
 			// The offsets of a range or of a block's data count the tree's bytes, so their blocks are
 			// vouched before the kept starts place them: a record found wrong is forgotten, read fresh.
 			for (const at of placed) deps.starts.vouch(at.from.part - 1, at.to.part - 1);
-			for (const { path } of owned) deps.starts.vouch(path[0], path[0]);
+			for (const { path } of [...owned, ...bodied]) deps.starts.vouch(path[0], path[0]);
 			const now = deps.measured();
 			const unsorted: ByteChange[] = placed.map((at, i) => ({
 				from: byteIn(now, at.from),
@@ -185,6 +200,11 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			}));
 			for (const one of owned) {
 				const changes = dataChanges(now, one, deps.grammar);
+				if (!Array.isArray(changes)) return changes;
+				for (const change of changes) unsorted.push(change);
+			}
+			for (const one of bodied) {
+				const changes = bodyChanges(now, deps.source(), one);
 				if (!Array.isArray(changes)) return changes;
 				for (const change of changes) unsorted.push(change);
 			}
@@ -277,6 +297,10 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				datas.push({ block, data });
 				return this;
 			},
+			body(block, text) {
+				bodies.push({ block, text });
+				return this;
+			},
 			close() {
 				closed = !ended;
 				end();
@@ -288,10 +312,11 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				return mapped && byteAt(partLengths(deps.doc()), mapped.from);
 			},
 			async commit(options) {
+				committing = true;
 				if (closed) return refused('closed', 'the menu it was picked from closed first');
 				if (ended) return refused('empty', 'the draft was ended');
-				if (writes.length === 0 && datas.length === 0 && inserts.length === 0 && !illegal)
-					return refused('empty', 'nothing was written to it');
+				const none = writes.length + datas.length + bodies.length + inserts.length === 0;
+				if (none && !illegal) return refused('empty', 'nothing was written to it');
 				try {
 					return await land(options?.caret);
 				} finally {
@@ -302,6 +327,21 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		};
 		collected.register(made, opened, made);
 		return made;
+	}
+
+	// A save's write starts inside the call, so it is the newest step when the undo reads one.
+	function saveAll(): void {
+		if (saves.size === 0) return;
+		const begun: { committed: () => boolean }[] = [];
+		if (devChecksOn) saving = begun;
+		try {
+			for (const save of [...saves]) save();
+		} finally {
+			saving = null;
+		}
+		assertInvariant('save-before-swap', () =>
+			checkSavesCommitted(begun.filter((one) => !one.committed()).length)
+		);
 	}
 
 	return {
@@ -320,6 +360,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			return made;
 		},
 		closeAll(cause) {
+			if (cause !== 'document-swap') saveAll();
 			for (const [made, spec] of [...closers]) {
 				closers.delete(made);
 				if (cause === 'document-swap') torn.add(made);
@@ -329,6 +370,10 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			// The records measure a document that's gone; a re-read keeps it, and its drafts.
 			for (const opened of [...open]) if (!opened.on.live) drop(opened);
 			version++;
+		},
+		holdSave(save) {
+			saves.add(save);
+			return () => void saves.delete(save);
 		},
 		watching: () => open.size > 0,
 		record(change) {
@@ -377,6 +422,69 @@ function dataChanges(
 				]
 	);
 }
+
+/** The changes that write `data`, a text, as the block's body, in the bytes its type writes for it. */
+function bodyChanges(
+	laid: Measured,
+	source: string,
+	{ block, node, path, data }: Owned
+): ByteChange[] | DraftResult {
+	const text = data as string;
+	if (text === block.body) return [];
+	// A block holding any CRLF line writes CRLF, so no pair it had turns into a lone line feed.
+	const ending = node.raw.includes('\r\n')
+		? '\r\n'
+		: (firstLineEnding(node.raw) ?? documentLineEnding(laid.doc));
+	const written = makingOf(block.type)?.writeBody?.(node, text, ending) ?? null;
+	if (written === null)
+		return refused('illegal', `block type '${block.type.name}' takes no body like that`);
+	return lineChanges(documentByteMap(laid), source, path, node.raw, written);
+}
+
+/** The changes that turn a block's bytes `was` into `now`, in document bytes: the lines between
+ *  those both keep, each line added inside a container given the markers the block's lines carry. */
+function lineChanges(
+	map: ReturnType<typeof documentByteMap>,
+	source: string,
+	path: number[],
+	was: string,
+	now: string
+): ByteChange[] {
+	const a = splitLines(was);
+	const b = splitLines(now);
+	let head = 0;
+	while (head < a.length && head < b.length && a[head].raw === b[head].raw) head++;
+	let tail = 0;
+	const most = Math.min(a.length, b.length) - head;
+	while (tail < most && a[a.length - 1 - tail].raw === b[b.length - 1 - tail].raw) tail++;
+	const gone = a.slice(head, a.length - tail);
+	const added = b.slice(head, b.length - tail);
+	const at = (line: ParsedLine) => map.byteOf(path, line.start)!;
+	const lineStart = (byte: number) => source.lastIndexOf('\n', byte - 1) + 1;
+	const markersOf = (line: ParsedLine) => source.slice(lineStart(at(line)), at(line));
+	const endOf = (line: ParsedLine) => at(line) + line.raw.length;
+	if (gone.length === added.length) {
+		return gone.map((line, i) => ({ from: at(line), to: endOf(line), insert: added[i].raw }));
+	}
+	// A line after the first carries the containers' markers alone; the first may hold an item's.
+	const later = a[1];
+	const marks = later ? markersOf(later) : markersOf(a[0]).replace(ITEM_MARKER, spaces);
+	const joined = (lines: ParsedLine[]) => lines.map((line) => marks + line.raw).join('');
+	if (gone.length === 0) {
+		const before = a[head];
+		// Lines added after the last land past its line break; before a line, past its markers.
+		const from = before ? at(before) : endOf(a[a.length - 1]);
+		const insert = before ? joined(added).slice(marks.length) + marks : joined(added);
+		return [{ from, to: from, insert }];
+	}
+	const to = endOf(gone[gone.length - 1]);
+	if (added.length === 0) return [{ from: lineStart(at(gone[0])), to, insert: '' }];
+	return [{ from: at(gone[0]), to, insert: joined(added).slice(marks.length) }];
+}
+
+// A list item's marker and its task box, which the lines after its first indent past.
+const ITEM_MARKER = /[-*+]|\d{1,9}[.)]|\[[ xX]\]/g;
+const spaces = (run: string) => ' '.repeat(run.length);
 
 /** An open draft: where its writes start in the log, and the document it was opened on. */
 interface Opened {

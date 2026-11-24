@@ -161,6 +161,107 @@ test.describe('a drawn box writing its own bytes', () => {
 	});
 });
 
+test.describe("the field's unwritten text", () => {
+	const source = (page: Page) => page.evaluate(() => (window as any).__test.getSource() as string);
+	const run = (page: Page, id: string) =>
+		page.evaluate((id) => (window as any).__test.runCommand(id) as boolean, id);
+	const undoDepth = (page: Page) =>
+		page.evaluate(() => (window as any).__test.undoDepth() as number);
+	const field = (page: Page) => page.locator('.drawn-field textarea');
+	const WRITTEN = 'a line!\n\n```field\nfirst line here\nsecond line here\n```';
+	const TYPED = 'a line!\n\n```field\nfirst line here typed\nsecond line here\n```';
+	let editor: PluginsPage;
+
+	// A `!` typed at the end of the line above, then ` typed` at the end of the field's first line.
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('drawn');
+		await placeCaret(page, [ABOVE], 'end');
+		await page.keyboard.type('!');
+		await page.keyboard.press('ArrowRight');
+		await expect.poll(() => fieldCaret(page)).toMatchObject({ offset: 0 });
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.type(' typed');
+		await expect(field(page)).toHaveValue('first line here typed\nsecond line here');
+	});
+
+	test('an undo the editor runs saves it as the step it takes back, so a redo writes it', async ({
+		page
+	}) => {
+		expect(await run(page, 'history.undo')).toBe(true);
+		await expect.poll(() => source(page)).toContain(WRITTEN);
+		await expect(field(page)).toHaveValue('first line here\nsecond line here');
+		await placeCaret(page, [BELOW], 'end');
+		expect(await source(page)).toContain(WRITTEN);
+		await run(page, 'history.redo');
+		await expect.poll(() => source(page)).toContain(TYPED);
+	});
+
+	test('a click below writes it as it leaves, and Ctrl+Z there takes it back out', async ({
+		page
+	}) => {
+		await clickInPlace(page.locator(`[data-block-path='[${BELOW}]']`));
+		await expect.poll(() => source(page)).toContain(TYPED);
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(() => source(page)).toContain(WRITTEN);
+		await page.keyboard.press('ControlOrMeta+Shift+z');
+		await expect.poll(() => source(page)).toContain(TYPED);
+	});
+
+	test("Ctrl+Z in the field is the field's own, and the editor's undo stack stands", async ({
+		page
+	}) => {
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect(field(page)).not.toHaveValue('first line here typed\nsecond line here');
+		expect(await source(page)).toContain(WRITTEN);
+		expect(await undoDepth(page)).toBe(1);
+	});
+
+	test('a switch to live mode writes it as one step, which the next undo takes back', async ({
+		page
+	}) => {
+		await editor.setPresentationMode('live');
+		await expect.poll(() => source(page)).toContain(TYPED);
+		expect(await undoDepth(page)).toBe(2);
+		await run(page, 'history.undo');
+		await expect.poll(() => source(page)).toContain(WRITTEN);
+	});
+
+	test('a new document drops it', async ({ page }) => {
+		await editor.loadContent('Other\n');
+		await expect.poll(() => source(page)).toBe('Other\n');
+		expect(await undoDepth(page)).toBe(0);
+	});
+});
+
+test.describe("the field's menu row", () => {
+	const run = (page: Page, id: string) =>
+		page.evaluate((id) => (window as any).__test.view.run(id) as boolean, id);
+	const hold = (page: Page, index: number) =>
+		page.evaluate((index) => (window as any).__test.view.hold(index), index);
+	const fieldFocused = (page: Page) =>
+		page.evaluate(() => document.activeElement?.closest('.drawn-field') != null);
+
+	test('focuses the field through its handle while drawn', async ({ page }) => {
+		await new PluginsPage(page).gotoPlugins('drawn');
+		await hold(page, FIELD);
+		expect(await run(page, 'drawn/focus-field')).toBe(true);
+		await expect.poll(() => fieldFocused(page)).toBe(true);
+	});
+
+	test('declines once the field is scrolled out of the window', async ({ page }) => {
+		const editor = new PluginsPage(page);
+		await editor.gotoPlugins('drawn');
+		const filler = Array.from({ length: 400 }, (_, i) => `Paragraph ${i} lorem ipsum dolor`);
+		await editor.loadContent(['```field\none\n```', ...filler].join('\n\n') + '\n');
+		await hold(page, 0);
+		await editor.scrollEditorTo(1_000_000);
+		await expect(page.locator('.drawn-field')).toHaveCount(0);
+		expect(await run(page, 'drawn/focus-field')).toBe(false);
+		expect(await fieldFocused(page)).toBe(false);
+	});
+});
+
 // Two boxes back to back: no gap caret opens between them, so whole focus is the way in.
 const FENCE = '```';
 const TWO_FIELDS = `above\n\n${FENCE}field\none\n${FENCE}\n\n${FENCE}field\ntwo\n${FENCE}\n\nbelow\n`;

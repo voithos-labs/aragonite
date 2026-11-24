@@ -312,7 +312,7 @@ function standIn(
 		screened(screen, member, answer);
 	let caret: number | null = null;
 	let swaps = 0;
-	const entryOf = (command: Command<unknown> | string) => contributions.command(command);
+	const entryOf = (command: Command<unknown, never> | string) => contributions.command(command);
 	const editor: Editor = {
 		plugins: units.map((unit) => unit.name),
 		mode: modeOf('source'),
@@ -343,7 +343,7 @@ function standIn(
 			overlay: asked('view.overlay', OFF_SCREEN.overlay)
 		},
 		on: () => () => {},
-		run: (command: Command<unknown> | string, arg?: unknown) => {
+		run: (command: Command<unknown, never> | string, arg?: unknown) => {
 			const entry = entryOf(command);
 			if (entry) return contributions.run(entry, arg);
 			// A built-in runs on the block holding the caret, which only a drawn block can do: the
@@ -352,7 +352,7 @@ function standIn(
 			writes.push(`a run of ${command}`);
 			return true;
 		},
-		can: (command: Command<unknown> | string, arg?: unknown) => {
+		can: (command: Command<unknown, never> | string, arg?: unknown) => {
 			const entry = entryOf(command);
 			if (entry) return contributions.can(entry, arg);
 			return typeof command === 'string' && isBuiltinCommandId(command);

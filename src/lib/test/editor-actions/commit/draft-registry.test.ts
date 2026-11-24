@@ -91,3 +91,19 @@ describe('a draft held outside the document', () => {
 		expect(registry.watching()).toBe(false);
 	});
 });
+
+describe("a drawing's held save", () => {
+	it('runs at an undo and a mode change, never at a swap, and makes no write record', () => {
+		const { registry, swap } = setup();
+		const causes: string[] = [];
+		const release = registry.holdSave(() => causes.push('saved'));
+		expect(registry.watching()).toBe(false);
+		registry.closeAll('undo');
+		registry.closeAll('mode-change');
+		swap();
+		expect(causes).toEqual(['saved', 'saved']);
+		release();
+		registry.closeAll('undo');
+		expect(causes).toHaveLength(2);
+	});
+});

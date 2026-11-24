@@ -60,6 +60,19 @@ describe('an overlay', () => {
 		expect(await editor.view.reveal(block)).toBe(false);
 	});
 
+	// Miss-analysis: `gone` was the editor's own argument, so no row heard it from a plugin.
+	it('tells `gone` when it comes off by itself or by its call, and once each', async () => {
+		const { editor, m } = await mounted();
+		const heard: string[] = [];
+		editor.view.overlay(pinned(), editor.doc.blocks[1], () => heard.push('typed in'));
+		const off = editor.view.overlay(pinned(), editor.doc.blocks[2], () => heard.push('called'));
+		typeInto(surfaceAt(m, [1]), 'para oneX');
+		await m.settle();
+		off();
+		off();
+		expect(heard).toEqual(['typed in', 'called']);
+	});
+
 	// A held block reads -1 while its node stands once a sibling is put in above it in its list
 	// (it fails closed); the overlay comes off there too, and the block read again pins again.
 	it('comes off once a sibling is put in above its block, and pins again on the block read anew', async () => {

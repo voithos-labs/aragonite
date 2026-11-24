@@ -41,6 +41,7 @@
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
 		CARET_AT,
+		HANDLE_AT,
 		type BoxDrawContext,
 		type ContainerDrawContext,
 		type Drawn,
@@ -262,6 +263,10 @@
 			target = el;
 			const host = el.parentElement as (HTMLElement & { [CARET_AT]?: unknown }) | null;
 			if (host) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
+			// On the block's own element, which each drawing gets anew; read per call, as a
+			// framework component declares its parts once it has rendered.
+			(el as HTMLElement & { [HANDLE_AT]?: unknown })[HANDLE_AT] = () => made.handle;
+			const unhold = services?.drafts.holdSave(() => saveOf(made));
 			seen = watched();
 			if (text) assertInvariant('dom-view-content', () => checkDomViewContent(el, source, painted));
 			const offs = [
@@ -274,6 +279,7 @@
 			];
 			return () => {
 				offs.forEach((off) => off());
+				unhold?.();
 				drawn = null;
 				target = null;
 				if (list) void unmount(list);
@@ -298,6 +304,15 @@
 				? caret(viewportPointAt(x, y))
 				: (caretOffsetAtPoint(caret, x, y) ?? 0);
 		return at === null ? null : getContentRange(node).start + at;
+	}
+
+	// A throw is the plugin's, reported, and the undo or mode change still goes on.
+	function saveOf(made: Drawn<unknown>): void {
+		try {
+			made.save?.();
+		} catch (error) {
+			report(error);
+		}
 	}
 
 	// A press the drawing keeps reads as its own gesture to the editor's handlers, which run before

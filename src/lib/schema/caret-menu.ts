@@ -63,7 +63,7 @@ export interface MenuPick extends Draft {
 	insertBlock(markdown: string): Promise<DraftResult>;
 	/** Removes the trigger and the query, then runs `command` at the caret, as one undo step; false
 	 *  when the removal is refused or the command declines. */
-	run<A>(command: Command<A>, arg: A): Promise<boolean>;
+	run<A>(command: Command<A, never>, arg: A): Promise<boolean>;
 	run(command: Command | string, arg?: unknown): Promise<boolean>;
 }
 
@@ -145,6 +145,10 @@ export function createMenuPick(spec: {
 			draft.data(block, data);
 			return pick;
 		},
+		body(block, text) {
+			draft.body(block, text);
+			return pick;
+		},
 		commit: (options) => draft.commit(options),
 		end: () => void (removing || draft.end()),
 		write(inline) {
@@ -155,7 +159,7 @@ export function createMenuPick(spec: {
 			return draft.commit(at === null ? undefined : { caret: at + inline.length });
 		},
 		insertBlock: (markdown) => removeThen(() => draft.insertBelow(markdown).commit()),
-		async run(command: Command<unknown> | string, arg?: unknown) {
+		async run(command: Command<unknown, never> | string, arg?: unknown) {
 			const editor = spec.editor();
 			if (!editor) return false;
 			let ran = false;

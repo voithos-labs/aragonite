@@ -57,8 +57,8 @@ export interface BoxDrawContext extends DrawContext {
 	focusWhole(): void;
 }
 
-/** What a drawing hands back. */
-export interface Drawn<D, C extends DrawContext = DrawContext> {
+/** What a drawing hands back; `H` is what its block type's own commands are handed. */
+export interface Drawn<D, C extends DrawContext = DrawContext, H = unknown> {
 	dom: HTMLElement;
 	/** Where a click on a picture of the text lands: an element whose text is the block's text, or a
 	 *  point to an offset in that text. */
@@ -70,6 +70,11 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 	keep?(event: Event): boolean;
 	/** A box with an editing surface of its own takes the caret through this. */
 	focus?: BoxFocus;
+	/** Writes the text a surface of yours holds unwritten, committing before it returns; the editor
+	 *  calls it before an undo, a redo or a mode change, and a new document drops the text. */
+	save?(): void;
+	/** Handed to your block type's own commands while the block is drawn (`run`'s third argument). */
+	handle?: H;
 	destroy?(): void;
 }
 
@@ -122,6 +127,14 @@ export function drawingOf(view: BlockView): Drawing {
 
 /** Where a drawn block's click lands, for each block element the draw host runs; set by the host. */
 export const CARET_AT = Symbol('Drawn.caretAt');
+
+/** What a drawn block's element hands its type's commands, set by the host: its `Drawn.handle`. */
+export const HANDLE_AT = Symbol('Drawn.handleAt');
+
+/** The handle the drawing on `blockEl` declares now; undefined with none, or no drawing there. */
+export function drawnHandleOf(blockEl: HTMLElement | null): unknown {
+	return (blockEl as { [HANDLE_AT]?: () => unknown } | null)?.[HANDLE_AT]?.();
+}
 
 /** A drawn block's `caretTargetAtPoint`: what its drawing's `caret` makes of a point, else the
  *  text's start, so a click on any part of the picture opens the text. */

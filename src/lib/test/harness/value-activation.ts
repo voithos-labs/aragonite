@@ -17,6 +17,7 @@ export function valueActivation(
 		editorFor: () => editor,
 		report: thrown,
 		blocksAround: () => ({ blocks: [] }),
+		handleOf: () => undefined,
 		blockOf: (node) => DETACHED_READING.blockOf(node, null),
 		pastedReader: () => ({
 			doc: () => {

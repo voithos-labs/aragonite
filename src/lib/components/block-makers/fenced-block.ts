@@ -17,7 +17,7 @@ import {
 
 /** Makes a fenced block type; the editor finds its closer, grows a code fence's closer past a body
  *  line that would close it, and keeps every write of its bytes legal. */
-export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
+export function fencedBlock<H = unknown>(spec: FencedBlockSpec<H>): BlockType<never> {
 	checkLocalName('fencedBlock', spec.name);
 	const fences = [spec.fence].flat();
 	// A code fence's info string is the built-in code block's otherwise, so it's tried first.
@@ -45,6 +45,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		openers: shape.openers,
 		completer: completerOf(spec.complete, shape.claims),
 		bodyRange: shape.body,
+		writeBody: shape.writeBody,
 		oneLine: shape.oneLine
 	});
 	return type;
