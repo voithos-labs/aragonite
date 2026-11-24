@@ -35,9 +35,10 @@ sits on the body's own line where a range through the body reaches it.
 - Ctrl+A inside the source, then Ctrl+C, copies the same bytes Ctrl+X cuts: the whole block,
   hidden fence lines included, since the cut removes those too
 
-- Home then six Shift+ArrowRight out of a one-line block's body, then Backspace: the range is
-  deleted, the text it reached is absorbed into the body, and the block is still math
-  (`$$After$$`), never a paragraph opening with a stray `$$`
+- Home then six Shift+ArrowRight out of a one-line block's body, then Backspace: the body is
+  emptied, the block is still math and the paragraph below stays its own block. The bytes differ
+  from 0.11.5's `$$` over `$$`: the range core reads no fence whose closer shares the body's
+  line, so the block writes `$$$$` and keeps one blank line too many before the paragraph
 - one undo after that range delete puts the block and the paragraph below it back
 
 ## Miss-analysis
