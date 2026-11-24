@@ -46,8 +46,7 @@ export function mathInline(renders: MathRenders) {
 			};
 			paint(props);
 			return { update: paint };
-		},
-		textContent: (formula) => formula
+		}
 	});
 }
 
