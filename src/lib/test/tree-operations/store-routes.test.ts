@@ -812,6 +812,13 @@ const FAMILIES: Family[] = [
 						{ start: 3, end: 8 }
 					),
 				want: '# y'
+			},
+			{
+				// A live range over a title row's whole text carries the title, as its cut takes.
+				shape: 'a title row held whole',
+				run: () =>
+					dragText({ source: ':::tip Title\nbody\n:::\n', leaf: [0, 0] }, { start: 0, end: 12 }),
+				want: 'Title'
 			}
 		]
 	},
