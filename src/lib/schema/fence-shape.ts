@@ -134,8 +134,15 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 			const lines = withLineEnding(text, ending);
 			const at = bodyOf(raw);
 			const { start, end } = range(raw);
+			const line = splitFixed(fixed, raw, false);
 			let written: string;
-			if (at) written = raw.slice(0, at.start) + lines + raw.slice(text === '' ? end : at.end);
+			// A one-line block keeps a text with no line break on its line, and takes one with a break
+			// on lines of its own, as a typed break does; read off the block, since a splice can't tell.
+			if (line?.oneLine) {
+				const body = text.includes('\n') ? ending + lines + ending : text;
+				written = raw.slice(0, line.bodyStart) + body + raw.slice(line.closerStart);
+			} else if (at)
+				written = raw.slice(0, at.start) + lines + raw.slice(text === '' ? end : at.end);
 			else if (text === '') written = raw;
 			else {
 				// The line written ends as the opener's line does, before a closer or the end.
@@ -144,11 +151,6 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 					? head + lines + ending + raw.slice(start)
 					: head + ending + lines;
 			}
-			// A one-line block given lines takes them on lines of its own, as a typed break does.
-			const shown = trimTrailingLineEnding(written);
-			const broken = text.includes('\n') ? brokenOneLine(fixed, shown) : null;
-			if (broken?.closed)
-				written = onOwnLines(shown, broken, 0).text + ownTrailingLineEnding(written);
 			const normalized = writes.normalize(written, { node, mode: 'literal', lineEnding: ending });
 			const out = opensInfo(raw) ? keptCloser(raw, normalized) : normalized;
 			const read = parts(out, false);

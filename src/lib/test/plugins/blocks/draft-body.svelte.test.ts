@@ -10,6 +10,7 @@ import { definePlugin } from '#lib/schema/plugin-install.js';
 import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import type { Block } from '#lib/schema/doc-view.js';
+import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/property-seed.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -140,6 +141,26 @@ describe('a body written', () => {
 		expect(after).toBe(expected);
 	});
 
+	// Miss-analysis: the property drew no empty one-line body, and a text opening and closing with a
+	// line break only by chance, so a body whose splice already spelled fence lines went unwritten.
+	it.each([
+		['$$x$$\n', '\n', '$$\n\n\n$$\n'],
+		['$$x$$\n', '\nb\n', '$$\n\nb\n\n$$\n'],
+		['$$x$$\r\n', '\n', '$$\r\n\r\n\r\n$$\r\n'],
+		['- $$x$$\n', '\nb\n', '- $$\n  \n  b\n  \n  $$\n'],
+		['$$$$\n', 'y', '$$y$$\n'],
+		['$$$$\n', 'a\nb', '$$\na\nb\n$$\n'],
+		['$$$$', '\n', '$$\n\n\n$$']
+	])('of the one-line %j given %j writes %j, reading the text back', async (source, text, want) => {
+		const editor = mountEditor({ source, plugins: [kinds] });
+		await editor.settle();
+		const result = await editor.instance.edit().body(blockOf(editor), text).commit();
+		await editor.settle();
+		expect(result).toEqual({ ok: true });
+		expect(editor.source()).toBe(want);
+		expect(blockOf(editor).body).toBe(text.replace(/\n/g, source.includes('\r') ? '\r\n' : '\n'));
+	});
+
 	// The last two: a fence with a fixed closer and no `escape` can't hold a line spelling it.
 	it.each([
 		['@@ hi\n', 'a\nb'],
@@ -216,12 +237,14 @@ const texBlock = fc
 	.map(({ one, body, ending, inside }) => {
 		const kept = body.filter(([text]) => text !== '$$' && text !== '');
 		const lines = one
-			? [`$$${kept[0]?.[0] ?? 'x'}$$${ending}`]
+			? [`$$${kept[0]?.[0] ?? ''}$$${ending}`]
 			: ['$$' + ending, ...kept.map(([t, e]) => t + e), '$$' + ending];
 		const rest = inside === '- ' ? '  ' : inside;
 		return lines.map((l, i) => (i === 0 ? inside : rest) + l).join('');
 	});
 const anyBlock = fc.oneof(fenceBlock, texBlock);
+
+const PARAMS = { numRuns: 60, seed: freshOrFixedSeed(115053448) } as const;
 
 /** The marker run of the line closing the source's fence, or null where its last line closes none. */
 function closerRun(source: string): number | null {
@@ -254,7 +277,7 @@ describe('the law', () => {
 				}
 				await editor.destroy();
 			}),
-			{ numRuns: 60 }
+			PARAMS
 		);
 	});
 
@@ -283,7 +306,7 @@ describe('the law', () => {
 				}
 				await editor.destroy();
 			}),
-			{ numRuns: 60 }
+			PARAMS
 		);
 	});
 });
