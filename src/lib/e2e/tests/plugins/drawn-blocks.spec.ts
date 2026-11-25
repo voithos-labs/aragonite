@@ -234,6 +234,24 @@ test.describe("the field's unwritten text", () => {
 	});
 });
 
+test.describe('an open field scrolled out of the window', () => {
+	test('writes its text as it leaves, one undo step, as 0.11.5 does', async ({ page }) => {
+		const editor = new PluginsPage(page);
+		await editor.gotoPlugins('drawn');
+		const filler = Array.from({ length: 400 }, (_, i) => `Paragraph ${i} lorem ipsum dolor`);
+		await editor.loadContent(['```field\none\n```', ...filler].join('\n\n') + '\n');
+		await placeCaret(page, [1], 'start');
+		await page.keyboard.press('ArrowUp');
+		await expect.poll(() => fieldCaret(page)).not.toBeNull();
+		await page.keyboard.type('kept ');
+		await editor.scrollEditorTo(1_000_000);
+		await expect(page.locator('.drawn-field')).toHaveCount(0);
+		const source = () => page.evaluate(() => (window as any).__test.getSource() as string);
+		await expect.poll(source).toMatch(/^```field\nkept one\n```\n/);
+		expect(await page.evaluate(() => (window as any).__test.undoDepth())).toBe(1);
+	});
+});
+
 test.describe("the field's menu row", () => {
 	const run = (page: Page, id: string) =>
 		page.evaluate((id) => (window as any).__test.view.run(id) as boolean, id);

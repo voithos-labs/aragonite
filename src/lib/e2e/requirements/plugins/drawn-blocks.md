@@ -29,6 +29,12 @@ Miss-analysis: the fixture wrote only on blur and no row ran an undo with text t
 - Text typed in the field, then a switch to live mode: the text is written as one undo step, which the next undo takes back out.
 - Text typed in the field, then a new document loaded: nothing of the typed text is written.
 
+## An open field scrolled out of the window
+
+Miss-analysis: no row scrolled a box away while its field held text, so the field's blur write, made while windowing removed the block, ran inside the render and was lost (0.11.5's diagram box kept it).
+
+- Text typed in the field, then the editor scrolled to its end: the field's block leaves the window, its text is written as the field leaves, and it is one undo step.
+
 ## The field's menu row (`Drawn.handle`)
 
 The field type's own command `drawn/focus-field` focuses the field through the handle its drawing declares.

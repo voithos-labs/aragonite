@@ -7,6 +7,7 @@
  * undo, the redo and the mode change that close the drafts save them first.
  */
 
+import { tick } from 'svelte';
 import type { Draft, DraftCloseCause, DraftResult, DraftSpec } from '../../schema/drafts';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import type { CommitSnapshotArg, SourceSplice } from '../../action-contracts';
@@ -318,6 +319,9 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				const none = writes.length + datas.length + bodies.length + inserts.length === 0;
 				if (none && !illegal) return refused('empty', 'nothing was written to it');
 				try {
+					// A commit made inside a render (a field's blur as windowing removes its block)
+					// lands once that render is done, as a write from inside one corrupts it.
+					if ($effect.tracking()) await tick();
 					return await land(options?.caret);
 				} finally {
 					end();
