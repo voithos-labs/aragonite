@@ -12,7 +12,8 @@ import {
 	definePlugin,
 	pasteRewrite,
 	QUOTE_LINES,
-	type Block
+	type Block,
+	type Doc
 } from '@voithos-labs/aragonite/plugin';
 import { svelteBlock } from '@voithos-labs/aragonite/svelte';
 import AdmonitionBlock from './AdmonitionBlock.svelte';
@@ -88,22 +89,25 @@ const alert = container<AlertData>({
 	draw: svelteBlock(AdmonitionBlock)
 });
 
-// The paste's top-level alerts as the editor reads them, the whole paste a rewrite reads, so one
-// alert line pasted into a paragraph converts too and one inside another block stays.
+/** `doc`'s text with each top-level alert written as its `:::` box, or null with none; an alert
+ *  inside another block stays, since writing it would mean rewriting what holds it. */
+export function alertsAsBoxes(doc: Doc): string | null {
+	let out = '';
+	let at = 0;
+	for (const block of doc.blocks) {
+		const box = block.is(alert) ? convertAlertBlockquoteRaw(block.text, doc.eol) : null;
+		if (box === null) continue;
+		out += doc.text.slice(at, block.from) + box;
+		at = block.to;
+	}
+	return at === 0 ? null : out + doc.text.slice(at);
+}
+
+// The whole paste as the editor reads it, so one alert line pasted into a paragraph converts too.
 const alertsToBoxes = pasteRewrite({
 	name: 'github-alerts',
 	sample: '> [!NOTE]\n> Heads up.\n',
-	into(pasted) {
-		let out = '';
-		let at = 0;
-		for (const block of pasted.blocks) {
-			const box = block.is(alert) ? convertAlertBlockquoteRaw(block.text, '\n') : null;
-			if (box === null) continue;
-			out += pasted.text.slice(at, block.from) + box;
-			at = block.to;
-		}
-		return at === 0 ? null : out + pasted.text.slice(at);
-	}
+	into: (pasted) => alertsAsBoxes(pasted)
 });
 
 /** Callouts and GitHub alerts: list `admonitions`, or `admonitions({ convertAlertsOnPaste })`. */

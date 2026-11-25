@@ -5,11 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { rewritePaste } from '#lib/testing.js';
 import { details } from '#packages/details/src/index.js';
-import {
-	admonitions,
-	convertGithubAlertsInDocument,
-	hasGithubAlert
-} from '#packages/admonitions/src/index.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
 
 const converting = () => [admonitions({ convertAlertsOnPaste: true })];
 const ALERT = '> [!TIP]\n> Handy.\n';
@@ -48,22 +44,22 @@ describe('a pasted alert', () => {
 	});
 });
 
-// 0.11.5's transform, from the converters it ran: the whole paste through the document converter.
-const transformed = (text: string) =>
-	hasGithubAlert(text) ? convertGithubAlertsInDocument(text).converted : text;
-
+// What 0.11.5's transform wrote for each, its CRLF read as LF.
 it.each([
-	ALERT,
-	'> [!NOTE]\n> a\n\nmid\n\n> [!Warning]\n> b\n',
-	'> [!NOTE]\n> > [!TIP]\n> > inner\n',
-	'> > [!NOTE]\n> > x\n',
-	'- > [!NOTE]\n  > x\n',
-	'```md\n> [!NOTE]\n> body\n```\n',
-	'> [!NOTE]\r\n> crlf\r\n',
-	'para\n> [!CAUTION]\n> x\n',
-	'> [!NOTE]\n>\n> after a blank\n'
-])('rewrites %j as 0.11.5’s transform did', (text) => {
-	expect(rewritePaste(text, converting())).toBe(transformed(text).replace(/\r\n/g, '\n'));
+	[ALERT, ':::tip\nHandy.\n:::\n'],
+	[
+		'> [!NOTE]\n> a\n\nmid\n\n> [!Warning]\n> b\n',
+		':::note\na\n:::\n\nmid\n\n:::warning\nb\n:::\n'
+	],
+	['> [!NOTE]\n> > [!TIP]\n> > inner\n', '::::note\n:::tip\ninner\n:::\n::::\n'],
+	['> > [!NOTE]\n> > x\n', '> > [!NOTE]\n> > x\n'],
+	['- > [!NOTE]\n  > x\n', '- > [!NOTE]\n  > x\n'],
+	['```md\n> [!NOTE]\n> body\n```\n', '```md\n> [!NOTE]\n> body\n```\n'],
+	['> [!NOTE]\r\n> crlf\r\n', ':::note\ncrlf\n:::\n'],
+	['para\n> [!CAUTION]\n> x\n', 'para\n:::caution\nx\n:::\n'],
+	['> [!NOTE]\n>\n> after a blank\n', ':::note\n\nafter a blank\n:::\n']
+])('rewrites %j as 0.11.5’s transform did', (text, written) => {
+	expect(rewritePaste(text, converting())).toBe(written);
 });
 
 // The editor reads the paste with every plugin it lists, so an alert in a section's body is nested,
