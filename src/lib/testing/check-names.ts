@@ -33,7 +33,8 @@ type ContainerCheck =
 	| 'containerCopy'
 	| 'containerDeclared'
 	| 'terminatorCollision'
-	| 'titleRow';
+	| 'titleRow'
+	| 'closable';
 type InlineCheck =
 	| 'sample'
 	| 'claims'
@@ -212,6 +213,12 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 	titleRow: {
 		excusable: false,
 		contract: { block: promise('typing in your title row leaves your data true') }
+	},
+	closable: {
+		excusable: false,
+		contract: {
+			block: promise('closing your container writes data that reads closed, and opening it open')
+		}
 	},
 	containerDeclared: {
 		excusable: false,

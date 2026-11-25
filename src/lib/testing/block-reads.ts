@@ -1,33 +1,41 @@
 /**
  * `check`'s rows over what a plugin's block type reads and writes besides its bytes: the line it
- * completes, the data it writes back through a draft, and where its blocks, their text and their
- * pieces sit in the `Doc` a plugin reads.
+ * completes, the data it writes back through a draft, where its blocks, their text and their pieces
+ * sit in the `Doc` a plugin reads, and the data a fold writes.
  */
 
 import { splitLines, trimTrailingLineEnding } from '../core/lines';
 import { makingOf, type BlockMaking } from '../schema/block-type';
 import { nodeOfBlock, type Block, type Piece } from '../schema/doc-view';
+import { drawingOf } from '../schema/drawing';
+import type { Closable } from '../schema/container-block';
 import type { Contribution } from '../schema/plugin-unit';
-import type { BlockCheck } from './check-names';
+import type { BlockCheck, ContainerCheck } from './check-names';
 import type { PluginCheckRun } from './check-context';
 import type { Outcome } from './inline-check';
 import { show } from './conformance-core';
 
-/** `completion`, `dataWriteback` and `docPositions` over each of `kind`'s samples. */
+/** `completion`, `dataWriteback` and `docPositions` over each of `kind`'s samples, and a
+ *  container's `closable`. */
 export async function blockReadOutcomes(
 	run: PluginCheckRun,
 	own: Contribution | undefined,
 	kind: string,
 	samples: readonly string[]
-): Promise<[BlockCheck, Outcome][]> {
+): Promise<[BlockCheck | ContainerCheck, Outcome][]> {
 	const type = own?.blocks?.find((each) => each.name === kind);
 	const making = type && makingOf(type);
 	if (!making) return [];
-	return [
+	const rows: [BlockCheck | ContainerCheck, Outcome][] = [
 		['completion', settled(() => completion(run, making, kind, samples))],
 		['dataWriteback', await settledAsync(() => dataWriteback(run, making, samples))],
 		['docPositions', settled(() => docPositions(run, kind, making, samples))]
 	];
+	const drawing = drawingOf(making.view);
+	if (drawing?.edit === 'container') {
+		rows.push(['closable', settled(() => closable(run, drawing.closable, samples))]);
+	}
+	return rows;
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
@@ -110,6 +118,31 @@ async function dataWriteback(
 			return failed(`writing its own data back is refused: ${result.message}`);
 	}
 	return { status: 'passed', detail: 'each sample’s data writes back to the same bytes' };
+}
+
+/** Each sample's data closed and opened through `closable.set`, read back through `closed`, then
+ *  set the same way again. */
+function closable(
+	run: PluginCheckRun,
+	fold: Closable<unknown> | undefined,
+	samples: readonly string[]
+): Outcome {
+	if (!fold) return { status: 'not-applicable', detail: 'lists no closable' };
+	const problems: string[] = [];
+	for (const sample of samples) {
+		const data = run.stage(sample).editor.doc.blocks[0]?.data;
+		for (const shut of [true, false]) {
+			const once = fold.set(data, shut);
+			const said = shut ? 'closing' : 'opening';
+			if (fold.closed(once) !== shut) {
+				problems.push(`${said} ${show(sample)} writes data that reads ${shut ? 'open' : 'closed'}`);
+			} else if (JSON.stringify(fold.set(once, shut)) !== JSON.stringify(once)) {
+				problems.push(`${said} ${show(sample)} twice writes different data`);
+			}
+		}
+	}
+	if (problems.length > 0) return failed(problems.join('; '));
+	return { status: 'passed', detail: 'each sample closes and opens as its data then says' };
 }
 
 /** Each sample's `Doc`, read as `grammar(plugins).parse` reads one: every block of the type, and
