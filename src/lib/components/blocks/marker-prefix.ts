@@ -67,12 +67,20 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 	return outer;
 }
 
+/** Whether a key follows the focused link or button it lands on: Enter or Space, and never a key
+ *  an IME composition owns. */
+export function followsKey(e: KeyboardEvent): boolean {
+	return !neverACommand(e) && activates(e.key);
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
-// Enter and Space, the keys a link or button answers; the block below must not see them too.
+const activates = (key: string) => key === 'Enter' || key === ' ';
+
+// The block below must not see the key too.
 function activateOnKey(e: KeyboardEvent, onActivate: () => void): void {
 	if (neverACommand(e)) return;
-	if (e.key !== 'Enter' && e.key !== ' ') return;
+	if (!activates(e.key)) return;
 	e.preventDefault();
 	e.stopPropagation();
 	onActivate();

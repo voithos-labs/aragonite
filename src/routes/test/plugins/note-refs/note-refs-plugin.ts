@@ -2,9 +2,10 @@
  * Footnote references as `inline()` widgets on `depends`, for the e2e suite that drives an inline
  * widget's key service in a real browser: each `[^label]` draws as the order its label first
  * appears in the document. A `#tag` beside them is styled text that follows a click, recording the
- * tag on `window.__followedTags`. Dev and e2e harness only.
+ * tag on `window.__followedTags`, and a `[[see name]]` box's link follows as the editor says,
+ * recording the name on `window.__followedSees`. Dev and e2e harness only.
  */
-import { definePlugin, inline, type Block, type WidgetProps } from '#lib/plugin.js';
+import { definePlugin, inline, lineBlock, type Block, type WidgetProps } from '#lib/plugin.js';
 
 // `[^a]` is a reference; `[^a]:` starts the note itself.
 const REFERENCES = /\[\^([^\]\s]+)\](?!:)/g;
@@ -72,9 +73,40 @@ export const followedTag = inline({
 		void ((window as { __followedTags?: string[] }).__followedTags ??= []).push(tag)
 });
 
+// A `[[see name]]` line drawn as a link of the drawing's own, which asks the editor whether a click
+// or a key follows it.
+export const seeAlso = lineBlock({
+	name: 'see',
+	label: 'See also',
+	match: /^\[\[see (?<text>[a-z]+)\]\]$/,
+	sample: '[[see notes]]',
+	insert: { none: 'a test block type' },
+	edit: 'box',
+	draw(block, ctx) {
+		const dom = document.createElement('div');
+		const link = document.createElement('a');
+		link.className = 'see-link';
+		link.href = '#';
+		link.textContent = `See ${block.body}`;
+		const follow = (event: MouseEvent | KeyboardEvent) => {
+			if (!ctx.follows(event)) return;
+			event.preventDefault();
+			((window as { __followedSees?: string[] }).__followedSees ??= []).push(block.body);
+		};
+		// The link goes nowhere on its own: what follows is the drawing's to say.
+		link.addEventListener('click', (event) => {
+			follow(event);
+			event.preventDefault();
+		});
+		link.addEventListener('keydown', follow);
+		dom.append(link);
+		return { dom, keep: (event) => event.target === link };
+	}
+});
+
 export const noteRefsPlugin = definePlugin({
 	name: 'note-refs',
 	version: '1.0.0',
 	editor: '*',
-	contributes: () => ({ inlines: [noteRef, followedTag] })
+	contributes: () => ({ inlines: [noteRef, followedTag], blocks: [seeAlso] })
 });

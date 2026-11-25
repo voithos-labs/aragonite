@@ -31,6 +31,9 @@ export interface DrawContext {
 	/** Read the scroll position before your drawing changes height on its own (an expander's
 	 *  click); await the returned restore once it has. Around `update` the editor does it for you. */
 	keepScroll(): () => Promise<void>;
+	/** Whether `event` on a link your drawing holds follows it, by the host's rule: the click it
+	 *  picked for links, or Enter or Space on the focused link. */
+	follows(event: MouseEvent | KeyboardEvent): boolean;
 }
 
 /** The context of a block with text: `source` is the editor's own element for it, to place in your

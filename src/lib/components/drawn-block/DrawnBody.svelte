@@ -64,6 +64,7 @@
 	import { createDrawnBox } from './drawn-box.svelte';
 	import { createContainerBlock } from '../../editor-actions/plugin/container';
 	import type { MarkerHost } from '../../schema/container-block';
+	import { followsKey } from '../blocks/marker-prefix';
 	import BlockList from '../BlockList.svelte';
 	import { createRenderCache } from './render-cache';
 	import { POINTER_GESTURE_ATTR } from '../../selection/pointer-gesture';
@@ -269,6 +270,7 @@
 		},
 		render,
 		keepScroll,
+		follows: (event) => ('key' in event ? followsKey(event) : policies.activationClick(event)),
 		children: childBox!,
 		title: null,
 		get closed() {
