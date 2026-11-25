@@ -20,6 +20,8 @@ import {
 import { insertBy, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import { folds, FOLD_SAMPLE, type FoldData } from '#lib/test/support/fold-fixture.js';
+import { container, definePlugin, fencedLines } from '#lib/plugin.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 beforeAll(() => installLayoutStubs());
 afterEach(destroyMountedEditors);
@@ -101,6 +103,56 @@ describe('a fenced container read', () => {
 		const doc = read(source);
 		expect(doc.children.map(shape)).toEqual(blocks);
 		expect(serialize(doc)).toBe(source);
+	});
+});
+
+// Miss-analysis: the fixture's closing line never spells an opening one, so no row read a shape
+// whose bare fence closes (`:::`) and also opens with an empty name.
+describe('a fenced container whose closing line also spells an opening line', () => {
+	const colon = container<{ name: string }>({
+		name: 'box',
+		label: 'Box',
+		lines: fencedLines<{ name: string }>({
+			open: /^:::(\w*)$/,
+			data: (match) => ({ name: match[1] }),
+			write: (data) => `:::${data.name}`,
+			close: { match: /^:::$/, write: () => ':::' },
+			escape: (line) => `\\${line}`
+		}),
+		sample: ':::note\n\nbody\n\n:::\n',
+		insert: { none: 'a test block type' }
+	});
+	const plugin = definePlugin({
+		name: 'colons',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({ blocks: [colon] })
+	});
+	const readColons = (source: string) =>
+		parse(source, { grammar: listGrammar([plugin], ({ cause }) => void cause).grammar });
+	const kinds = (node: CstNode): unknown =>
+		node.children ? { [node.kind]: node.children.map(kinds) } : node.kind;
+
+	it.each([
+		['closes on the bare fence', ':::note\n\nbody\n\n:::\n', [{ 'colons/box': ['paragraph'] }]],
+		[
+			'nests a named fence and its bare closer',
+			':::a\n\n:::b\n\ni\n\n:::\n\n:::\n',
+			[{ 'colons/box': [{ 'colons/box': ['paragraph'] }] }]
+		]
+	])('%s', (_name, source, blocks) => {
+		const doc = readColons(source);
+		expect(doc.children.map(kinds)).toEqual(blocks);
+		expect(serialize(doc)).toBe(source);
+	});
+
+	it.each([
+		['a bare fence, which closes the section', ':::\n', '\\:::\n'],
+		['a named fence and its closer, which pair', ':::b\ni\n:::\n', ':::b\ni\n:::\n']
+	])('a body write escapes or keeps %s', (_name, body, written) => {
+		const node = readColons(':::note\n\nbody\n\n:::\n').children[0];
+		const rule = getBlockKindDescriptor(node.kind).bodyWrite!;
+		expect(rule.normalize(body, { node, mode: 'literal', lineEnding: '\n' })).toBe(written);
 	});
 });
 

@@ -698,8 +698,8 @@ export function fencedReading<D extends object>(spec: FencedSpec<D>): FencedRead
 	};
 }
 
-/** How body lines pair: a line opens a section, which then waits on the closer `opens` returns, or
- *  closes the innermost open one, which waits on `closer`. */
+/** How body lines pair: a line closes the innermost open section, which waits on `closer`, or else
+ *  opens one, which then waits on the closer `opens` returns; a bare fence that does both closes. */
 interface Pairing {
 	opens(text: string): string | null;
 	closes(text: string, closer: string): boolean;
@@ -757,9 +757,11 @@ function pairedClosing(
 	const waiting = [closer];
 	let closing = -1;
 	visitShapeLines(lines, from, end, (i, text) => {
-		const opens = pairing.opens(text);
-		if (opens !== null) waiting.push(opens);
-		else if (pairing.closes(text, waiting.at(-1)!)) waiting.pop();
+		if (pairing.closes(text, waiting.at(-1)!)) waiting.pop();
+		else {
+			const opens = pairing.opens(text);
+			if (opens !== null) waiting.push(opens);
+		}
 		if (waiting.length === 0) closing = i;
 		return closing !== -1;
 	});
@@ -793,9 +795,12 @@ function unpairedLines(
 	const stray: number[] = [];
 	visitShapeLines(lines, 0, lines.length, (i, text) => {
 		if (skip.has(i)) return;
+		if (pairing.closes(text, open.at(-1)?.[1] ?? closer)) {
+			if (!open.pop()) stray.push(i);
+			return;
+		}
 		const opens = pairing.opens(text);
 		if (opens !== null) open.push([i, opens]);
-		else if (pairing.closes(text, open.at(-1)?.[1] ?? closer) && !open.pop()) stray.push(i);
 	});
 	return [...stray, ...open.map(([i]) => i)];
 }
