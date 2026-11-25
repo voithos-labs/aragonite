@@ -14,6 +14,7 @@ import { stripClaims, stripOpener, type ContainerLines } from '../../core/parser
 import { headedLines } from '../../schema/headed-lines';
 import {
 	READS_LINES,
+	type ColonLines,
 	type FencedLines,
 	type IndentedLines,
 	type MarkedLines
@@ -32,6 +33,7 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 	const priority = priorityBefore(spec.before);
 	const lines = writtenLines(spec.lines);
 	const fenced = lines.shape === 'fenced' ? lines[READS_LINES] : null;
+	const colon = lines.shape === 'colon' ? colonReading(spec.name, lines) : null;
 	const drawing: Drawing = {
 		type: () => type,
 		edit: 'container',
@@ -55,19 +57,25 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		actions: spec.actions,
 		priority,
 		registration: containerRegistration(spec as ContainerSpec<object>, lines, () =>
-			titleRowKind(type.name as PluginBlockKind)
+			colon ? colon.row : titleRowKind(type.name as PluginBlockKind)
 		),
 		view: drawnView(drawing),
-		openers: (kind) => [
-			fenced
-				? fenced.opener(kind, priority, spec.interrupts ?? false)
-				: stripOpener(kind, strip, priority, spec.interrupts ?? false)
-		],
+		openers: (kind) =>
+			colon
+				? colon.openers()
+				: [
+						fenced
+							? fenced.opener(kind, priority, spec.interrupts ?? false)
+							: stripOpener(kind, strip, priority, spec.interrupts ?? false)
+					],
 		completer: completerOf(spec.complete, (written) =>
-			fenced ? fenced.claims(written) : stripClaims(strip, written)
+			colon ? colon.claims(written) : fenced ? fenced.claims(written) : stripClaims(strip, written)
 		),
 		rows: (kind) => (row ? [{ kind: titleRowKind(kind), ...row }] : []),
+		colonNames: colon?.names,
 		writeData(node, data, grammar) {
+			// A colon type's data is the name its opening line spells, the one part of the row it reads.
+			if (colon) return colon.renamed(node.raw, (data as { name: string }).name);
 			const copy = cloneNode(node);
 			copy.metadata = data as CstNode['metadata'];
 			writeContainerRaw(copy, grammar);
@@ -88,7 +96,14 @@ const titleRowParts = (title: FencedTitle): Omit<BlockRow, 'kind'> => ({
 
 // A head line brings its own writer.
 function writtenLines<D extends object>(
-	lines: ContainerLines<D> | FencedLines<D>
-): MarkedLines | IndentedLines<D> | FencedLines<D> {
+	lines: ContainerLines<D> | FencedLines<D> | ColonLines
+): MarkedLines | IndentedLines<D> | FencedLines<D> | ColonLines {
 	return lines.shape === 'marked' && 'head' in lines ? headedLines(lines) : lines;
+}
+
+// `COLON_LINES` writes a registered kind's lines; a maker's type reads its names from `colonLines`.
+function colonReading(name: string, lines: ColonLines) {
+	const reading = lines[READS_LINES];
+	if (!reading) throw new Error(`container "${name}": colon lines come from colonLines({ names })`);
+	return reading;
 }

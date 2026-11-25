@@ -5,7 +5,7 @@ import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 import { builtin } from '#lib/components/block-makers/builtin.js';
 import { container } from '#lib/components/block-makers/container.js';
-import { COLON_LINES } from '#lib/schema/colon-lines.js';
+import { colonLines } from '#lib/components/block-makers/colon-lines.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { Draft } from '#lib/schema/drafts.js';
 import type { IndentedLines } from '#lib/core/strip-lines.js';
@@ -50,8 +50,8 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	// @ts-expect-error a fenced block's lines carry no data
 	const h = fencedBlock({ ...line, name: 'h', fence: { info: 'h' }, data: () => 1, write: () => '' });
 	// A pasted closing line can't say which container it ends, so the maker takes no shape with one.
-	// @ts-expect-error a container's lines are marked or indented, never closed by a line
-	const j = container({ ...line, name: 'j', lines: COLON_LINES, merges: {} });
+	// @ts-expect-error a container closed by a line of its own takes no `merges`
+	const j = container({ ...line, name: 'j', lines: colonLines({ names: ['j'] }), merges: {} });
 	// prettier-ignore
 	// @ts-expect-error a container's data is an object, which its writer lays its metadata over
 	const m = container({ ...line, name: 'm', lines: { ...MARKED, head: { match: /^!(\w+)$/, data: (x: RegExpExecArray) => x[1], write: (t: string) => t } } });

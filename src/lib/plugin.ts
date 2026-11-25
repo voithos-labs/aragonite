@@ -305,6 +305,9 @@ export { blockquoteExtent } from './core/parsers/blockquote';
 export { QUOTE_LINES } from './core/parsers/blockquote';
 export { stripShapedLines } from './core/strip-shaped-lines';
 export { fencedLines } from './schema/fenced-lines';
+// A colon type's lines bring the directive grammar into the editors that list it.
+export { colonLines } from './components/block-makers/colon-lines';
+export type { ColonSpec } from './components/block-makers/colon-lines';
 export { headedLines } from './schema/headed-lines';
 export type {
 	LineShape,

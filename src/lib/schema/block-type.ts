@@ -39,6 +39,8 @@ export interface BlockMaking<D = unknown> {
 	/** The rows its blocks hold that no line opens (a title row), for the kind its editor named it,
 	 *  held while the type is. */
 	rows?(kind: PluginBlockKind): readonly BlockRow[];
+	/** The names after `:::` that open a colon type in its editor. */
+	readonly colonNames?: readonly string[];
 }
 
 /** A block kind only its container's reader makes, with what it declares and draws. */
@@ -54,6 +56,7 @@ export interface InstalledBlock {
 	readonly openers: readonly BlockOpener[];
 	readonly view: BlockView;
 	readonly completer: BlockCompleter | null;
+	readonly colonNames?: readonly string[];
 }
 
 /** A block type a maker made; `name` is its local name until an editor names it after its plugin. */
@@ -88,12 +91,17 @@ export function installBlockTypes(
 	for (const { name: plugin, contribution } of units) {
 		for (const type of contribution.blocks ?? []) {
 			const made = type as unknown as Made;
+			const claimed = made[MAKING].colonNames?.find((name) =>
+				blocks.some((b) => b.colonNames?.includes(name))
+			);
 			const problem =
 				made[OWNER] !== null && made[OWNER] !== plugin
 					? `lists the block type '${type.name}', which plugin '${made[OWNER]}' made`
 					: blocks.some((b) => b.kind === qualifiedName(plugin, made[MAKING].local))
 						? `has two block types named '${made[MAKING].local}'`
-						: null;
+						: claimed !== undefined
+							? `lists '${type.name}', whose name ':::${claimed}' a type before it holds`
+							: null;
 			if (problem) {
 				const cause = new Error(`plugin '${plugin}' ${problem}; the second is left out`);
 				report({ plugin, doing: 'install', cause });
@@ -105,7 +113,13 @@ export function installBlockTypes(
 			const openers = making.openers(kind);
 			const registration = withChords(making.registration, making.chords);
 			held.push(holdBlockKind(kind, registration, openers.length > 0, plugin));
-			blocks.push({ kind, openers, view: making.view, completer: making.completer });
+			blocks.push({
+				kind,
+				openers,
+				view: making.view,
+				completer: making.completer,
+				colonNames: making.colonNames
+			});
 			for (const row of making.rows?.(kind) ?? []) {
 				held.push(holdBlockKind(row.kind, row.registration, false, plugin));
 				blocks.push({ kind: row.kind, openers: [], view: row.view, completer: null });

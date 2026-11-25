@@ -7,7 +7,26 @@ import type { CstNode } from '../core/nodes';
 import { concatChildren } from '../core/serializer';
 import { firstDisplayLine, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { WRITES_LINES, type ColonLines } from '../core/strip-lines';
+import type { AnyBlockKind } from '../core/nodes';
+import type { BlockOpener } from './block-openers';
 import { escalatedColonCount, matchDirectiveOpener } from '../core/directive/grammar';
+
+/** What a maker's colon type reads its names and title row from (`colonLines` makes it). */
+export interface ColonReading {
+	/** The names after `:::` that open the type in an editor listing it. */
+	readonly names: readonly string[];
+	/** Its title row's kind, the opening line every `:::` container shares. */
+	readonly row: AnyBlockKind;
+	/** What a screen reader calls the title row, and a class for its text. */
+	readonly title: { readonly label: string; readonly className?: string };
+	/** Turns the editor's directive grammar on; its shared `:::` opener reads the names, so the type
+	 *  brings no opener of its own. */
+	openers(): readonly BlockOpener[];
+	/** The opening line `row` with its name set to `name`. */
+	renamed(row: string, name: string): string;
+	/** Whether `lines` open the type. */
+	claims(lines: readonly string[]): boolean;
+}
 
 /** A `:::name` container: the opener line (child 0) as it stands, the body, then a closing line as
  *  long as the one it replaces, every colon run widened past a body line that would close it. */

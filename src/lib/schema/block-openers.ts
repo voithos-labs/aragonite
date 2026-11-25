@@ -375,6 +375,9 @@ export interface GrammarView {
 	/** The line shapes of the containers this grammar opens that mark every line (a quote's `>`),
 	 *  each once: what the range core reads a line's markers through. */
 	markedLines(): readonly MarkedLines[];
+	/** The `:::` names this editor's own colon types hold, with each one's kind; read only by the
+	 *  directive registry, which every name reader asks. */
+	colonTypes(): ReadonlyMap<string, AnyBlockKind>;
 	/** The inline constructs this editor's plugins contribute, by kind; the same map until they
 	 *  change. */
 	inlines?(): ReadonlyMap<AnyInlineKind, InstalledInline>;

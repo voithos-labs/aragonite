@@ -8,6 +8,7 @@ import { lineStartsOuterBlock, type GrammarView } from '../schema/block-openers'
 import type { ChildRawChange } from '../schema/child-spans';
 import type { StripRebuild } from '../schema/strip-rebuild';
 import type { FencedReading } from '../schema/fence-shape';
+import type { ColonReading } from '../schema/colon-lines';
 import type { Editor } from '../schema/plugin-unit';
 import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
 
@@ -80,10 +81,12 @@ export interface FencedLines<D extends object> {
 /** The reader a fenced shape brings along, so an app that never uses one doesn't ship it. */
 export const READS_LINES = Symbol('reads the container');
 
-/** A `:::name` fence around the body, the opener line as child 0. */
+/** A `:::name` fence around the body, the opener line as child 0; `colonLines` makes one a maker's
+ *  `container()` takes, with the type's names. */
 export interface ColonLines {
 	shape: 'colon';
 	readonly [WRITES_LINES]: ShapeWriter;
+	readonly [READS_LINES]?: ColonReading;
 }
 
 /** The shapes whose every line reads through a line syntax. */

@@ -1,15 +1,25 @@
 /**
  * Name-to-kind registry for the directive syntax: the shared opener resolves a fence's
  * `(tier, name)` (tier: container, leaf or text) here, then delegates to `fromDirective` or
- * builds a lossless generic node.
+ * builds a lossless generic node. An editor's own colon types answer first, from its grammar, so
+ * every reader of a container name passes here (G4.396).
  * Register-once with no unregister, the `customElements` model the schema registries follow.
  * Tier scopes the key, so a container and a leaf may share a name.
  */
 
 import type { DirectiveTier, DirectiveFence } from './grammar';
-import type { AnyBlockKind, PluginInlineKind, CstNode, InlineNode, Document } from '../nodes';
+import {
+	setPluginMetadata,
+	type AnyBlockKind,
+	type PluginBlockKind,
+	type PluginInlineKind,
+	type CstNode,
+	type InlineNode,
+	type Document
+} from '../nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { createPluginRegistry } from '../../schema/plugin-registry';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { DIRECTIVE_CONTAINER } from './container-shape';
 
 export interface ParsedDirective {
@@ -75,23 +85,47 @@ export function isDirectiveContainerKind(kind: AnyBlockKind | PluginInlineKind):
 			.filter(({ key }) => key.startsWith('container:'))
 			.map(({ value }) => value.kind)
 	);
-	return kind === DIRECTIVE_CONTAINER || containerKinds.has(kind);
+	return kind === DIRECTIVE_CONTAINER || containerKinds.has(kind) || isColonType(kind);
 }
 
-/** The name's definition under an editor's grammar; a name its plugin registered is absent where
- *  the editor left that plugin out, so the fence reads as the generic directive. */
+/** The name's definition under an editor's grammar: its own colon types first, then a registered
+ *  name, absent where the editor left that plugin out, so the fence reads as the generic directive. */
 export function resolveDirective(
 	tier: DirectiveTier,
 	name: string,
 	grammar: GrammarView
 ): DirectiveDefinition | undefined {
-	return definitions.get(keyOf(tier, name), grammar.activation);
+	const own = tier === 'container' ? grammar.colonTypes().get(name) : undefined;
+	return own
+		? { kind: own, fromDirective: colonNode(own as PluginBlockKind) }
+		: definitions.get(keyOf(tier, name), grammar.activation);
 }
 
 /** Whether a container name the editor's grammar holds starts with `prefix`, the name itself counting. */
 export function startsContainerName(prefix: string, grammar: GrammarView): boolean {
+	for (const own of grammar.colonTypes().keys()) if (own.startsWith(prefix)) return true;
 	const key = keyOf('container', prefix);
 	return definitions.entries(grammar.activation).some(([held]) => held.startsWith(key));
+}
+
+// Read from the descriptor, which is page-wide by qualified name, so no editor is needed.
+const isColonType = (kind: AnyBlockKind | PluginInlineKind): boolean =>
+	tryGetBlockKindDescriptor(kind as AnyBlockKind)?.lines?.shape === 'colon';
+
+/** A colon type's node, its name the data: the grammar puts the opener line in front. */
+function colonNode(kind: PluginBlockKind) {
+	return (parsed: ParsedDirective): CstNode => {
+		const node: CstNode = {
+			kind,
+			leadingTrivia: parsed.leadingTrivia,
+			raw: parsed.raw,
+			innerPrefix: parsed.body?.prefix ?? '',
+			children: parsed.body?.children ?? [],
+			innerSuffix: parsed.body?.suffix ?? ''
+		};
+		setPluginMetadata(node, { name: parsed.fence.name });
+		return node;
+	};
 }
 
 /**
@@ -116,5 +150,5 @@ export function isDirectiveRegistered(tier: DirectiveTier, name: string): boolea
  * so checking the opener registry alone reads every directive kind as unrecognizable.
  */
 export function isDirectiveKind(kind: AnyBlockKind | PluginInlineKind): boolean {
-	return definitions.records().some(({ value }) => value.kind === kind);
+	return isColonType(kind) || definitions.records().some(({ value }) => value.kind === kind);
 }

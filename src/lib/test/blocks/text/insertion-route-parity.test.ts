@@ -19,7 +19,14 @@ import {
 	insertBy,
 	type InsertionRoute
 } from '#lib/test/harness/insertion-routes.js';
-import { COLON_LINES, definePlugin, registerDirective, type CstNode } from '#lib/plugin.js';
+import {
+	COLON_LINES,
+	colonLines,
+	container,
+	definePlugin,
+	registerDirective,
+	type CstNode
+} from '#lib/plugin.js';
 import { installPlugins } from '#lib';
 import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
@@ -139,5 +146,42 @@ describe('a name end reads the names of the plugins its editor runs', () => {
 		await editor.settle();
 
 		expect(editor.source()).toBe(`${typed}\nin\n:::\n`);
+	});
+});
+
+// A value's colon type holds its names through the same grammar: one listed beside the admonitions
+// continues `note`, and one left out of the list starts a title, the kind and its name kept.
+const notesValue = definePlugin({
+	name: 'spec-notes-value',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		blocks: [
+			container<{ name: string }>({
+				name: 'notes',
+				label: 'Notes',
+				lines: colonLines({ names: ['notes'] }),
+				sample: ':::notes\nin\n:::\n',
+				insert: { none: 'a test block type' }
+			})
+		]
+	})
+});
+
+describe('a name end reads the colon types of the values its editor lists', () => {
+	it.each([
+		['an editor listing the value', [...SYNTAX_PLUGINS, notesValue], ':::notes', 'notes'],
+		['an editor whose list leaves it out', SYNTAX_PLUGINS, ':::note s', 'note']
+	])('%s', async (_, plugins, typed, name) => {
+		const editor = mountEditor({ source: ':::note\nin\n:::\n', plugins });
+		await editor.settle();
+		placeCaret(surfaceAt(editor, [0, 0]), ':::note'.length);
+		await editor.settle();
+
+		await insertBy('hardware key', document.activeElement as HTMLElement, 's');
+		await editor.settle();
+
+		expect(editor.source()).toBe(`${typed}\nin\n:::\n`);
+		expect(editor.instance.doc.blocks[0].data).toEqual({ name });
 	});
 });

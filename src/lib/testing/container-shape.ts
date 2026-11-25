@@ -6,7 +6,8 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { getPluginMetadata } from '../core/nodes';
-import { documentLineEnding, splitLines } from '../core/lines';
+import { documentLineEnding, firstDisplayLine, splitLines } from '../core/lines';
+import { matchDirectiveOpener } from '../core/directive/grammar';
 import {
 	READS_LINES,
 	type HeadedLines,
@@ -77,13 +78,16 @@ export function derivedProfile(
 	};
 }
 
-/** The closing line a fenced container writes for the sample's data, as a body line; null for a
+/** The closing line a fenced or colon container writes for the sample, as a body line; null for a
  *  shape with none. */
 function closingLineOf(context: CheckContext, kind: AnyBlockKind, sample: string): string | null {
 	const lines = context.descriptor(kind).lines;
-	if (lines?.shape !== 'fenced') return null;
+	if (lines?.shape !== 'fenced' && lines?.shape !== 'colon') return null;
 	const node = subjectNode(context.parse(sample), kind, [0], 'the sample');
-	return lines[READS_LINES].closer(getPluginMetadata(node) ?? {}) + '\n';
+	if (lines.shape === 'fenced')
+		return lines[READS_LINES].closer(getPluginMetadata(node) ?? {}) + '\n';
+	const opener = matchDirectiveOpener(firstDisplayLine(node.raw).text);
+	return ':'.repeat(opener?.colonCount ?? 3) + '\n';
 }
 
 /** The type's bytes from `sample`, with a paragraph written in for each child short of two. */

@@ -1,12 +1,14 @@
 /**
  * A container block type's spec, and the facts every editor system reads, derived from it; a
  * marked or indented container's opener is the shared reader in `core/parsers/strip-container.ts`,
- * a fenced one's comes with its lines (`schema/fenced-lines.ts`).
+ * a fenced one's comes with its lines (`schema/fenced-lines.ts`), and a colon one is read by the
+ * directive grammar its lines turn on (`components/block-makers/colon-lines.ts`).
  */
 import { getPluginMetadata, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import {
 	READS_LINES,
+	type ColonLines,
 	type FencedLines,
 	type IndentedLines,
 	type MarkedLines
@@ -32,16 +34,22 @@ export type { ContainerLines } from '../core/parsers/strip-container';
 
 /** A block holding other blocks; the editor writes its bytes from `lines`, never the plugin. */
 export type ContainerSpec<D extends object> = BlockCommon<D, Chord> & {
-	lines: ContainerLines<D> | FencedLines<D>;
 	/** Text joined to its end from below lands in its deepest text block; default true. */
 	joins?: boolean;
-	/** A pasted container of this type joins one it lands in, where `key` names a data field the
-	 *  two must share; absent, it nests. */
-	merges?: { key?: keyof NoInfer<D> & string };
 	/** Its body folds away under its title row, as the data says; for now only fenced lines with a
 	 *  title give a container one. */
 	closable?: Closable<NoInfer<D>>;
 } & (
+		| {
+				lines: ContainerLines<D>;
+				/** A pasted container of this type joins one it lands in, where `key` names a data field
+				 *  the two must share; absent, it nests. */
+				merges?: { key?: keyof NoInfer<D> & string };
+		  }
+		// A pasted closing line can't say which container it ends, so one closed by a line nests.
+		| { lines: FencedLines<D> | ColonLines; merges?: never }
+	) &
+	(
 		| { draw?: never; depends?: never }
 		| ({
 				draw(
@@ -64,11 +72,14 @@ export interface Closable<D> {
  *  editor has named the type. */
 export function containerRegistration(
 	spec: ContainerSpec<object>,
-	lines: MarkedLines | IndentedLines<object> | FencedLines<object>,
+	lines: MarkedLines | IndentedLines<object> | FencedLines<object> | ColonLines,
 	rowKind: () => AnyBlockKind
 ): BuiltinRegistration {
 	const marked = lines.shape === 'marked';
 	const reading = lines.shape === 'fenced' ? lines[READS_LINES] : null;
+	const colon = lines.shape === 'colon';
+	const titled = colon || reading?.title !== undefined;
+	// A colon type's data is its name, which its opening line spells and no metadata write reaches.
 	if (spec.closable && !reading?.title) {
 		throw new Error(
 			`container "${spec.name}": closable needs a title row, for now fenced lines with a title`
@@ -85,15 +96,15 @@ export function containerRegistration(
 		pageRole: spec.role ?? (marked ? 'prose' : 'object'),
 		mergeRole: spec.joins === false ? 'not-mergeable' : 'container',
 		// A marked or indented container's edges are its first and last child's text.
-		gapEdges: gapEdgesOf({ edgesInText: reading === null }),
+		gapEdges: gapEdgesOf({ edgesInText: reading === null && !colon }),
 		...samplesOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
 		container: {
 			lines,
 			...(spec.merges && { merges: spec.merges }),
-			...(reading ? { bodyWrite: reading.bodyWrite } : { reorderChildren: {} }),
+			...(reading ? { bodyWrite: reading.bodyWrite } : colon ? {} : { reorderChildren: {} }),
 			// A title row is always kept, so its container names no first-child strategy.
-			...(reading?.title
+			...(titled
 				? { reservedChrome: titleRowOf(spec.closable, rowKind) }
 				: {
 						unwrapRole: { firstChildBackspace: firstChild, middleChildBackspace: 'default-merge' }
@@ -102,8 +113,8 @@ export function containerRegistration(
 	};
 }
 
-/** The title row a titled fenced container holds as child 0, folding its body where `closable`
- *  says: every reader of a fold (focus, windowing, a reveal) asks these two. */
+/** The title row a titled container holds as child 0, folding its body where `closable` says:
+ *  every reader of a fold (focus, windowing, a reveal) asks these two. */
 function titleRowOf(closable: Closable<object> | undefined, rowKind: () => AnyBlockKind) {
 	const data = (node: NodeView) => getPluginMetadata<object>(node) ?? {};
 	return {

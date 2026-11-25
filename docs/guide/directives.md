@@ -171,7 +171,7 @@ One limitation though: the helper goes one way, info to structure, not the inver
 
 ## Switching it on
 
-Directives ship inert. `activateDirectives()` turns the grammar on (the generic boxes, the block opener for `:::` and `::`, and the inline `:` recognizer).
+Directives ship inert. `activateDirectives()` turns the grammar on (the generic boxes, the block opener for `:::` and `::`, and the inline `:` recognizer), and so does an editor listing a plugin value's `:::` type, made with `colonLines`.
 
 Remember, call it once at startup, before the editor first parses anything (a document parsed before the call will not re-parse, and a dev-mode warning will call you out). The call is also idempotent, so several plugins (and hot-reload re-runs) can each make it without stepping on each other.
 

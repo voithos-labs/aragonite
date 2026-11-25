@@ -68,6 +68,7 @@ export function createEditorGrammar(
 	let ownViews = new Map<AnyBlockKind, BlockView>();
 	let ownCompleters: readonly BlockCompleter[] = [];
 	let marked: readonly MarkedLines[] = [];
+	let colon: ReadonlyMap<string, AnyBlockKind> = new Map();
 	const refresh = (): void => {
 		const records = grammarRecords();
 		const generation = pluginInstallGeneration();
@@ -85,6 +86,7 @@ export function createEditorGrammar(
 		builtForBlocks = blocks;
 		ownViews = new Map(blocks.map((b) => [b.kind, b.view]));
 		ownCompleters = blocks.flatMap((b) => b.completer ?? []);
+		colon = new Map(blocks.flatMap((b) => (b.colonNames ?? []).map((name) => [name, b.kind])));
 		const own = blocks.flatMap((b) => b.openers.map((value) => ({ key: b.kind, value })));
 		// A switched-off syntax leaves the grammar only: a block of that kind still renders.
 		const kept = records.filter(
@@ -113,6 +115,10 @@ export function createEditorGrammar(
 		markedLines() {
 			refresh();
 			return marked;
+		},
+		colonTypes() {
+			refresh();
+			return colon;
 		},
 		inlines: () => options.inlines?.() ?? NO_INLINES,
 		blockView(kind) {

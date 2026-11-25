@@ -264,6 +264,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.374 | A conformance cell reads through its context | L |
 | G4.375 | A host importing from `/testing` ships none of its checks | harness |
 | G4.389 | Every caret the editor writes says whether it arrives, steps or puts back a byte | L |
+| G4.396 | A `:::` container name is read in one file | L |
 | G4.397 | A fenced shape's lines are paired in one file | L |
 
 ### The entries
@@ -770,5 +771,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.375 · A host importing from `/testing` ships none of its checks.** The minimal page imports `configureEditorEnv` from `/testing`, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name any of that entry's own code, through either build. A check table built by a call at load time ships this way, since a bundler can't prove the call does nothing; work a module does when loaded goes inside a function, or its call is marked pure.
 
 **G4.389 · A caret write names its kind.** Every function that writes a caret at a raw offset (`placeCaretAtRaw`, a backend's `setRaw`, a landing's `restore`) is listed as an arrival, a step or an exact byte. An arrival has no byte in hand, so on a `:::` row in live mode it rests no earlier than the title's start, and its function must read `arrivalRawStart` or a reader of it. A collapse, a page step and `navigateTo` once landed before the colons, each a write nobody had to classify. `lint/caret-write-classes.test.ts`.
+
+**G4.396 · A `:::` name is read in one file.** The names a plugin value's colon types hold reach their editor's grammar, and the names a `setup` plugin registered sit in the directive registry. `core/directive/registry.ts` reads both (`resolveDirective`, `startsContainerName`), so a title-row rule can't miss one set; no other file asks the grammar or the registry for a name. `lint/colon-names-one-read.test.ts`.
 
 **G4.397 · A fenced shape is paired in one file.** A fixed fence and a fenced container find their closing line in `schema/fence-shape.ts`, which counts depth and skips a code fence in a body there, so the reader and the escape a write runs can't disagree. No other file but the code fence's own parser looks for a code fence's closer to pair lines past it. `lint/fenced-pairing-home.test.ts`.
