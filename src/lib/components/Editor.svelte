@@ -162,7 +162,7 @@
 	} from '../schema/plugin-install';
 	import { createEditorActivation } from '../schema/plugin-activation';
 	import { createEditorContributions, type PlacingBlocks } from '../schema/editor-contributions';
-	import { drawnHandleOf } from '../schema/drawing';
+	import { drawnControlsOf } from '../schema/drawing';
 	import type { Command } from '../schema/plugin-command';
 	import type { CaretMenu } from '../schema/caret-menu';
 	import {
@@ -287,9 +287,9 @@
 		report: reportPluginError,
 		blocksAround: (kinds) => placingBlocks(kinds),
 		blockOf: (node, path) => documentRead.blockOf(node, path),
-		handleOf: (block) => {
+		controlsOf: (block) => {
 			const path = documentRead.pathOf(block);
-			return path ? drawnHandleOf(getBlockBoxByPath([...path])) : undefined;
+			return path ? drawnControlsOf(getBlockBoxByPath([...path])) : undefined;
 		},
 		pastedReader: (clip) => {
 			const of = measured(clip);

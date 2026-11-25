@@ -22,6 +22,6 @@ const _leafInputs = {
 	onSourceEdit: 'host',
 	isRevealed: 'host',
 	setRevealed: 'host',
-	// A block type's own commands are handed `Drawn.handle` instead (`editor-contributions.ts`).
+	// A block type's own commands are handed `Drawn.controls` instead (`editor-contributions.ts`).
 	commandHooks: 'drawn'
 } as const satisfies Record<KeysOfEach<EditableLeafDeps>, InputSource>;

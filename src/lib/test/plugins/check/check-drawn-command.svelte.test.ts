@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: `check` ran a block type's commands with no handle at all, so a component handing
+// Miss-analysis: `check` ran a block type's commands with no controls at all, so a component handing
 // one shape to a command reading another passed every row and threw only in a mounted editor.
 // `drawnCommand`: each command a block type places runs on a drawn sample block, handed what the
 // drawing declares; a throw or a rejection fails it.
@@ -15,7 +15,7 @@ import {
 } from '#lib/plugin.js';
 import { svelteBlock } from '#lib/components/drawn-block/svelte-block.svelte.js';
 import { check, isCheckFailure, type CheckReport, type Excuses } from '#lib/testing/check.js';
-import ShutHandle from '#lib/test/plugins/fixtures/ShutHandle.svelte';
+import ShutControls from '#lib/test/plugins/fixtures/ShutControls.svelte';
 import { mermaid } from '#packages/mermaid/src/index.js';
 
 async function reportOf(run: Promise<CheckReport>): Promise<CheckReport> {
@@ -41,7 +41,7 @@ function boxes(name: string, draw: Draw, place: 'commands' | 'actions' = 'comman
 	const open = command<Block<never>, Opens>({
 		id: 'open',
 		title: 'Open',
-		// No handle while the block isn't drawn, as the other rows run it.
+		// No controls while the block isn't drawn, as the other rows run it.
 		run: (_editor, _block, ui) => (ui ? (ui.open() as never) : false)
 	});
 	const box = fencedBlock({
@@ -68,14 +68,14 @@ const handing =
 	(open: () => unknown): Draw =>
 	() => ({
 		dom: document.createElement('div'),
-		handle: { open }
+		controls: { open }
 	});
 
 describe('drawnCommand', () => {
 	it.each(['commands', 'actions'] as const)(
 		'fails a command listed in %s that reads what its component never hands',
 		async (place) => {
-			const shut = boxes(`shut-${place}`, svelteBlock(ShutHandle), place);
+			const shut = boxes(`shut-${place}`, svelteBlock(ShutControls), place);
 			expect(rowOf(await reportOf(check(shut)), `shut-${place}/open`)).toMatchObject({
 				of: 'command',
 				status: 'failed',

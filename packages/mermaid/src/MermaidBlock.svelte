@@ -321,7 +321,7 @@
 		focus: focusView ? outOfView : editing ? intoBox : undefined,
 		keep: keepsPress,
 		save: () => commitEdit(false),
-		handle: ui
+		controls: ui
 	}));
 </script>
 

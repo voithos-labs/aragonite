@@ -32,7 +32,7 @@ import type { HeightMetrics } from './height-estimates';
 // ── Specs ────────────────────────────────────────────────────────────────────
 
 /** What every block type answers, whatever its shape; `K` is the keys its `chords` may take, `H`
- *  the handle its drawing hands its commands. */
+ *  the controls its drawing hands its commands. */
 export interface BlockCommon<D, K extends string = BlockKey, H = unknown> {
 	/** Lowercase letters, digits and hyphens; an editor qualifies it with the plugin's name. */
 	name: string;

@@ -136,7 +136,7 @@ function Label({ block, ctx, Slot }: BlockProps<never, TextDrawContext>) {
 }
 ```
 
-`useDrawn` takes a function, and the editor calls it each time it needs an answer, so `shown.current` is there by the time anyone clicks. It answers what a plain `draw` hands back beside its `dom`: `caret` (where a click on your picture of the text lands), `focus` ([below](#a-block-you-draw-whole)), `keep`, for events the editor should leave to your component (a drag that pans a diagram), `save` ([below](#a-block-with-its-own-editing-surface)) and `handle`, what your block type's own commands are handed.
+`useDrawn` takes a function, and the editor calls it each time it needs an answer, so `shown.current` is there by the time anyone clicks. It answers what a plain `draw` hands back beside its `dom`: `caret` (where a click on your picture of the text lands), `focus` ([below](#a-block-you-draw-whole)), `keep`, for events the editor should leave to your component (a drag that pans a diagram), `save` ([below](#a-block-with-its-own-editing-surface)) and `controls`, what your block type's own commands are handed.
 
 ## A block that holds blocks
 

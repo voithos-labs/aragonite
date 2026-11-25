@@ -86,7 +86,7 @@ export interface Drawn<D, C extends DrawContext = DrawContext, H = unknown> {
 	 *  a redo or a mode change and as the block leaves the window. A new document drops the text. */
 	save?(): void;
 	/** Handed to your block type's own commands while the block is drawn (`run`'s third argument). */
-	handle?: H;
+	controls?: H;
 	destroy?(): void;
 }
 
@@ -144,12 +144,12 @@ export function drawingOf(view: BlockView): Drawing {
 /** Where a drawn block's click lands, for each block element the draw host runs; set by the host. */
 export const CARET_AT = Symbol('Drawn.caretAt');
 
-/** What a drawn block's element hands its type's commands, set by the host: its `Drawn.handle`. */
-export const HANDLE_AT = Symbol('Drawn.handleAt');
+/** What a drawn block's element hands its type's commands, set by the host: its `Drawn.controls`. */
+export const CONTROLS_AT = Symbol('Drawn.controlsAt');
 
-/** The handle the drawing on `blockEl` declares now; undefined with none, or no drawing there. */
-export function drawnHandleOf(blockEl: HTMLElement | null): unknown {
-	return (blockEl as { [HANDLE_AT]?: () => unknown } | null)?.[HANDLE_AT]?.();
+/** The controls the drawing on `blockEl` declares now; undefined with none, or no drawing there. */
+export function drawnControlsOf(blockEl: HTMLElement | null): unknown {
+	return (blockEl as { [CONTROLS_AT]?: () => unknown } | null)?.[CONTROLS_AT]?.();
 }
 
 /** A drawn block's `caretTargetAtPoint`: what its drawing's `caret` makes of a point, else the

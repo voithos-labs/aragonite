@@ -1,7 +1,7 @@
 /**
  * Block types drawn with `draw`, for the e2e suite that drives the draw host in a real browser: a
  * ```` ```field ```` box editing its body in a field of its own, saved as it leaves or when the
- * editor asks, whose menu row focuses it through its handle, a
+ * editor asks, whose menu row focuses it through its controls, a
  * ```` ```shown ```` fence drawn as a preview, a `%>`
  * container drawn as a box, an `@@ ` memo with a badge before its text and a `[[badge]]` box drawn
  * whole. The aside and the badge count their draws on `window.__drawnLog`. Dev and e2e harness only.
@@ -28,11 +28,11 @@ export interface FieldCaret {
 }
 
 /** What the field box hands its type's commands. */
-export interface FieldHandle {
+export interface FieldControls {
 	open(): void;
 }
 
-const focusField = command<Block<never>, FieldHandle>({
+const focusField = command<Block<never>, FieldControls>({
 	id: 'focus-field',
 	title: 'Edit the field',
 	run: (_editor, _block, field) => (field ? field.open() : false)
@@ -148,7 +148,7 @@ function count(what: keyof DrawnLog, name: string): void {
 function drawField(
 	block: Block<never>,
 	ctx: BoxDrawContext
-): Drawn<never, BoxDrawContext, FieldHandle> {
+): Drawn<never, BoxDrawContext, FieldControls> {
 	const dom = document.createElement('div');
 	dom.className = 'drawn-field';
 	const field = document.createElement('textarea');
@@ -213,7 +213,7 @@ function drawField(
 			field.value = shown;
 		},
 		save,
-		handle: { open: () => place(field.selectionStart) },
+		controls: { open: () => place(field.selectionStart) },
 		keep: (e: Event) => e instanceof KeyboardEvent && unwritten() && isHistoryChord(e),
 		focus: {
 			enter(at: { edge: 'start' | 'end'; x: number | null } | { offset: number }) {

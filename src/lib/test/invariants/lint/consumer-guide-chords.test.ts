@@ -50,7 +50,7 @@ installPlugins(BUNDLED_PLUGINS);
 const contributions = createEditorContributions({
 	editorFor: () => undefined,
 	blocksAround: () => ({ blocks: [] }),
-	handleOf: () => undefined,
+	controlsOf: () => undefined,
 	blockOf: () => {
 		throw new Error('no block is read here');
 	},

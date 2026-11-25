@@ -83,7 +83,7 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	// @ts-expect-error a block not narrowed to its type can't be given data
 	draft.data(numbered.children[0], 1);
 	draft.data(numbered, 2);
-	// A block type's command reads the handle its drawing declares, and no other.
+	// A block type's command reads the controls its drawing declares, and no others.
 	const dom = () => document.createElement('div');
 	const opens = command<Block<never>, { open(): void }>({
 		id: 'opens',
@@ -96,15 +96,15 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 		...box,
 		name: 'o',
 		actions: [row],
-		draw: () => ({ dom: dom(), handle: { open() {} } })
+		draw: () => ({ dom: dom(), controls: { open() {} } })
 	});
 	// prettier-ignore
-	// @ts-expect-error the drawing hands another handle than its type's command reads
-	const p = fencedBlock({ ...box, name: 'p', actions: [row], draw: () => ({ dom: dom(), handle: { shut() {} } }) });
+	// @ts-expect-error the drawing hands other controls than its type's command reads
+	const p = fencedBlock({ ...box, name: 'p', actions: [row], draw: () => ({ dom: dom(), controls: { shut() {} } }) });
 	// prettier-ignore
-	// @ts-expect-error a command listed with no key or row reads the drawing's handle too
-	const r = fencedBlock({ ...box, name: 'r', commands: [opens], draw: () => ({ dom: dom(), handle: { shut() {} } }) });
-	// A drawing with no handle compiles: its commands are handed undefined, which they take anyway.
+	// @ts-expect-error a command listed with no key or row reads the drawing's controls too
+	const r = fencedBlock({ ...box, name: 'r', commands: [opens], draw: () => ({ dom: dom(), controls: { shut() {} } }) });
+	// A drawing with no controls compiles: its commands are handed undefined, which they take anyway.
 	const q = fencedBlock({ ...box, name: 'q', actions: [row], draw: () => ({ dom: dom() }) });
 	const both = command<Block<never>, { open(): void; shut(): void }>({
 		id: 'both',
@@ -114,7 +114,7 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	const rows = [row, { label: 'Both', command: both }];
 	// prettier-ignore
 	// @ts-expect-error the drawing hands less than one of its type's commands reads
-	const u = fencedBlock({ ...box, name: 'u', actions: rows, draw: () => ({ dom: dom(), handle: { open() {} } }) });
+	const u = fencedBlock({ ...box, name: 'u', actions: rows, draw: () => ({ dom: dom(), controls: { open() {} } }) });
 	return [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, u, reads, fine];
 }
 

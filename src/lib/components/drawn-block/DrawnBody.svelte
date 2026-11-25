@@ -43,7 +43,7 @@
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
 		CARET_AT,
-		HANDLE_AT,
+		CONTROLS_AT,
 		type BoxDrawContext,
 		type ContainerDrawContext,
 		type Drawn,
@@ -329,7 +329,7 @@
 			if (host) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
 			// On the block's own element, which each drawing gets anew; read per call, as a
 			// framework component declares its parts once it has rendered.
-			(el as HTMLElement & { [HANDLE_AT]?: unknown })[HANDLE_AT] = () => made.handle;
+			(el as HTMLElement & { [CONTROLS_AT]?: unknown })[CONTROLS_AT] = () => made.controls;
 			const unhold = services?.drafts.holdSave(() => saveOf(made));
 			const mountedOn = { stamp: services?.stamps.current(), generation };
 			seen = watched();

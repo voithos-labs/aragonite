@@ -1,4 +1,4 @@
-<!-- A field over its fence's body, written only when the editor asks it to save; its handle focuses it. -->
+<!-- A field over its fence's body, written only when the editor asks it to save; its controls focus it. -->
 <script lang="ts">
 	import {
 		useDrawn,
@@ -13,7 +13,7 @@
 			if (field && field.value !== block.body)
 				void ctx.editor.edit().body(block, field.value).commit();
 		},
-		handle: { focus: () => field?.focus() }
+		controls: { focus: () => field?.focus() }
 	}));
 </script>
 

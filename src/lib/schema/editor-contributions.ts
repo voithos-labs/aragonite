@@ -138,7 +138,7 @@ export function createEditorContributions(deps: {
 	blocksAround(kinds: ReadonlySet<string>): PlacingBlocks;
 	blockOf(node: NodeView, path: readonly number[]): Block;
 	/** What `block`'s drawing hands its type's commands; undefined while it isn't drawn. */
-	handleOf(block: Block): unknown;
+	controlsOf(block: Block): unknown;
 	pastedReader: EditorContributions['pastedReader'];
 }): EditorContributions {
 	let commands: ContributedCommand[] = [];
@@ -279,12 +279,12 @@ export function createEditorContributions(deps: {
 
 	function runOne(entry: ContributedCommand, arg: unknown): boolean {
 		const editor = deps.editorFor(entry.plugin)!;
-		// Only a command the block's own type places reads its drawing, whose handle type it shares.
+		// Only a command the block's own type places reads its drawing, whose controls' type it shares.
 		const kind = kindOfBlock(arg);
-		const handle =
-			kind !== undefined && entry.placedBy.has(kind) ? deps.handleOf(arg as Block) : undefined;
+		const controls =
+			kind !== undefined && entry.placedBy.has(kind) ? deps.controlsOf(arg as Block) : undefined;
 		return guarded(entry, true, () => {
-			const answer = entry.spec.run(editor, arg, handle);
+			const answer = entry.spec.run(editor, arg, controls);
 			if (isThenable(answer)) {
 				answer.then(undefined, (cause: unknown) =>
 					deps.report({ plugin: entry.plugin, doing: `run ${entry.id}`, cause })

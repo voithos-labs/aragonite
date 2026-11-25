@@ -1,4 +1,4 @@
-<!-- A drawing whose handle can shut and nothing else: `check` runs a command reading `open` against it. -->
+<!-- A drawing whose controls can shut and nothing else: `check` runs a command reading `open` against it. -->
 <script lang="ts">
 	import {
 		useDrawn,
@@ -8,7 +8,7 @@
 
 	let { block }: SvelteBlockProps<never, BoxDrawContext> = $props();
 	let shut = $state(false);
-	useDrawn(() => ({ handle: { shut: () => void (shut = true) } }));
+	useDrawn(() => ({ controls: { shut: () => void (shut = true) } }));
 </script>
 
-<div class="shut-handle" data-shut={shut}>{block.body}</div>
+<div class="shut-controls" data-shut={shut}>{block.body}</div>

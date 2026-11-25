@@ -114,9 +114,9 @@ describe('svelteBlock', () => {
 		expect(document.activeElement).toBe(blockHostAt(editor, [1]).querySelector('.die'));
 	});
 
-	// Miss-analysis: the wrapper's `save` and `handle` getters were added with no component declaring
+	// Miss-analysis: the wrapper's `save` and `controls` getters were added with no component declaring
 	// either, so deleting them left every suite green.
-	it('hands the editor the `save` and `handle` its component declares with `useDrawn`', async () => {
+	it('hands the editor the `save` and `controls` its component declares with `useDrawn`', async () => {
 		const handed: unknown[] = [];
 		const focusField = command<Block<never>, { focus(): void }>({
 			id: 'focus-field',

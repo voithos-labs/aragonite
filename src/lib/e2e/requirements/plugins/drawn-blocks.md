@@ -37,9 +37,9 @@ Miss-analysis: no row scrolled a box away while its field held text, and the one
 
 - Text typed in the field, then the editor scrolled to its end: the field's block leaves the window, the editor saves the field as it goes, and the text is written once, as one undo step, on every engine.
 
-## The field's menu row (`Drawn.handle`)
+## The field's menu row (`Drawn.controls`)
 
-The field type's own command `drawn/focus-field` focuses the field through the handle its drawing declares.
+The field type's own command `drawn/focus-field` focuses the field through the controls its drawing declares.
 
 - Run on the field's block, it focuses the field.
 - Run on the field's block once the field is scrolled out of the window, it declines and nothing takes focus.

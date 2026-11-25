@@ -3126,7 +3126,7 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 	'src/lib/testing/command-check.ts :: drawnCommand': {
 		branches: 1,
 		reason:
-			'with no DOM no block can be drawn, so the row that runs its command with the handle reads unchecked'
+			'with no DOM no block can be drawn, so the row that runs its command with the drawing’s controls reads unchecked'
 	},
 	'src/lib/testing/command-check.ts :: mount': {
 		branches: 1,

@@ -19,8 +19,8 @@ interface CommandSpecBase<A, H> {
 	/** Whether it can run with this argument now; false greys a button and refuses `run`. */
 	when?(editor: Editor, arg: A): boolean;
 	/** Returning `false` declines, so `run` answers false; a throw or a rejection is reported under
-	 *  the plugin's name. A block type's own command gets its block's `Drawn.handle` while drawn. */
-	run(editor: Editor, arg: A, handle?: H): boolean | void | Promise<unknown>;
+	 *  the plugin's name. A block type's own command gets its block's `Drawn.controls` while drawn. */
+	run(editor: Editor, arg: A, controls?: H): boolean | void | Promise<unknown>;
 }
 
 /** What `command` takes. Only a command that runs without an argument binds a chord, since a key
@@ -29,15 +29,15 @@ export type CommandSpec<A = void, H = unknown> = CommandSpecBase<A, H> &
 	([undefined] extends [A] ? { chord?: Chord } : { chord?: never });
 
 /** A command as an editor holds it: run it with `editor.run(command, arg)`. `H` is the drawing's
- *  handle it reads, so a block type whose drawing hands another doesn't compile with it. */
+ *  controls it reads, so a block type whose drawing hands others doesn't compile with it. */
 export interface Command<A = void, H = unknown> {
 	/** `plugin/id` once an editor installs its plugin, the id as written before that. */
 	readonly id: string;
 	readonly title: string;
 	/** Carries the argument type; never set. */
 	readonly '~arg'?: A;
-	/** Carries the handle type, read only as an argument; never set. */
-	readonly '~handle'?: (handle: H) => void;
+	/** Carries the controls' type, read only as an argument; never set. */
+	readonly '~controls'?: (controls: H) => void;
 }
 
 /** Makes a command for a plugin to list in what it contributes. */

@@ -297,7 +297,7 @@ test.describe("the field's menu row", () => {
 	const fieldFocused = (page: Page) =>
 		page.evaluate(() => document.activeElement?.closest('.drawn-field') != null);
 
-	test('focuses the field through its handle while drawn', async ({ page }) => {
+	test('focuses the field through its controls while drawn', async ({ page }) => {
 		await new PluginsPage(page).gotoPlugins('drawn');
 		await hold(page, FIELD);
 		expect(await run(page, 'drawn/focus-field')).toBe(true);

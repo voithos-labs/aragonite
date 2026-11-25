@@ -24,7 +24,7 @@ export function activationWith(...highlighters: { name: string; code: CodeHighli
 		editorFor: () => undefined,
 		report,
 		blocksAround: () => ({ blocks: [] }),
-		handleOf: () => undefined,
+		controlsOf: () => undefined,
 		blockOf: (node) => DETACHED_READING.blockOf(node, null),
 		pastedReader: () => ({
 			doc: () => {

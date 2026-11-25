@@ -70,16 +70,15 @@ export function vueBlock<D = never, C extends DrawContext = DrawContext, H = unk
 			get save() {
 				return declared.parts().save;
 			},
-			get handle() {
-				return declared.parts().handle;
+			get controls() {
+				return declared.parts().controls;
 			}
 		};
 	};
 }
 
-/** Called in a `vueBlock` component's `setup`: `parts` says what it adds to the drawing, its
- *  block's `focus`, `keep`, `caret`, `save` or `handle`, read each time the editor needs it (a
- *  template ref, say). */
+/** Called in a `vueBlock` component's `setup`: `parts` says what it adds to the drawing (`focus`,
+ *  `keep`, `caret`, `save`, `controls`), read each time the editor needs it. */
 export function useDrawn<H = unknown>(parts: () => DrawnParts<H>): void {
 	const declared = inject(DRAWN_CONTEXT, null) as Declared<H> | null;
 	if (!declared) throw new Error('useDrawn runs only inside a vueBlock component');
@@ -91,7 +90,7 @@ export function useDrawn<H = unknown>(parts: () => DrawnParts<H>): void {
 type SlotName = 'source' | 'children';
 type DrawnParts<H = unknown> = Pick<
 	Drawn<never, DrawContext, H>,
-	'focus' | 'keep' | 'caret' | 'save' | 'handle'
+	'focus' | 'keep' | 'caret' | 'save' | 'controls'
 >;
 type Declared<H = unknown> = { parts: () => DrawnParts<H> };
 

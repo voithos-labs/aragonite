@@ -358,7 +358,7 @@ async function onDrawnBlock(
 	if (!block) return { status: 'not-applicable', detail: 'its sample reads as another type' };
 	const drawn = drawing.draw(block, standInDraw(stage));
 	try {
-		const rejected = await ended(stage, entry.spec.run(stage.editor, block, drawn.handle), 'it');
+		const rejected = await ended(stage, entry.spec.run(stage.editor, block, drawn.controls), 'it');
 		if (rejected)
 			return failed(`rejected, handed what its drawing declares: ${messageOf(rejected.cause)}`);
 		return { status: 'passed', detail: 'ran on a drawn block, handed what its drawing declares' };

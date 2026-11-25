@@ -67,16 +67,15 @@ export function reactBlock<D = never, C extends DrawContext = DrawContext, H = u
 			get save() {
 				return declared.parts().save;
 			},
-			get handle() {
-				return declared.parts().handle;
+			get controls() {
+				return declared.parts().controls;
 			}
 		};
 	};
 }
 
-/** Called in a `reactBlock` component: `parts` says what it adds to the drawing, its block's
- *  `focus`, `keep`, `caret`, `save` or `handle`, read each time the editor needs it (a ref's
- *  element, say). */
+/** Called in a `reactBlock` component: `parts` says what it adds to the drawing (`focus`, `keep`,
+ *  `caret`, `save`, `controls`), read each time the editor needs it. */
 export function useDrawn<H = unknown>(parts: () => DrawnParts<H>): void {
 	const declared = useContext(DrawnContext) as Declared<H> | null;
 	if (!declared) throw new Error('useDrawn runs only inside a reactBlock component');
@@ -91,7 +90,7 @@ export function useDrawn<H = unknown>(parts: () => DrawnParts<H>): void {
 type SlotName = 'source' | 'children';
 type DrawnParts<H = unknown> = Pick<
 	Drawn<never, DrawContext, H>,
-	'focus' | 'keep' | 'caret' | 'save' | 'handle'
+	'focus' | 'keep' | 'caret' | 'save' | 'controls'
 >;
 type Declared<H = unknown> = { parts: () => DrawnParts<H> };
 

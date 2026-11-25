@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: a command reached its block's drawing through nothing on the plugin values, so no
 // row ran a command beside a drawing, or one listed elsewhere over a drawn block.
-// `Drawn.handle`: a block type's own command is handed its block's handle while the block is drawn;
+// `Drawn.controls`: a block type's own command is handed its block's controls while the block is drawn;
 // a command its type doesn't place never is, whatever block it runs on.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin } from '#lib/schema/plugin-install.js';
@@ -32,24 +32,24 @@ let handed: unknown[] = [];
 const placed = command<Block<never>, Tagged>({
 	id: 'placed',
 	title: 'Placed',
-	run: (_editor, _block, handle) => void handed.push(handle)
+	run: (_editor, _block, controls) => void handed.push(controls)
 });
 const listed = command<Block<never>, Tagged>({
 	id: 'listed',
 	title: 'Listed',
-	run: (_editor, _block, handle) => void handed.push(handle)
+	run: (_editor, _block, controls) => void handed.push(controls)
 });
 const loose = command<Block<never>>({
 	id: 'loose',
 	title: 'Loose',
-	run: (_editor, _block, handle) => void handed.push(handle)
+	run: (_editor, _block, controls) => void handed.push(controls)
 });
 
-// A button that takes the caret whole, and a handle naming its type and its block's body.
+// A button that takes the caret whole, and controls naming its type and its block's body.
 const tagged = (tag: string) => (block: Block<never>, ctx: BoxDrawContext) => {
 	const dom = document.createElement('button');
 	dom.addEventListener('click', () => ctx.focusWhole());
-	return { dom, handle: { tag: `${tag} ${block.body}` } };
+	return { dom, controls: { tag: `${tag} ${block.body}` } };
 };
 
 const boxes = definePlugin({
@@ -94,7 +94,7 @@ async function mounted() {
 	return { editor, mine, other };
 }
 
-describe("a drawing's handle", () => {
+describe("a drawing's controls", () => {
 	it("reaches its block type's own command while the block is drawn", async () => {
 		const { editor, mine } = await mounted();
 		expect(editor.instance.run(placed, mine)).toBe(true);
@@ -142,7 +142,7 @@ describe("a drawing's handle", () => {
 			return { editor, second: byBody('z'), other: byBody('y') };
 		}
 
-		it.each(routes)('runs %s on the block handed in, with its handle', async (_, run) => {
+		it.each(routes)('runs %s on the block handed in, with its controls', async (_, run) => {
 			const { editor, second } = await caretInFirst();
 			expect(editor.instance.can(placed, second)).toBe(true);
 			expect(run(editor, second)).toBe(true);

@@ -26,7 +26,7 @@ export interface SvelteBlockOptions {
 /** What a component adds to its block's drawing, read each time the editor needs it. */
 type DrawnParts<H = unknown> = Pick<
 	Drawn<never, DrawContext, H>,
-	'focus' | 'keep' | 'caret' | 'save' | 'handle'
+	'focus' | 'keep' | 'caret' | 'save' | 'controls'
 >;
 
 const DRAWN_CONTEXT = Symbol('drawn-parts');
@@ -78,15 +78,15 @@ export function svelteBlock<D = never, C extends DrawContext = DrawContext, H = 
 			get save() {
 				return declared.parts().save;
 			},
-			get handle() {
-				return declared.parts().handle;
+			get controls() {
+				return declared.parts().controls;
 			}
 		};
 	};
 }
 
 /** Called while a `svelteBlock` component initialises: `parts` says what it adds to the drawing,
- *  its block's `focus`, `keep`, `caret`, `save` or `handle`. */
+ *  its block's `focus`, `keep`, `caret`, `save` or `controls`. */
 export function useDrawn<H = unknown>(parts: () => DrawnParts<H>): void {
 	const declared = getContext<{ parts: () => DrawnParts<H> } | undefined>(DRAWN_CONTEXT);
 	if (!declared) throw new Error('useDrawn runs only inside a svelteBlock component');
