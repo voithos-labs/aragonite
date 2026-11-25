@@ -130,6 +130,11 @@ describe('a selection written over an opening row', () => {
 		expect(await write(G, ':::foo Title\n', start, end)).toBe(after);
 	});
 
+	// Live mode writes a selection of the row whole as its title cleared, its marker kept.
+	it('the row whole written back as its marker keeps the box', async () => {
+		expect(await write(G, ':::foo Title\n', 0, 12, ':::foo ')).toBe(':::foo \nbody\n:::\n');
+	});
+
 	it('the same bytes written with no selection, as a word delete writes them, stay literal', async () => {
 		expect(await write(G, ':::foo Title\n', 0, 3, '', false)).toBe('foo Title\nbody\n:::\n');
 	});
