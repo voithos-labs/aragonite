@@ -6,6 +6,7 @@ import { renderFencedSource } from '../blocks/code/code-renderer';
 import { framedDrawing, type SourceFrame } from './framed-source';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { fenceShape } from '../../schema/fence-shape';
+import { bodyWriter } from './body-changes';
 import {
 	checkLocalName,
 	completerOf,
@@ -45,7 +46,7 @@ export function fencedBlock<H = unknown>(spec: FencedBlockSpec<H>): BlockType<ne
 		openers: shape.openers,
 		completer: completerOf(spec.complete, shape.claims),
 		bodyRange: shape.body,
-		writeBody: shape.writeBody,
+		writeBody: bodyWriter(shape.writeBody),
 		oneLine: shape.oneLine
 	});
 	return type;

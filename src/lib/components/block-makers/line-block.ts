@@ -5,6 +5,7 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import { madeBlockType } from '../../schema/block-type';
 import { drawnView } from '../drawn-block/drawn-view';
 import { framedDrawing, type SourceFrame } from './framed-source';
+import { bodyWriter } from './body-changes';
 import {
 	checkLocalName,
 	completerOf,
@@ -74,7 +75,7 @@ export function lineBlock<D = never, H = unknown>(spec: LineBlockSpec<D, H>): Bl
 		// A line with no text of its own has an empty body, as its open text is empty.
 		bodyRange: shape.range ?? lineEnd,
 		writeData: shape.writeData,
-		writeBody: shape.writeBody
+		writeBody: bodyWriter(shape.writeBody)
 	});
 	return type;
 }
