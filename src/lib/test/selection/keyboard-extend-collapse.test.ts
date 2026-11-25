@@ -4,7 +4,7 @@ import { parse } from '../../core/parser';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { collapseCrossBlock } from '../../selection/keyboard-extend';
 import { restoreLandingOver } from '../harness/restore-landing';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -78,7 +78,7 @@ describe('collapseCrossBlock over an intra-table rectangle', () => {
 // closed details to reach a hidden endpoint never ran.
 describe('collapseCrossBlock past a closed details', () => {
 	it('lands on the title row and mounts nothing inside the hidden body', async () => {
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 		const closed = parse('Above\n\n<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n');
 		const selection = createSelectionState({ getDoc: () => closed });
 		const { landing, revealed } = restoreLandingOver(closed, selection);

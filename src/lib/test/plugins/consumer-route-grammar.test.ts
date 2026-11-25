@@ -11,7 +11,7 @@ import {
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
@@ -25,7 +25,7 @@ import { PLUGINS_SEED } from '../../../../examples/consumer/src/routes/plugins/s
 // renderer there either, which is the fallback the consumer suite asserts.
 const consumerRouteSet = () => [
 	calloutPlugin(),
-	detailsPlugin(),
+	details,
 	admonitionsPlugin(),
 	mermaidPlugin(),
 	toc,
@@ -49,7 +49,7 @@ describe('the consumer example route parses its seed as the kinds its suite asse
 			'heading',
 			'toc/toc',
 			'callout',
-			'details',
+			'details/details',
 			'paragraph',
 			// A plugin value's block, which only the route's editor reads (below).
 			'paragraph',

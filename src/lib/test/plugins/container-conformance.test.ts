@@ -13,7 +13,7 @@ import {
 	reversedAncestryLeavesRootStale
 } from '#lib/testing/container-conformance.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide, DETAILS } from '#lib/test/harness/registered-details.js';
 import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
 import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
@@ -79,7 +79,7 @@ const detailsProfile: ContainerConformanceProfile = {
 describe('G4.3 conformance kit: plugin containers', () => {
 	beforeEach(() => {
 		registerCalloutKind(testView());
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	it('runs the whole kit over the callout container', async () => {
@@ -130,7 +130,7 @@ describe('G4.3 conformance kit: plugin containers', () => {
 describe('G4.3 conformance kit: a broken plugin container fails', () => {
 	beforeEach(() => {
 		registerCalloutKind(testView());
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	// Non-vacuity for the terminator cell: neutralize the body-write rule and the

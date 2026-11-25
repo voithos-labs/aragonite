@@ -6,7 +6,7 @@
  */
 import { getPluginMetadata, type AnyBlockKind, type InlineNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { trimTrailingLineEnding } from '../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { computeInlineContent, getContentRange, isProseKind } from '../core/inline';
 import { readerText } from '../core/inline/reader-text';
 import { isGridDescriptor, tryGetBlockKindDescriptor } from './block-kind-descriptor';
@@ -258,7 +258,8 @@ class NodeBlock {
 	}
 
 	get text(): string {
-		return this[STATE].node.raw;
+		const state = this[STATE];
+		return closedByContainer(state) ? trimTrailingLineEnding(state.node.raw) : state.node.raw;
 	}
 
 	get body(): string {
@@ -359,6 +360,15 @@ class NodeBlock {
 }
 
 const pathOf = (state: BlockState) => state.reading.find(state.node, state);
+
+// Where its container closes its line (a summary's `</summary>`), the line ending is the
+// container's, so the block's text stops where its bytes do.
+function closedByContainer(state: BlockState): boolean {
+	const path = pathOf(state);
+	if (!path || path.length < 2) return false;
+	const end = state.reading.ownEnd(path);
+	return end !== null && end === state.reading.byteOf(path, displayLength(state.node.raw));
+}
 
 // A leaf's body is the range its type declares, else its content range; a declared range that
 // answers null is a body with no line yet.

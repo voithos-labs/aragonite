@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { createInlineRangeCommit } from '#lib/editor-actions/inline-range-commit.js';
 import {
@@ -176,7 +176,7 @@ describe('inline-range commit: the caret it lands', () => {
 // Miss-analysis: every length check ran at the top level, where no container rewrites the bytes.
 describe('inline-range commit: the length it reports is the length it stores', () => {
 	beforeEach(() => {
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	it('counts the escape a details body gives a closing tag', async () => {

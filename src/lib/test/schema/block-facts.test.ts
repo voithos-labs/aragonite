@@ -20,7 +20,7 @@ import { blockFacts, type BlockFacts } from '#lib/schema/block-facts.js';
 import { isWholeBlockUnit } from '#lib/schema/whole-block-unit.js';
 import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
@@ -33,7 +33,7 @@ import { toc } from '#packages/toc/src/index.js';
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
-	details: detailsPlugin,
+	details: () => details,
 	emoji: () => emoji,
 	footnotes: footnotesPlugin,
 	'highlight-occurrences': () => highlightOccurrences,

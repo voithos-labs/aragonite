@@ -12,7 +12,7 @@ import {
 	makeStubFocus
 } from '#lib/test/harness/editor-actions.js';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
-import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide, DETAILS } from '#lib/test/harness/registered-details.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { admittedCaret } from '#lib/test/harness/editor-actions.js';
@@ -26,7 +26,7 @@ import { testView } from '#lib/test/harness/test-view.js';
  * structural paths live in terminator-collision-structural.test.ts.
  */
 beforeEach(() => {
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 });
 
 const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
@@ -63,7 +63,7 @@ describe('details terminator collision through the real commit path', () => {
 		expect(details.children?.[1].raw).toBe('&lt;/details>\n');
 		// Ahead of the child's reparse: the kind follows the escaped bytes, so the child
 		// stays prose instead of becoming the htmlBlock the raw tag would have parsed to.
-		expect(details.children?.map((c) => c.kind)).toEqual(['details-summary', 'paragraph']);
+		expect(details.children?.map((c) => c.kind)).toEqual(['details.title', 'paragraph']);
 	});
 
 	it('converges with a fresh parse of its own bytes after the escape', async () => {

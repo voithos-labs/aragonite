@@ -8,7 +8,7 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { installPlugins } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
+import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
 import { toc } from '#packages/toc/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
@@ -19,7 +19,7 @@ import {
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 
-const DETAILS_PLUGIN = detailsPlugin();
+const DETAILS_PLUGIN = registeredDetails();
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin(), DETAILS_PLUGIN, footnotesPlugin(), mermaidPlugin()]);

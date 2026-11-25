@@ -13,7 +13,8 @@ import {
 } from '#lib/core/nodes.js';
 import { computeInlineContent, grammar, isProseKind, type Piece } from '#lib/plugin.js';
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
-import { DETAILS } from '#packages/details/src/index.js';
+import { listGrammar } from '#lib/schema/own-syntax.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
 import { MERMAID } from '#packages/mermaid/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
@@ -48,7 +49,7 @@ const NOT_YET_DEMONSTRATED: Record<string, string> = {
  *  against the directory listing so a plugin dropped from the demo set fails here. */
 const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	admonitions: [ADMONITION, GITHUB_ALERT],
-	details: [DETAILS],
+	details: ['details/details'],
 	emoji: [EMOJI],
 	footnotes: [FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND],
 	mermaid: [MERMAID],
@@ -118,8 +119,16 @@ let expected: Set<string>;
 
 beforeEach(() => {
 	installPlugins(SETUP_PLUGINS);
+	// The demo editor's reading: every page-wide kind beside its plugin values' block types.
+	const values = listGrammar(PLUGIN_VALUES, ({ cause }) => {
+		throw cause;
+	});
+	const grammar = createEditorGrammar({
+		blocks: () => values.blocks,
+		inlines: () => values.inlines
+	});
 	demonstrated = new Set([
-		...kindsIn(parse(SHOWCASE_DOCUMENT)),
+		...kindsIn(parse(SHOWCASE_DOCUMENT, { grammar })),
 		...valueKindsIn(SHOWCASE_DOCUMENT)
 	]);
 	expected = new Set([

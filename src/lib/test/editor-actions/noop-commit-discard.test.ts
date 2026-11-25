@@ -6,7 +6,7 @@ import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.j
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { findMergeTarget } from '#lib/schema/merge-rules.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
@@ -25,12 +25,12 @@ const DETAILS = '<details>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
 describe('noop structural commit discards its snapshot', () => {
 	beforeEach(() => {
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	it('splitting a chrome leaf (container scope) creates no entry and leaves bytes untouched', async () => {
 		const details = parse(DETAILS).children[0];
-		expect(details.children?.[0].kind).toBe('details-summary');
+		expect(details.children?.[0].kind).toBe('details.title');
 
 		const { deps, events, getBlockIds } = makeEditorActionsDeps([details]);
 		const controller = createUndoController(deps);

@@ -14,7 +14,7 @@ import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-so
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import type { PlaceholderBlock, PluginsProp } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
@@ -30,7 +30,7 @@ afterEach(destroyMountedEditors);
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
-	details: detailsPlugin,
+	details: () => details,
 	emoji: () => emoji,
 	footnotes: footnotesPlugin,
 	'highlight-occurrences': () => highlightOccurrences,
@@ -49,7 +49,7 @@ const EMPTY_FIXTURES: Record<string, { source: string; path: number[]; openAt?: 
 	fencedCode: { source: '```\n\n```\n', path: [0] },
 	directiveLeaf: { source: '::spoiler\n', path: [0] },
 	directiveOpenerLine: { source: ':::note\n\nbody\n\n:::\n', path: [0, 0] },
-	'details-summary': {
+	'details/details.title': {
 		source: '<details>\n<summary></summary>\n\nbody\n\n</details>\n',
 		path: [0, 0]
 	},
@@ -78,7 +78,7 @@ const NEVER_ASKED: Record<string, string> = {
 	directiveContainer: CONTAINER,
 	admonition: CONTAINER,
 	githubAlert: CONTAINER,
-	details: CONTAINER,
+	'details/details': CONTAINER,
 	'footnote-def': CONTAINER,
 	mermaid: 'edited in its own textarea, which is not the shared editable element'
 };

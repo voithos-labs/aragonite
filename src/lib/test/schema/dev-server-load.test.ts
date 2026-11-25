@@ -20,7 +20,7 @@ it(
 			await import('#lib/schema/plugin-install.js');
 		const plugins = await Promise.all([
 			import('#packages/admonitions/src/index.js').then((m) => m.admonitionsPlugin()),
-			import('#packages/details/src/index.js').then((m) => m.detailsPlugin()),
+			import('#packages/details/src/index.js').then((m) => m.details),
 			import('#packages/emoji/src/index.js').then((m) => m.emoji),
 			import('#packages/footnotes/src/index.js').then((m) => m.footnotesPlugin()),
 			import('#packages/highlight-occurrences/src/index.js').then((m) => m.highlightOccurrences),

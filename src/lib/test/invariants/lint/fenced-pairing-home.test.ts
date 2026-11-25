@@ -15,10 +15,8 @@ const PAIRED_IN_ONE_FILE: CallSiteRule = {
 	population: (file) => file.relPath !== HOME && !file.relPath.startsWith(CODE_FENCE),
 	calls: ['findFenceCloser'],
 	holds: () => false,
-	allowed: {
-		'packages/details/src/details-kind.ts :: visitTagLines':
-			'the package reads its own lines until it moves onto `fencedLines`'
-	},
+	// Every fenced shape reads through the home now, so the rule waits for the next caller.
+	atLeastCallers: 0,
 	reason:
 		'pair a fenced shape through `fencedLines` or `fencedBlock`, whose reading skips code fences',
 	hits: [

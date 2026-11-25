@@ -26,7 +26,7 @@ import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { registeredDetails } from '#lib/test/harness/registered-details.js';
 
 /** The top-level kinds after `text` is written over block `index` through the keystroke route. */
 function typedOverSecond(source: string, text: string, index = 1): string[] {
@@ -40,7 +40,7 @@ function typedOverSecond(source: string, text: string, index = 1): string[] {
 
 describe('a construct backed out above a join completes once a write below closes it', () => {
 	beforeEach(() => {
-		installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
+		installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
 	});
 
 	it.each([
@@ -229,7 +229,7 @@ const ROUTES: [string, Route][] = [
 
 describe.each(ROUTES)('a closer written blocks below the construct it finishes, %s', (_, route) => {
 	beforeEach(() => {
-		installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
+		installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
 	});
 
 	it.each([

@@ -7,7 +7,7 @@ import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { registeredMath, MATH_BLOCK } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
+import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
 import { arbPluginGfmDoc, arbPluginInlineSource, freshOrFixedSeed } from './arbitraries';
 
 /**
@@ -24,7 +24,7 @@ function roundTrips(source: string): boolean {
 }
 
 beforeEach(() => {
-	installPlugins([footnotesPlugin(), registeredMath(), admonitionsPlugin(), detailsPlugin()]);
+	installPlugins([footnotesPlugin(), registeredMath(), admonitionsPlugin(), registeredDetails()]);
 });
 
 describe('G2.1 round-trip with the bundled plugins installed', () => {

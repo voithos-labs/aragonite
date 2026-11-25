@@ -5,7 +5,7 @@ import {
 	previewContentReparse
 } from '#lib/editor-actions/replacement-focus.js';
 import { parse } from '#lib/core/parser.js';
-import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide, DETAILS } from '#lib/test/harness/registered-details.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
@@ -78,7 +78,7 @@ describe('focusMovedOutsideReplacement', () => {
 // bytes the write stores, which differ when a container rewrites its body's bytes.
 describe('previewContentReparse reads the write the owning container made legal', () => {
 	beforeEach(() => {
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	const bodyParagraph = () => parse('body\n').children[0];

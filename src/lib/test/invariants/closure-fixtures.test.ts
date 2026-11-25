@@ -9,7 +9,7 @@ import { activateDirectives } from '#lib/components/blocks/directive/activate-di
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
-import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide, DETAILS } from '#lib/test/harness/registered-details.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { ADMONITION } from '#packages/admonitions/src/kinds.js';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -80,7 +80,7 @@ describe('directive + bundled-plugin conformance fixtures parse to their kind', 
 	});
 
 	it('details', () => {
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 		checkFixture(DETAILS);
 	});
 

@@ -27,7 +27,7 @@ import { MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import { parrot as parrotBlock, parrotPlugin } from '#packages/parrot/src/index.js';
 import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
-import { DETAILS, registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { DETAILS, registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { type GrammarView } from '#lib/schema/block-openers.js';
@@ -46,7 +46,7 @@ function grammarListing(names: string[]) {
 beforeEach(() => {
 	installPlugins([memo]);
 	// A bodyWrite-declaring owner, so the escape below has a reparse to run.
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 });
 
 // The splice's own reparse: a `bodyWrite` container

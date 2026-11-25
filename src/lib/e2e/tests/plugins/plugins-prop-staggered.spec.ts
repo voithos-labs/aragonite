@@ -3,9 +3,9 @@ import { type ConsoleMessage, type Page } from '@playwright/test';
 import { gotoReady } from '../../goto-ready';
 
 // `/test/plugins/staggered` mounts editor 1 with `[calloutPlugin()]` at load and, on a click,
-// editor 2 adding `detailsPlugin()`, read through `__test` and `__test2`. The late `details` opener
-// registration fires `[invariant:late-opener-registration]`, which the fixture requires; the count
-// here adds that it fires once, not twice.
+// editor 2 adding `footnotesPlugin()`, read through `__test` and `__test2`. The late footnote
+// opener registration fires `[invariant:late-opener-registration]`, which the fixture requires; the
+// count here adds that it fires once, not twice.
 test.use({ expectInvariants: ['late-opener-registration'] });
 
 interface BlockInfo {
@@ -52,21 +52,21 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 	});
 
 	test('the late mount parses its own seed against the just-registered grammar', () => {
-		// Editor 2 installed detailsPlugin before parsing, so `<details>` resolves to the
-		// `details` container, with the summary row at child 0, not to broken-up HTML.
-		const details = blockOfKind(editorTwo, 'details');
-		expect(details).toBeDefined();
-		expect(details?.child0).toBe('details-summary');
+		// Editor 2 installed footnotesPlugin before parsing, so `[^1]:` resolves to a footnote
+		// definition holding its paragraph, not to the built-in reading editor 1 gives it.
+		const note = blockOfKind(editorTwo, 'footnote-def');
+		expect(note).toBeDefined();
+		expect(note?.child0).toBe('paragraph');
 		expect(kindsOf(editorTwo)).toContain('callout');
-		expect(kindsOf(editorTwo)).not.toContain('htmlBlock');
+		expect(kindsOf(editorTwo)).not.toContain('linkReferenceDefinition');
 	});
 
 	test('editor 1 does not re-parse against the later grammar; one expected late-opener warn', async () => {
-		// Editor 1 parsed before detailsPlugin existed, and a parsed document never re-parses, so
-		// its `<details>` stays the built-in htmlBlock and never becomes `details`.
-		expect(kindsOf(editorOne)).toContain('htmlBlock');
+		// Editor 1 parsed before footnotesPlugin existed, and a parsed document never re-parses, so
+		// its `[^1]:` stays the built-in reading and never becomes a footnote definition.
+		expect(kindsOf(editorOne)).toContain('linkReferenceDefinition');
 		expect(kindsOf(editorOne)).toContain('callout');
-		expect(kindsOf(editorOne)).not.toContain('details');
+		expect(kindsOf(editorOne)).not.toContain('footnote-def');
 
 		// The fixture requires the tag and forbids the rest, so all that is left to assert is the
 		// count: a second registration would mean editor 1 re-parsed.

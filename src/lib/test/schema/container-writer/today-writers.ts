@@ -4,6 +4,7 @@
 import { getPluginMetadata, metadataOf, type CstNode } from '#lib/core/nodes.js';
 import {
 	firstDisplayLine,
+	firstLineEnding,
 	indentColumns,
 	isBlankLine,
 	ownTrailingLineEnding,
@@ -237,12 +238,10 @@ function rebuildDirectiveContainerRaw(node: CstNode): void {
 }
 
 function rebuildDetailsRaw(node: CstNode): void {
-	const meta = getPluginMetadata<{ open: boolean; lineEnding: string; closerNewline: boolean }>(
-		node
-	);
-	const open = meta?.open ?? false;
-	const lineEnding = meta?.lineEnding ?? '\n';
-	const closerEnd = (meta?.closerNewline ?? true) ? lineEnding : '';
+	const open = getPluginMetadata<{ open: boolean }>(node)?.open ?? false;
+	// The package kept both endings as parsed in its data; they're read off the bytes now.
+	const lineEnding = firstLineEnding(node.raw) ?? '\n';
+	const closerEnd = ownTrailingLineEnding(node.raw) ? lineEnding : '';
 	const children = node.children ?? [];
 	const summaryText = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
 	const body = children.slice(1);

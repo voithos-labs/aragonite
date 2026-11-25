@@ -12,7 +12,7 @@ import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { installPlugins } from '#lib';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -104,7 +104,7 @@ const BODY = lines((i) => `line ${i}\n`);
 // block's own bytes, never a parse of them.
 describe('a block above that only looks unfinished costs the same one line', () => {
 	beforeEach(() => {
-		installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
+		installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
 	});
 
 	it.each([

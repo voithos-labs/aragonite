@@ -1,65 +1,25 @@
 <script lang="ts">
-	// The document's collapsed state comes from `reservedChrome.isCollapsed`; reading mode's
-	// temporary open state is passed to the factory on top of it, so windowing and focus agree.
-	import { isCollapsedContainer, type NodeView } from '@voithos-labs/aragonite/plugin';
-	import { BlockList, createContainerBlock } from '@voithos-labs/aragonite/svelte';
-	import { createReaderDisclosure } from './details-disclosure.svelte';
+	// A section's drawing: the toggle beside its summary and the children under it. The editor folds
+	// the body, keeps the fold in reading mode without writing, and puts a caret in the body on the
+	// summary when the section closes.
+	import type { ContainerDrawContext } from '@voithos-labs/aragonite/plugin';
+	import type { SvelteBlockProps } from '@voithos-labs/aragonite/svelte';
+	import type { DetailsData } from './details-plugin';
 
-	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
-
-	let boxEl: HTMLElement | undefined = $state();
-
-	const documentOpen = $derived(!isCollapsedContainer(node));
-
-	const { blockListProps, containerApi, updateOwnMetadata, getPresentationMode } =
-		createContainerBlock({
-			getNode: () => node,
-			getIndex: () => index,
-			getPath: () => myPath,
-			getBoxEl: () => boxEl,
-			// The state on screen, so a section opened only in reading mode still mounts
-			// and measures its body.
-			isCollapsed: () => !open
-		});
-
-	const reading = $derived(getPresentationMode() === 'reading');
-	const reader = createReaderDisclosure({ isDocumentOpen: () => documentOpen });
-	// Leaving reading mode discards the temporary state: with the bytes editable again, a
-	// view that disagrees with them would be showing something the document does not say.
-	$effect(() => {
-		if (!reading) reader.reset();
-	});
-	const open = $derived(reading ? reader.open : documentOpen);
-
-	function commitDisclosure() {
-		const isOpen = open;
-		// Collapsing unmounts the body and orphans a caret inside it, so the commit puts it on the
-		// summary; the toggle suppresses mousedown, so a click leaves the caret where it was.
-		const pos = isOpen ? (containerApi.getCursorPosition?.() ?? null) : null;
-		const caretInBody = pos != null && pos.path[0] >= 1;
-		updateOwnMetadata(
-			{ open: !isOpen },
-			caretInBody ? { caret: { path: [0], offset: 0 } } : undefined
-		);
-	}
-
-	// Reading mode gets a handler that cannot write at all, so no toggle there becomes an edit.
-	const onToggle = $derived(reading ? reader.toggle : commitDisclosure);
-
-	export { containerApi };
+	let { ctx, Slot }: SvelteBlockProps<DetailsData, ContainerDrawContext> = $props();
 </script>
 
-<div class="details-block" bind:this={boxEl}>
+<div class="details-block">
 	<button
 		type="button"
 		class="details-toggle"
 		contenteditable="false"
-		aria-expanded={open}
+		aria-expanded={!ctx.closed}
 		aria-label="Toggle details"
 		onmousedown={(e) => e.preventDefault()}
-		onclick={onToggle}
+		onclick={() => ctx.setClosed(!ctx.closed)}
 	></button>
-	<BlockList {...blockListProps} />
+	<Slot of="children" />
 </div>
 
 <style>
@@ -71,8 +31,6 @@
 		border-left: 3px solid var(--color-border);
 	}
 
-	/* A real focusable button (keyboard disclosure), so it is a sibling of BlockList: the
-	   windowing lookup needs BlockList to stay a direct child, not the sole one. */
 	.details-toggle {
 		position: absolute;
 		left: 0.45em;
@@ -112,8 +70,8 @@
 		border-radius: var(--radius-ui, 3px);
 	}
 
-	/* The summary is styled as a title row by CSS alone; it stays a real block inside
-	   `.block-list`, so selection and windowing treat it as an ordinary child. */
+	/* The summary is styled as a title row by CSS alone; it stays a real block among the children,
+	   so selection and windowing treat it as an ordinary child. */
 	.details-block :global(.details-summary) {
 		font-weight: 600;
 	}

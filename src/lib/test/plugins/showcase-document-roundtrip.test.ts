@@ -4,7 +4,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
+import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
@@ -17,7 +17,7 @@ import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md
  */
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), detailsPlugin(), footnotesPlugin(), mermaidPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredDetails(), footnotesPlugin(), mermaidPlugin()]);
 });
 
 describe('showcase document', () => {

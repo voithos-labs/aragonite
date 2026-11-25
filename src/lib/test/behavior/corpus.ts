@@ -9,7 +9,7 @@ import { svelteBlockView } from '#lib/svelte.js';
 import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
@@ -23,7 +23,7 @@ import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content'
  *  `:::note` and `[^1]` read the way the showcase reads them, installed page-wide. */
 export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
 	admonitionsPlugin(),
-	detailsPlugin(),
+	registeredDetails(),
 	footnotesPlugin(),
 	// The latex package is a plugin value, which only an editor reads; the same syntax registered
 	// page-wide, its blocks drawn as a picture that opens its source, as a math block is.

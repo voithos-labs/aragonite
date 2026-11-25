@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { installReorderDrag } from '#lib/editor-actions/reorder-drag.js';
 import { parse } from '#lib/core/parser.js';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -83,7 +83,7 @@ describe('the drag ghost names what it carries', () => {
 	beforeEach(() => {
 		registerMathBlock(testView());
 		registerMermaidKind(testView());
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	function ghostFor(source: string, text: string, rows = 0): string | undefined {

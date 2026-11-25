@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { mergeListItemIntoPrevious } from '#lib/test/harness/list-merge.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import type { CstNode } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
@@ -210,7 +210,7 @@ describe('mergeListItemIntoPrevious', () => {
 // the summary child as opaque.
 describe('mergeListItemIntoPrevious: collapsed container as previous leaf', () => {
 	beforeEach(() => {
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	it('previous item ends in a collapsed <details>: returns null without mutating', () => {

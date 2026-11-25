@@ -1,2 +1,3 @@
-export { detailsPlugin } from './register';
-export { DETAILS, DETAILS_SUMMARY } from './details-kind';
+// Collapsible `<details>` sections, their body folding away under the summary.
+export { details } from './details-plugin';
+export type { DetailsData } from './details-plugin';

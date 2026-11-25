@@ -101,7 +101,7 @@ const SHAPES: Record<string, Shape> = {
 			[
 				'details',
 				[
-					['details-summary', ''],
+					['details.title', ''],
 					['thematicBreak', '---'],
 					['paragraph', 'body']
 				]

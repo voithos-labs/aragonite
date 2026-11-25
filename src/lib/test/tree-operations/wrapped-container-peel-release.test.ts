@@ -5,7 +5,7 @@ import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { firstLineEnding, trailingLineEnding } from '#lib/core/lines.js';
 import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
 import { installPlugins } from '#lib';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
@@ -84,7 +84,7 @@ describe('the closer strip a blank tail borrowed', () => {
 describe('a tail split then typed, through the container bundle', () => {
 	beforeEach(() => {
 		registerCalloutKind(testView());
-		installPlugins([detailsPlugin()]);
+		installPlugins([registeredDetails()]);
 	});
 
 	it('leaves no stray line before the closing fence', async () => {

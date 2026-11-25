@@ -135,11 +135,11 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'published opaque stale-raw predicate to hold the result to'
 	},
 	'src/lib/test/plugins/details/crlf-rebuild.test.ts': {
-		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		specifiers: ['#lib/schema/container-writer.js'],
 		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/details/round-trip.test.ts': {
-		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		specifiers: ['#lib/schema/container-writer.js'],
 		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/emoji/coexistence.test.ts': {
@@ -405,7 +405,7 @@ describe('G4.63 classifier non-vacuity', () => {
 
 	it('allows the suite its own plugin source, and another plugin only where published', () => {
 		expect(isAllowedSpecifier(file, '#packages/details/src/index.js')).toBe(true);
-		expect(isAllowedSpecifier(file, '#packages/details/src/details-kind.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#packages/details/src/details-plugin.js')).toBe(true);
 		expect(isAllowedSpecifier(file, '#packages/emoji/src/index.js')).toBe(true);
 		expect(isAllowedSpecifier(file, '#packages/emoji/src/emoji-plugin.js')).toBe(false);
 	});

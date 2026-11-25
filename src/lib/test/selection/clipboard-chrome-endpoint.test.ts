@@ -45,14 +45,14 @@ describe('cross-block copy ending in reserved chrome', () => {
 			label: 'open',
 			src: 'Above\n\n<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n',
 			open: true,
-			kinds: ['details-summary'],
+			kinds: ['details.title'],
 			title: 'Sum'
 		},
 		{
 			label: 'closed',
 			src: 'Above\n\n<details>\n<summary>Summary</summary>\n\nBody\n\n</details>\n',
 			open: false,
-			kinds: ['details-summary', 'paragraph'],
+			kinds: ['details.title', 'paragraph'],
 			title: 'Summary'
 		}
 	]) {

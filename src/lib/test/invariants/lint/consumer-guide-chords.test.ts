@@ -27,7 +27,7 @@ import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { ADMONITION } from '#packages/admonitions/src/kinds.js';
-import { detailsPlugin, DETAILS_SUMMARY } from '#packages/details/src/index.js';
+import { registeredDetails, DETAILS_SUMMARY } from '#lib/test/harness/registered-details.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
@@ -40,7 +40,12 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // Every bundled plugin, so its kinds' keymaps and its global chords join the sweep. Third-party
 // chords stay out: the gate only sees code this repo ships.
-const BUNDLED_PLUGINS = [admonitionsPlugin(), detailsPlugin(), footnotesPlugin(), mermaidPlugin()];
+const BUNDLED_PLUGINS = [
+	admonitionsPlugin(),
+	registeredDetails(),
+	footnotesPlugin(),
+	mermaidPlugin()
+];
 // Installed as the file loads too, so the row tables below can name the bundled kinds.
 installPlugins(BUNDLED_PLUGINS);
 
@@ -215,7 +220,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		commands: ['chrome.descendToBody']
 	},
 	'Move from the summary into the body': {
-		kind: declaredPluginKind(DETAILS_SUMMARY),
+		kind: DETAILS_SUMMARY as AnyBlockKind,
 		commands: ['chrome.descendToBody']
 	},
 	"Open the diagram's focus view": {
@@ -624,7 +629,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 
 	// Miss-analysis: claims were keyed by chord and command alone; no case had two kinds share one.
 	it('matches a bound claim to a row for its own kind, not a sibling kind running the same command', () => {
-		const summary = declaredPluginKind(DETAILS_SUMMARY);
+		const summary = DETAILS_SUMMARY as AnyBlockKind;
 		const summaryEnter = {
 			chord: 'Enter',
 			owner: summary,

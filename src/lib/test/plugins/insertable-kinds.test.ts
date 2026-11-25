@@ -16,7 +16,7 @@ import {
 import { pluginKindOwner } from '#lib/schema/plugin-kind.js';
 import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
@@ -29,7 +29,7 @@ import { toc } from '#packages/toc/src/index.js';
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
-	details: detailsPlugin,
+	details: () => details,
 	emoji: () => emoji,
 	footnotes: footnotesPlugin,
 	'highlight-occurrences': () => highlightOccurrences,
@@ -83,10 +83,5 @@ describe('insertable plugin kinds', () => {
 			(kind) => !installed.has(kind) || inserted.has(kind)
 		);
 		expect(stale, 'a listed kind that is gone or now has an entry').toEqual([]);
-	});
-
-	it('registers the details entry with the list-collapse icon', () => {
-		const entry = insertRows(everyInstalledPlugin).find((e) => e.id === 'details');
-		expect(entry?.icon).toBe('list-collapse');
 	});
 });

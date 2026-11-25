@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { definePluginUnit, type Editor } from '#lib/schema/plugin-unit.js';
 import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import type { Block } from '#lib/schema/doc-view.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { details as detailsPlugin } from '#packages/details/src/index.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -259,7 +259,7 @@ describe("a block's place", () => {
 	// Miss-analysis: the walk left a title row out, so a reader found no reference in a callout's
 	// title; no row asked a walk for one.
 	it('leaves a title row out of its children, walks it after its container, and carries it as its title', async () => {
-		const { editor } = await mounted(DETAILS, [detailsPlugin()]);
+		const { editor } = await mounted(DETAILS, [detailsPlugin]);
 		const details = editor.doc.blocks[1];
 		expect(details.title).toEqual({
 			text: 'Title',

@@ -13,7 +13,7 @@ import { LIST_ITEM_LINES } from '#lib/core/parsers/list.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { createEditorGrammar, defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
@@ -32,7 +32,7 @@ const shaped: Writer = (node: CstNode, changed) =>
 	writeContainerRaw(node, defaultGrammarView, changed);
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), detailsPlugin(), footnotesPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredDetails(), footnotesPlugin()]);
 });
 
 describe('the container writer against today’s writers', () => {

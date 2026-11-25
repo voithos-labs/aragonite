@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { builtin } from '#lib/components/block-makers/builtin.js';
 import { definePluginUnit, type Editor } from '#lib/schema/plugin-unit.js';
 import type { PluginsProp } from '#lib/schema/plugin-install.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import {
 	disablePerfInstruments,
@@ -147,7 +147,7 @@ describe("a block's positions", () => {
 	it.each(TITLE_ROWS)(
 		'hold a title row $name, and a write over the pair keeps its container',
 		async ({ source, held, write }) => {
-			const { editor, read } = await mountedOn(source, [detailsPlugin(), admonitionsPlugin()]);
+			const { editor, read } = await mountedOn(source, [details, admonitionsPlugin()]);
 			const title = editor.blockAt(source.indexOf(held || '</summary>'))!;
 			const kind = title.type.name;
 			expect(source.slice(title.from, title.to)).toBe(held);

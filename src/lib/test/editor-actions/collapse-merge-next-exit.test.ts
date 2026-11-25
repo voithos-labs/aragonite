@@ -3,7 +3,7 @@ import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-a
 import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
 import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import {
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
@@ -36,7 +36,7 @@ function nestedFor(node: CstNode) {
 
 describe('collapsed container forward-merge exit', () => {
 	beforeEach(() => {
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	it('mergeWithNext from a collapsed summary exits past the container without mutating', async () => {

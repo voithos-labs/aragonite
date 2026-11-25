@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
@@ -29,7 +29,7 @@ const CONSERVATIVE = new Set(['directiveContainer', 'admonition', 'details', 'ca
 
 beforeEach(() => {
 	registerAdmonitions(testView());
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 	registerFootnoteDefinition(testView());
 	registerMathBlock(testView());
 	registerMermaidKind(testView());

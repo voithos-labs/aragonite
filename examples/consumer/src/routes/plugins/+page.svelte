@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { calloutPlugin } from '../../plugins/callout/register';
-	import { detailsPlugin } from '@voithos-labs/aragonite-details';
+	import { details } from '@voithos-labs/aragonite-details';
 	import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
 	import { latex } from '@voithos-labs/aragonite-latex';
 	import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
@@ -16,7 +16,7 @@
 	// re-render minting fresh same-name plugins trips installPlugins' first-wins dev-warn.
 	const plugins = [
 		calloutPlugin(),
-		detailsPlugin(),
+		details,
 		admonitionsPlugin(),
 		latex({ renderer: katexRenderer }),
 		// No renderer: the consumer wires no mermaid engine, so this exercises the packaged

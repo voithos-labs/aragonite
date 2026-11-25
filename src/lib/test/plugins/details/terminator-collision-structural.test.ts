@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { mergeWithNext, splitNode } from '#lib/tree-operations/node-ops.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
@@ -15,7 +15,7 @@ import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 // with no per-block commit to apply the rule.
 
 beforeEach(() => {
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 });
 
 // Enter is the second way into the body: the split can leave a tag alone on its line that the

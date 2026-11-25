@@ -11,7 +11,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { draftRegistryOver } from '#lib/test/harness/drafts.js';
@@ -24,7 +24,7 @@ import { spliceReading } from '#lib/tree-operations/byte-splice.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 beforeEach(() => {
-	installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
+	installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
 });
 
 /** Each opener, the block below it, the closer it gets, and a cut whose two halves open nothing. */

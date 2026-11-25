@@ -16,7 +16,7 @@ import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { installPlugins } from '#lib';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -67,7 +67,7 @@ const askedNear = (blocks: string[], index: number, written = '') =>
 	);
 
 beforeEach(() => {
-	installPlugins([registeredMath(), admonitionsPlugin(), detailsPlugin()]);
+	installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
 	resetPerfInstruments();
 });
 afterEach(() => disablePerfInstruments());

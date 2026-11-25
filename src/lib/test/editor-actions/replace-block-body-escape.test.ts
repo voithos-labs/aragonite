@@ -9,7 +9,7 @@ import { createUndoController } from '#lib/editor-actions/commit/undo-controller
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
 import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
@@ -20,7 +20,7 @@ import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 });
 
 /** The container at body index `inner` of the details block, whose parent is the details body. */

@@ -24,7 +24,7 @@ import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replac
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { serialize } from '#lib/core/serializer.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 
 beforeAll(installLayoutStubs);
@@ -159,7 +159,7 @@ describe.each(ROWS)('text holding a backslash and a line break put in $name', ({
 });
 
 describe('a block write to a title row', () => {
-	beforeEach(() => installPlugins([admonitionsPlugin(), detailsPlugin()]));
+	beforeEach(() => installPlugins([admonitionsPlugin(), registeredDetails()]));
 
 	it('replaceRaw holding a newline writes one line', async () => {
 		const h = makeContainerHarness(':::tip Title\nin\n:::\n', [0]);

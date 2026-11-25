@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { findMergeTarget } from '../../schema/merge-rules';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { CstNode } from '../../core/nodes';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -21,7 +21,7 @@ function parseBlock(src: string): CstNode {
 }
 
 function registerTitledKinds(): void {
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 	registerCalloutKind(testView());
 }
 

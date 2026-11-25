@@ -9,7 +9,7 @@ import { parse } from '#lib/core/parser.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -102,7 +102,7 @@ describe('closing a fence a write leaves open', () => {
 describe('an opener that backs out, with nothing below to close it', () => {
 	beforeEach(() => {
 		installPlugins([admonitionsPlugin()]);
-		registerDetailsKind(testView());
+		registerDetailsPageWide();
 	});
 
 	// Leaving it text is what a reload of those bytes reads, so nothing has to close it.

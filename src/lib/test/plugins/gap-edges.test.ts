@@ -9,7 +9,7 @@ import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js'
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { gapEligibleAt } from '#lib/selection/gap-caret.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -30,7 +30,7 @@ beforeEach(() => {
 	registerMathBlock(testView());
 	registerMermaidKind(testView());
 	registerAdmonitions(testView());
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 });
 
 /** The boundary between the two sources, with each parsed as its own top-level block. */

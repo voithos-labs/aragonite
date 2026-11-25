@@ -1,31 +1,27 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
-import { getPluginMetadata } from '#lib/plugin.js';
-import { registerDetailsKind, type DetailsMetadata } from '#packages/details/src/details-kind.js';
-import { testView } from '#lib/test/harness/test-view.js';
+import { detailsGrammar } from '#lib/test/support/details-grammar.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
-// The three tag lines the details writer builds have to reproduce the authored line ending rather
-// than rewrite CRLF to `\n`. The same rule `serializeDirective` follows.
+// The three tag lines the details writer builds reproduce the authored line ending rather than
+// rewrite CRLF to `\n`, as a directive's lines do.
+
+let grammar: ReturnType<typeof detailsGrammar>;
+const read = (source: string) => parse(source, { grammar });
 
 const CRLF_SRC = '<details>\r\n<summary>T</summary>\r\n\r\nbody\r\n\r\n</details>\r\n';
 const LF_SRC = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
 describe('details rebuild preserves CRLF chrome line endings', () => {
-	beforeEach(() => registerDetailsKind(testView()));
-
-	it('captures the authored line ending at parse time', () => {
-		const meta = getPluginMetadata<DetailsMetadata>(parse(CRLF_SRC).children[0]);
-		expect(meta?.lineEnding).toBe('\r\n');
-		expect(meta?.closerNewline).toBe(true);
+	beforeEach(() => {
+		grammar = detailsGrammar();
 	});
 
 	it('reproduces CRLF on all three chrome lines after a body-child rebuild', () => {
-		const details = parse(CRLF_SRC).children[0];
+		const details = read(CRLF_SRC).children[0];
 		// Structural edit: rewrite the body child, then rebuild (what a commit does).
 		details.children![1].raw = 'edited\r\n';
-		writeContainerRaw(details, defaultGrammarView);
+		writeContainerRaw(details, grammar);
 		expect(details.raw).toBe(
 			'<details>\r\n<summary>T</summary>\r\n\r\nedited\r\n\r\n</details>\r\n'
 		);
@@ -33,19 +29,19 @@ describe('details rebuild preserves CRLF chrome line endings', () => {
 
 	it('reproduces CRLF chrome for an open details', () => {
 		const src = '<details open>\r\n<summary>Title</summary>\r\n\r\nBody\r\n\r\n</details>\r\n';
-		const details = parse(src).children[0];
-		writeContainerRaw(details, defaultGrammarView);
+		const details = read(src).children[0];
+		writeContainerRaw(details, grammar);
 		expect(details.raw).toBe(src);
 	});
 
 	it('keeps `\\n` chrome lines for an LF-authored details after rebuild (unchanged)', () => {
-		const details = parse(LF_SRC).children[0];
+		const details = read(LF_SRC).children[0];
 		details.children![1].raw = 'edited\n';
-		writeContainerRaw(details, defaultGrammarView);
+		writeContainerRaw(details, grammar);
 		expect(details.raw).toBe('<details>\n<summary>T</summary>\n\nedited\n\n</details>\n');
 	});
 
 	it('round-trips the CRLF source byte-for-byte through parse+serialize', () => {
-		expect(serialize(parse(CRLF_SRC))).toBe(CRLF_SRC);
+		expect(serialize(read(CRLF_SRC))).toBe(CRLF_SRC);
 	});
 });

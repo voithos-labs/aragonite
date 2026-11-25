@@ -4,7 +4,7 @@ import { parse, type CstNode } from '#lib';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
-import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -14,7 +14,7 @@ import { testView } from '#lib/test/harness/test-view.js';
 const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
 beforeEach(() => {
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 });
 
 function mountDoc(source: string) {

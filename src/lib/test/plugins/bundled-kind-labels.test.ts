@@ -11,15 +11,15 @@ import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import {
-	registerDetailsKind,
+	registerDetailsPageWide,
 	DETAILS,
 	DETAILS_SUMMARY
-} from '#packages/details/src/details-kind.js';
+} from '#lib/test/harness/registered-details.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {
 	registerAdmonitions(testView());
-	registerDetailsKind(testView());
+	registerDetailsPageWide();
 });
 
 describe('bundled container labels', () => {
@@ -43,7 +43,7 @@ describe('bundled title-row labels', () => {
 		// A title row never parses on its own, so it is read as its container's first child.
 		const fixture = getBlockKindDescriptor(declaredPluginKind(container)).samples![0];
 		const row = parse(fixture).children[0].children![0];
-		expect(row.kind).toBe(declaredPluginKind(leaf));
+		expect(row.kind).toBe(leaf);
 		expect(blockAccessibleName(row)).toBe(label);
 		expect(blockNoun(row, fixtureReading())).toBe(label.toLowerCase());
 	});

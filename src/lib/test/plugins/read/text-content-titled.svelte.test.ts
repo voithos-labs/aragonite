@@ -5,7 +5,7 @@
 // Miss-analysis: every container row was a quote or a list, and neither has a title row.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { detailsPlugin } from '#packages/details/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -24,7 +24,7 @@ const titled = [
 	},
 	{
 		name: 'a details block',
-		plugin: detailsPlugin(),
+		plugin: details,
 		source: '<details>\n<summary>My *title*</summary>\n\nbody *text*\n</details>\n',
 		title: 'My *title*'
 	}
