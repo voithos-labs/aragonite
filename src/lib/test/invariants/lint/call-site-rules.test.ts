@@ -59,6 +59,8 @@ const RULES: CallSiteRule[] = [
 		population: notUnder(SOURCE_DIR.consumerExample, SOURCE.parser, SOURCE_DIR.testing),
 		calls: ['parse'],
 		holds: (args) => args.includes('scope:'),
+		// No call outside the parser stands today; the rule holds the next one.
+		atLeastCallers: 0,
 		reason:
 			"every parse() call outside core/parser.ts passes an explicit scope: { scope: 'fragment' } for one block's bytes, { scope: 'document' } for whole source; silence reads as document (#52)",
 		hits: ['const d = parse(raw);', "parse(')');\nparse(x, { scope: 'fragment' });"],
