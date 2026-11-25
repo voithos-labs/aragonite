@@ -7,6 +7,7 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { container, definePlugin } from '#lib/plugin.js';
 import type { ContainerDrawContext } from '#lib/schema/drawing.js';
+import type { Block } from '#lib/schema/doc-view.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -91,7 +92,8 @@ describe('a fold written', () => {
 	it('closes by a host data write with the caret in the body, which goes to the title row', async () => {
 		const { m } = await mounted(AROUND(OPEN));
 		placeCaret(surfaceAt(m, [1, 1]), 2);
-		await m.instance.edit().data(m.instance.doc.blocks[1], { open: false }).commit();
+		const fold = m.instance.doc.blocks[1] as Block<FoldData>;
+		await m.instance.edit().data(fold, { open: false }).commit();
 		await m.settle();
 		expect(m.source()).toBe(AROUND(FOLD_SAMPLE));
 		expect(m.instance.getSelection()?.focus.path).toEqual([1, 0]);
