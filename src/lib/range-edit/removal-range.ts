@@ -12,11 +12,13 @@ import {
 	isCell,
 	leafAt,
 	nodeAt,
+	rowSpan,
 	titleAt,
 	titleOwner,
 	type Doc
 } from './document';
 import { byteAt } from './leaf-splice';
+import { lineHead } from './lines';
 
 /** The range narrowed to what a removal takes: a live code block's hidden opening fence and the
  *  last line ending stay, a title row loses only its text, an emptied container keeps its markers. */
@@ -24,14 +26,15 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 	// A range from the block's first byte holds it whole, so its fences go with it.
 	const code = doc.mode === 'live' && !heldAt(doc, start, end) ? leafAt(doc, start) : null;
 	const body = code && fenceBody(doc, code.leaf);
-	const from = body ? Math.max(start, body.from) : start;
+	let from = body ? Math.max(start, body.from) : start;
 	// A range that leaves the block runs on; the removal keeps the hidden closing line.
 	const stays = body && end <= contentEnd(doc, code.leaf);
 	let to = stays ? Math.max(from, Math.min(end, body.to)) : end;
 	const final = ownTrailingLineEnding(doc.source);
 	if (to === doc.source.length && to - final.length > from) to -= final.length;
+	from = pastOpening(doc, from, to);
 	const row = titleAt(doc, from);
-	if (row && row === titleAt(doc, to)) return { from, to: Math.min(to, row.text!.to) };
+	if (row && row === titleAt(doc, to)) return rowSpan(doc, row, from, to);
 	// A start at a title row's line ending moves to the body's first text.
 	if (row && from >= row.text!.to) {
 		const after = row.text!.to;
@@ -49,6 +52,22 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 	);
 	const between = text ? doc.source.slice(from, text.text!.from) : '\n';
 	return { from: /\n/.test(between) ? from : text!.text!.from, to };
+}
+
+/** A start in the opening of a container the range runs into but doesn't hold whole (a `<details>`
+ *  tag, the markers before it) moves to its title row's text, so the container keeps its opening. */
+function pastOpening(doc: Doc, from: number, to: number): number {
+	if (leafAt(doc, from) || titleAt(doc, from) || heldAt(doc, from, to)) return from;
+	const row = findWithin(
+		doc,
+		from,
+		to,
+		(b) => !!b.text && b.text.from >= from && b.text.from <= to
+	);
+	const owner = row && titleOwner(doc, row);
+	if (!owner) return from;
+	// The opening is the container's first line, an item's or a quote's markers before it included.
+	return from < owner.from - lineHead(doc.source, owner.from).length ? from : row.text!.from;
 }
 
 /** The first block, outermost first, that the range starting at its first byte holds whole. */

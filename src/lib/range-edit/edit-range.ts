@@ -36,7 +36,13 @@ import { blankedApart, byteAt, writeText, type Edit, type LeafEdit } from './lea
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { asPasted, filledApart, pasteAt, type Pasted } from './paste';
-import { entersOpening, removeLeavingBlank, removeRange, type Removal } from './removal';
+import {
+	entersOpening,
+	removeLeavingBlank,
+	removeRange,
+	unwrapping,
+	type Removal
+} from './removal';
 import { fenceBody, holdsText, lastPlaceAt, literalBody } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
@@ -170,6 +176,8 @@ function edited(
 			gesture.own === undefined && !typed
 				? (text, blocks) => host.transformPaste(text, blocks)
 				: null;
+		const unwrapped = lineOverOpener(doc, range, gesture.paste, transform);
+		if (unwrapped) return keepLastEnding(answer(unwrapped));
 		const pasted = (held: Held, inPlace?: true): Pasted => ({
 			text: gesture.paste,
 			plain: gesture.plain,
@@ -240,11 +248,30 @@ function edited(
 
 const TEXT: Held = { holds: 'text' };
 
+/** One line over a selection that breaks a `:::` opening row and leaves no title: it stands where
+ *  the row was, as a key's write leaves it. Where title stays, removal then paste already agree. */
+function lineOverOpener(
+	doc: Doc,
+	{ from, to }: Range,
+	text: string,
+	transform: Pasted['transform']
+): Removal | null {
+	const bare = from < to && !/\n/.test(text) ? unwrapping(doc, from, to, '') : null;
+	if (!bare || bare.titled) return null;
+	const line = transform ? transform(text, readDoc(text, doc.host, doc.mode).tree) : text;
+	return /\n/.test(line) ? null : unwrapping(doc, from, to, line);
+}
+
 /** The removal a paste of `text` over `[from, to)` across blocks makes first: blank text leaves the
  *  place blank, as a cut does; other text goes in at once, as a typed character does (`inPlace`). */
 function pasteRemoval(doc: Doc, from: number, to: number, text: string): Removal & PlaceKept {
 	const alone = heldAlone(doc, from, to);
 	const blank = text !== '' && isBlankText(text);
+	// Several lines whose first leaves a `:::` row held whole no opener unwrap it first; one line
+	// took `lineOverOpener` already.
+	const firstEnd = text.search(/\r?\n/);
+	if (alone && firstEnd >= 0 && unwrapping(doc, from, to, text.slice(0, firstEnd)))
+		return removeRange(doc, from, to);
 	const removed =
 		alone && blank
 			? blankedOut(doc, alone, to)

@@ -9,6 +9,8 @@ import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { rangeBytes, rangePaint } from '#lib/selection/range-bytes.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { readAsOpened } from '#lib/schema/opened-reading.js';
+import { testReading } from '../range-edit/test-host';
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |';
 const quoted = TABLE.replace(/^/gm, '> ');
@@ -77,5 +79,57 @@ describe('a range ending at the text of a heading it holds whole', () => {
 		expect(bytesOf('head\n====\n', { path: [0], offset: 0 }, { path: [0], offset: 4 })).toBe(
 			'head'
 		);
+	});
+});
+
+/** The bytes a range read takes from `first` at `at` to the start of `last`. */
+function readOf(source: string, first: number[], last: number[], at = 0) {
+	const doc = readAsOpened(source, { grammar: testReading().grammar, scope: 'document' });
+	const end = { path: last, offset: 0 };
+	const range = rangeBytes(
+		doc,
+		rangeCoverage(doc, coverRange(doc, { path: first, offset: at }, end)),
+		documentLayout(measured(doc))
+	)!;
+	return source.slice(range.from, range.to);
+}
+
+// Miss-analysis: every select-all read ran over documents ending in text, so none met a lone
+// container whose last block is an empty line, where the end stepped back onto the title row.
+describe('select-all over a document that is one container', () => {
+	const allOf = (source: string, first: number[], last: number[]) => readOf(source, first, last);
+
+	it.each([
+		['at the top level', ':::foo Title\n\n:::\n', [0, 0], [0, 1], ':::foo Title\n'],
+		['in a quote', '> :::foo Title\n>\n> :::\n', [0, 0, 0], [0, 0, 1], '> :::foo Title\n>'],
+		['with no title', ':::foo\n\n:::\n', [0, 0], [0, 1], ':::foo\n']
+	])('runs past the title row onto the empty body, %s', (_, source, first, last, bytes) => {
+		expect(allOf(source, first, last)).toBe(bytes);
+	});
+
+	it('still steps back off an empty line after the container', () => {
+		expect(allOf(':::foo Title\n\n:::\n\n\n', [0, 0], [1])).toBe(':::foo Title\n');
+	});
+
+	it("still steps back into a lone emptied details' summary, which has no marker", () => {
+		expect(allOf('<details open>\n<summary>D</summary>\n\n\n</details>\n', [0, 0], [0, 1])).toBe(
+			'D'
+		);
+	});
+});
+
+// Miss-analysis: the marker rows were select-all's, so none drew the range a key draws from a
+// body's start up to the row's first byte, whose end stepped back onto the row.
+describe("a range from a title row's marker to the next line's first byte", () => {
+	it.each([
+		['over a body', ':::foo Title\nbody\n:::\n', [0, 0], [0, 1], ':::foo Title\n'],
+		['with a paragraph after', ':::foo Title\n\n:::\n\npara\n', [0, 0], [0, 1], ':::foo Title\n'],
+		['in a quote', '> :::foo Title\n> body\n> :::\n', [0, 0, 0], [0, 0, 1], ':::foo Title\n> ']
+	])('runs off the row, %s', (_, source, first, last, bytes) => {
+		expect(readOf(source, first, last)).toBe(bytes);
+	});
+
+	it("from the title's start still steps back onto the row", () => {
+		expect(readOf(':::foo Title\nbody\n:::\n', [0, 0], [0, 1], 7)).toBe('Title');
 	});
 });

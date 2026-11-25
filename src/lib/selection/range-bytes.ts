@@ -36,7 +36,8 @@ import { boundaryHidden, previousCaretPath } from './path-lookup';
 import type { Landing, SelectionPoint } from './primitives';
 import { caretTargetFor } from './caret-target';
 import { CURSOR_END } from '../block-component';
-import type { RangeCoverage } from './range-coverage';
+import { titleRowOwner, type RangeCoverage } from './range-coverage';
+import { colonsBroken } from '../tree-operations/broken-openers';
 import { checkRangeHoldsWhole } from '../invariants/range-holds-whole';
 
 /** The editor's document as a range edit reads it: its tree, its bytes and their layout. */
@@ -126,7 +127,10 @@ export function rangeBytes(
 	let from = endByte(doc, layout, start, 'start');
 	let to = endByte(doc, layout, end, 'end');
 	if (from === null || to === null) return null;
-	to = Math.max(from, endBesideText(doc, layout, coverage, to));
+	// A range from a title row's marker runs off the row, so its end never steps back onto it.
+	const inMarker =
+		!!titleRowOwner(doc, start.path) && from < (layout.block(start.path)?.text?.from ?? from);
+	to = Math.max(from, endBesideText(doc, layout, coverage, to, inMarker));
 	// After the end steps back, so it never stops inside a block held whole (a closed details).
 	const held = heldSpans(doc, coverage, layout);
 	if (!held) return null;
@@ -202,6 +206,15 @@ export function rangePaint(doc: DocumentView, coverage: RangeCoverage, layout: L
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
+/** Whether removing `[from, to)` of the block `row` leaves a `:::` opener too few colons. A live
+ *  range over a title's whole text is the title alone (`drawnSpan`), so it never does. */
+function breaksRow(doc: DocumentView, row: LaidBlock, from: number, to: number) {
+	const text = row.text!;
+	if (to >= text.to && text.from < text.to) return false;
+	const raw = blockNodeAt(doc, row.path)!.raw;
+	return colonsBroken(raw, text.from - row.from, from - row.from, to - row.from);
+}
+
 /** Where a block's own bytes end: its last line's text, since its line ending reads as the next
  *  line's edge. */
 const textEnd = (doc: DocumentView, block: LaidBlock) =>
@@ -264,13 +277,14 @@ function endByte(
 	return row === null || whole || row === last ? textEnd(doc, block) : block.to;
 }
 
-/** An end on the first byte of a block the start's block can't join moves back to the text before
- *  that block, so the range takes neither the block nor the blank lines that keep it apart. */
+/** An end on the first byte of a block the start's block can't join moves back to the text before it,
+ *  taking neither that block nor its blank lines; never onto the start's own block where `offStart`. */
 function endBesideText(
 	doc: DocumentView,
 	layout: Layout,
 	coverage: RangeCoverage,
-	to: number
+	to: number,
+	offStart: boolean
 ): number {
 	const { start, end } = coverage.range;
 	if (start.cellCoordinate || end.cellCoordinate || layout.block(end.path)?.from !== to) return to;
@@ -278,7 +292,7 @@ function endBesideText(
 	const endKind = blockNodeAt(doc, end.path)?.kind;
 	if (!startKind || !endKind || isMergeEligible(startKind, endKind)) return to;
 	const before = previousCaretPath(doc, end.path);
-	if (!before) return to;
+	if (!before || (offStart && pathsEqual(before, start.path))) return to;
 	// A cell's text ends where its table does.
 	const table = before.findIndex((_, i) => countsCells(blockNodeAt(doc, before.slice(0, i + 1))!));
 	if (table < 0) return layout.byteOf(before, displayLength(blockNodeAt(doc, before)!.raw)) ?? to;
@@ -347,8 +361,8 @@ export function placeRead(
 	return read && found.place ? { ...read, place: found.place } : null;
 }
 
-/** The place of raw offsets `[start, end]` of the text block at `path`. A live caret outside the
- *  block's text names the boundary beside it; a live range's ends stand at the text's edges. */
+/** The place of raw offsets `[start, end]` of the text block at `path`. Live, a caret off the text
+ *  names the boundary beside it and a range stands at the text, unless it breaks a `:::` row. */
 export function placeInBlock(
 	bytes: DocumentBytes,
 	path: readonly number[],
@@ -372,10 +386,16 @@ function textPlace(
 	to: number,
 	live: boolean
 ): PastePlace | null {
-	const text = bytes.layout().block(path)?.text;
-	if (!live || !text) return { range: { from, to }, holds: 'text' };
+	const block = bytes.layout().block(path);
+	const text = block?.text;
+	if (!live || !block || !text) return { range: { from, to }, holds: 'text' };
 	const inText = (at: number) => Math.min(Math.max(at, text.from), text.to);
-	if (from !== to) return { range: { from: inText(from), to: inText(to) }, holds: 'text' };
+	if (from !== to) {
+		// A paste over a selection that breaks an opening row is that removal, then the text, as a
+		// typed letter over it is (the core unwraps the box).
+		if (breaksRow(bytes.doc(), block, from, to)) return { range: { from, to }, holds: 'text' };
+		return { range: { from: inText(from), to: inText(to) }, holds: 'text' };
+	}
 	if (from === inText(from)) return { range: { from, to }, holds: 'text' };
 	return from < text.from ? placeBeside(bytes, path, 0) : placeBeside(bytes, path, 1);
 }

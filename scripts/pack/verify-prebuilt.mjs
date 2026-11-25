@@ -13,13 +13,13 @@ const PREBUILT_DIR = 'dist/prebuilt';
 
 // Gzipped bytes per entry, each about 4 KB above what it measured (a small entry a few hundred
 // bytes): a tripwire, not a target. 19,336 of CSS. A group owns the files its entry loads that no
-// earlier group does. Measured: index 561,052, plugin 8,067, svelte 542, runtime/svelte 153,
-// runtime/svelte/internal/client 333, testing 21,813. The plugin packages' budgets are in
+// earlier group does. Measured: index 563,424, plugin 8,062, svelte 545, runtime/svelte 153,
+// runtime/svelte/internal/client 333, testing 21,811. The plugin packages' budgets are in
 // verify-plugin-package.mjs.
 /** @type {{ js: Record<string, number>, css: number }} */
 const BUDGET = {
 	js: {
-		index: 565_100,
+		index: 567_500,
 		plugin: 9_600,
 		svelte: 750,
 		'runtime/svelte': 250,

@@ -134,15 +134,16 @@ export interface BlockEditActions {
 	/** Remove the block whole through the range-edit core; the caret lands once, where the core puts
 	 *  it on the side `gesture` points, and the caller places none. */
 	deleteBlock(blockIndex: number, gesture: RemovalGesture): Promise<boolean>;
-	/** Write `text` as the block's bytes, ending as the block already ends, through its kind's and this
-	 *  list's write rules, in the undo entry `history` names, which undo rewinds to `preEditOffset`. */
+	/** Write `text` as the block's bytes, through its kind's and this list's write rules, in the undo
+	 *  entry `history` names (undo rewinds to `preEditOffset`), over the `selection` it replaced. */
 	updateBlockContent(
 		blockIndex: number,
 		text: string,
 		mode: WriteMode,
 		history: UndoGrouping,
 		preEditOffset: number,
-		postEditFocusOffset?: number
+		postEditFocusOffset?: number,
+		selection?: { start: number; end: number }
 	): ContentWrite;
 	/** Write the space that finishes the container's marker in front of the block (`>abc` becomes
 	 *  `> abc`) as one write of the container's line; false where its kind or bytes take none. */

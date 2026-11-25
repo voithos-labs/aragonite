@@ -109,7 +109,8 @@ describe('a widget source shown in a setext heading keeps the underline', () => 
 			'authored',
 			'join-typing',
 			expect.any(Number),
-			expect.any(Number)
+			expect.any(Number),
+			undefined
 		);
 		await unmount(instance);
 	});

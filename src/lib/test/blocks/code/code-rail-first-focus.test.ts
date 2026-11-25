@@ -48,7 +48,8 @@ describe('a bare fence taking the caret', () => {
 			'authored',
 			'join-typing',
 			expect.anything(),
-			4
+			4,
+			undefined
 		);
 		expect(picker()).not.toBeNull();
 	});
@@ -90,7 +91,8 @@ describe('a bare fence taking the caret', () => {
 				'authored',
 				'join-typing',
 				expect.anything(),
-				4
+				4,
+				undefined
 			);
 			expect(picker()).toBeNull();
 		}
