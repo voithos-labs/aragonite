@@ -1,7 +1,7 @@
 // A pasted GitHub alert keeps its bytes by default; `convertAlertsOnPaste` rewrites each top-level
 // alert a paste brings to `:::name` source, as 0.11.5's paste transform did, and nothing else.
-// Miss-analysis: the transform's rows ran it on raw text, so nothing checked which pasted alerts the
-// rewrite by block type reaches (a nested one, one inside a fence) against what 0.11.5 converted.
+// Miss-analysis: the transform's rows called it alone, so nothing checked a paste through the
+// editor's rewrites (a nested alert, one inside a fence) against what 0.11.5 converted.
 import { describe, it, expect } from 'vitest';
 import { rewritePaste } from '#lib/testing.js';
 import {

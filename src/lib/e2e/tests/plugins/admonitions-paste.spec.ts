@@ -76,3 +76,53 @@ test.describe('plugin admonitions: native alert paste', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 });
+
+// An editor listing `admonitions({ convertAlertsOnPaste: true })` alone: the rewrite reads the whole
+// paste, so a pasted alert lands as a `:::` box wherever 0.11.5's transform turned it into one.
+test.describe('plugin admonitions: an alert pasted with the rewrite on', () => {
+	let editor: PluginsPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('admonitions-alone');
+	});
+
+	test('a top-level alert lands as its box, undone in one step', async ({ page }) => {
+		await editor.loadContent('Intro.\n');
+		await editor.focusBlockEnd(0);
+		await editor.seedClipboard('> [!TIP]\n> Handy note.\n');
+		await editor.paste();
+
+		await editor.bridge.waitForSourceContains(':::tip\nHandy note.\n:::');
+		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'admonitions/admonition']);
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('Intro.\n');
+	});
+
+	test('one alert line pasted inside a paragraph lands as a box between its halves', async ({
+		page
+	}) => {
+		await editor.loadContent('Intro text.\n');
+		await editor.focusBlockAtPath([0], 5);
+		await editor.seedClipboard('> [!NOTE]');
+		await editor.paste();
+
+		await editor.bridge.waitForSourceEquals('Intro\n\n:::note\n:::\n text.\n');
+		expect((await readDoc(page)).kinds).toEqual([
+			'paragraph',
+			'admonitions/admonition',
+			'paragraph'
+		]);
+	});
+
+	test('an alert nested in a list item stays an alert', async ({ page }) => {
+		await editor.loadContent('Intro.\n');
+		await editor.focusBlockEnd(0);
+		await editor.seedClipboard('- > [!NOTE]\n  > x\n');
+		await editor.paste();
+
+		await editor.bridge.waitForSourceContains('- > [!NOTE]\n  > x');
+		expect(await editor.bridge.getSource()).not.toContain(':::');
+		expect((await readDoc(page)).kinds).toContain('list');
+	});
+});

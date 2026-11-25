@@ -24,3 +24,15 @@ The tests write the real clipboard and press `Mod+V`, then read the tree by path
 - whole-table-selection paste: selecting an entire table (a second Ctrl+A inside a cell) and
   pasting alert text replaces the table with a native `admonitions/alert`; the result round-trips
   stable
+
+## With the rewrite on
+
+`/test/plugins?seed=admonitions-alone` lists `admonitions({ convertAlertsOnPaste: true })` alone.
+The rewrite reads the whole paste as text, as 0.11.5's transform did.
+
+Miss-analysis: the transform's rows ran it on raw text in a unit, so no row pasted with it on, and
+nothing showed which of the editor's paste routes a rewrite by block type would skip.
+
+- a pasted top-level alert lands as its `:::` box, and one `Ctrl+Z` takes the paste back
+- one alert line pasted inside a paragraph lands as a box between the paragraph's halves
+- an alert nested in a pasted list item stays an alert

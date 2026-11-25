@@ -5,18 +5,19 @@
  */
 
 import {
-	blockRewrite,
 	builtin,
 	colonLines,
 	command,
 	container,
 	definePlugin,
+	pasteRewrite,
 	QUOTE_LINES,
 	type Block
 } from '@voithos-labs/aragonite/plugin';
 import { svelteBlock } from '@voithos-labs/aragonite/svelte';
 import AdmonitionBlock from './AdmonitionBlock.svelte';
-import { convertAlertBlockquoteRaw } from './gh-alert';
+import { convertGithubAlertsInDocument } from './convert-document';
+import { hasGithubAlert } from './gh-alert';
 import {
 	ADMONITION_KINDS,
 	coerceAdmonitionName,
@@ -81,10 +82,15 @@ const alert = container<AlertData>({
 	draw: svelteBlock(AdmonitionBlock)
 });
 
-// 0.11.5's rewrite read the paste's top-level blocks only.
-const alertToBox = blockRewrite({
-	from: alert,
-	into: (block) => (block.parent ? null : convertAlertBlockquoteRaw(block.text, '\n'))
+// The whole paste, read as text, so one alert line pasted into a paragraph converts too.
+const alertsToBoxes = pasteRewrite({
+	name: 'github-alerts',
+	sample: '> [!NOTE]\n> Heads up.\n',
+	into({ text }) {
+		if (!hasGithubAlert(text)) return null;
+		const { converted, changed } = convertGithubAlertsInDocument(text);
+		return changed ? converted : null;
+	}
 });
 
 /** Callouts and GitHub alerts: list `admonitions`, or `admonitions({ convertAlertsOnPaste })`. */
@@ -95,6 +101,6 @@ export const admonitions = definePlugin<AdmonitionsOptions>({
 	defaults: { convertAlertsOnPaste: false },
 	contributes: ({ convertAlertsOnPaste }) => ({
 		blocks: [admonition, alert],
-		blockRewrites: convertAlertsOnPaste ? [alertToBox] : []
+		pasteRewrites: convertAlertsOnPaste ? [alertsToBoxes] : []
 	})
 });
