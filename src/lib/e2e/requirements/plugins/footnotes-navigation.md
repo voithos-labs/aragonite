@@ -45,8 +45,8 @@ file covers the gesture the user makes.)
 - **A target inside a closed `<details>`, editing modes:** the jump opens the section as one undo
   step and lands where it would in an open one, the definition's body start or just past the
   citation on the way back; Ctrl/Cmd+Z closes it again, the caret on its summary
-- **The same in reading mode:** the section stays closed, nothing is written, and its summary takes
-  focus
+- **The same in reading mode:** a click or Enter on the reference, or a click on the marker back:
+  the section stays closed, nothing is written, and its summary takes focus
 
 ## User interactions
 

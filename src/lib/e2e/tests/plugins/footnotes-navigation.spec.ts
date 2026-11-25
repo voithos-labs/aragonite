@@ -373,17 +373,34 @@ test.describe('footnote jump: into a closed section', () => {
 		});
 	}
 
-	test('reading mode: the section stays closed and the summary takes focus', async ({ page }) => {
-		const editor = new FootnotePage(page);
-		await editor.load(DEF_CLOSED, 'reading');
+	const READING: [string, string, number[], (editor: FootnotePage) => Promise<void>][] = [
+		['a click on the reference', DEF_CLOSED, [1, 0], (editor) => editor.refs().first().click()],
+		[
+			'Enter on the reference',
+			DEF_CLOSED,
+			[1, 0],
+			async (editor) => {
+				await editor.refs().first().focus();
+				await editor.page.keyboard.press('Enter');
+			}
+		],
+		['a click on the marker', REF_CLOSED, [0, 0], (editor) => editor.defMarker(1).click()]
+	];
+	for (const [gesture, md, summary, follow] of READING) {
+		test(`reading mode, ${gesture}: the section stays closed and its summary takes focus`, async ({
+			page
+		}) => {
+			const editor = new FootnotePage(page);
+			await editor.load(md, 'reading');
 
-		await editor.refs().first().click();
+			await follow(editor);
 
-		await expect.poll(() => activeBlockPath(page)).toEqual([1, 0]);
-		expect(await editor.bridge.getSource()).toBe(DEF_CLOSED);
-		expect(await editor.bridge.getUndoDepth()).toBe(0);
-		expect(await capturedErrors(page)).toEqual([]);
-	});
+			await expect.poll(() => activeBlockPath(page)).toEqual(summary);
+			expect(await editor.bridge.getSource()).toBe(md);
+			expect(await editor.bridge.getUndoDepth()).toBe(0);
+			expect(await capturedErrors(page)).toEqual([]);
+		});
+	}
 });
 
 // A reference inside a table cell is drawn by the cell's own widget pool, a different element than
