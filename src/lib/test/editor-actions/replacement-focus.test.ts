@@ -10,7 +10,6 @@ import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 /** `text` made legal as the only child of `owner`, the way the write hands it to the trial. */
 const legalIn = (node: NodeView, text: string, owner?: NodeView) =>

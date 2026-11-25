@@ -15,7 +15,6 @@ import {
 	makeTopHarness
 } from '#lib/test/harness/editor-actions.js';
 import type { EditEvent } from '#lib/editor-events.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 // A structural edit that changes nothing must push no undo entry and emit no edit event.
 // The container path is the one that can leave traces: its discard runs the full in-place

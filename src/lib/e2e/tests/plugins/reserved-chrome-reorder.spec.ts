@@ -78,8 +78,8 @@ test.describe('opaque containers decline nested reorder', () => {
 	}) => {
 		await editor.loadContent(DETAILS);
 		const details = await readContainer(page, 0);
-		expect(details.kind).toBe('details');
-		expect(details.childKinds[0]).toBe('details-summary');
+		expect(details.kind).toBe('details/details');
+		expect(details.childKinds[0]).toBe('details/details.title');
 
 		await expect(ownHandle(page, [0, 0])).toHaveCount(0);
 		await expect(ownHandle(page, [0])).toHaveCount(1);
@@ -128,7 +128,7 @@ test.describe('opaque containers decline nested reorder', () => {
 	// needs one, since the container is still something its own handle drags.
 	test('dragging the details own handle still reorders it past a sibling', async ({ page }) => {
 		await editor.loadContent(`${DETAILS}\nTAIL\n`); // [0]=details, [1]=TAIL
-		await dragContainerHandle(page, 'details', 'TAIL', true);
+		await dragContainerHandle(page, 'details/details', 'TAIL', true);
 
 		await editor.bridge.waitForSourceMatches(/TAIL[\s\S]*<details/);
 		expect(await editor.bridge.getBlockCount()).toBe(2); // no drop or duplication

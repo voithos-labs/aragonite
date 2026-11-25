@@ -25,7 +25,7 @@ test.describe('plugin container: <details> terminator escape on paste', () => {
 		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('&lt;/details>');
-		expect((await readDoc(page)).kinds).toEqual(['details']);
+		expect((await readDoc(page)).kinds).toEqual(['details/details']);
 		expect(await roundTripStable(page)).toBe(true);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -37,7 +37,7 @@ test.describe('plugin container: <details> terminator escape on paste', () => {
 		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('<summary>inner</summary>');
-		expect((await readDetails(page, 0)).childKinds).toContain('details');
+		expect((await readDetails(page, 0)).childKinds).toContain('details/details');
 		expect(await editor.bridge.getSource()).not.toContain('&lt;');
 		expect(await roundTripStable(page)).toBe(true);
 		expect(await capturedErrors(page)).toEqual([]);

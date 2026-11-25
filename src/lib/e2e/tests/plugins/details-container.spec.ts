@@ -221,7 +221,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.focusBlockAtPath([0, 0], 7); // end of "Summary"
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('<summary>SummaryZ</summary>');
-		expect((await readDetails(page, 0)).childKinds[0]).toBe('details-summary');
+		expect((await readDetails(page, 0)).childKinds[0]).toBe('details/details.title');
 
 		await page.keyboard.press('Enter');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 1]);
@@ -244,7 +244,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.bridge.waitForSourceEquals(
 			'<details open>\n<summary>BodySummary</summary>\n\n text\n\n</details>\n'
 		);
-		expect((await readDetails(page, 0)).childKinds).toEqual(['details-summary', 'paragraph']);
+		expect((await readDetails(page, 0)).childKinds).toEqual(['details/details.title', 'paragraph']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -264,8 +264,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		// Still one details holding the typed line, and the line is still prose, because the
 		// escape runs before the reparse that picks the kind.
 		const d = await readDetails(page, 0);
-		expect(d.kind).toBe('details');
-		expect(d.childKinds).toEqual(['details-summary', 'paragraph', 'paragraph']);
+		expect(d.kind).toBe('details/details');
+		expect(d.childKinds).toEqual(['details/details.title', 'paragraph', 'paragraph']);
 		expect(await page.locator('.details-block .block-host').last().innerText()).toBe('</details>');
 
 		// The caret sits after the typed `>`, past the entity the escape grew. This offset is the only
@@ -299,7 +299,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		const pasted = await page.evaluate(() => {
 			const notes = (window as any).__test
 				.getDocument()
-				.children.filter((c: { kind: string }) => c.kind === 'details');
+				.children.filter((c: { kind: string }) => c.kind === 'details/details');
 			return { count: notes.length, lastRaw: notes[notes.length - 1]?.raw ?? '' };
 		});
 		expect(pasted.count).toBe(2);

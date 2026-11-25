@@ -17,7 +17,6 @@ import {
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { testChromeContainer } from '#lib/test/harness/test-kinds.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 let titled: ReturnType<typeof testChromeContainer>;
 beforeEach(() => {

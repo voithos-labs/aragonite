@@ -24,7 +24,7 @@ The contract guarantees the empty leaf's presence, not its look. An empty-state 
 - `'before'` / `'after'` / `'both'` opens the named edges to a between-blocks caret, where typing or Enter inserts a paragraph.
 - `'none'` says your surface already hosts insertion at both edges.
 
-The bundled kinds set the precedent: an opaque container whose fences leave no textual way out (the callouts, details, the generic directive container) declares `'both'`; a container whose own edges are prose the caret can already stand on (a blockquote's marked lines, a list item's) declares `'none'`.
+The bundled kinds set the precedent: an opaque container whose fences leave no textual way out (the callouts, the generic directive container) declares `'both'`, as a `container()` on fenced lines derives it (details); a container whose own edges are prose the caret can already stand on (a blockquote's marked lines, a list item's) declares `'none'`.
 
 A fifth tier, a second editor nested inside your block whose state saves as an opaque blob, is never getting built (and yes, people ask): it can't save back the bytes it read.
 

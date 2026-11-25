@@ -16,7 +16,7 @@ The butler did it.
 Note:
 
 - The body is ordinary Markdown, and `<details open>` starts the section open.
-- `<details>` and `</details>` each go alone on their line, with the `<summary>…</summary>` line right after the opener. Anything else (a class on the tag, a summary over two lines, no closing tag) stays a plain HTML block.
+- `<details>` and `</details>` each go alone on their line, with the `<summary>…</summary>` line right after the opener. Anything else (a class on the opening tag, a summary over two lines, no closing tag) stays a plain HTML block.
 
 ## Install
 
@@ -29,9 +29,9 @@ Btw, the plugin's version should match the editor's version.
 ## Use it
 
 ```ts
-import { detailsPlugin } from '@voithos-labs/aragonite-details';
+import { details } from '@voithos-labs/aragonite-details';
 
-const plugins = [detailsPlugin()];
+const plugins = [details];
 ```
 
 Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. No options. A few things worth knowing:

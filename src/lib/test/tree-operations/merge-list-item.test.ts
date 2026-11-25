@@ -8,7 +8,6 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 // Backspace-at-start-of-list-item merge semantics. The worked examples mirror the table
 // in e2e/requirements/blocks/list/backspace/m1-merge.md.

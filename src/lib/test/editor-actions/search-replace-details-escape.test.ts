@@ -4,7 +4,6 @@ import type { Document } from '#lib/core/nodes.js';
 import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 // Miss-analysis (GH #40): the replace escape suites covered fences and cells, never a bodyWrite.
 

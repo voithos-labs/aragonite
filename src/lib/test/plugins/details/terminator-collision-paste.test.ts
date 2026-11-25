@@ -6,7 +6,6 @@ import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 // Miss-analysis: no test pasted into a bodyWrite container, only typed, split or deleted (GH #40).
 // The paste itself is `e2e/tests/plugins/details-terminator-paste.spec.ts`.

@@ -17,7 +17,6 @@ import {
 	makeStubFocus
 } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {
 	registerDetailsPageWide();

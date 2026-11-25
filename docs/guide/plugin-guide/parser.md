@@ -47,7 +47,7 @@ An opener's `priority` decides dispatch order, and **lower runs first**. `OPENER
 Two rules place a plugin opener on it:
 
 1. **Price _below_ a built-in whose matcher is a superset of yours.** `fencedCode` accepts every fence, ` ```mermaid ` included, so the Mermaid opener must win first: `OPENER_PRIORITIES.fencedCode - 5`. If a built-in would also match your syntax, you sit ahead of it or it claims the block.
-2. **Otherwise slot into a gap between built-ins.** `<details>` is only ever an `htmlBlock`, so it prices into the gap just below: `OPENER_PRIORITIES.htmlBlock - 5`. Express the number as an offset from the built-in you reason about, never a bare literal.
+2. **Otherwise slot into a gap between built-ins.** A tag line that is only ever an `htmlBlock` prices into the gap just below: `OPENER_PRIORITIES.htmlBlock - 5`. Express the number as an offset from the built-in you reason about, never a bare literal.
 
 Ties break by kind name, never by registration order. A shared priority is a smell all the same, and the dev build warns on it. Price into a gap instead.
 

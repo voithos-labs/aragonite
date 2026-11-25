@@ -172,7 +172,7 @@ test.describe('plugin-container ops simulation', () => {
 		await assertCheckpoint(ctx, 'note-split-redo');
 
 		// ── Edit the details summary, Enter into the body, type there ────────────
-		let detailsIdx = await topLevelIndexOf(page, 'details');
+		let detailsIdx = await topLevelIndexOf(page, 'details/details');
 		await typeAtPath(ctx, [detailsIdx, 0], 'Z');
 		await assertCheckpoint(ctx, 'summary-edit');
 
@@ -189,7 +189,7 @@ test.describe('plugin-container ops simulation', () => {
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'false');
 		await assertCheckpoint(ctx, 'collapsed');
 
-		detailsIdx = await topLevelIndexOf(page, 'details');
+		detailsIdx = await topLevelIndexOf(page, 'details/details');
 		let tailIdx = (await rootCount(page)) - 1;
 		await mergeFromBelow(ctx, tailIdx, false);
 		// The hidden body was refused: the caret stopped at the summary and the block below
@@ -215,7 +215,7 @@ test.describe('plugin-container ops simulation', () => {
 		// Drags from the callout body across the list to the details summary: a clipboard commit
 		// spanning two opaque containers is where shared nodes cause trouble.
 		noteIdx = await topLevelIndexOf(page, 'callout');
-		detailsIdx = await topLevelIndexOf(page, 'details');
+		detailsIdx = await topLevelIndexOf(page, 'details/details');
 		await editor.dragFromTo([noteIdx, 1], 0, [detailsIdx, 0], 3);
 		await g.copySelection();
 

@@ -6,7 +6,6 @@ import { mergeWithNext, splitNode } from '#lib/tree-operations/node-ops.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
-import { testView } from '#lib/test/harness/test-view.js';
 import { mergePrevSettled } from '#lib/test/harness/settle-funnel.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';

@@ -829,7 +829,7 @@ Each one releases with the editor and asks for exactly its version, so bump them
 
 ```ts
 import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
-import { detailsPlugin } from '@voithos-labs/aragonite-details';
+import { details } from '@voithos-labs/aragonite-details';
 import { toc } from '@voithos-labs/aragonite-toc';
 import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
 import { emoji } from '@voithos-labs/aragonite-emoji';
@@ -845,7 +845,7 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 | Plugin | What it teaches the editor |
 | --- | --- |
 | `admonitionsPlugin()` | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes |
-| `detailsPlugin()` | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; a non-canonical `<details …>` stays a plain HTML block |
+| `details` | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; an opening tag spelled any other way stays a plain HTML block |
 | `toc` or `toc({ maxDepth? })` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
 | `footnotesPlugin()` | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order |
 | `emoji` | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph, with the literal `:name:` still in the source |
@@ -878,7 +878,7 @@ Two editors in one process can list different depths this way. At runtime anythi
 The two options:
 
 - `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the pick and, if the row sets `takesArgument: true`, the word typed after a space). The `/query` stays until `run` writes through the pick (`pick.write(text)` or `pick.insertBlock(markdown)`). A `run` may be async: if it opens a picker and waits, the pick writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
-- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details`, `latex/block`, `mermaid` and `toc/toc`).
+- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details/details`, `latex/block`, `mermaid` and `toc/toc`).
 
 Calling `slashCommands` with options again lays them over the first ones field by field. So `slashCommands({ entries: [stamp] })({ exclude: ['table'] })` still lists the stamp row, and `({ entries: [] })` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the editor reports it (to `onError`, and on the `error` event) and runs the plugin on its defaults.
 
@@ -1069,7 +1069,7 @@ Right-clicking any cell opens the table's action menu: "Edit link" first when yo
 | Cycle the admonition kind | `Mod+7` (in an admonition; needs `admonitionsPlugin`) |
 | Move from the title into the body | `Enter` (in the title; needs `admonitionsPlugin`) |
 | **Details** |  |
-| Move from the summary into the body | `Enter` (in the summary; needs `detailsPlugin`) |
+| Move from the summary into the body | `Enter` (in the summary; needs `details`) |
 | **Mermaid diagrams** |  |
 | Finish editing a diagram | `Mod+Enter` (in the diagram's source box; `Esc` cancels; needs `mermaidPlugin`) |
 | Open the diagram's focus view | `Mod+M` (the diagram focused; `Esc` closes it; needs `mermaidPlugin`) |

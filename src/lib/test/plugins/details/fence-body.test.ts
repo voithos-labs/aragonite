@@ -1,3 +1,6 @@
+// The close-scan must track fenced code in the body: inside a fence, `</details>` is
+// content and `<details>` must not inflate the depth. Bytes round-trip either way, so
+// a fence-blind scan fails structurally (early close, spurious decline), not visibly.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { DETAILS, SUMMARY, detailsGrammar } from '#lib/test/support/details-grammar.js';
@@ -5,9 +8,6 @@ import { DETAILS, SUMMARY, detailsGrammar } from '#lib/test/support/details-gram
 let grammar: ReturnType<typeof detailsGrammar>;
 const read = (source: string) => parse(source, { grammar });
 
-// The close-scan must track fenced code in the body: inside a fence, `</details>` is
-// content and `<details>` must not inflate the depth. Bytes round-trip either way, so
-// a fence-blind scan fails structurally (early close, spurious decline), not visibly.
 describe('details fence-aware close scan', () => {
 	beforeEach(() => {
 		grammar = detailsGrammar();

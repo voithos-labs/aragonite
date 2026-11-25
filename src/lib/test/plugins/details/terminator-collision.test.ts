@@ -16,7 +16,6 @@ import { registerDetailsPageWide, DETAILS } from '#lib/test/harness/registered-d
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { admittedCaret } from '#lib/test/harness/editor-actions.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 /**
  * `</details>` is a fixed terminator with no fence length to grow, so the fix happens on the

@@ -58,7 +58,7 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 	}) => {
 		await editor.loadContent(collapsedDetailsDoc(COUNT));
 		expect((await readDetails(page, 0)).rootCount).toBe(COUNT);
-		expect((await readDetails(page, 0)).kind).toBe('details');
+		expect((await readDetails(page, 0)).kind).toBe('details/details');
 		expect((await editor.bridge.getSource()).includes('<details open>')).toBe(false);
 
 		// Precondition: top-level windowing is active and most of the details are unmounted, their

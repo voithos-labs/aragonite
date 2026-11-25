@@ -33,7 +33,6 @@ import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { type GrammarView } from '#lib/schema/block-openers.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 const MEMO_LINE = '%% a memo\n';
 const memo = memoPlugin();

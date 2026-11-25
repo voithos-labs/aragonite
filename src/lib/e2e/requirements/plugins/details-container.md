@@ -1,7 +1,7 @@
 # Feature: Plugin Container, `<details>` Collapsible
 
 The `<details>` collapsible is the second container to reserve a child for its own title row. It
-reserves child 0 as an editable `details-summary` leaf and stores its open/closed state as
+reserves child 0 as an editable title row (kind `details/details.title`, class `details-summary`) and stores its open/closed state as
 `{ open }` metadata that round-trips to the `<details open>` / `<details>` opener bytes.
 Collapsing is a windowing clamp: when the block is closed, only the summary row mounts and every
 body child really does unmount. These checks read behavior: the tree read by path through

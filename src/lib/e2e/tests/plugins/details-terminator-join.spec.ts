@@ -24,7 +24,7 @@ test.describe('plugin container: <details> terminator escape on a join', () => {
 		await page.keyboard.press('Backspace');
 
 		await editor.bridge.waitForSourceEquals(JOINED);
-		expect((await readDoc(page)).kinds).toEqual(['details']);
+		expect((await readDoc(page)).kinds).toEqual(['details/details']);
 		expect(await roundTripStable(page)).toBe(true);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -35,7 +35,7 @@ test.describe('plugin container: <details> terminator escape on a join', () => {
 		await page.keyboard.press('Delete');
 
 		await editor.bridge.waitForSourceEquals(JOINED);
-		expect((await readDoc(page)).kinds).toEqual(['details']);
+		expect((await readDoc(page)).kinds).toEqual(['details/details']);
 		expect(await roundTripStable(page)).toBe(true);
 		expect(await capturedErrors(page)).toEqual([]);
 	});

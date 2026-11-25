@@ -41,8 +41,8 @@ export interface Doc {
 export interface Block<D = unknown> {
 	readonly type: BlockType<D>;
 	readonly data: D;
-	/** Its bytes, its line ending included. In a quote or a list item these leave out the markers
-	 *  between its lines, so `byteAt` finds where one of them sits in the document. */
+	/** Its bytes, its line ending included unless its container closes the line (`</summary>`). In a
+	 *  quote or a list item these leave out the markers between its lines, so `byteAt` finds each. */
 	readonly text: string;
 	/** The text the author writes in it, its markers left out. A container's is what its children
 	 *  hold, as they stand in it; a table and its rows, whose text sits in cells, keep their bytes. */

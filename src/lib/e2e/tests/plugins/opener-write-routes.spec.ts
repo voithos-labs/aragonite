@@ -32,7 +32,10 @@ const OPENERS: Opener[] = [
 	// An HTML block ends at a blank line, so `<details>` alone never waits on the block below.
 	{
 		opener: '<details>',
-		below: { raw: '<details>\n<summary>S</summary>\n\nbody\n\n</details>\n', kind: 'details' },
+		below: {
+			raw: '<details>\n<summary>S</summary>\n\nbody\n\n</details>\n',
+			kind: 'details/details'
+		},
 		written: '<details>',
 		cut: 4
 	}

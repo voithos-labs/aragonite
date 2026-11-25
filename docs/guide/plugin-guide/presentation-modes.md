@@ -29,7 +29,7 @@ In `reading` mode the platform does most of it for you, which is why most plugin
 - the container factory gates whole-block Enter and Backspace;
 - marker spans hide by CSS.
 
-You read the mode yourself in two cases: when your component owns an edit affordance of its own (a toolbar button, a click-to-edit swap, an interactive widget) which must go inert, the bundled mermaid block's Edit button and the details disclosure being the worked examples, or when your rendering should genuinely differ between a source view and a reading view.
+You read the mode yourself in two cases: when your component owns an edit affordance of its own (a toolbar button, a click-to-edit swap, an interactive widget) which must go inert, the bundled mermaid block's Edit button being the worked example, or when your rendering should genuinely differ between a source view and a reading view.
 
 `preview-block` is different: it's a **live editing** mode, so none of those reading gates fire. You type, edit, and command in it exactly as in source; only the marker visibility changes. A **render-primary** plugin block (the quickstart parrot, [the render-primary recipe](render-primary.md#recipe-a-render-primary-block)) gets this for free, since it already shows its picture until the caret enters. A plugin block that instead renders always-visible source chrome should hide that chrome when it isn't the focused block. There's no "am I the focused block" signal to read, so the render-primary pattern is the supported way to get there.
 
@@ -43,13 +43,13 @@ You read the mode yourself in two cases: when your component owns an edit afford
 
 ## What is live, what is point-in-time
 
-**The live reads.** The `EditorContext` getter, both factories' `getPresentationMode()` and the inline-widget prop are reactive, so a read inside a `$derived` or an effect re-runs on a switch. The bundled mermaid and details blocks both do exactly that: `$derived(getPresentationMode() === 'reading')` off the container factory.
+**The live reads.** The `EditorContext` getter, both factories' `getPresentationMode()` and the inline-widget prop are reactive, so a read inside a `$derived` or an effect re-runs on a switch. The bundled mermaid block does exactly that: `$derived(getPresentationMode() === 'reading')` off the container factory.
 
 **The block-component DOM read is point-in-time.** `closest()` learns the mode when your code runs, but a live flip does **not** re-render a mounted block through it. A component holding only a DOM handle has to react explicitly: subscribe to `presentationModeChange` on your `EditorContext`'s `events` (from `onEditor`) and update from the handler, or re-read the attribute at each gesture.
 
 **The theme rides exactly where the mode rides.** `EditorContext.theme` (paired with the `themeChange` event), the container and leaf factories' `getTheme()`, and the inline-widget `getTheme` prop are the same four routes with the same liveness. The theme is never missing (the editor defaults to `'dark'`), so call `getTheme()` as is. Reach for it only when your content's colors are painted by an engine CSS can't reach; token-styled chrome rethemes itself through the cascade.
 
-**Reading mode writes no bytes, which isn't the same as "nothing happens".** An affordance whose flip is view-only may stay live there: the built-in `<details>` disclosure lets a reader open a collapsed section. An affordance whose flip would rewrite the document (a task checkbox) stays inert. If you build the view-only kind, copy the disclosure's pattern:
+**Reading mode writes no bytes, which isn't the same as "nothing happens".** An affordance whose flip is view-only may stay live there: the built-in `<details>` disclosure lets a reader open a collapsed section. An affordance whose flip would rewrite the document (a task checkbox) stays inert. A `container()` type that declares `closable` gets that from `ctx.setClosed`, as `<details>` does. If you build the view-only kind on the container factory instead:
 
 - Keep the open/closed state in a module that can't commit at all, and pick the click handler by mode.
 - Feed the state the view actually shows to the container factory's `isCollapsed` dep, so the editor mounts what the view claims is open.
