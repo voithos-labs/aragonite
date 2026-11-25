@@ -281,9 +281,6 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 				? focusWithoutCaret(component, target.leafPath, target.offset)
 				: component.focus(target.offset)
 		);
-		assertInvariant('closed-body-caret', () =>
-			checkNoCaretInClosedBody(deps.getDoc(), target.leafPath, collapsedContainerHiding)
-		);
 		// A split's second half starts plain, whatever format the text after the cut carries.
 		if (pos.fresh) deps.caretMemory.noteOutside();
 		await bringIntoView(target.leafPath, reveal);

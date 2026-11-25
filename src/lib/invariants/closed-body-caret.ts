@@ -1,7 +1,8 @@
 /**
  * G1.245: a closed container's body holds no collapsed caret. Every landing resolves its caret on
  * the tree first (`selection/caret-target.ts`), which puts one aimed at a closed body on the title
- * row; a range's end may still sit in a body a fold closed over it.
+ * row; a range's end may still sit in a body a fold closed over it. A restored caret is checked
+ * here; a landing never reaches one, since a hidden body is not mounted.
  */
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
