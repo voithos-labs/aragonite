@@ -7,7 +7,7 @@ import { installPlugins, parseInline } from '#lib';
 import type { AnyInlineKind } from '#lib/core/nodes.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import { listGrammar } from '#lib/schema/own-syntax.js';
-import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes, FOOTNOTE_REF_KIND } from '#lib/test/harness/registered-footnotes.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { registeredMath, MATH_INLINE } from '#lib/test/harness/registered-math.js';
 import {
@@ -91,7 +91,7 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 	it('holds with the bundled inline syntax handlers installed', () => {
 		// Registries register once, so the handlers install once for the whole property, and
 		// the scan reads no state the cases mutate.
-		installPlugins([footnotesPlugin(), registeredMath()]);
+		installPlugins([registeredFootnotes(), registeredMath()]);
 		// Without this a failed setup leaves the bare grammar running and the case passes
 		// for the wrong reason.
 		for (const kind of [FOOTNOTE_REF_KIND, MATH_INLINE]) {

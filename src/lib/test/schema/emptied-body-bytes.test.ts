@@ -10,7 +10,7 @@ import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { makeContainerHarness } from '../harness/editor-actions';
 
 interface EmptiedCase {
@@ -42,7 +42,7 @@ const CASES: EmptiedCase[] = [
 ];
 
 function installCasePlugins(): void {
-	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
 }
 
 /** The tree the editor would hold after saving `doc` and opening the file again. */

@@ -1,7 +1,7 @@
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -17,7 +17,7 @@ import { writeContainerRaw } from '#lib/schema/container-writer.js';
 // Miss-analysis: GH #406, no case blanked the last block of an indent-delimited body.
 
 beforeEach(() => {
-	installPlugins([footnotesPlugin()]);
+	installPlugins([registeredFootnotes()]);
 });
 
 function containersAlong(doc: Document, path: number[]): CstNode[] {

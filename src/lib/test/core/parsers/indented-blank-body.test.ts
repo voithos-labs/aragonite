@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { layoutOf, triviaRawOf } from '#lib/test/harness/parse-converged.js';
@@ -10,7 +10,7 @@ import { layoutOf, triviaRawOf } from '#lib/test/harness/parse-converged.js';
 // `tree-operations/indented-body-tail-blank.test.ts`, which blanks a body's last block.
 
 beforeEach(() => {
-	installPlugins([footnotesPlugin()]);
+	installPlugins([registeredFootnotes()]);
 });
 
 describe('an indented blank line inside a list item', () => {

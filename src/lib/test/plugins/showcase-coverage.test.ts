@@ -15,7 +15,7 @@ import { computeInlineContent, grammar, isProseKind, type Piece } from '#lib/plu
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { listGrammar } from '#lib/schema/own-syntax.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
+import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#lib/test/harness/registered-footnotes.js';
 import { MERMAID } from '#packages/mermaid/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';

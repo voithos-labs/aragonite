@@ -4,7 +4,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes, FOOTNOTE_DEF_KIND } from '#lib/test/harness/registered-footnotes.js';
 import { registeredMath, MATH_BLOCK } from '#lib/test/harness/registered-math.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
@@ -24,7 +24,12 @@ function roundTrips(source: string): boolean {
 }
 
 beforeEach(() => {
-	installPlugins([footnotesPlugin(), registeredMath(), admonitionsPlugin(), registeredDetails()]);
+	installPlugins([
+		registeredFootnotes(),
+		registeredMath(),
+		admonitionsPlugin(),
+		registeredDetails()
+	]);
 });
 
 describe('G2.1 round-trip with the bundled plugins installed', () => {

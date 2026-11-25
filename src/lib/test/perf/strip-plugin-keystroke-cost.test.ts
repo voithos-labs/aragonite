@@ -12,7 +12,7 @@ import { createUndoController } from '#lib/editor-actions/commit/undo-controller
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import {
 	disablePerfInstruments,
@@ -63,7 +63,7 @@ function linesRead(source: string): number {
 }
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
 	resetPerfInstruments();
 });
 afterEach(() => disablePerfInstruments());

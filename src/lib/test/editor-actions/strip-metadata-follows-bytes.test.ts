@@ -4,7 +4,7 @@ import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
@@ -162,7 +162,7 @@ describe('a strip container reads its rewritten first line as a reload does', ()
 
 	// A plugin strip container's opener line is its own, not a child's, or strips one space only.
 	describe('where the first line carries nothing a keystroke can widen', () => {
-		beforeEach(() => installPlugins([footnotesPlugin(), admonitionsPlugin()]));
+		beforeEach(() => installPlugins([registeredFootnotes(), admonitionsPlugin()]));
 
 		it.each([
 			['a footnote definition', '[^x]: a b\n', [0, 0], ' b\n', '[^x]:  b\n'],

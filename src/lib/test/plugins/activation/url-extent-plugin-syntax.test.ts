@@ -5,12 +5,12 @@ import { installPlugins } from '#lib/schema/plugin-install.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { grammar } from '#lib/plugin.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { grammarListing } from './grammar-listing';
 
 beforeEach(() => {
-	installPlugins([registeredMath(), footnotesPlugin()]);
+	installPlugins([registeredMath(), registeredFootnotes()]);
 });
 
 const ALL = ['latex', 'footnotes'];

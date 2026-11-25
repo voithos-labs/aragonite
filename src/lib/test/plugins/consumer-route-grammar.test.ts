@@ -13,7 +13,7 @@ import {
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { latex } from '#packages/latex/src/index.js';
 import { grammar } from '#lib/plugin.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
@@ -30,7 +30,7 @@ const consumerRouteSet = () => [
 	mermaidPlugin(),
 	toc,
 	emoji,
-	footnotesPlugin()
+	registeredFootnotes()
 ];
 
 beforeAll(() => installLayoutStubs());

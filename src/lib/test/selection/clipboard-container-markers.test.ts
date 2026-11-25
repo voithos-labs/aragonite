@@ -11,14 +11,14 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { displayLength } from '#lib/core/lines.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // Source mode, where a copied range carries its bytes as they stand.
 const SOURCE_READING = fixtureReading({}, 'source');
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), registeredDetails(), footnotesPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredDetails(), registeredFootnotes()]);
 });
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });

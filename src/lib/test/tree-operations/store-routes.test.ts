@@ -6,7 +6,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
 import { installPlugins } from '#lib';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
@@ -79,7 +79,7 @@ beforeAll(() => {
 beforeEach(() => {
 	// The caret-edge keys read the mode off the nearest root that names one.
 	document.body.dataset.presentation = 'live';
-	installPlugins([footnotesPlugin()]);
+	installPlugins([registeredFootnotes()]);
 	registerCalloutForTests();
 });
 afterEach(() => {

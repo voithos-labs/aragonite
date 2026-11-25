@@ -16,8 +16,8 @@ import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callo
 import { registerDetailsPageWide, DETAILS } from '#lib/test/harness/registered-details.js';
 import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
 import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
-import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
-import { FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/constants.js';
+import { registerFootnoteDefinition } from '#lib/test/harness/registered-footnotes.js';
+import { FOOTNOTE_DEF_KIND } from '#lib/test/harness/registered-footnotes.js';
 import { parse } from '#lib/core/parser.js';
 import { openerRecords } from '#lib/schema/block-kind-descriptor.js';
 import { todayAlertWriter } from '../schema/container-writer/today-writers';

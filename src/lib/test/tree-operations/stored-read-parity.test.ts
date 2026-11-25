@@ -4,7 +4,7 @@
 // edit, ran its caret-edge gestures on top-level blocks only, and no unit gave the join a container.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { parseInline, getContentRange } from '#lib/core/inline/index.js';
@@ -23,7 +23,7 @@ import { deleteRange } from '../harness/range-delete';
 // A live cut under a container marker writes the text bytes the same cut writes at the top level,
 // and leaves a tree a reload of those bytes reads back unchanged.
 
-beforeEach(() => installPlugins([footnotesPlugin()]));
+beforeEach(() => installPlugins([registeredFootnotes()]));
 
 const LIVE = fixtureReading({}, 'live');
 

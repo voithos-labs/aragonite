@@ -24,8 +24,8 @@ import { svelteBlockView } from '#lib/svelte.js';
 import {
 	registerFootnoteDefinition,
 	type FootnoteDefMetadata
-} from '#packages/footnotes/src/footnote-definition.js';
-import FootnoteDefinition from '#packages/footnotes/src/FootnoteDefinition.svelte';
+} from '#lib/test/harness/registered-footnotes.js';
+import { FootnoteDefinitionView as FootnoteDefinition } from '#lib/test/harness/registered-footnotes.js';
 
 const SOURCE = 'text\n\n[^1]: the note\n';
 const FIRST_CHILD = [1, 0];

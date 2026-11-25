@@ -2,7 +2,7 @@
 // Miss-analysis: the reparsing checks only ran with every plugin active, where any grammar agrees.
 import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { FOOTNOTE_REF_KIND, footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { FOOTNOTE_REF_KIND, registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { MATH_INLINE, registeredMath } from '#lib/test/harness/registered-math.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { screenVisibility } from '#lib/core/inline/visibility.js';
@@ -15,7 +15,7 @@ import { grammarListing } from './grammar-listing';
 import { fixtureReading, topLevelStore } from '#lib/test/harness/fixture-grammar.js';
 
 beforeEach(() => {
-	installPlugins([registeredMath(), footnotesPlugin()]);
+	installPlugins([registeredMath(), registeredFootnotes()]);
 });
 
 /** An editor that lists neither latex nor footnotes, so it draws `$x$` and `[^note]` as text. */

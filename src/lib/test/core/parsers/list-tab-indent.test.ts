@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
@@ -11,7 +11,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 // Miss-analysis (GH #437): no case put a tab where counting it as one space gives another answer.
 
 beforeEach(() => {
-	installPlugins([footnotesPlugin()]);
+	installPlugins([registeredFootnotes()]);
 });
 
 const kinds = (nodes: readonly CstNode[] | undefined) => (nodes ?? []).map((n) => n.kind);

@@ -6,12 +6,12 @@ import { installPlugins } from '#lib/schema/plugin-install.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import {
 	assignFootnoteNumbers,
 	collectFootnoteReferences,
 	footnoteNumbersFor
-} from '#packages/footnotes/src/footnote-numbering.js';
+} from '#lib/test/harness/registered-footnotes.js';
 import { latex } from '#packages/latex/src/index.js';
 import { toc } from '#packages/toc/src/index.js';
 import type { EditorContext } from '#lib/plugin.js';
@@ -38,7 +38,7 @@ import { grammarListing } from './grammar-listing';
 const LATEX = latex({ renderer: () => ({ dom: document.createElement('span') }) });
 
 beforeEach(() => {
-	installPlugins([registeredMath(), footnotesPlugin()]);
+	installPlugins([registeredMath(), registeredFootnotes()]);
 });
 afterEach(async () => {
 	disablePerfInstruments();

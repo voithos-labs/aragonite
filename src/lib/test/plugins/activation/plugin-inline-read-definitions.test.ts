@@ -5,7 +5,7 @@ import { definePlugin, type EditorContext } from '#lib/plugin.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { headless } from '#lib/testing.js';
 import { toc } from '#packages/toc/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import {
 	destroyMountedEditors,
 	mountEditor,
@@ -26,7 +26,7 @@ const probe = definePlugin({
 function mountWith(source: string): MountedEditor<EditorTestSurface> {
 	return mountEditor<EditorTestSurface>({
 		source,
-		plugins: [toc, footnotesPlugin(), probe],
+		plugins: [toc, registeredFootnotes(), probe],
 		scrollMode: 'host'
 	});
 }

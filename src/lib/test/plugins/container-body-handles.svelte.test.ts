@@ -4,7 +4,7 @@
 // Miss-analysis: the handle tests mounted built-in containers only, never a plugin container.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import {
 	installLayoutStubs,
 	mountEditor,
@@ -39,7 +39,7 @@ const CASES = [
 	{
 		name: 'a footnote definition',
 		source: '[^1]: a\n\n    ```\n    code\n    ```\n',
-		plugins: () => [footnotesPlugin()]
+		plugins: () => [registeredFootnotes()]
 	}
 ];
 

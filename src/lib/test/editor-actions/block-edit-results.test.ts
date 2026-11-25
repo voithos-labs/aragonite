@@ -11,7 +11,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { serialize } from '#lib/core/serializer.js';
 import { paragraphNode } from '#lib/tree-operations/index.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { makeContainerHarness, makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { drainDevWarns } from '../support/warn-gate';
@@ -173,7 +173,7 @@ describe('completeMarker, the space that finishes a container marker', () => {
 	])(
 		'resolves false and writes nothing in %s, whose marker takes no space',
 		async (_name, source) => {
-			installPlugins([admonitionsPlugin(), footnotesPlugin()]);
+			installPlugins([admonitionsPlugin(), registeredFootnotes()]);
 			const h = makeContainerHarness(source, [0]);
 			expect(await h.bundle.blockEdit.completeMarker(0)).toBe(false);
 			expect(serialize(h.deps.doc)).toBe(source);

@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { resolveReorderUnit } from '#lib/tree-operations/reorder-unit.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 
 // A strip plugin container reorders its body children among themselves, so the resolver lands on
 // the container rather than walking past it to the document position. Membership is the
 // descriptor's `reorderChildren` capability, not a kind name.
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
 });
 
 describe('resolveReorderUnit: strip plugin containers reorder within', () => {

@@ -4,7 +4,7 @@
 
 import type { EditorPlugin } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
 
 export const EXHAUSTIVE_ALPHABET = [
@@ -38,7 +38,7 @@ export const EDIT_LENGTH = Number(process.env.EXHAUSTIVE_EDIT_LENGTH ?? (FULL ? 
  *  `[^` footnotes. Installed in each test body, since the platform resets between tests. */
 export const ALPHABET_PLUGINS = (): EditorPlugin[] => [
 	admonitionsPlugin(),
-	footnotesPlugin(),
+	registeredFootnotes(),
 	// The latex package is a plugin value, which only an editor reads; the same `$` syntax
 	// registered page-wide keeps it in the alphabet's parses.
 	registeredMath()

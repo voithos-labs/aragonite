@@ -3,7 +3,7 @@ import { installPlugins } from '#lib';
 import { serialize } from '#lib/core/serializer.js';
 import { makeReorderContainer } from './reorder-harness';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 
 // An alert-style plugin container reorders its body children within itself. The hazard of
 // rebuilding it as a blockquote (which drops the `[!TYPE]` marker) is hidden in committed
@@ -11,7 +11,7 @@ import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 // observable contract instead: reorder within, marker survives, tree converges.
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
 });
 
 describe('reorder action: githubAlert body children reorder within', () => {

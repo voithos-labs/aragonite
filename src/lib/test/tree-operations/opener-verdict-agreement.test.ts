@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
-import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
+import { registerFootnoteDefinition } from '#lib/test/harness/registered-footnotes.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import {

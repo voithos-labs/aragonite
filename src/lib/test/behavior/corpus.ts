@@ -11,7 +11,7 @@ import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import { emoji } from '#packages/emoji/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
 import RevealLeafBlock from '../blocks/fixtures/RevealLeafBlock.svelte';
 import { toc } from '#packages/toc/src/index.js';
@@ -24,7 +24,7 @@ import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content'
 export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
 	admonitionsPlugin(),
 	registeredDetails(),
-	footnotesPlugin(),
+	registeredFootnotes(),
 	// The latex package is a plugin value, which only an editor reads; the same syntax registered
 	// page-wide, its blocks drawn as a picture that opens its source, as a math block is.
 	registeredMath(svelteBlockView(RevealLeafBlock))

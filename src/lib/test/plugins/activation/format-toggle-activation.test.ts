@@ -2,7 +2,7 @@
 // Miss-analysis: no toggle test ran over latex or footnote syntax in an editor drawing it as text.
 import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { FOOTNOTE_REF_KIND, footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { FOOTNOTE_REF_KIND, registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { MATH_INLINE, registeredMath } from '#lib/test/harness/registered-math.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { toggleInlineFormat } from '#lib/core/inline/format-toggle.js';
@@ -11,7 +11,7 @@ import { grammarListing } from './grammar-listing';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 beforeEach(() => {
-	installPlugins([registeredMath(), footnotesPlugin()]);
+	installPlugins([registeredMath(), registeredFootnotes()]);
 });
 
 /** The bytes a toggle writes in an editor that lists neither latex nor footnotes. */

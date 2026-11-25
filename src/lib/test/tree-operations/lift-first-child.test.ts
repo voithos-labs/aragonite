@@ -7,14 +7,14 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { installPlugins } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { firstChildUnwrapStrategies } from '#lib/editor-actions/unwrap-strategies.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { makeBlockListState, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
 });
 
 /** The container's declared first-child strategy, with the real top-level edit as its parent. */

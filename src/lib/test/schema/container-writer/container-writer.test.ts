@@ -14,7 +14,7 @@ import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { createEditorGrammar, defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import { memoPlugin } from '../../../../routes/test/plugins/memo/register';
@@ -32,7 +32,7 @@ const shaped: Writer = (node: CstNode, changed) =>
 	writeContainerRaw(node, defaultGrammarView, changed);
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), registeredDetails(), footnotesPlugin()]);
+	installPlugins([admonitionsPlugin(), registeredDetails(), registeredFootnotes()]);
 });
 
 describe('the container writer against today’s writers', () => {

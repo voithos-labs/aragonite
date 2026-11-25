@@ -10,7 +10,7 @@ import { installPlugins } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
 import { toc } from '#packages/toc/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 import {
@@ -22,7 +22,7 @@ import {
 const DETAILS_PLUGIN = registeredDetails();
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), DETAILS_PLUGIN, footnotesPlugin(), mermaidPlugin()]);
+	installPlugins([admonitionsPlugin(), DETAILS_PLUGIN, registeredFootnotes(), mermaidPlugin()]);
 });
 afterEach(destroyMountedEditors);
 
