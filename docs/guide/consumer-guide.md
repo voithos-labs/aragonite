@@ -836,7 +836,7 @@ import { emoji } from '@voithos-labs/aragonite-emoji';
 import { highlight } from '@voithos-labs/aragonite-highlight';
 import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
 import { latex } from '@voithos-labs/aragonite-latex';
-import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
+import { mermaid } from '@voithos-labs/aragonite-mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
 import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
@@ -852,7 +852,7 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 | `highlight({ renderer? })` | Fenced code highlights in its language: 24 common ones, eight with the page and each other one the first time a fence names it, or every highlight.js grammar if you opt in (**Code highlighting**, below). The code block's picker offers the ones it highlights. Without a renderer, code stays plain, which is also what an editor without this plugin shows |
 | `highlightOccurrences` | Every occurrence of the word under the caret, the one you're on included, is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change. The plugin picks no color: style `.decoration-overlay.hl-occurrence` to see it |
 | `latex` or `latex({ renderer?, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; without an engine each formula shows its source. `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing, and each editor keeps its own renderings. With latex listed, the code block's picker offers `math` |
-| `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled) |
+| `mermaid` or `mermaid({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled). Each editor keeps its own renderings |
 | `parrotPlugin()` | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption |
 | `slashCommands` or `slashCommands({ entries?, exclude? })` | `/` at the start of a line or after a space opens a list of blocks to insert and headings to turn the line into |
 | `spellcheckPlugin` or `spellcheckPlugin({ words?, onAddWord?, dictionary? })` | Misspelled words in prose get a red wave (an English dictionary unless you pass your own), with their suggestions in the right-click menu, in the selection toolbar when the word is selected, and on a card the pointer opens by resting on the word. "Add to dictionary" shows when `onAddWord` keeps the word. The browser's own checker is off while it runs |
@@ -900,7 +900,7 @@ import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer'; // impor
 import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer'; // dynamic-imports mermaid
 
 latex({ renderer: katexRenderer });
-mermaidPlugin({ renderer: mermaidRenderer });
+mermaid({ renderer: mermaidRenderer });
 ```
 
 Both renderers are optional; without one, each formula or diagram shows its source. The latex adapter imports `katex/dist/katex.min.css` on your behalf; no other setup is needed.
@@ -1071,8 +1071,8 @@ Right-clicking any cell opens the table's action menu: "Edit link" first when yo
 | **Details** |  |
 | Move from the summary into the body | `Enter` (in the summary; needs `detailsPlugin`) |
 | **Mermaid diagrams** |  |
-| Finish editing a diagram | `Mod+Enter` (in the diagram's source box; `Esc` cancels; needs `mermaidPlugin`) |
-| Open the diagram's focus view | `Mod+M` (the diagram focused; `Esc` closes it; needs `mermaidPlugin`) |
+| Finish editing a diagram | `Mod+Enter` (in the diagram's source box; `Esc` cancels; needs `mermaid`) |
+| Open the diagram's focus view | `Mod+M` (the diagram focused; `Esc` closes it; needs `mermaid`) |
 | **Slash commands** |  |
 | Open the list at the caret | `Mod+/` (types the `/` for you; needs `slashCommands`) |
 
@@ -1316,3 +1316,5 @@ search.close();
 ```
 
 The getters are live, so Svelte chrome just reads them. Anywhere else, repaint your bar on the `searchChange` event ([Events](#events)).
+
+A replace that would turn a block drawn as a picture of its source (a diagram, a formula, a table of contents) into another kind of block is skipped. Its match stays in `matches`, and `replacedCount` counts only what landed.

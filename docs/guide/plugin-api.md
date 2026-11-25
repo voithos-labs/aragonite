@@ -1237,7 +1237,7 @@ _(pre-freeze / unstable)_ What a kind fills its descriptor's `caretTargetAtPoint
 
 ### Pointer gestures
 
-_(pre-freeze / unstable)_ One attribute, for a block whose drags are its own (a diagram you pan, a canvas you draw on). Without it the editor reads the press as the start of a selection, and your pan runs under a painted block range. Calling `stopPropagation()` in your own handler doesn't help: Svelte delivers pointer events from the app root, so the editor's listener has already run.
+_(pre-freeze / unstable)_ One attribute, for a block whose drags are its own (a diagram you pan, a canvas you draw on). Without it the editor reads the press as the start of a selection, and your pan runs under a painted block range. Calling `stopPropagation()` in your own handler doesn't help: a component the editor renders gets its events from the app root, after the editor's listener has run. A block type's drawing is mounted inside the editor instead, so a press it stops never reaches the editor at all.
 
 #### `POINTER_GESTURE_ATTR`
 
@@ -1251,7 +1251,7 @@ Put it on the element whose drags are yours. A press inside it is left alone by 
 <div class="viewport" {...{ [POINTER_GESTURE_ATTR]: focused ? '' : undefined }} onpointerdown={beginPan}>
 ```
 
-That is what mermaid does: unfocused, a drag on the diagram selects like it would on any block; focused, it pans.
+A drawing says the same with `Drawn.keep(event)`, which is how the bundled mermaid claims its pan, its toolbar and its edit box.
 
 ### Selection geometry
 
@@ -1346,7 +1346,7 @@ _(pre-freeze / unstable)_ The built-in rules for three grammars a plugin commonl
 | `matchFenceClose` | Is this line the closer for a matched opener (same marker, at least its run length)? |
 | `escalatedFenceLength` | The fence run a body forces so none of its lines reads as the closer; a floor, never a shortening. A kind that rebuilds its own raw around a body has to apply it, and grow the closer to match |
 | `FenceOpen` | A matched opener: marker, run length, trimmed `info`, verbatim `indent` and `infoRaw` |
-| `matchFenceInfo` | Build an opener matcher that claims only fences whose info string's first word is your token: `matchFenceInfo('mermaid')` is how the bundled diagram kind takes ` ```mermaid ` from the code block |
+| `matchFenceInfo` | Build an opener matcher that claims only fences whose info string's first word is your token: `matchFenceInfo('mermaid')` takes ` ```mermaid ` from the code block. A `fencedBlock`'s `fence: { info }` does it for you |
 | `findFenceCloser`, `FenceRun` | The index of the first line in a range that closes a fence of that marker and run length (the closer the parser would pick), or -1 |
 | `scanFence`, `FenceScan` | A fence's extent from its opener line, as an opener's `tryOpen` needs it: the closer's index (-1 when nothing closes it), the lines consumed, the exact bytes, and the body between the fence lines |
 | [`fenceRawWrite`, `fenceShapeOfRaw`, `FenceShape`](#fencerawwrite-fenceshapeofraw-fenceshape) | The code block's write rule, for any kind that holds its own fence |
@@ -1440,7 +1440,7 @@ walkBlocks(parse('# Plans\n\n> ## Secret plans\n> nap\n'), (node, path) => {
 
 ### Injected renderers
 
-_(pre-freeze / unstable)_ For a block or widget drawn by a library the host hands your plugin (KaTeX, mermaid). A **renderer slot** is the one place that library plugs in: your plugin's setup calls `set`, your component calls `render`, and the slot handles the caching and the fallbacks. The [render-primary recipe](plugin-guide/render-primary.md#recipe-a-render-primary-block) walks through one.
+_(pre-freeze / unstable)_ For a block or widget drawn by a library the host hands your plugin (KaTeX, mermaid). A **renderer slot** is the one place that library plugs in: your plugin's setup calls `set`, your component calls `render`, and the slot handles the caching and the fallbacks. A plugin value keeps its renderings in what its `contributes` builds instead, so each editor has its own, as the bundled mermaid does.
 
 | Export | Role |
 | --- | --- |
