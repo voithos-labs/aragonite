@@ -16,8 +16,7 @@ import {
 } from '@voithos-labs/aragonite/plugin';
 import { svelteBlock } from '@voithos-labs/aragonite/svelte';
 import AdmonitionBlock from './AdmonitionBlock.svelte';
-import { convertGithubAlertsInDocument } from './convert-document';
-import { hasGithubAlert } from './gh-alert';
+import { convertAlertBlockquoteRaw } from './gh-alert';
 import {
 	ADMONITION_KINDS,
 	coerceAdmonitionName,
@@ -55,7 +54,7 @@ const admonition = container<AdmonitionData>({
 	role: 'prose',
 	lines: colonLines({ names: ADMONITION_KINDS }),
 	chords: { 'Mod+7': nextKind },
-	// No key of its own, as on 0.11.5: a host binds `admonitions/previous-kind` or runs it.
+	// No key of its own: a host binds `admonitions/previous-kind` or runs it.
 	commands: [previousKind],
 	sample: ':::note Heads up\n\nbody\n\n:::\n',
 	insert: {
@@ -89,14 +88,21 @@ const alert = container<AlertData>({
 	draw: svelteBlock(AdmonitionBlock)
 });
 
-// The whole paste, read as text, so one alert line pasted into a paragraph converts too.
+// The paste's top-level alerts as the editor reads them, the whole paste a rewrite reads, so one
+// alert line pasted into a paragraph converts too and one inside another block stays.
 const alertsToBoxes = pasteRewrite({
 	name: 'github-alerts',
 	sample: '> [!NOTE]\n> Heads up.\n',
-	into({ text }) {
-		if (!hasGithubAlert(text)) return null;
-		const { converted, changed } = convertGithubAlertsInDocument(text);
-		return changed ? converted : null;
+	into(pasted) {
+		let out = '';
+		let at = 0;
+		for (const block of pasted.blocks) {
+			const box = block.is(alert) ? convertAlertBlockquoteRaw(block.text, '\n') : null;
+			if (box === null) continue;
+			out += pasted.text.slice(at, block.from) + box;
+			at = block.to;
+		}
+		return at === 0 ? null : out + pasted.text.slice(at);
 	}
 });
 

@@ -4,6 +4,7 @@
 // editor's rewrites (a nested alert, one inside a fence) against what 0.11.5 converted.
 import { describe, it, expect } from 'vitest';
 import { rewritePaste } from '#lib/testing.js';
+import { details } from '#packages/details/src/index.js';
 import {
 	admonitions,
 	convertGithubAlertsInDocument,
@@ -63,4 +64,11 @@ it.each([
 	'> [!NOTE]\n>\n> after a blank\n'
 ])('rewrites %j as 0.11.5’s transform did', (text) => {
 	expect(rewritePaste(text, converting())).toBe(transformed(text).replace(/\r\n/g, '\n'));
+});
+
+// The editor reads the paste with every plugin it lists, so an alert in a section's body is nested,
+// as 0.11.5's page-wide reading had it.
+it('leaves an alert inside a pasted section as it is', () => {
+	const text = '<details>\n<summary>S</summary>\n\n> [!NOTE]\n> x\n\n</details>\n';
+	expect(rewritePaste(text, [details, admonitions({ convertAlertsOnPaste: true })])).toBe(text);
 });
