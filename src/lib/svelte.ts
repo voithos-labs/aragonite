@@ -11,7 +11,7 @@ export type { EditorProps } from './components/editor-component-props';
 
 export { svelteBlockView } from './components/svelte-block-view';
 // A block type's `draw` from a Svelte component, placing the editor's elements with `<Slot>` and
-// adding a `focus`, `keep` or `caret` with `useDrawn`.
+// adding a `focus`, `keep`, `caret`, `save` or `handle` with `useDrawn`.
 export {
 	svelteBlock,
 	useDrawn,
