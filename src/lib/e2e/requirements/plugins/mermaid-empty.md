@@ -22,9 +22,13 @@ the editor's own style instead.
   textarea, and the block is still a stop for the arrow keys
 - A whitespace-only diagram's box, typed into and committed with Ctrl+Enter, then Ctrl+Z: the
   box is back showing the body as written, with the caret at the offset it was written from
+- An empty diagram's box typed into and clicked away from, then Ctrl+Z: the box reopens with the
+  caret in it, and Ctrl+Shift+Z there writes the text back, as an untouched box hands its undo and
+  redo to the editor
 
 ## Miss-analysis
 
 An undo that emptied a diagram again reopened its box on the text typed before the commit (a click
 away wrote it back), with the caret wherever the textarea put it: no row ran an undo that reopens
-a box, the one route that hands it back both its body and its offset.
+a box, the one route that hands it back both its body and its offset. The box kept every history
+key, so the redo pressed next was dead: no row pressed a key in a box an undo had reopened.

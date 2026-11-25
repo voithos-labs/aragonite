@@ -165,6 +165,8 @@
 	let textareaEl = $state<HTMLTextAreaElement | undefined>();
 	let boxText = $state('');
 	let editSeed = '';
+	// Typed in since it was seeded, so its own undo has something to take back.
+	let typedIn = false;
 	// The block's bytes the box was seeded from: a write to them under an open box re-seeds it.
 	let seededFrom: string | null = null;
 
@@ -174,6 +176,7 @@
 		seededFrom = block.text;
 		editSeed = displayCode;
 		boxText = editSeed;
+		typedIn = false;
 	}
 
 	// The box seeds on each opening and again when its block's bytes change under it (a host's
@@ -258,8 +261,14 @@
 		else return false;
 	}
 
+	// Undo and redo, which the box hands the editor until it is typed in: an undo that reopened an
+	// empty diagram's box leaves the caret inside, and the redo pressed next is the editor's.
+	const handsOnHistory = (e: KeyboardEvent) =>
+		!typedIn && (e.ctrlKey || e.metaKey) && !e.altKey && /^[zy]$/i.test(e.key);
+
 	function onTextareaKeydown(e: KeyboardEvent): void {
-		// The textarea owns its keys while editing, its own undo included; no chord bubbles out.
+		if (!imeOwnsKey(e) && handsOnHistory(e)) return;
+		// The textarea owns every other key, its own undo once typed in; no other chord bubbles out.
 		e.stopPropagation();
 		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -328,6 +337,7 @@
 			spellcheck="false"
 			aria-label="Mermaid source"
 			onkeydown={onTextareaKeydown}
+			oninput={() => (typedIn = true)}
 			onfocusout={() => commitEdit(false)}></textarea>
 	{:else}
 		<!-- A press here is the diagram's (`keepsPress`) and leaves focus where it was; Edit and Focus

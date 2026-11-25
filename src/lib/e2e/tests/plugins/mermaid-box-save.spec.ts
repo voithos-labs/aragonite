@@ -91,6 +91,30 @@ test.describe('a diagram box scrolled out of the window', () => {
 	});
 });
 
+test.describe("history keys in the diagram's box", () => {
+	// One character typed, so the box's own undo takes it straight back to the text it opened on.
+	test("once typed in, Ctrl+Z and Ctrl+Shift+Z are the box's own, and the editor's stack stands", async ({
+		page
+	}) => {
+		const editor = new MermaidPage(page);
+		await editor.loadDiagram(STANDARD_DIAGRAM_DOC);
+		await clickInPlace(editor.getBlock(0));
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.type('!');
+		await openBox(editor);
+		await page.keyboard.press(edgeKey('blockEnd'));
+		await page.keyboard.type('X');
+
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect(editor.textarea).not.toHaveValue(/X$/);
+		await page.keyboard.press('ControlOrMeta+Shift+z');
+
+		await expect(editor.textarea).toHaveValue(/X$/);
+		expect(await source(page)).toBe(WRITTEN);
+		expect(await undoDepth(page)).toBe(1);
+	});
+});
+
 test.describe("an empty diagram's box between two paragraphs", () => {
 	test('hands an up or down arrow on at the column it came in with', async ({ page }) => {
 		const editor = new PluginsPage(page);

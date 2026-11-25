@@ -101,6 +101,21 @@ test.describe('mermaid empty diagram', () => {
 			.toBe(3);
 	});
 
+	test('a redo pressed in the box an undo reopened writes the text back', async ({ page }) => {
+		await editor.loadContent(EMPTY_FENCE);
+		await editor.textarea.click();
+		await page.keyboard.type('graph TD');
+		await editor.getBlock(2).click();
+		await editor.bridge.waitForSourceContains('```mermaid\ngraph TD\n```');
+
+		await editor.undo();
+		await expect(editor.textarea).toBeFocused();
+		await editor.bridge.waitForSourceEquals(EMPTY_FENCE);
+		await page.keyboard.press('ControlOrMeta+Shift+z');
+
+		await editor.bridge.waitForSourceContains('```mermaid\ngraph TD\n```');
+	});
+
 	test('reading mode shows a dimmed placeholder instead of the edit surface or an error', async () => {
 		await editor.loadContent(EMPTY_FENCE);
 		await editor.setPresentationMode('reading');

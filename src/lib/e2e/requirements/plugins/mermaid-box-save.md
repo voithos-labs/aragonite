@@ -20,12 +20,19 @@ export.
   one undo step
 - An empty diagram's box between two paragraphs: an arrow down into it and on out lands at the
   column it came in with, and the same going back up
+- One character typed in the box, then Ctrl+Z and Ctrl+Shift+Z there: the box's own undo and redo
+  take it out and put it back, and the editor's undo stack keeps its one step
 
 ## User interactions
 
 - The box opened from the toolbar's Edit button and typed in with the keyboard; the editor's undo
   run as a host's toolbar runs it (`runCommand('history.undo')`), since Ctrl+Z in the box is the
   box's own
+
+## Miss-analysis
+
+No row pressed Ctrl+Z or Ctrl+Shift+Z inside the box, so nothing held that a box typed in keeps its
+own undo and redo once the editor's take over in an untouched one.
 
 ## Error cases
 
