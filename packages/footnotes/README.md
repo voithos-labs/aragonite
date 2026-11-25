@@ -48,7 +48,7 @@ Hand `plugins` to the editor, and build the array once for the whole app, not on
 
 ## More
 
-The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the plugin guide's [inline kinds](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/inline-kinds.md) page uses this plugin as its worked example, if you're writing syntax of your own that sits mid-paragraph.
+The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the plugin guide's [reading the rest of the document](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/reading-the-document.md#footnote-numbers) recipe numbers footnotes, if you're writing something that reads other blocks.
 
 ## License
 
