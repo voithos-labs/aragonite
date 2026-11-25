@@ -903,7 +903,7 @@ handle.run('shout/hello'); // true, and "hello" in the console
 handle.can('shout/hello'); // true; false in reading mode, or where `when` says no
 ```
 
-A block type's own command (one in its `chords`, `actions` or `commands`) reaches the block's drawing through `H`, the `handle` the drawing declares. A command whose `H` the drawing doesn't hand won't compile on that type, and one the type doesn't list never gets a handle:
+A block type's own command (one in its `chords`, `actions` or `commands`) reaches the block's drawing through `H`, the `handle` the drawing declares. A command whose `H` the drawing doesn't hand won't compile on that type, and one the type doesn't list never gets a handle. A component's `useDrawn` handle isn't typed against the command, so `check`'s `drawnCommand` row runs each command with what the component hands:
 
 ```ts
 const edit = command<Block<never>, { open(): void }>({

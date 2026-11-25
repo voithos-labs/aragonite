@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	command,
 	definePlugin,
+	fencedBlock,
 	lineBlock,
 	mark,
 	menu,
@@ -367,6 +368,28 @@ describe('actionTarget', () => {
 		});
 		const idle = acting('idle', () => false);
 		expect(rowOf(await check(idle), 'idle/shout', 'actionTarget')?.status).toBe('not-applicable');
+	});
+});
+
+// Its rows with a DOM are `check-drawn-command.svelte.test.ts`.
+describe('drawnCommand with no DOM', () => {
+	it('reads unchecked for a command a drawn block type places', async () => {
+		const open = command<Block<never>>({ id: 'open', title: 'Open', run: () => false });
+		const box = fencedBlock({
+			name: 'box',
+			label: 'Box',
+			fence: { info: 'box' },
+			sample: '```box\nx\n```',
+			insert: { none: 'a fixture of the check suite' },
+			edit: 'box',
+			draw: () => ({ dom: document.createElement('div') }),
+			commands: [open]
+		});
+		const report = await check(pluginOf('undrawable', () => ({ blocks: [box] })));
+		expect(rowOf(report, 'undrawable/open', 'drawnCommand')).toMatchObject({
+			status: 'unchecked',
+			detail: expect.stringMatching(/needs a DOM/)
+		});
 	});
 });
 

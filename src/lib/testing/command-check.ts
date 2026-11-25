@@ -1,8 +1,9 @@
 /**
  * `check`'s rows over what a plugin runs: each command it lists or its block types place, and each
  * caret menu, by trigger. A row drives the plugin's own code against the editor a check hands it: a
- * command or a pick, with the host loading another note while what it started still runs, and a
- * block's command handed the second of two blocks while the caret sits in the first.
+ * command or a pick, with the host loading another note while what it started still runs, a
+ * block's command handed the second of two blocks while the caret sits in the first, and a block's
+ * command run on a drawn block with what its drawing declares.
  */
 
 import type { Contribution } from '../schema/plugin-unit';
@@ -11,6 +12,14 @@ import { isThenable, type ContributedCommand } from '../schema/editor-contributi
 import type { ContributedMenu } from '../schema/caret-menu';
 import type { AnyBlockKind } from '../core/nodes';
 import type { Block } from '../schema/doc-view';
+import { makingOf } from '../schema/block-type';
+import {
+	drawingOf,
+	type BoxDrawContext,
+	type ContainerDrawContext,
+	type Drawing,
+	type TextDrawContext
+} from '../schema/drawing';
 import type { CommandCheck } from './check-names';
 import { Unsettled, type PluginCheckRun, type Stage } from './check-context';
 import type { Outcome } from './inline-check';
@@ -93,8 +102,8 @@ export function mount(run: PluginCheckRun, setup: Contribution['setup'], source:
 	};
 }
 
-/** `waitingWrite` and `actionTarget` over `entry`, each answered before the next is driven; a
- *  command its block types place is handed a block of the first of them with a sample. */
+/** `waitingWrite`, `actionTarget` and `drawnCommand` over `entry`, each answered before the next is
+ *  driven; a command its block types place is handed a block of the first of them with a sample. */
 export async function* commandOutcomes(
 	run: PluginCheckRun,
 	entry: ContributedCommand,
@@ -108,6 +117,7 @@ export async function* commandOutcomes(
 		};
 		yield ['waitingWrite', none];
 		yield ['actionTarget', none];
+		yield ['drawnCommand', none];
 		return;
 	}
 	const waiting = await mounted.drive(placing?.sample ?? 'A note.\n', (stage) => {
@@ -121,6 +131,7 @@ export async function* commandOutcomes(
 			)
 		: { status: 'not-applicable' as const, detail: 'takes no block, so none is handed to it' };
 	yield ['actionTarget', target];
+	yield ['drawnCommand', await drawnCommand(run, entry, mounted)];
 }
 
 /** `waitingWrite` over the menus sharing `trigger`: each picks its first row for an empty query. */
@@ -300,4 +311,82 @@ async function actionTarget(
 		};
 	}
 	return { status: 'not-applicable', detail: 'wrote nothing on the sample' };
+}
+
+/** Runs `entry` on a drawn sample block of each type placing it, handed what that drawing declares;
+ *  the first failure is the row's. */
+async function drawnCommand(
+	run: PluginCheckRun,
+	entry: ContributedCommand,
+	mounted: Mount
+): Promise<Outcome> {
+	const drawings = [...entry.placedBy].flatMap((kind) => {
+		const sample = run.context.descriptor(kind as AnyBlockKind).samples?.[0];
+		const drawing = drawingFor(run, kind);
+		return sample !== undefined && drawing ? [{ kind, sample, drawing }] : [];
+	});
+	if (drawings.length === 0) {
+		return { status: 'not-applicable', detail: 'no block type placing it draws a sample' };
+	}
+	if (typeof document === 'undefined') {
+		return { status: 'unchecked', detail: 'needs a DOM: what it is handed comes from a drawing' };
+	}
+	let outcome: Outcome | undefined;
+	for (const { kind, sample, drawing } of drawings) {
+		outcome = await mounted.drive(sample, (stage) => onDrawnBlock(stage, entry, kind, drawing));
+		if (outcome.status === 'failed') return outcome;
+	}
+	return outcome!;
+}
+
+/** The drawing a maker made for the type named `kind`; null where the editor's own view draws it. */
+function drawingFor(run: PluginCheckRun, kind: string): Drawing | null {
+	const type = run.units
+		.flatMap((unit) => unit.contribution.blocks ?? [])
+		.find((each) => each.name === kind);
+	const making = type && makingOf(type);
+	return (making && drawingOf(making.view)) ?? null;
+}
+
+async function onDrawnBlock(
+	stage: Stage,
+	entry: ContributedCommand,
+	kind: string,
+	drawing: Drawing
+): Promise<Outcome> {
+	const block = blocksOf(stage, kind)[0];
+	if (!block) return { status: 'not-applicable', detail: 'its sample reads as another type' };
+	const drawn = drawing.draw(block, standInDraw(stage));
+	try {
+		const rejected = await ended(stage, entry.spec.run(stage.editor, block, drawn.handle), 'it');
+		if (rejected)
+			return failed(`rejected, handed what its drawing declares: ${messageOf(rejected.cause)}`);
+		return { status: 'passed', detail: 'ran on a drawn block, handed what its drawing declares' };
+	} catch (error) {
+		if (error instanceof Unsettled) throw error;
+		return failed(`threw, handed what its drawing declares: ${messageOf(error)}`);
+	} finally {
+		drawn.destroy?.();
+	}
+}
+
+/** What a drawing is handed with nothing on screen: the editor's elements, empty, and the asks only
+ *  a screen answers, answered with nothing. */
+function standInDraw(stage: Stage): TextDrawContext & ContainerDrawContext & BoxDrawContext {
+	const element = () => document.createElement('div');
+	return {
+		editor: stage.editor,
+		mode: stage.editor.mode,
+		theme: stage.editor.theme,
+		focused: false,
+		depends: [],
+		render: () => {},
+		keepScroll: () => async () => {},
+		source: element(),
+		typed: null,
+		children: element(),
+		title: null,
+		leave: () => {},
+		focusWhole: () => {}
+	};
 }

@@ -38,7 +38,7 @@ type InlineCheck =
 	| 'inlinePlace'
 	| 'dependsContent'
 	| 'pairSides';
-type CommandCheck = 'waitingWrite' | 'actionTarget';
+type CommandCheck = 'waitingWrite' | 'actionTarget' | 'drawnCommand';
 type MenuCheck = 'waitingWrite';
 type RewriteCheck = 'rewriteLands';
 
@@ -276,6 +276,14 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 		excusable: true,
 		contract: {
 			command: promise('a block command writes the block it is handed, not the one at the caret')
+		}
+	},
+	drawnCommand: {
+		excusable: false,
+		contract: {
+			command: promise(
+				'a command your block type places runs on a drawn block, handed what its drawing declares, and throws nothing'
+			)
 		}
 	},
 	rewriteLands: {
