@@ -310,10 +310,24 @@ class NodeBlock {
 		const row = titled(state.node) ? state.node.children![0] : null;
 		if (!row) return null;
 		const { start, end } = rowContentRange(state.node, row);
-		const path = pathOf(state);
-		const rowPath = path && [...path, 0];
-		const place = (offset: number) => (rowPath ? state.reading.byteOf(rowPath, offset) : null);
-		return { text: row.raw.slice(start, end), ...spanOf(place, start, end) };
+		// Its bytes are found when first asked: a drawing reading the text on each key asks none.
+		let span: { from: number; to: number } | undefined;
+		const placed = () => {
+			if (span) return span;
+			const path = pathOf(state);
+			const rowPath = path && [...path, 0];
+			const place = (offset: number) => (rowPath ? state.reading.byteOf(rowPath, offset) : null);
+			return (span = spanOf(place, start, end));
+		};
+		return {
+			text: row.raw.slice(start, end),
+			get from() {
+				return placed().from;
+			},
+			get to() {
+				return placed().to;
+			}
+		};
 	}
 
 	get from(): number {
