@@ -3,7 +3,6 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, activeBlockPath } from './helpers';
 import { edgeKey, extendKey } from '../../platform-keys';
 import { clickInPlace, hoverInPlace } from '../../click-in-place';
-import { engineSupports } from '../../browser-engine';
 
 /**
  * Blocks a plugin draws with `draw` (requirements/plugins/drawn-blocks.md), from
@@ -271,9 +270,7 @@ test.describe("the field's unwritten text", () => {
 });
 
 test.describe('an open field scrolled out of the window', () => {
-	test('writes its text as it leaves where blur fires, one undo step, as 0.11.5 does', async ({
-		page
-	}) => {
+	test('is saved as its block leaves the window, once, as one undo step', async ({ page }) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('drawn');
 		const filler = Array.from({ length: 400 }, (_, i) => `Paragraph ${i} lorem ipsum dolor`);
@@ -285,16 +282,10 @@ test.describe('an open field scrolled out of the window', () => {
 		await editor.scrollEditorTo(1_000_000);
 		await expect(page.locator('.drawn-field')).toHaveCount(0);
 		const source = () => page.evaluate(() => (window as any).__test.getSource() as string);
-		const depth = () => page.evaluate(() => (window as any).__test.undoDepth() as number);
-		if (engineSupports(page, 'blurOnRemoval')) {
-			await expect.poll(source).toMatch(/^```field\nkept one\n```\n/);
-			expect(await depth()).toBe(1);
-		} else {
-			// No blur reaches the removed field, so its text goes with it, as on 0.11.5.
-			await editor.waitForRenderFlush();
-			expect(await source()).toMatch(/^```field\none\n```\n/);
-			expect(await depth()).toBe(0);
-		}
+		await expect.poll(source).toMatch(/^```field\nkept one\n```\n/);
+		// Where the engine also fires the field's blur, its write and the editor's save land once.
+		await editor.waitForRenderFlush();
+		expect(await page.evaluate(() => (window as any).__test.undoDepth())).toBe(1);
 	});
 });
 

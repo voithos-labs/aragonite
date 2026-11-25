@@ -21,7 +21,7 @@ import { assertDraftBytesKept } from '../../invariants/install';
 import { checkSavesCommitted } from '../../invariants/history-install';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { documentByteMap, leafAtByte } from '../../tree-operations/container-offsets';
-import { documentLineEnding, firstLineEnding, splitLines, type ParsedLine } from '../../core/lines';
+import { documentLineEnding, splitLines } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
 import { makingOf } from '../../schema/block-type';
 import { nodeOfBlock, type Block } from '../../schema/doc-view';
@@ -320,7 +320,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				answered = none && !illegal;
 				if (answered) return refused('empty', 'nothing was written to it');
 				try {
-					// A commit made inside a render (a field's blur as windowing removes its block)
+					// A commit made inside a render (a drawing saved as windowing removes its block)
 					// lands once that render is done, as a write from inside one corrupts it.
 					if ($effect.tracking()) await tick();
 					answered = true;
@@ -441,60 +441,15 @@ function bodyChanges(
 ): ByteChange[] | DraftResult {
 	const text = data as string;
 	if (text === block.body) return [];
-	// A block holding any CRLF line writes CRLF, so no pair it had turns into a lone line feed.
-	const ending = node.raw.includes('\r\n')
-		? '\r\n'
-		: (firstLineEnding(node.raw) ?? documentLineEnding(laid.doc));
-	const written = makingOf(block.type)?.writeBody?.(node, text, ending) ?? null;
-	if (written === null)
-		return refused('illegal', `block type '${block.type.name}' takes no body like that`);
-	return lineChanges(documentByteMap(laid), source, path, node.raw, written);
+	const map = documentByteMap(laid);
+	const at = {
+		source,
+		byteAt: (offset: number) => map.byteOf(path, offset)!,
+		eol: documentLineEnding(laid.doc)
+	};
+	const changes = makingOf(block.type)?.writeBody?.(node, text, at) ?? null;
+	return changes ?? refused('illegal', `block type '${block.type.name}' takes no body like that`);
 }
-
-/** The changes that turn a block's bytes `was` into `now`, in document bytes: the lines between
- *  those both keep, each line added inside a container given the markers the block's lines carry. */
-function lineChanges(
-	map: ReturnType<typeof documentByteMap>,
-	source: string,
-	path: number[],
-	was: string,
-	now: string
-): ByteChange[] {
-	const a = splitLines(was);
-	const b = splitLines(now);
-	let head = 0;
-	while (head < a.length && head < b.length && a[head].raw === b[head].raw) head++;
-	let tail = 0;
-	const most = Math.min(a.length, b.length) - head;
-	while (tail < most && a[a.length - 1 - tail].raw === b[b.length - 1 - tail].raw) tail++;
-	const gone = a.slice(head, a.length - tail);
-	const added = b.slice(head, b.length - tail);
-	const at = (line: ParsedLine) => map.byteOf(path, line.start)!;
-	const lineStart = (byte: number) => source.lastIndexOf('\n', byte - 1) + 1;
-	const markersOf = (line: ParsedLine) => source.slice(lineStart(at(line)), at(line));
-	const endOf = (line: ParsedLine) => at(line) + line.raw.length;
-	if (gone.length === added.length) {
-		return gone.map((line, i) => ({ from: at(line), to: endOf(line), insert: added[i].raw }));
-	}
-	// A line after the first carries the containers' markers alone; the first may hold an item's.
-	const later = a[1];
-	const marks = later ? markersOf(later) : markersOf(a[0]).replace(ITEM_MARKER, spaces);
-	const joined = (lines: ParsedLine[]) => lines.map((line) => marks + line.raw).join('');
-	if (gone.length === 0) {
-		const before = a[head];
-		// Lines added after the last land past its line break; before a line, past its markers.
-		const from = before ? at(before) : endOf(a[a.length - 1]);
-		const insert = before ? joined(added).slice(marks.length) + marks : joined(added);
-		return [{ from, to: from, insert }];
-	}
-	const to = endOf(gone[gone.length - 1]);
-	if (added.length === 0) return [{ from: lineStart(at(gone[0])), to, insert: '' }];
-	return [{ from: at(gone[0]), to, insert: joined(added).slice(marks.length) }];
-}
-
-// A list item's marker and its task box, which the lines after its first indent past.
-const ITEM_MARKER = /[-*+]|\d{1,9}[.)]|\[[ xX]\]/g;
-const spaces = (run: string) => ' '.repeat(run.length);
 
 /** An open draft: where its writes start in the log, and the document it was opened on. */
 interface Opened {

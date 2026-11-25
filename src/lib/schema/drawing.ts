@@ -70,8 +70,8 @@ export interface Drawn<D, C extends DrawContext = DrawContext, H = unknown> {
 	keep?(event: Event): boolean;
 	/** A box with an editing surface of its own takes the caret through this. */
 	focus?: BoxFocus;
-	/** Writes the text a surface of yours holds unwritten, committing before it returns; the editor
-	 *  calls it before an undo, a redo or a mode change, and a new document drops the text. */
+	/** Commits the text a surface of yours holds unwritten, before it returns; called before an undo,
+	 *  a redo or a mode change and as the block leaves the window. A new document drops the text. */
 	save?(): void;
 	/** Handed to your block type's own commands while the block is drawn (`run`'s third argument). */
 	handle?: H;

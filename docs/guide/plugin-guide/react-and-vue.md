@@ -216,7 +216,7 @@ export const note = fencedBlock({
 Arrow down onto the note and it's focused whole, double-click and you're typing in the textarea, click away and the text goes back into the fence as one undo step. A few things make it behave:
 
 - **Write with `edit().body(block, text)`.** It ends each line as the block's lines end, grows the fence when a line of yours would close it, and keeps a quote's markers. `block` is read when the write lands, so it's right even after an edit above moved the note.
-- **Hand `save` to `useDrawn`.** An undo, a redo or a mode change calls it first, so text still in the textarea lands as a step that undo takes back instead of vanishing. Commit inside it, before it returns.
+- **Hand `save` to `useDrawn`.** An undo, a redo, a mode change and the block scrolling out of the window each call it first, so text still in the textarea lands as an undo step instead of vanishing. Commit inside it, before it returns.
 - **DOM focus goes to a hidden editing host**, not to your `<pre>`. The editor puts it in the block's element, next to what you render, since that's where AltGr and IME input arrive. So style focus with `:focus-within`.
 - **Keys in your textarea are the textarea's.** The editor's chords still reach it (Ctrl+Z, say) unless your component's `keep` takes them. To leave by arrow key on the first or last line, call `ctx.leave('start')` or `ctx.leave('end')` and `preventDefault`. Escape hands the note back to the editor focused whole, and from there Enter opens a paragraph below it, which is the only way to get one between two boxes back to back. If you use Escape yourself (to drop the edit, say), call `preventDefault`, or the box takes whole focus too; `ctx.focusWhole()` gets you there from your own code.
 

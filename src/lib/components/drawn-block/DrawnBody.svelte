@@ -31,12 +31,13 @@
 </script>
 
 <script lang="ts">
-	import { getAllContexts, getContext, mount, unmount, untrack } from 'svelte';
+	import { getAllContexts, getContext, mount, tick, unmount, untrack } from 'svelte';
 	import { on } from 'svelte/events';
 	import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import { makeBlock, DETACHED_READING, type KeyWatch } from '../../schema/doc-view';
+	import { nodeAt } from '../../tree-operations/node-primitives';
 	import { modeOf } from '../../presentation-mode';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
@@ -267,6 +268,7 @@
 			// framework component declares its parts once it has rendered.
 			(el as HTMLElement & { [HANDLE_AT]?: unknown })[HANDLE_AT] = () => made.handle;
 			const unhold = services?.drafts.holdSave(() => saveOf(made));
+			const mountedOn = { stamp: services?.stamps.current(), generation };
 			seen = watched();
 			if (text) assertInvariant('dom-view-content', () => checkDomViewContent(el, source, painted));
 			const offs = [
@@ -277,6 +279,11 @@
 					on(el, type, (e) => keepPress(made, e), { capture: true })
 				)
 			];
+			// Still in the live document, as windowing leaves it, and not redrawn at the drawing's ask.
+			const stays = () =>
+				mountedOn.stamp?.live &&
+				generation === mountedOn.generation &&
+				nodeAt(editorDoc.doc(), myPath) === node;
 			return () => {
 				offs.forEach((off) => off());
 				unhold?.();
@@ -284,11 +291,13 @@
 				target = null;
 				if (list) void unmount(list);
 				made.dom.remove();
-				try {
-					made.destroy?.();
-				} catch (error) {
-					report(error);
-				}
+				// A render reads the document as it was, so the drawing saves once the render is done, if
+				// its block stays; no engine but Chromium fires a removed field's blur.
+				if (!made.save || !mountedOn.stamp?.live) return destroyDrawing(made);
+				void tick().then(() => {
+					if (stays()) saveOf(made);
+					destroyDrawing(made);
+				});
 			};
 		});
 	}
@@ -304,6 +313,14 @@
 				? caret(viewportPointAt(x, y))
 				: (caretOffsetAtPoint(caret, x, y) ?? 0);
 		return at === null ? null : getContentRange(node).start + at;
+	}
+
+	function destroyDrawing(made: Drawn<unknown>): void {
+		try {
+			made.destroy?.();
+		} catch (error) {
+			report(error);
+		}
 	}
 
 	// A throw is the plugin's, reported, and the undo or mode change still goes on.
