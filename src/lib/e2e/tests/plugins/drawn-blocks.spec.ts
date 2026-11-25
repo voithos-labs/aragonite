@@ -253,7 +253,7 @@ test.describe("the field's unwritten text", () => {
 				button.addEventListener('click', () => (window as any).__test.runCommand('history.undo'));
 				document.body.append(button);
 			}, keepsFocus);
-			await page.getByTestId('host-undo').click();
+			await clickInPlace(page.getByTestId('host-undo'));
 			await expect.poll(() => source(page)).toContain(WRITTEN);
 			await expect(field(page)).toHaveValue('first line here\nsecond line here');
 			expect(await undoDepth(page)).toBe(1);
