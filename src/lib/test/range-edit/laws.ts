@@ -14,7 +14,7 @@ import type {
 import type { Mode } from '#lib/range-edit/host.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
-import { gluedStart, movedLine } from './kept-lines';
+import { gluedStart, loneReturn, movedLine } from './kept-lines';
 import {
 	blankTail,
 	endingOf,
@@ -144,6 +144,19 @@ export function liveWholeText(read: Read, range: Range, mode: Mode): boolean {
 			range.to <= b.to &&
 			b.text.from < b.text.to
 	);
+}
+
+/** Whether the range sits inside one `:::` opening row and leaves it fewer than three colons, so
+ *  the removal takes the rest of the row's syntax and the closing line, bytes outside the range. */
+export function breaksOpenerRow(read: Read, { from, to }: Range, host: CheckHost): boolean {
+	const row = read.blocks.find((b) => b.text && b.from <= from && to <= b.text.to);
+	const owner = row && read.blocks.find((c) => c.path.join() === row.path.slice(0, -1).join());
+	if (!row || !owner || !host.facts(owner.type).titleRow?.nameNeverEntered) return false;
+	if (host.facts(owner.type).titleRow!.type !== row.type) return false;
+	const colons = (text: string) => /^:*/.exec(text)![0].length;
+	const line = read.source.slice(row.from, row.text!.to);
+	const left = line.slice(0, from - row.from) + line.slice(to - row.from);
+	return colons(line) >= 3 && colons(left) < 3;
 }
 
 /** In live mode, whether a construct holds an end of the range and the bytes the range carries out
@@ -282,7 +295,8 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		if (!kept || (tail !== '' && got.source.indexOf(tail, from) < 0))
 			out.push(`L4 ${key} changed bytes outside the range: ${q(got.source)}`);
 		const glued = input.mode === 'source' && gluedStart(host, read, from, to, got.source);
-		const moved = glued || movedLine(host, read, from, to, got.source);
+		const moved =
+			glued || movedLine(host, read, from, to, got.source) || loneReturn(source, got.source);
 		if (moved) out.push(`L4 ${key} ${moved}: ${q(got.source)}`);
 	}
 	return out;
@@ -323,6 +337,26 @@ function startLineGoes(read: Read, { from, to }: Range): number {
 	const below = /^\r?\n([^\n]*)/.exec(source.slice(to))?.[1];
 	if (below === undefined || !blank(below) || blank(above.at(-1) ?? '')) return from;
 	return head.trimEnd().startsWith(below.trimEnd()) ? from - head.length : from;
+}
+
+/** L13: a removal that breaks a `:::` opening row strands no closing line: every line of colons
+ *  that reads as text afterwards read as text before. */
+export function openerUnwrapLaw(call: Call, host: CheckHost, input: RangeInput): string[] {
+	const read = readOf(host, input.source);
+	if (liveWholeText(read, input.range, input.mode)) return [];
+	if (!breaksOpenerRow(read, input.range, host)) return [];
+	const stray = (source: string) =>
+		readOf(host, source).blocks.filter(
+			(b) => b.type === 'paragraph' && /^:{3,}[ \t]*\r?$/m.test(source.slice(b.from, b.to))
+		).length;
+	const before = stray(input.source);
+	const out: string[] = [];
+	for (const key of ['cut', 'backspace', 'delete'] as const) {
+		const got = call(input.source, input.range, key, input.mode);
+		if (got && stray(got.source) > before)
+			out.push(`L13 ${key} stranded a closing line: ${q(got.source)}`);
+	}
+	return out;
 }
 
 /** L4: Backspace and Delete over a range leave the bytes a cut leaves. */

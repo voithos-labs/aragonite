@@ -285,8 +285,8 @@ const TEXT_AFTER_ROWS: NamedRow[] = [
 	...deleted(
 		'L8 into a titled tip’s body, past its title',
 		':::note\n⟦***\n\nbody\n:::\n\n:::tip Title\nin⟧ner\n:::\n\n# h\n',
-		':::note\n:::\n\n:::tip Title\nner\n:::\n\n# h\n',
-		{ at: 26, holds: 'text' }
+		':::note\n:::\n\n:::tip \nner\n:::\n\n# h\n',
+		{ at: 21, holds: 'text' }
 	),
 	...deleted(
 		'L8 into a tip’s title, at what is left of it',
@@ -321,8 +321,8 @@ const TEXT_AFTER_ROWS: NamedRow[] = [
 	...deleted(
 		'L8 into an open details’ body, past its summary',
 		':::note\n⟦***\n\nbody\n:::\n\n<details open>\n<summary>Sum</summary>\n\nin⟧ner\n\n</details>\n\n# h\n',
-		':::note\n:::\n\n<details open>\n<summary>Sum</summary>\nner\n\n</details>\n\n# h\n',
-		{ at: 51, holds: 'text' }
+		':::note\n:::\n\n<details open>\n<summary></summary>\nner\n\n</details>\n\n# h\n',
+		{ at: 48, holds: 'text' }
 	),
 	...deleted(
 		'L8 a tip whose body the range empties holds the caret where its blocks were',
@@ -392,8 +392,8 @@ const MIXED_ROWS: NamedRow[] = [
 	...deleted(
 		'L8 a code block in a tip in a details in a note keeps all four openings',
 		':::note\n⟦***\n\nbody\n:::\n\n::::note\n<details open>\n<summary>Sum</summary>\n\n:::tip\n```\nco⟧de\n```\n:::\n\n</details>\n::::\n\n# h\n',
-		':::note\n:::\n\n::::note\n<details open>\n<summary>Sum</summary>\n:::tip\n```\nde\n```\n:::\n\n</details>\n::::\n\n# h\n',
-		{ at: 71, holds: 'text' }
+		':::note\n:::\n\n::::note\n<details open>\n<summary></summary>\n:::tip\n```\nde\n```\n:::\n\n</details>\n::::\n\n# h\n',
+		{ at: 68, holds: 'text' }
 	),
 	...deleted(
 		'L8 a tip in a quote, past the quote’s marker',
@@ -432,6 +432,26 @@ const MIXED_ROWS: NamedRow[] = [
 		gesture: 'delete',
 		expect: { source: ':::tip\nner\n:::\n\n# h\n', caret: { at: 7, holds: 'text' } }
 	}
+];
+
+// Miss-analysis: only a mounted commit checks for a lone `\r`, and no mounted test mixed endings; the
+// laws read the end line to its text, never its line ending, and the byte map put a `\n` on its `\r`.
+const MIXED_ENDING_ROWS: NamedRow[] = [
+	...cut(
+		'L4 with mixed line endings a closing line kept under joined text leaves no lone CR',
+		':::note\r\nbo⟦dy\r\n:::\n\r\npa⟧ra\n',
+		':::note\r\nbora\r\n:::\n'
+	),
+	...cut(
+		'L4 with mixed line endings a lazy line joined two quotes deep keeps its own line ending',
+		'> > one⟦\r\n⟧two\n',
+		'> > onetwo\n'
+	),
+	...cut(
+		'L4 with mixed line endings a lazy line joined in a list in a list keeps its own line ending',
+		'- 1. one⟦\r\n⟧two\n- three\n',
+		'- 1. onetwo\n- three\n'
+	)
 ];
 
 // Miss-analysis: every range the rows drew into a block that runs on ended mid-line, so none ended at
@@ -600,8 +620,8 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 	...broken(
 		'L8 an open details entered inside a note',
 		'⟦***\n\nbody\n\n:::note\n<details open>\n<summary>Sum</summary>\n\nin⟧ner\nmore\n\n</details>\n:::\n',
-		':::note\n<details open>\n<summary>Sum</summary>\nner\nmore\n\n</details>\n:::\n',
-		{ at: 46, holds: 'text' }
+		':::note\n<details open>\n<summary></summary>\nner\nmore\n\n</details>\n:::\n',
+		{ at: 43, holds: 'text' }
 	),
 	...broken(
 		'L8 an item’s first line taken in a note, past the indent of the line after',
@@ -612,8 +632,8 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 	...broken(
 		'L8 the same in an open details, in CRLF',
 		'⟦***\r\n\r\nbody\r\n\r\n<details open>\r\n<summary>Sum</summary>\r\n\r\n- inner⟧\r\n  more\r\n\r\n</details>\r\n',
-		'<details open>\r\n<summary>Sum</summary>\r\n  more\r\n\r\n</details>\r\n',
-		{ at: 42, holds: 'text' }
+		'<details open>\r\n<summary></summary>\r\n  more\r\n\r\n</details>\r\n',
+		{ at: 39, holds: 'text' }
 	),
 	...broken(
 		'L8 a tip entered to its first paragraph’s end, nothing before the range, breaks the line it emptied',
@@ -896,6 +916,7 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...TEXT_AFTER_ROWS,
 	...ENTERED_ROWS,
 	...MIXED_ROWS,
+	...MIXED_ENDING_ROWS,
 	...LINE_END_ROWS,
 	...COMPOSITION_ROWS,
 	...LINE_BREAK_ROWS,

@@ -71,7 +71,8 @@ describe('Backspace at content start in live mode', () => {
 			'literal',
 			'entry',
 			3,
-			0
+			0,
+			undefined
 		);
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
@@ -88,7 +89,8 @@ describe('Backspace at content start in live mode', () => {
 			'literal',
 			'entry',
 			0,
-			0
+			0,
+			undefined
 		);
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
@@ -105,7 +107,8 @@ describe('Backspace at content start in live mode', () => {
 			'literal',
 			'entry',
 			0,
-			0
+			0,
+			undefined
 		);
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
@@ -122,7 +125,8 @@ describe('Backspace at content start in live mode', () => {
 			'literal',
 			'entry',
 			5,
-			2
+			2,
+			undefined
 		);
 	});
 
@@ -138,7 +142,8 @@ describe('Backspace at content start in live mode', () => {
 			'literal',
 			'entry',
 			4,
-			1
+			1,
+			undefined
 		);
 	});
 

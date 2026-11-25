@@ -109,14 +109,15 @@ export function contentUpdate(
 	scope: CommitScope,
 	op?: OpDescriptor
 ): BlockEditActions['updateBlockContent'] {
-	return (index, text, mode, history, preEditOffset, postEditFocusOffset) => {
+	return (index, text, mode, history, preEditOffset, postEditFocusOffset, selection) => {
 		scope.caretMemory.forget();
 		assertInvariant('caret-in-written-text', () =>
 			checkCaretInWrittenText(text, postEditFocusOffset ?? preEditOffset)
 		);
 		const kind = () => scope.children()[index]?.kind;
 		if (!admitsWrite(scope, 'updateContent', kind)) return refusedWrite();
-		const write = legalizeWrite(scope.target(), index, text, mode, scope.reading.grammar);
+		const legal = legalizeWrite(scope.target(), index, text, mode, scope.reading.grammar);
+		const write = selection ? { ...legal, selection } : legal;
 		const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset);
 		// Before `typeIn` pushes an entry for it: the block holds these bytes already, so the key
 		// resolves as a write that landed and the block puts its caret back without a repaint.

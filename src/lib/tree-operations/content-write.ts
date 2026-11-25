@@ -66,6 +66,8 @@ export interface LegalWrite {
 	readonly unchanged: boolean;
 	/** Where an offset into the text as the writer wrote it lands in the stored `text`. */
 	storedOffset(offset: number): number;
+	/** The selection the write replaced, in the block's bytes before it, where it replaced one. */
+	readonly selection?: { start: number; end: number };
 	readonly [legalWrite]: true;
 }
 

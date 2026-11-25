@@ -21,6 +21,7 @@ import {
 import { cloneNode } from '../tree-operations/clone';
 import {
 	bytesLeavingLeaf,
+	drawnSpan,
 	replaceDrawnRange,
 	replaceRangeInLeaf
 } from '../tree-operations/leaf-range';
@@ -269,7 +270,7 @@ export function movedText(
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
 	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
-	const text = bytesLeavingLeaf(node, { start: from.start, end: from.end }, store, true);
+	const text = bytesLeavingLeaf(node, drawnSpan(node, from, store), store, true);
 	return text && !/[\r\n]/.test(text) ? text : null;
 }
 

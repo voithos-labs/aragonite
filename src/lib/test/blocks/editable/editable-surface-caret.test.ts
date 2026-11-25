@@ -8,6 +8,9 @@ import { asEditorX } from '#lib/core/coordinate-spaces.js';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../../block-component';
 import { consumePendingRestore } from '../../../components/blocks/editable/editable-surface';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
+import { stubBlockEdit } from '#lib/testing/headless-actions.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
 
 describe('caret memory', () => {
 	// Miss-analysis: only a source lint covered the input commit's reset, never a typed byte.
@@ -139,6 +142,82 @@ describe('the input read', () => {
 		surface.onInput(new InputEvent('input'));
 
 		expect(commits.map((c) => c.saved)).toEqual([1]);
+	});
+});
+
+describe('the selection an input replaces', () => {
+	// Miss-analysis: every row placed its range by keys in Chromium, where the browser deletes the
+	// range it shows; WebKit deleted one character of a range that starts before the marker's span.
+	afterEach(() => {
+		document.body.innerHTML = '';
+	});
+
+	/** A surface over `:::tip Title` holding `held`, recording the selection each write names. */
+	function rowSurface(held: [number, number] | null) {
+		const seen: unknown[] = [];
+		const blockEdit = {
+			...stubBlockEdit(),
+			updateBlockContent: (...args: unknown[]) => {
+				seen.push(args[6]);
+				return withStoredCaret(Promise.resolve(true), 0);
+			}
+		} as unknown as BlockEditActions;
+		const backend = {
+			getRaw: () => held?.[1] ?? 0,
+			getRawSelection: () => held && { start: held[0], end: held[1] },
+			rawRangeOf: (range: AbstractRange) => ({ start: range.startOffset, end: range.endOffset }),
+			setRaw: () => {}
+		};
+		const { surface, el } = makeSurface({ blockEdit, overrides: { backend } as never });
+		el.textContent = ':::tip Title';
+		return { surface, el, seen, hold: (range: [number, number] | null) => (held = range) };
+	}
+
+	/** The selection the write names where `held` is shown and the input's `beforeinput` names
+	 *  `target` as what it replaces (null: none). */
+	function replaced(held: [number, number] | null, target: [number, number] | null) {
+		const { surface, el, seen } = rowSurface(held);
+		const text = el.firstChild!;
+		const e = new InputEvent('beforeinput', { inputType: 'deleteContentBackward' });
+		if (target) {
+			const [startOffset, endOffset] = target;
+			const range = new StaticRange({
+				startContainer: text,
+				startOffset,
+				endContainer: text,
+				endOffset
+			});
+			Object.defineProperty(e, 'getTargetRanges', { value: () => [range] });
+		}
+		surface.onBeforeInput(e);
+		el.textContent = ':::tipTitle';
+		surface.onInput(new InputEvent('input'));
+		return seen;
+	}
+
+	it.each([
+		[
+			'the range the browser names, where it is not the one shown',
+			[0, 7],
+			[6, 7],
+			{ start: 6, end: 7 }
+		],
+		['the range shown, where the browser names it', [0, 7], [0, 7], { start: 0, end: 7 }],
+		['the range shown, where the browser names none', [0, 7], null, { start: 0, end: 7 }],
+		['none, at a caret, whatever the browser deletes', null, [6, 7], undefined]
+	] as const)('is %s', (_, held, target, fact) => {
+		expect(replaced(held as never, target as never)).toEqual([fact]);
+	});
+
+	// A key that writes nothing (Ctrl+C, a bare Shift) read the range; a script's edit fires no
+	// beforeinput, so the range it read is not that edit's.
+	it('is none for an input no beforeinput announced', async () => {
+		const { surface, el, seen, hold } = rowSurface([0, 7]);
+		await surface.onKeyDown(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true }));
+		hold(null);
+		el.textContent = '::tip Title';
+		surface.onInput(new InputEvent('input'));
+		expect(seen).toEqual([undefined]);
 	});
 });
 

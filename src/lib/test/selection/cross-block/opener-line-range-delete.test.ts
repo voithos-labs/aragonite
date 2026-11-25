@@ -47,7 +47,7 @@ it.each<[string, Point, Point, string]>([
 		[[1, 0], 14],
 		'pa\n\n:::callout le\nbody\n:::\n\nafter\n'
 	],
-	['from above into the body', [[0], 2], [[1, 1], 2], 'pa\n\n:::callout Title\ndy\n:::\n\nafter\n'],
+	['from above into the body', [[0], 2], [[1, 1], 2], 'pa\n\n:::callout \ndy\n:::\n\nafter\n'],
 	[
 		'from mid-name into the body',
 		[[1, 0], 5],
@@ -95,7 +95,7 @@ it.each<[string, string, Point, Point, string]>([
 		'para\n\n:::callout Title\nbody\n\nmore\n:::\n',
 		[[0], 2],
 		[[1, 2], 2],
-		'pa\n\n:::callout Title\nre\n:::\n'
+		'pa\n\n:::callout \nre\n:::\n'
 	]
 ])('%s', async (_name, source, start, end, expected) => {
 	expect(serialize(await run(source, start, end))).toBe(expected);

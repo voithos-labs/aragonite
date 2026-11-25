@@ -79,6 +79,10 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 4,
 		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild, the whole-body fallback, and the opener line set aside and put back around them'
 	},
+	'src/lib/tree-operations/chain-rebuild.ts': {
+		count: 1,
+		why: 'a `:::` container whose opening row a selection broke takes its unwrapped bytes, which its slot then reads as blocks; no leaf is written'
+	},
 	'src/lib/schema/headed-lines.ts': {
 		count: 1,
 		why: "an emptied head-line container's own bytes, written from its line shape"
