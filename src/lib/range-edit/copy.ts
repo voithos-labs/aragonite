@@ -14,6 +14,7 @@ import {
 	lineOf,
 	nodeAt,
 	parentOf,
+	rowSpan,
 	titleAt,
 	type Doc
 } from './document';
@@ -24,12 +25,14 @@ import { openingOf } from './markers';
 
 export function copyOf(doc: Doc, from: number, to: number): string {
 	const live = doc.mode === 'live';
-	// A title row copies its own text, or, when the range leaves it, the container it titles
-	// entered from there.
+	// A title row copies its own text, or, when the range leaves it, the container it titles holding
+	// the part of the title the range covers.
 	const startRow = titleAt(doc, from);
 	const endRow = titleAt(doc, to);
-	if (startRow && startRow === endRow)
-		return doc.source.slice(from, Math.min(to, startRow.text!.to));
+	if (startRow && startRow === endRow) {
+		const span = rowSpan(doc, startRow, from, to);
+		return doc.source.slice(span.from, span.to);
+	}
 	const titled = new Set([startRow, endRow].map((row) => row && parentOf(doc, row)));
 	// A container the range starts at the first byte of (select-all's) keeps its markers in the
 	// bytes; live, one the range runs past the end of is left whole.
@@ -41,7 +44,7 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 	for (const container of containersAt(doc, from, 'start')) {
 		if (container.path.length <= depth) continue;
 		if (startRow && parentOf(doc, startRow) === container)
-			opening += doc.source.slice(container.from, from);
+			opening += doc.source.slice(container.from, Math.min(from, startRow.text!.from));
 		else if (factsOf(doc, container).lines === 'rows')
 			opening += tableHead(doc, shared, container, from);
 		else if (container.from < from) opening += openingOf(doc, container, from);

@@ -218,8 +218,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		});
 	}
 
-	/** `span` replaced by `insert` as a selection of it would be, the store read at the key: a word
-	 *  delete leaves what selecting the word and pressing Delete leaves. */
+	/** `span` replaced by `insert` as a selection of it would be: a word delete leaves what selecting
+	 *  the word and pressing Delete leaves, save that it never unwraps a broken `:::` opening row. */
 	function rangeEdit(span: DeleteSpan, insert: string): Pick<TextWrite, 'text' | 'caretAfter'> {
 		return drawnRangeWrite(deps.node, span, insert, deps.storedAs());
 	}
