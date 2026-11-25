@@ -82,16 +82,21 @@ describe('two editors on one page, one listing footnotes', () => {
 // Miss-analysis: every jump row ran on a document of a few blocks, so a jump back that parsed
 // every block of the document to find the first citation cost nothing there.
 describe('a jump in a long document', () => {
-	const fillers = Array.from({ length: 2000 }, (_, i) => `Filler ${i} with no note.`);
+	const fillers = (text: (i: number) => string) => Array.from({ length: 2000 }, (_, i) => text(i));
+	const plain = fillers((i) => `Filler ${i} with no note.`);
 
-	it('stops at the first citation, and at the definition', async () => {
+	async function noteFirst(rest: string[]): Promise<Mounted> {
 		const m = await mounted(
-			['See[^a] here.', '[^a]: The note.', ...fillers].join('\n\n') + '\n',
+			['See[^a] here.', '[^a]: The note.', ...rest].join('\n\n') + '\n',
 			true
 		);
-
 		enablePerfInstruments();
 		resetPerfInstruments();
+		return m;
+	}
+
+	it('parses none of the blocks after it, either way', async () => {
+		const m = await noteFirst(plain);
 		ctrlClick(m.target.querySelector('[data-block-path="[1]"] .footnote-def-marker'));
 		await m.settle();
 		expect(m.instance.getSelection()?.focus).toEqual({ path: [0], offset: 7 });
@@ -101,10 +106,16 @@ describe('a jump in a long document', () => {
 		expect(perfSnapshot().inlineComputeCount).toBeLessThan(10);
 	});
 
+	it('stops at the first citation, past which every block cites another note', async () => {
+		const m = await noteFirst(fillers((i) => `Filler ${i} cites[^n${i}].`));
+		ctrlClick(m.target.querySelector('[data-block-path="[1]"] .footnote-def-marker'));
+		await m.settle();
+		expect(m.instance.getSelection()?.focus).toEqual({ path: [0], offset: 7 });
+		expect(perfSnapshot().blocksRead).toBeLessThan(10);
+	});
+
 	it('reads the references of only the blocks that hold one', () => {
-		const doc = grammar([footnotes]).parse(
-			[...fillers, 'See[^a] here.', '[^a]: Note.'].join('\n\n')
-		);
+		const doc = grammar([footnotes]).parse([...plain, 'See[^a] here.', '[^a]: Note.'].join('\n\n'));
 		enablePerfInstruments();
 		resetPerfInstruments();
 		expect(collectFootnoteReferences(doc).map((ref) => ref.label)).toEqual(['a']);
