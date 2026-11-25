@@ -4,7 +4,8 @@
 // Miss-analysis: the numbering and its cache were the package's own and keyed per document, so the
 // editor's per-block answers had no row once the package handed its reads to `depends`.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { footnotes } from '#packages/footnotes/src/index.js';
+import { grammar } from '#lib/plugin.js';
+import { collectFootnoteReferences, footnotes } from '#packages/footnotes/src/index.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -75,6 +76,50 @@ describe('two editors on one page, one listing footnotes', () => {
 		await listed.settle();
 		expect(listed.instance.getSelection()?.focus).toEqual({ path: [0], offset: 15 });
 		expect(unlisted.instance.getSelection()).toEqual(before);
+	});
+});
+
+// Miss-analysis: every jump row ran on a document of a few blocks, so a jump back that parsed
+// every block of the document to find the first citation cost nothing there.
+describe('a jump in a long document', () => {
+	const fillers = (text: (i: number) => string) => Array.from({ length: 2000 }, (_, i) => text(i));
+	const plain = fillers((i) => `Filler ${i} with no note.`);
+
+	async function noteFirst(rest: string[]): Promise<Mounted> {
+		const m = await mounted(
+			['See[^a] here.', '[^a]: The note.', ...rest].join('\n\n') + '\n',
+			true
+		);
+		enablePerfInstruments();
+		resetPerfInstruments();
+		return m;
+	}
+
+	it('parses none of the blocks after it, either way', async () => {
+		const m = await noteFirst(plain);
+		ctrlClick(m.target.querySelector('[data-block-path="[1]"] .footnote-def-marker'));
+		await m.settle();
+		expect(m.instance.getSelection()?.focus).toEqual({ path: [0], offset: 7 });
+		ctrlClick(m.target.querySelector('.footnote-ref'));
+		await m.settle();
+		expect(m.instance.getSelection()?.focus).toEqual({ path: [1, 0], offset: 0 });
+		expect(perfSnapshot().inlineComputeCount).toBeLessThan(10);
+	});
+
+	it('stops at the first citation, past which every block cites another note', async () => {
+		const m = await noteFirst(fillers((i) => `Filler ${i} cites[^n${i}].`));
+		ctrlClick(m.target.querySelector('[data-block-path="[1]"] .footnote-def-marker'));
+		await m.settle();
+		expect(m.instance.getSelection()?.focus).toEqual({ path: [0], offset: 7 });
+		expect(perfSnapshot().blocksRead).toBeLessThan(10);
+	});
+
+	it('reads the references of only the blocks that hold one', () => {
+		const doc = grammar([footnotes]).parse([...plain, 'See[^a] here.', '[^a]: Note.'].join('\n\n'));
+		enablePerfInstruments();
+		resetPerfInstruments();
+		expect(collectFootnoteReferences(doc).map((ref) => ref.label)).toEqual(['a']);
+		expect(perfSnapshot().inlineComputeCount).toBeLessThan(10);
 	});
 });
 
