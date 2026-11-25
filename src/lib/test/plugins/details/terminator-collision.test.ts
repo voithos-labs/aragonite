@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
-import { declaredPluginKind } from '#lib/plugin.js';
+import { declaredPluginKind, htmlBlockTagLineMatcher } from '#lib/plugin.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
@@ -235,6 +235,22 @@ describe('details terminator escape caret image', () => {
 		const normalize = getBlockKindDescriptor(declaredPluginKind(DETAILS)).bodyWrite!.normalize;
 		const both = raw.replaceAll('\n<', '\n&lt;').replace(/^</, '&lt;');
 		expect(normalize(raw, bodyCtx())).toBe(escaped ? both : raw);
+	});
+
+	// details spells the HTML block's tag-line pattern itself, since `fencedLines` takes a pattern
+	// and the published matcher is a predicate: the two must read the same lines.
+	it('escapes a lone tag line exactly where the HTML block reads a details tag', () => {
+		const normalize = getBlockKindDescriptor(declaredPluginKind(DETAILS)).bodyWrite!.normalize;
+		const isTag = htmlBlockTagLineMatcher('details');
+		const ends = ['', '>', ' ', '\t', '\v', '\f', '/', '/>', ' open>', 'x>', '-x>', ' >'];
+		for (const indent of ['', ' ', '   ', '    '])
+			for (const name of ['details', 'DETAILS', 'Details'])
+				for (const slash of ['', '/'])
+					for (const end of ends) {
+						const line = `${indent}<${slash}${name}${end}`;
+						const escaped = normalize(`${line}\n`, bodyCtx()) !== `${line}\n`;
+						expect([line, escaped]).toEqual([line, isTag(line) !== null]);
+					}
 	});
 
 	// `</details` with no `>` is already a type-6 line that swallows what follows in a browser;
