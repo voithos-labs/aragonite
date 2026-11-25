@@ -8,7 +8,9 @@ import { definePlugin } from '#lib/schema/plugin-install.js';
 import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 import { command } from '#lib/schema/plugin-command.js';
 import type { Block } from '#lib/schema/doc-view.js';
+import type { BoxDrawContext } from '#lib/schema/drawing.js';
 import {
+	blockHostAt,
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor
@@ -43,10 +45,12 @@ const loose = command<Block<never>>({
 	run: (_editor, _block, handle) => void handed.push(handle)
 });
 
-const tagged = (tag: string) => () => ({
-	dom: document.createElement('div'),
-	handle: { tag }
-});
+// A button that takes the caret whole, and a handle naming its type and its block's body.
+const tagged = (tag: string) => (block: Block<never>, ctx: BoxDrawContext) => {
+	const dom = document.createElement('button');
+	dom.addEventListener('click', () => ctx.focusWhole());
+	return { dom, handle: { tag: `${tag} ${block.body}` } };
+};
 
 const boxes = definePlugin({
 	name: 'boxes',
@@ -94,14 +98,14 @@ describe("a drawing's handle", () => {
 	it("reaches its block type's own command while the block is drawn", async () => {
 		const { editor, mine } = await mounted();
 		expect(editor.instance.run(placed, mine)).toBe(true);
-		expect(handed).toEqual([{ tag: 'mine' }]);
+		expect(handed).toEqual([{ tag: 'mine x' }]);
 	});
 
 	it("reaches a command its type lists with no key or row, and only on that type's block", async () => {
 		const { editor, mine, other } = await mounted();
 		expect(editor.instance.run(listed, mine)).toBe(true);
 		expect(editor.instance.run(listed, other)).toBe(false);
-		expect(handed).toEqual([{ tag: 'mine' }]);
+		expect(handed).toEqual([{ tag: 'mine x' }]);
 	});
 
 	it('never reaches a command the block type does not place', async () => {
@@ -115,6 +119,48 @@ describe("a drawing's handle", () => {
 		const { editor, other } = await mounted();
 		expect(editor.instance.run(placed, other)).toBe(false);
 		expect(handed).toEqual([]);
+	});
+
+	// Miss-analysis: every row ran with the caret in no block, so a block handed in never met a caret
+	// held by another block whose type places the same command.
+	describe('with the caret held whole in another block of a type placing it', () => {
+		type Mounted = ReturnType<typeof mountEditor>;
+		const routes: [string, (editor: Mounted, block?: Block) => boolean][] = [
+			['by value', (editor, block) => editor.instance.run(placed, block)],
+			['by id', (editor, block) => editor.instance.run('boxes/placed', block)],
+			['through runCommand', (editor, block) => editor.instance.runCommand('boxes/placed', block)]
+		];
+
+		async function caretInFirst() {
+			handed = [];
+			const source = '```mine\nx\n```\n\n```mine\nz\n```\n\n```other\ny\n```\n';
+			const editor = mountEditor({ source, plugins: [boxes] });
+			await editor.settle();
+			blockHostAt(editor, [0]).querySelector('button')!.click();
+			await editor.settle();
+			const byBody = (body: string) => editor.instance.doc.blocks.find((b) => b.body === body)!;
+			return { editor, second: byBody('z'), other: byBody('y') };
+		}
+
+		it.each(routes)('runs %s on the block handed in, with its handle', async (_, run) => {
+			const { editor, second } = await caretInFirst();
+			expect(editor.instance.can(placed, second)).toBe(true);
+			expect(run(editor, second)).toBe(true);
+			expect(handed).toEqual([{ tag: 'mine z' }]);
+		});
+
+		it.each(routes)("refuses %s another type's block, handing nothing", async (_, run) => {
+			const { editor, other } = await caretInFirst();
+			expect(editor.instance.can(placed, other)).toBe(false);
+			expect(run(editor, other)).toBe(false);
+			expect(handed).toEqual([]);
+		});
+
+		it.each(routes)('runs %s on the block holding the caret when handed none', async (_, run) => {
+			const { editor } = await caretInFirst();
+			expect(run(editor)).toBe(true);
+			expect(handed).toEqual([{ tag: 'mine x' }]);
+		});
 	});
 
 	it('is undefined for a block that has left the document', async () => {

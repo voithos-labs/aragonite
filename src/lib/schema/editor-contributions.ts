@@ -110,10 +110,10 @@ export interface EditorContributions {
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
 	can(command: ContributedCommand, arg: unknown): boolean;
-	/** `run` for a key that landed in `block`: over a selection across blocks, on each placing
-	 *  block it covers instead. */
-	runAtKey(command: ContributedCommand, block: Block | undefined): boolean;
-	canAtKey(command: ContributedCommand, block: Block | undefined): boolean;
+	/** `run` on the block `arg` is, else for a key that landed in `block`: over a selection across
+	 *  blocks, on each placing block it covers instead. */
+	runAtKey(command: ContributedCommand, block: Block | undefined, arg: unknown): boolean;
+	canAtKey(command: ContributedCommand, block: Block | undefined, arg: unknown): boolean;
 	/** Reads a freshly installed list, leaving out and reporting each plugin whose contribution is
 	 *  unusable or claims what one listed before it holds; returns the plugins kept. */
 	read(units: readonly InstalledPlugin[]): InstalledPlugin[];
@@ -249,8 +249,10 @@ export function createEditorContributions(deps: {
 		return { blocks: entry.placedBy.has(kind) ? [arg] : [] };
 	}
 
-	/** A key's block, unless the selection runs across blocks, which decides the blocks itself. */
-	function keyed(entry: ContributedCommand, block: Block | undefined): unknown {
+	/** A block handed in; else a key's block, unless the selection runs across blocks, which decides
+	 *  the blocks itself. */
+	function keyed(entry: ContributedCommand, block: Block | undefined, arg: unknown): unknown {
+		if (kindOfBlock(arg) !== undefined) return arg;
 		return deps.blocksAround(entry.placedBy).step ? undefined : block;
 	}
 
@@ -370,8 +372,8 @@ export function createEditorContributions(deps: {
 		},
 		run,
 		can,
-		runAtKey: (entry, block) => run(entry, keyed(entry, block)),
-		canAtKey: (entry, block) => can(entry, keyed(entry, block)),
+		runAtKey: (entry, block, arg) => run(entry, keyed(entry, block, arg)),
+		canAtKey: (entry, block, arg) => can(entry, keyed(entry, block, arg)),
 		read
 	};
 }

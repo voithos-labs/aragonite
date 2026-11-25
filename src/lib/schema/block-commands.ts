@@ -401,7 +401,7 @@ function runAtCaret(
 		case 'placed': {
 			const { target, entry } = resolved;
 			// Run once a shown source is written, so the command reads those bytes.
-			const runIt = () => runPlaced(entry, target, ctx.activation);
+			const runIt = () => runPlaced(entry, target, arg, ctx.activation);
 			if (!target.afterSourceCommit) return runIt();
 			let answer = true;
 			target.afterSourceCommit(() => void (answer = runIt()));
@@ -423,27 +423,29 @@ function runAtCaret(
 	}
 }
 
-/** A placed command on the target's block, or on the nearest placing one where the target names
- *  no node; the table runs it under its plugin, a throw reported. */
+/** A placed command on the block `arg` names, else the target's block, or the nearest placing one
+ *  where the target names no node; the table runs it under its plugin, a throw reported. */
 function runPlaced(
 	entry: ContributedCommand,
 	target: KindCommandTarget,
+	arg: unknown,
 	activation: PluginActivation
 ): boolean {
 	const contributions = activation.contributions!;
 	const place = target.getBlockPlace?.();
-	return contributions.runAtKey(entry, place && contributions.blockOf(place.node, place.path));
+	return contributions.runAtKey(entry, place && contributions.blockOf(place.node, place.path), arg);
 }
 
 /** {@link runPlaced}'s "can this run" read. */
 function canRunPlaced(
 	entry: ContributedCommand,
 	target: KindCommandTarget,
+	arg: unknown,
 	activation: PluginActivation
 ): boolean {
 	const contributions = activation.contributions!;
 	const place = target.getBlockPlace?.();
-	return contributions.canAtKey(entry, place && contributions.blockOf(place.node, place.path));
+	return contributions.canAtKey(entry, place && contributions.blockOf(place.node, place.path), arg);
 }
 
 /** A plugin's handler under its own editor context, a throw caught and reported. */
@@ -518,7 +520,7 @@ export function canRunCommandById(
 	const resolved = resolveCommand(id, target, gates.activation);
 	if (resolved.tier === 'global') return canRunGlobalCommand(id, gates.activation, gates, arg);
 	if (resolved.tier === 'placed')
-		return canRunPlaced(resolved.entry, resolved.target, gates.activation);
+		return canRunPlaced(resolved.entry, resolved.target, arg, gates.activation);
 	return reachesHandler(resolved);
 }
 
