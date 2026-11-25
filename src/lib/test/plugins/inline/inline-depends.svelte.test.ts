@@ -135,6 +135,19 @@ describe('an inline widget with depends', () => {
 		expect(widgets.map((widget) => widget.textContent)).toEqual(['# TopX', '# TopX']);
 	});
 
+	// Miss-analysis: every row held one widget, so a copy of the answers per widget, which would
+	// make a cache keyed on them (the footnote numbering) work once per widget, had no row.
+	it('hands every widget one array of answers until an answer moves', async () => {
+		const { m, log } = await mounted('see [^a] and [^b]\n\n# Top\n');
+		expect(log.length).toBe(2);
+		expect(log[1]).toBe(log[0]);
+		typeInto(surfaceAt(m, [1]), '# TopX');
+		await m.settle();
+		expect(log.length).toBe(4);
+		expect(log[3]).toBe(log[2]);
+		expect(log[2]).not.toBe(log[0]);
+	});
+
 	it('hears a key in a table cell beside it', async () => {
 		const { m, log } = await mounted('| a |\n| - |\n| [^a] |\n\n# Top\n');
 		const calls = log.length;
