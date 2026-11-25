@@ -692,6 +692,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	let deleteVerdict: DeleteVerdict | null = null;
 	// The typing step's verdict on the input in progress, which the `input` after it checks.
 	let typedVerdict: TypedVerdict | null = null;
+	// Whether a `beforeinput` came before the input in progress; a script's edit sends none.
+	let announced = false;
 
 	const deleteReads: CollapsedDeleteReads = {
 		composing,
@@ -780,6 +782,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// Synchronous to the block's handler: the block's `preventDefault` only counts inside this
 	// listener's microtask checkpoint.
 	function onBeforeInput(e: InputEvent): void {
+		announced = true;
 		// An edit moves the caret for its own reason, so a decided key's record ends before it.
 		deps.caretWriter.checkDecidedMotion();
 		const keyChord =
@@ -828,6 +831,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	function onInput(e: Event): void {
+		// The selection a key that wrote nothing read is no edit's that no beforeinput announced.
+		if (!announced && !composing()) preEditSelection = null;
+		announced = false;
 		const verdict = deleteVerdict;
 		deleteVerdict = null;
 		const typed = typedVerdict;
