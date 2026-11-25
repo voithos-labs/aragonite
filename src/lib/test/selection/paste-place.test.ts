@@ -2,7 +2,7 @@
 // a boundary with its parent for a gap, a block focused whole, and a live caret on hidden syntax.
 // Miss-analysis: the differential told the core `text` for every caret that was no gap, so a caret
 // on a block's syntax could not show.
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import {
 	documentBytes,
@@ -11,6 +11,7 @@ import {
 	placeOfGap
 } from '#lib/selection/range-bytes.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { registerCalloutForTests } from './chrome-plugins';
 
 function bytesOf(source: string) {
 	const doc = parse(source);
@@ -62,6 +63,52 @@ describe('a caret in a block', () => {
 			range: { from: 4, to: 6 },
 			holds: 'text'
 		});
+	});
+});
+
+// Miss-analysis: the live clamp was written for hidden syntax and no row held a range on a title
+// row's marker, which is drawn, so a paste there kept the box a typed letter unwraps.
+describe('a live range on a title row', () => {
+	beforeEach(registerCalloutForTests);
+	const ROW = ':::callout Title\nbody\n:::\n';
+	const place = (source: string, path: number[], start: number, end: number) =>
+		placeInBlock(bytesOf(source), path, start, end, true)?.range;
+
+	// [what the range holds, document, path, raw start, raw end, the bytes the paste replaces]
+	it.each<[string, string, number[], number, number, { from: number; to: number }]>([
+		['the marker', ROW, [0, 0], 0, 11, { from: 0, to: 11 }],
+		['the marker and part of the title', ROW, [0, 0], 0, 13, { from: 0, to: 13 }],
+		['an untitled row whole', ':::callout\nbody\n:::\n', [0, 0], 0, 10, { from: 0, to: 10 }],
+		[
+			'the marker in a quote',
+			'> :::callout Title\n> body\n> :::\n',
+			[0, 0, 0],
+			0,
+			11,
+			{ from: 2, to: 13 }
+		],
+		[
+			'the marker in a list item',
+			'- :::callout Title\n  body\n  :::\n',
+			[0, 0, 0, 0],
+			0,
+			11,
+			{ from: 2, to: 13 }
+		]
+	])(
+		'that breaks the opener (%s) is its bytes, as a typed letter over it',
+		(_, source, path, a, b, bytes) => {
+			expect(place(source, path, a, b)).toEqual(bytes);
+		}
+	);
+
+	it.each<[string, string, number, number, { from: number; to: number }]>([
+		['the whole row, read as the title', ROW, 0, 16, { from: 11, to: 16 }],
+		['part of the name', ROW, 4, 6, { from: 11, to: 11 }],
+		['one colon of four', '::::callout Title\nbody\n::::\n', 0, 1, { from: 12, to: 12 }],
+		['the title', ROW, 11, 16, { from: 11, to: 16 }]
+	])('that keeps the opener (%s) stands at the text', (_, source, a, b, bytes) => {
+		expect(place(source, [0, 0], a, b)).toEqual(bytes);
 	});
 });
 

@@ -14,6 +14,7 @@ none removed a selection inside the row, and the closing line it left read as te
 
 - `:::tip ` selected, then Backspace, Delete or Ctrl+X: `Title`, a blank line, `body`
 - The same, then a letter: the letter starts the paragraph (`QTitle`), a blank line, `body`
+- The same, then a paste of one line: as the letter, in live mode too. Miss-analysis: every paste row ran in source mode, where no clamp stands, so a live paste that kept the box beside a letter that unwraps it had no row
 - The same, then Cut from the right-click menu: as Ctrl+X
 - The same, then an IME composition: the committed text starts the paragraph
 - In source mode, the colons selected by the selection API, then Backspace: as above (a live range from the row's first byte starts before the marker's span, where WebKit's own delete takes one character)
@@ -23,7 +24,7 @@ none removed a selection inside the row, and the closing line it left read as te
 
 - An untitled row selected whole: `body` alone, no paragraph above it
 - In source mode the titled row selected whole (Shift+End): `body` alone
-- In source mode, `X` pasted over the untitled row selected whole: `X`, a blank line, `body`, no closing line (the paste once kept it)
+- `X` pasted over the untitled row selected whole, in either mode: `X`, a blank line, `body`, no closing line (the paste once kept it)
 - The inner box of a `::::note` over a `:::tip`: the inner box only unwraps, inside the note
 - In a quote and in a list item: the paragraph, a blank line behind the markers, the body
 - A generic `:::foo` box unwraps as a callout does
@@ -43,3 +44,4 @@ none removed a selection inside the row, and the closing line it left read as te
 - The name selected (`tip`), then Backspace: `::: Title`, the closing line kept, so a name typed next re-forms the box
 - Backspace, a word delete or a soft keyboard's delete at a caret after the colons: today's bytes, the closing line kept
 - In live mode the titled row selected whole: the title clears and `:::tip ` stays
+- In live mode a paste over the title's whole text (End, then Shift+Home): `:::tip X`, the box kept

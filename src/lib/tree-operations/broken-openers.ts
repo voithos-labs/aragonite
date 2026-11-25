@@ -38,14 +38,20 @@ export function breaksOpener(
 	markerEnd: number,
 	cut: RowCut
 ): boolean {
-	const colons = colonsAt(row);
-	if (cut.start >= markerEnd || colons < CONTAINER_COLONS) return false;
-	// The colons before the selection run on into those after it.
-	const left = cut.start < colons ? cut.start + colonsAt(row.slice(cut.end)) : colons;
-	if (left >= CONTAINER_COLONS) return false;
+	if (!colonsBroken(row, markerEnd, cut.start, cut.end)) return false;
 	// A write that still opens with the whole marker took none of it: a live selection of the
 	// title's whole text keeps `:::name `.
 	return !written.startsWith(row.slice(0, markerEnd));
+}
+
+/** Whether taking `[start, end)` out of the opener `row`, whose marker ends at `markerEnd`, leaves
+ *  it fewer colons than a container needs. */
+export function colonsBroken(row: string, markerEnd: number, start: number, end: number): boolean {
+	const colons = colonsAt(row);
+	if (start >= markerEnd || colons < CONTAINER_COLONS) return false;
+	// The colons before the selection run on into those after it.
+	const left = start < colons ? start + colonsAt(row.slice(end)) : colons;
+	return left < CONTAINER_COLONS;
 }
 
 /** Container `raw` unwrapped once `cut` broke its row: the text and the title past the cut, a blank

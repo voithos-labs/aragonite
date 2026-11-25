@@ -85,6 +85,14 @@ const OVER_MARKER: [string, (editor: PluginsPage) => Promise<void>, string][] = 
 	['Ctrl+X', (e) => e.page.keyboard.press('ControlOrMeta+x'), UNWRAPPED],
 	['a letter', (e) => e.page.keyboard.type('Q'), 'QTitle\n\nbody\n'],
 	[
+		'a paste',
+		async (e) => {
+			await e.seedClipboard('Q');
+			await e.paste();
+		},
+		'QTitle\n\nbody\n'
+	],
+	[
 		'Cut from the right-click menu',
 		async (e) => {
 			const { x, y } = await pointAtRaw(e.page, [0, 0], 2);
@@ -180,15 +188,14 @@ test.describe('The shapes a broken opening row unwraps', () => {
 			await editor.bridge.waitForSourceEquals(UNWRAPPED);
 		});
 
-	test('(source) a paste over the untitled row held whole', async ({ page }) => {
-		const editor = await open(page, 'source', ':::tip\nbody\n:::\n');
-		await editor.focusBlockAtPath([0, 1], 0);
-		await page.keyboard.press('ArrowUp');
-		await page.keyboard.press(extendKey('lineEnd'));
-		await editor.seedClipboard('X');
-		await editor.paste();
-		await editor.bridge.waitForSourceEquals('X\n\nbody\n');
-	});
+	for (const mode of MODES)
+		test(`(${mode}) a paste over the untitled row held whole`, async ({ page }) => {
+			const editor = await open(page, mode, ':::tip\nbody\n:::\n');
+			await selectMarkerOnRow(editor, mode, [0, 0], ':::tip');
+			await editor.seedClipboard('X');
+			await editor.paste();
+			await editor.bridge.waitForSourceEquals('X\n\nbody\n');
+		});
 
 	test('(source) the titled row held whole', async ({ page }) => {
 		const editor = await open(page, 'source');
@@ -282,6 +289,15 @@ test.describe('What stays as it was', () => {
 			await editor.bridge.waitForSourceEquals(HALF_OPEN);
 		});
 	}
+
+	test("(live) a paste over the title's whole text keeps the marker", async ({ page }) => {
+		const editor = await open(page, 'live');
+		await editor.focusBlockAtPath([0, 0], 12);
+		await page.keyboard.press(extendKey('lineStart'));
+		await editor.seedClipboard('X');
+		await editor.paste();
+		await editor.bridge.waitForSourceEquals(':::tip X\nbody\n:::\n');
+	});
 
 	test('(live) the titled row held whole clears the title', async ({ page }) => {
 		const editor = await open(page, 'live');

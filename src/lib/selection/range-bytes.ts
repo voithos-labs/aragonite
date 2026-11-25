@@ -37,6 +37,7 @@ import type { Landing, SelectionPoint } from './primitives';
 import { caretTargetFor } from './caret-target';
 import { CURSOR_END } from '../block-component';
 import { titleRowOwner, type RangeCoverage } from './range-coverage';
+import { colonsBroken } from '../tree-operations/broken-openers';
 import { checkRangeHoldsWhole } from '../invariants/range-holds-whole';
 
 /** The editor's document as a range edit reads it: its tree, its bytes and their layout. */
@@ -205,6 +206,15 @@ export function rangePaint(doc: DocumentView, coverage: RangeCoverage, layout: L
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
+/** Whether removing `[from, to)` of the block `row` leaves a `:::` opener too few colons. A live
+ *  range over a title's whole text is the title alone (`drawnSpan`), so it never does. */
+function breaksRow(doc: DocumentView, row: LaidBlock, from: number, to: number) {
+	const text = row.text!;
+	if (to >= text.to && text.from < text.to) return false;
+	const raw = blockNodeAt(doc, row.path)!.raw;
+	return colonsBroken(raw, text.from - row.from, from - row.from, to - row.from);
+}
+
 /** Where a block's own bytes end: its last line's text, since its line ending reads as the next
  *  line's edge. */
 const textEnd = (doc: DocumentView, block: LaidBlock) =>
@@ -351,8 +361,8 @@ export function placeRead(
 	return read && found.place ? { ...read, place: found.place } : null;
 }
 
-/** The place of raw offsets `[start, end]` of the text block at `path`. A live caret outside the
- *  block's text names the boundary beside it; a live range's ends stand at the text's edges. */
+/** The place of raw offsets `[start, end]` of the text block at `path`. Live, a caret off the text
+ *  names the boundary beside it and a range stands at the text, unless it breaks a `:::` row. */
 export function placeInBlock(
 	bytes: DocumentBytes,
 	path: readonly number[],
@@ -376,10 +386,16 @@ function textPlace(
 	to: number,
 	live: boolean
 ): PastePlace | null {
-	const text = bytes.layout().block(path)?.text;
-	if (!live || !text) return { range: { from, to }, holds: 'text' };
+	const block = bytes.layout().block(path);
+	const text = block?.text;
+	if (!live || !block || !text) return { range: { from, to }, holds: 'text' };
 	const inText = (at: number) => Math.min(Math.max(at, text.from), text.to);
-	if (from !== to) return { range: { from: inText(from), to: inText(to) }, holds: 'text' };
+	if (from !== to) {
+		// A paste over a selection that breaks an opening row is that removal, then the text, as a
+		// typed letter over it is (the core unwraps the box).
+		if (breaksRow(bytes.doc(), block, from, to)) return { range: { from, to }, holds: 'text' };
+		return { range: { from: inText(from), to: inText(to) }, holds: 'text' };
+	}
 	if (from === inText(from)) return { range: { from, to }, holds: 'text' };
 	return from < text.from ? placeBeside(bytes, path, 0) : placeBeside(bytes, path, 1);
 }
