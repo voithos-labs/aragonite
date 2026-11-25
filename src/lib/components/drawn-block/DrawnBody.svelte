@@ -183,7 +183,8 @@
 
 	function setClosed(closed: boolean): void {
 		const closable = view.closable;
-		if (!closable || !container) return;
+		// A drawing its block outlived would write the block now at that block's index.
+		if (!closable || !container || !target) return;
 		if (reading()) {
 			readerClosed = closed;
 			return;

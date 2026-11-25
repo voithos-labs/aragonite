@@ -24,7 +24,8 @@ const AROUND = (fold: string) => `above\n\n${fold}\nbelow\n`;
 
 /** The fixture's fold, drawn so a row can reach its context and count its updates. */
 function drawn() {
-	const seen: { ctx: ContainerDrawContext | null; closed: boolean[] } = { ctx: null, closed: [] };
+	const seen: { ctx: ContainerDrawContext | null; all: ContainerDrawContext[]; closed: boolean[] } =
+		{ ctx: null, all: [], closed: [] };
 	const plugin = definePlugin({
 		name: 'folds',
 		version: '1.0.0',
@@ -40,6 +41,7 @@ function drawn() {
 					insert: { none: 'a test block type' },
 					draw: (_block, ctx) => {
 						seen.ctx = ctx;
+						seen.all.push(ctx);
 						const dom = document.createElement('div');
 						dom.append(ctx.children);
 						return { dom, update: () => void seen.closed.push(ctx.closed) };
@@ -104,6 +106,22 @@ describe('a fold written', () => {
 		await m.settle();
 		expect(m.instance.getSelection()?.focus.path).toEqual([1, 0]);
 		expect(m.source()).toBe(AROUND(FOLD_SAMPLE));
+	});
+
+	// Miss-analysis: every row called setClosed on a mounted drawing, none on one its block outlived.
+	it('writes nothing once its block is gone, though another fold now sits where it was', async () => {
+		const fold = (title: string) => FOLD_SAMPLE.replace('T', title);
+		const { m, seen } = await mounted(AROUND(`${fold('A')}\n${fold('B')}`));
+		const [gone] = seen.all;
+		const doc = m.instance.doc;
+		await m.instance
+			.edit()
+			.replace({ from: doc.blocks[1].from, to: doc.blocks[2].from }, '')
+			.commit();
+		await m.settle();
+		gone.setClosed(false);
+		await m.settle();
+		expect(m.source()).toBe(AROUND(fold('B')));
 	});
 
 	it('writes nothing for the state it is already in', async () => {
