@@ -587,6 +587,25 @@ describe('a placed command over a selection across blocks', () => {
 		expect(m.editor.source()).toBe(source);
 	});
 
+	// Miss-analysis: every range row listed one plugin binding the key, so the first command found
+	// was always the one whose blocks the range covers.
+	it('runs the key of the type whose blocks it covers where another plugin binds it too', async () => {
+		const memos = makeMemos((mark) => ({ chords: { 'Mod+7': mark } }));
+		const alerts = makeAlerts();
+		const source = '%> [!NOTE]\n%> one\n\n%> [!TIP]\n%> two\n\nlast\n';
+		const editor = mountEditor({ source, plugins: [memos.plugin, alerts.plugin] });
+		await editor.settle();
+		const surface = surfaceAt(editor, [0, 0]);
+		placeCaret(surface, 1);
+		await pressKey(surface, { key: 'a', ctrlKey: true });
+		await pressKey(surface, { key: 'a', ctrlKey: true });
+		await editor.settle();
+		await pressKey(surfaceAt(editor, [2]), CTRL_7);
+		await editor.settle();
+		expect(editor.source()).toBe('%> [!TIP]\n%> one\n\n%> [!WARNING]\n%> two\n\nlast\n');
+		expect(memos.marked).toEqual([]);
+	});
+
 	it.each([
 		[
 			'`run` with no block',

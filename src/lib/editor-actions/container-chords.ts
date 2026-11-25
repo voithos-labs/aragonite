@@ -61,8 +61,8 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 		return rangeOwns ? null : chord;
 	}
 
-	/** Over a selection across blocks, the command some block type binds `chord` to in its own
-	 *  blocks, which runs on each such block the selection covers wherever the key landed. */
+	/** Over a selection across blocks, the first command a block type binds `chord` to whose blocks
+	 *  the selection covers; it runs on each of them, wherever the key landed. */
 	function coveredCommand(chord: string): ContributedCommand | undefined {
 		const { activation, keybindingOverrides, getPresentationMode } = deps.commands;
 		const { ownsRange, rangeInOneBlock } = deps.selection;
@@ -70,9 +70,11 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 		const overrides = keybindingOverrides();
 		const binds = (kind: string, id: string) =>
 			resolveKindBinding(chord, kind as AnyBlockKind, overrides)?.command === id;
-		return activation.contributions?.commands.find((entry) =>
+		const contributions = activation.contributions;
+		const bound = (contributions?.commands ?? []).filter((entry) =>
 			[...entry.placedBy].some((kind) => binds(kind, entry.id))
 		);
+		return bound.find((entry) => contributions!.can(entry, undefined)) ?? bound[0];
 	}
 
 	return {
