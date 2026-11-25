@@ -67,6 +67,7 @@
 	import BlockList from '../BlockList.svelte';
 	import { createRenderCache } from './render-cache';
 	import { POINTER_GESTURE_ATTR } from '../../selection/pointer-gesture';
+	import { watchStoppedPresses } from './stopped-press';
 
 	let {
 		drawing,
@@ -277,7 +278,8 @@
 				on(el, 'focusout', (e) => (focusedWithin = el.contains(e.relatedTarget as Node))),
 				...['pointerdown', 'mousedown'].map((type) =>
 					on(el, type, (e) => keepPress(made, e), { capture: true })
-				)
+				),
+				...(devChecksOn ? watchStoppedPresses(el, () => node.kind) : [])
 			];
 			// Still in the live document, as windowing leaves it, and not redrawn at the drawing's ask.
 			const stays = (at: { path: number[]; node: NodeView }) =>

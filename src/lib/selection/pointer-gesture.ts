@@ -9,7 +9,7 @@ import { MediaQuery } from 'svelte/reactivity';
 import { readNativeSelection } from '../browser/selection-read';
 
 /** Set on the gesture's element; a pointerdown on any descendant counts. An attribute, since a
- *  component's own `stopPropagation` runs after the editor's root-delegated handler. */
+ *  component the editor renders gets its events after the editor's root listeners. */
 export const POINTER_GESTURE_ATTR = 'data-pointer-gesture';
 
 export function claimsPointerGesture(target: EventTarget | null): boolean {

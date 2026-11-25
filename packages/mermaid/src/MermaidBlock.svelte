@@ -124,12 +124,12 @@
 	// Armed by focus, so an unfocused diagram hijacks neither the page nor the editor's own drag.
 	const gestureArmed = $derived(focused);
 
-	// A press the editor leaves to the diagram's pan: on its viewport once focused, and anywhere in
-	// the focus view's.
+	// The presses the editor leaves to the diagram: its controls, its box, the focus view, and the
+	// viewport's pan once focused. Nothing here stops one, which would hide it from the editor.
 	function keepsPress(e: Event): boolean {
 		if (e.type !== 'pointerdown' && e.type !== 'mousedown') return false;
 		const at = e.target instanceof Element ? e.target : null;
-		if (at?.closest('.mermaid-overlay-viewport')) return true;
+		if (at?.closest('.mermaid-toolbar, .mermaid-source, .mermaid-overlay')) return true;
 		return gestureArmed && !!at?.closest('.mermaid-viewport');
 	}
 
@@ -140,8 +140,6 @@
 		view.zoomBy(e.deltaY);
 	}
 
-	// Mounted inside the editor, a press stopped here would never reach the editor's drag-select;
-	// `keepsPress` is how the pan claims one.
 	function onViewportPointerDown(e: PointerEvent): void {
 		if (gestureArmed) view.beginPan(e);
 	}
@@ -313,7 +311,7 @@
 	}));
 </script>
 
-<!-- The press handlers inside only keep a press from the editor; the buttons are the controls. -->
+<!-- The press handlers inside pan, or leave focus where it is; the buttons are the controls. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="mermaid-block" bind:this={boxEl} data-diagram-focused={focused ? '' : undefined}>
 	{#if editing}
@@ -325,19 +323,11 @@
 			spellcheck="false"
 			aria-label="Mermaid source"
 			onkeydown={onTextareaKeydown}
-			onfocusout={() => commitEdit(false)}
-			onpointerdown={(e) => e.stopPropagation()}></textarea>
+			onfocusout={() => commitEdit(false)}></textarea>
 	{:else}
-		<!-- A press here skips the block's own press handling and leaves focus where it was; Edit and
-		     Focus move it themselves. -->
-		<div
-			class="mermaid-toolbar"
-			data-corner-control
-			onpointerdown={(e) => {
-				e.stopPropagation();
-				e.preventDefault();
-			}}
-		>
+		<!-- A press here is the diagram's (`keepsPress`) and leaves focus where it was; Edit and Focus
+		     move it themselves. -->
+		<div class="mermaid-toolbar" data-corner-control onpointerdown={(e) => e.preventDefault()}>
 			<button type="button" data-testid="mermaid-edit" onclick={openEdit}>Edit</button>
 			<button type="button" data-testid="mermaid-focus" onclick={openFocusView}>Focus</button>
 			<button type="button" data-testid="mermaid-reset" onclick={() => view.reset()}>
@@ -402,13 +392,7 @@
 			aria-label="Diagram focus view"
 			onkeydown={onOverlayKeydown}
 		>
-			<div
-				class="mermaid-overlay-bar"
-				onpointerdown={(e) => {
-					e.stopPropagation();
-					e.preventDefault();
-				}}
-			>
+			<div class="mermaid-overlay-bar" onpointerdown={(e) => e.preventDefault()}>
 				<button type="button" onclick={() => overlayView.reset()}>Reset view</button>
 				<button type="button" data-testid="mermaid-overlay-close" onclick={closeFocusView}>
 					Close
@@ -417,10 +401,7 @@
 			<div
 				class="mermaid-overlay-viewport"
 				onwheel={onOverlayWheel}
-				onpointerdown={(e) => {
-					e.stopPropagation();
-					overlayView.beginPan(e);
-				}}
+				onpointerdown={(e) => overlayView.beginPan(e)}
 				onpointermove={(e) => overlayView.movePan(e)}
 				onpointerup={(e) => overlayView.endPan(e)}
 			>

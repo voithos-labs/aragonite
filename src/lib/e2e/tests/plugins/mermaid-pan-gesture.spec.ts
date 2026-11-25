@@ -6,9 +6,9 @@ import { pointAtRaw } from '../../text-runs';
 
 /**
  * A drag the diagram takes for its own panning starts no block selection, and a drag it has not
- * taken still belongs to the editor (requirements/plugins/mermaid-pan-gesture.md). The editor's
- * margin-drag handling reads pointer-down before the plugin's handler runs, so only an element the
- * plugin declares can decline it, and the diagram declares one only while panning is ready.
+ * taken still belongs to the editor (requirements/plugins/mermaid-pan-gesture.md). The diagram
+ * claims a press through its drawing's `keep`, which the editor's margin-drag handling reads, and on
+ * its viewport only while panning is ready; it stops none, so every press reaches the editor.
  */
 
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
@@ -106,8 +106,8 @@ test.describe('a diagram pan claims its own drag', () => {
 		});
 	});
 
-	// What decides is the element the plugin declares, not the kind: the error box declares no
-	// gesture, so a drag on it still takes the block whole, as a drag on any rendered block does.
+	// What decides is the press the drawing claims, not the kind: the error card claims none, so a
+	// drag on it still takes the block whole, as a drag on any rendered block does.
 	test('a drag on the error card still takes the block whole', async () => {
 		await editor.loadContent(BROKEN_DOC);
 		await editor.settleDiagram('error');
