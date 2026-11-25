@@ -1,12 +1,11 @@
 # Feature: Mermaid diagram block, render-primary reference plugin
 
-A ` ```mermaid ` fence takes a childless plugin container whose code lives in metadata. The
-component renders the diagram SVG through an injected renderer, with an edit mode the plugin
-owns, a textarea that commits through `updateOwnMetadata` as one undoable entry, pan and zoom on
-the rendered SVG once it has focus, and a focus overlay in a fixed position. The block takes
-editor-level whole-block focus (`blockFocus: 'whole-block'`), so the arrow keys stop on it and a
-Backspace or Delete next to it focuses then deletes it in two steps, covered in the sibling
-`mermaid-focus` requirements. A plain fence with any other info string has to stay the built-in
+A ` ```mermaid ` fence is the `mermaid/diagram` block type, a fenced block drawn whole
+(`edit: 'box'`). Its drawing renders the diagram SVG through an injected renderer, with an edit
+box the plugin owns (a textarea that writes the fence's body through `Draft.body` as one undoable
+entry), pan and zoom on the rendered SVG once it has focus, and a focus overlay in a fixed
+position. The block is focused whole, so the arrow keys stop on it and a Backspace or Delete next
+to it focuses then deletes it in two steps, covered in the sibling `mermaid-focus` requirements. A plain fence with any other info string has to stay the built-in
 `fencedCode`. Focus shows on the whole block as an accent border with no inner outline, and the
 toolbar (Edit, Focus, Reset view) stays hidden until the block is hovered or focused.
 

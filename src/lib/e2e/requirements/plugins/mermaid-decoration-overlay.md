@@ -1,10 +1,9 @@
-# Feature: Decoration overlay over a childless opaque container
+# Feature: Decoration overlay over a block drawn whole
 
-A container with no child block hosts, such as a render-primary plugin block like mermaid, has
-no children to paint a decoration mark, so the block paints the mark on itself, measuring the
-whole box through the container shim's `measurePartialRects`. It is the rule the selection
-overlay's `delegatesPainting` already follows, applied to decorations. It lives in the plugins
-project because only plugin kinds produce childless opaque containers.
+A block drawn whole with no text of its own, such as the mermaid diagram, has nothing inside to
+paint a decoration mark, so the block paints the mark on itself, measuring its whole box through
+`measurePartialRects`. It is the rule the selection overlay's `delegatesPainting` already
+follows, applied to decorations.
 
 ## Happy paths
 
@@ -17,8 +16,7 @@ project because only plugin kinds produce childless opaque containers.
 
 ## Miss-analysis
 
-- The overlay and the shim for a childless opaque container are driven end to end through
+- The overlay over a block drawn whole is driven end to end through
   decorations, where a source targets the block path directly, independent of search. The
   counterpart driven from search has its own coverage in
-  `requirements/search/childless-container-match.md`, now that `scanDocument` scans the raw
-  text of a childless opaque container.
+  `requirements/search/childless-container-match.md`.

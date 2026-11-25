@@ -1,13 +1,12 @@
 # Feature: Mermaid whole-block focus + two-step delete
 
-An opaque childless plugin container, the ` ```mermaid ` block, opts into editor-level
-whole-block focus with `blockFocus: 'whole-block'`. The arrow keys stop on it, a Backspace or
-Delete next to it focuses it before a second press deletes it, Enter inserts a paragraph below,
-and Alt+arrows move it: the same focus-then-delete model as ThematicBreak, offered through the
-public container factory. The rendered diagram is the element the block declares, and what a
+The ` ```mermaid ` block, a fenced block drawn whole (`edit: 'box'`), is focused whole. The
+arrow keys stop on it, a Backspace or Delete next to it focuses it before a second press deletes
+it, Enter inserts a paragraph below, and Alt+arrows move it: the same focus-then-delete model as
+ThematicBreak, which the editor gives every block type drawn whole. The rendered diagram is the element the block declares, and what a
 pointer lands on; the editor hands that arrival to a hidden editing host in the block's frame,
-which is where DOM focus sits and what the focus assertions name. The `:focus-within` border and
-background are still the highlight.
+which is where DOM focus sits and what the focus assertions name. The border and background on
+`data-diagram-focused` are the highlight.
 
 Fixture (loaded per test): a paragraph `Above text`, a valid ` ```mermaid ` diagram, and a
 paragraph `tail text`, so the block has an editable neighbor on each side.
