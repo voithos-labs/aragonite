@@ -92,13 +92,7 @@ export const footnotes = definePlugin({
 
 /** Every reference in `doc`, in document order. */
 export function collectFootnoteReferences(doc: Doc): FootnoteReference[] {
-	const found: FootnoteReference[] = [];
-	const visit = (piece: Piece) => {
-		if (piece.is(reference)) found.push({ label: piece.data, from: piece.from, to: piece.to });
-		else piece.children.forEach(visit);
-	};
-	for (const block of doc.walk()) block.pieces.forEach(visit);
-	return found;
+	return [...referencesIn(doc.blocks)].map(({ data, from, to }) => ({ label: data, from, to }));
 }
 
 /** Each label's number in `doc`: the order it is first cited, as its references show it. */
@@ -111,14 +105,25 @@ export function assignFootnoteNumbers(doc: Doc): Map<string, number> {
 /** The labels a top-level block cites, in order, each followed by a space, which no label holds:
  *  what a reference's number is read from, asked again only of a block whose bytes changed. */
 function citedLabels(block: Block): string {
-	if (!block.text.includes('[^')) return '';
 	let labels = '';
-	const visit = (piece: Piece) => {
-		if (piece.is(reference)) labels += `${piece.data} `;
-		else piece.children.forEach(visit);
-	};
-	for (const inside of block.walk()) inside.pieces.forEach(visit);
+	for (const { data } of referencesIn([block])) labels += `${data} `;
 	return labels;
+}
+
+// Only a top-level block whose bytes hold `[^` can hold a footnote, so no other block is parsed.
+function* footnoteBlocks(tops: Iterable<Block>): Generator<Block> {
+	for (const top of tops) if (top.text.includes('[^')) yield* top.walk();
+}
+
+function* referencesIn(tops: Iterable<Block>): Generator<Piece<string>> {
+	for (const block of footnoteBlocks(tops)) yield* referencePieces(block.pieces);
+}
+
+function* referencePieces(pieces: readonly Piece[]): Generator<Piece<string>> {
+	for (const piece of pieces) {
+		if (piece.is(reference)) yield piece;
+		else yield* referencePieces(piece.children);
+	}
 }
 
 function jumpToDefinition(label: string, editor: Editor): void {
@@ -129,19 +134,20 @@ function jumpToFirstCitation(label: string, editor: Editor): void {
 	void jump(editor, (doc) => firstCitationEnd(doc, label));
 }
 
-// `reveal` opens a closed section on the way, which moves the bytes below, so the landing is read
-// again. Reading mode opens none, and its reveal would keep the block focus left behind mounted.
+// `reveal` opens a closed section on the way, a write above the landing, so a moved document is
+// read again. Reading mode opens none, and a reveal there leaves Tab on the block jumped from.
 async function jump(editor: Editor, landing: (doc: Doc) => number | null): Promise<void> {
-	const at = landing(editor.doc);
+	const doc = editor.doc;
+	const at = landing(doc);
 	if (at === null) return;
 	if (editor.mode.editable) await editor.view.reveal(at);
-	const moved = landing(editor.doc);
+	const moved = doc.current ? at : landing(editor.doc);
 	if (moved !== null) await editor.select(moved);
 }
 
 // Where a jump to a definition lands: the first under a label is the one GFM renders.
 export function definitionStart(doc: Doc, label: string): number | null {
-	for (const block of doc.walk()) {
+	for (const block of footnoteBlocks(doc.blocks)) {
 		if (block.is(definition) && block.data.label === label)
 			return block.children[0]?.from ?? block.from;
 	}
@@ -150,5 +156,6 @@ export function definitionStart(doc: Doc, label: string): number | null {
 
 // The first citation gave the definition its number.
 function firstCitationEnd(doc: Doc, label: string): number | null {
-	return collectFootnoteReferences(doc).find((ref) => ref.label === label)?.to ?? null;
+	for (const ref of referencesIn(doc.blocks)) if (ref.data === label) return ref.to;
+	return null;
 }
