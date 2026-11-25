@@ -122,7 +122,7 @@ In Vue it's `draw: vueView(Chip)`, with a single-file component that declares `d
 | `inner(source)` | Where the caret may sit in the shown bytes: `$x$` answers `{ start: 1, end: 2 }` |
 | `caret(el, point)` | The offset into the bytes a click on your drawing names, for a drawing only you can map |
 
-With `click: 'follow'`, another click shows the bytes if `arrows` is `'into'`, and puts the caret beside the widget otherwise. Which click follows is the host's call: Ctrl or Cmd-click by default, any click in live mode under `linkClick: 'plain'`, any click in reading mode.
+With `click: 'follow'`, another click shows the bytes if `arrows` is `'into'`, and puts the caret beside the widget otherwise. Which click follows is the host's call: Ctrl or Cmd-click by default, any click in live mode under `linkClick: 'plain'`, any click in reading mode. Give your drawing a tab stop in reading mode (`tabindex="0"` while `mode.editable` is false) and Enter or Space on it follows too. A button inside your drawing keeps its own clicks and keys.
 
 A widget that should take keys while it's selected (a resize, say) adds `key(event, props)`: return `true` to take the key, and write through `props.editor.edit()`.
 
