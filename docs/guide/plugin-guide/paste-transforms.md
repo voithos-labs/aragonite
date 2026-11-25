@@ -73,4 +73,4 @@ Three habits keep a transform sound:
 
 A transform that throws doesn't take the paste down with it: it counts as a decline, the text carries on untouched, and a dev build warns.
 
-The admonitions plugin is the worked example: with `admonitionsPlugin({ convertAlertsOnPaste: true })` (default off) it converts pasted top-level `> [!NOTE]` GitHub alerts to `:::name` directive source, through a converter that parses first, so an alert-shaped line inside a pasted fence survives as is.
+The admonitions plugin does this as a plugin value's `pasteRewrite`: with `admonitions({ convertAlertsOnPaste: true })` (default off) it converts pasted top-level `> [!NOTE]` GitHub alerts to `:::name` directive source, through a converter that parses first, so an alert-shaped line inside a pasted fence survives as is.

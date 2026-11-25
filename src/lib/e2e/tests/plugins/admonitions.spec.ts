@@ -80,9 +80,9 @@ test.describe('plugin admonitions', () => {
 
 		await editor.bridge.waitForSourceContains(':::important Pro tip');
 		await editor.bridge.waitForSourceNotContains(':::tip');
-		// Exactly one write of the opener line per keypress: no split, no metadata op.
+		// Exactly one write per keypress, the box's data written as one block: no split, no second op.
 		const ops = await page.evaluate(() => (window as any).__test.stopEditOpCapture());
-		expect(ops).toEqual(['updateContent']);
+		expect(ops).toEqual(['replaceBlock']);
 		expect(await roundTripStable(page)).toBe(true);
 
 		await editor.undo();

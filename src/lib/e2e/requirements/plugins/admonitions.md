@@ -28,7 +28,7 @@ here.
   writes `:::important Read me` and the box stops flagging the title empty; the source
   round-trips stable
 - `Mod+7` cycles the kind: a real chord on the tip admonition advances it to `:::important` (the
-  source changes and exactly one `updateContent` edit op fires), and one `Ctrl+Z` restores
+  source changes and exactly one `replaceBlock` edit op fires), and one `Ctrl+Z` restores
   `:::tip`, so each keypress is one undoable commit; round-trips stable
 - convert button: clicking it rewrites the top-level `> [!CAUTION]` blockquote to a `:::caution`
   admonition and leaves the fenced `> [!NOTE]` byte-identical (never `:::note`, since only a

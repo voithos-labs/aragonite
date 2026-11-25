@@ -33,16 +33,16 @@ Btw, the plugin's version should match the editor's version.
 ## Use it
 
 ```ts
-import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+import { admonitions } from '@voithos-labs/aragonite-admonitions';
 
-const plugins = [admonitionsPlugin()];
+const plugins = [admonitions];
 ```
 
 Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. A few things worth knowing:
 
 - On React, Vue or plain JS, the boxes bring a stylesheet of their own: import `@voithos-labs/aragonite-admonitions/style.css` beside the editor's.
 - `Ctrl+7` (`Cmd+7` on a Mac) inside a `:::` box switches it to the next type, through note, tip, important, warning and caution, then back to note.
-- Pass `admonitionsPlugin({ convertAlertsOnPaste: true })` and a pasted GitHub alert turns into a `:::` box instead of staying a `> [!NOTE]`. This behavior is opt in.
+- List `admonitions({ convertAlertsOnPaste: true })` instead and a pasted GitHub alert turns into a `:::` box instead of staying a `> [!NOTE]`. This behavior is opt in.
 - Got a whole file of alerts you'd rather have as `:::` boxes? `convertGithubAlertsInDocument` does that for you.
 
   ```ts

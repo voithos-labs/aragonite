@@ -60,9 +60,8 @@ function registerConspiracy(view: BlockView): void {
 
 	// Two names, one kind: :::conspiracy and :::debunked both resolve here, the kind
 	// reading its verdict back from metadata; any other name falls through to the
-	// generic directive fallback. The guard is habit: nothing bundled claims these
-	// names, but note and tip are claimed by the bundled admonitions plugin, and
-	// that is where an unguarded claim throws for real.
+	// generic directive fallback. The guard is habit: a name another plugin
+	// registered first is where an unguarded claim throws.
 	for (const name of [CONSPIRACY, 'debunked']) {
 		if (!isDirectiveRegistered('container', name)) {
 			registerDirective('container', name, {

@@ -639,7 +639,7 @@ If your handler cares which block the caret just arrived in: a caret the editor 
 ```ts
 events.on('error', (err) => err);
 // { origin: 'link', error: Error('aragonite: blocked link with disallowed scheme: file:///notes.md'), context: { url: 'file:///notes.md' } }
-// { origin: 'command', error: TypeError(...), context: { kind: 'admonition', command: 'admonition.cycleKind', plugin: 'admonitions' } }
+// { origin: 'command', error: TypeError(...), context: { kind: 'admonitions/admonition', command: 'admonitions/next-kind', plugin: 'admonitions' } }
 ```
 
 `origin` is one of `subscriber`, `render`, `commit`, `command`, `decoration`, `clipboard`, or `link`, and `context` carries what's known for it:
@@ -828,7 +828,7 @@ npm install @voithos-labs/aragonite @voithos-labs/aragonite-latex @voithos-labs/
 Each one releases with the editor and asks for exactly its version, so bump them together; npm refuses a mismatch. If a plugin still ends up with a copy of the editor of its own (a bundler that didn't dedupe, say), a dev build warns about it, since that plugin's blocks would quietly parse as plain Markdown. On React, Vue or plain JavaScript, most of them also have a `style.css` to import ([Mounting without Svelte](#mounting-without-svelte) says which). Then import them like any other plugin:
 
 ```ts
-import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+import { admonitions } from '@voithos-labs/aragonite-admonitions';
 import { details } from '@voithos-labs/aragonite-details';
 import { toc } from '@voithos-labs/aragonite-toc';
 import { footnotes } from '@voithos-labs/aragonite-footnotes';
@@ -844,7 +844,7 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 
 | Plugin | What it teaches the editor |
 | --- | --- |
-| `admonitionsPlugin()` | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes |
+| `admonitions` or `admonitions({ convertAlertsOnPaste? })` | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes |
 | `details` | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; an opening tag spelled any other way stays a plain HTML block |
 | `toc` or `toc({ maxDepth? })` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
 | `footnotes` | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order |
@@ -1066,8 +1066,8 @@ Right-clicking any cell opens the table's action menu: "Edit link" first when yo
 | **Images** |  |
 | Resize a selected image | `Shift+←` / `Shift+→` |
 | **Admonitions** |  |
-| Cycle the admonition kind | `Mod+7` (in an admonition; needs `admonitionsPlugin`) |
-| Move from the title into the body | `Enter` (in the title; needs `admonitionsPlugin`) |
+| Cycle the admonition kind | `Mod+7` (in an admonition; needs `admonitions`) |
+| Move from the title into the body | `Enter` (in the title; needs `admonitions`) |
 | **Details** |  |
 | Move from the summary into the body | `Enter` (in the summary; needs `details`) |
 | **Mermaid diagrams** |  |

@@ -106,12 +106,12 @@ The fields, by category:
 | `markerWidths` | lists | How many items open with a marker of each width, which sizes the list's marker column without reading every item. Derived; the parse fills it and the list's rebuild keeps it. |
 | `ownerEpoch` | every node | Whether an undo snapshot still shares this node, so a write copies it first. See `commit-and-undo.md` § Undo / redo. |
 
-`innerPrefix` is the one field you won't see on a built-in. With the bundled admonitions plugin installed:
+`innerPrefix` is the one field you won't see on a built-in. A `:::note` box, read with the grammar of an editor listing the bundled admonitions plugin:
 
 ```ts
-parse(':::note My title\n\nbody\n:::\n').children[0];
+parse(':::note My title\n\nbody\n:::\n', { grammar }).children[0];
 // {
-//   kind: 'admonition', raw: ':::note My title\n\nbody\n:::\n', innerPrefix: '\n',
+//   kind: 'admonitions/admonition', raw: ':::note My title\n\nbody\n:::\n', innerPrefix: '\n',
 //   children: [
 //     { kind: 'directiveOpenerLine', leadingTrivia: '', raw: ':::note My title\n' },
 //     { kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }
