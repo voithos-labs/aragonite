@@ -3,7 +3,8 @@
 An `inline()` widget with `click: 'follow'` that holds focus follows on Enter or Space, wherever a
 plain click on it would follow: always in reading mode, and in an editing mode only where the host
 lets a plain click follow links. The key has to be aimed at the widget itself, its element or its
-first tab stop. A control the widget holds (a button) keeps its own keys and clicks. The harness is
+first tab stop. A control past that tab stop (a button) keeps its own keys and clicks; a widget
+with no tab stop of its own has its first button stand for it. The harness is
 `routes/test/plugins/follow-keys`: an `@home` chip whose first tab stop is its own span, holding a
 button, with `linkClick: 'plain'` and a toggle back to the modifier click.
 
