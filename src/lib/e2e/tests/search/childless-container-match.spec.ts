@@ -11,14 +11,16 @@ import { count, findInput, openFind, openReplace, replaceInput, typeQuery } from
  * would come back as a different kind.
  */
 
-const mermaidHost = (page: Page) => page.locator("[data-block-kind='mermaid']");
+const mermaidHost = (page: Page) => page.locator("[data-block-kind='mermaid/diagram']");
 
 const MERMAID_FENCE = '```mermaid\ngraph TD\n\tZZNEEDLE --> B\n```\n';
 
 const mermaidInViewport = (page: Page) =>
 	page.evaluate(() => {
 		const ed = document.querySelector('.editor')!.getBoundingClientRect();
-		const host = document.querySelector("[data-block-kind='mermaid']")?.getBoundingClientRect();
+		const host = document
+			.querySelector("[data-block-kind='mermaid/diagram']")
+			?.getBoundingClientRect();
 		return !!host && host.bottom > ed.top && host.top < ed.bottom;
 	});
 

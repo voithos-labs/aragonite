@@ -6,7 +6,6 @@ import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
 /**
@@ -17,7 +16,7 @@ import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md
  */
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), detailsPlugin(), footnotesPlugin(), mermaidPlugin()]);
+	installPlugins([admonitionsPlugin(), detailsPlugin(), footnotesPlugin()]);
 });
 
 describe('showcase document', () => {

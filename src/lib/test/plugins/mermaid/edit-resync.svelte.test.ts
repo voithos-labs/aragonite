@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { headless } from '#lib/testing.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
 import {
 	destroyMountedEditors,
 	mountEditor,
@@ -20,7 +20,7 @@ let mounted: MountedEditor | null = null;
 // No renderer supplied: the block falls back to showing its code, so mermaid never loads and
 // every edit-mode path below is still the shipped one.
 function mountMermaid(): HTMLElement {
-	mounted = mountEditor({ source: SOURCE, plugins: [mermaidPlugin()], scrollMode: 'host' });
+	mounted = mountEditor({ source: SOURCE, plugins: [mermaid], scrollMode: 'host' });
 	return mounted.target;
 }
 

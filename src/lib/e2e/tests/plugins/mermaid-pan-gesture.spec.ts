@@ -25,7 +25,7 @@ async function pressAftermath(editor: MermaidPage): Promise<PressAftermath> {
 		...(await editor.page.evaluate(() => ({
 			overlays: document.querySelectorAll('.selection-overlay-middle, .selection-overlay-endpoint')
 				.length,
-			focusInsideBlock: !!document.activeElement?.closest('.mermaid-block')
+			focusInsideBlock: !!document.activeElement?.closest('[data-block-kind="mermaid/diagram"]')
 		})))
 	};
 }

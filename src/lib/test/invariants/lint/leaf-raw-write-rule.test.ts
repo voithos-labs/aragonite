@@ -30,8 +30,6 @@ const ESCALATION_SITES: Record<string, string> = {
 	[FENCE_HOME]: 'the fencedCode write rule',
 	'src/lib/debug/diagnostics-report.ts':
 		'sizes the section fences of a field report whose bodies routinely carry fences of their own',
-	'packages/mermaid/src/mermaid-kind.ts':
-		'sizes the fence its metadata body is rebuilt inside — the body is never re-parsed here',
 	'src/lib/plugin.ts': 'the author barrel: a plugin rebuilding its own raw needs the same rule',
 	'src/lib/core/escalated-run.ts':
 		'one helper over the fence and `:::` runs, for a plugin writing either around text'
@@ -90,10 +88,6 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	'src/lib/schema/fenced-lines.ts': {
 		count: 1,
 		why: "a container's own bytes, written from its children inside the lines its shape writes"
-	},
-	'packages/mermaid/src/mermaid-kind.ts': {
-		count: 1,
-		why: 'the mermaid leaf re-emits its fence from its own metadata: for its bytes, the kind is itself the rule'
 	},
 	'src/lib/editor-actions/search-replace.ts': {
 		count: 1,

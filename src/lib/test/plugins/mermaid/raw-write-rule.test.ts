@@ -1,26 +1,39 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '#lib';
-
-import { normalizeOwnRaw } from '#lib/tree-operations/node-primitives.js';
-import { documentLineEnding } from '#lib/plugin.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
-import { testView } from '#lib/test/harness/test-view.js';
-
-// The mermaid kind declares a raw-write rule that puts back a closing fence a truncating write
-// dropped, so bytes written past the diagram's own editor cannot swallow the blocks below it.
+// @vitest-environment jsdom
+// A write over a diagram's bytes that never passes its box (a paste over the closer, a range cut)
+// gets its closing fence back, so it cannot swallow the blocks below: 0.11.5's rows, through the
+// diagram type's own write rule.
 // Miss-analysis: every mermaid write test went through the code editor's metadata commit.
+import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { grammar } from '#lib/plugin.js';
+import { makingOf } from '#lib/schema/block-type.js';
+import { installPluginList } from '#lib/schema/plugin-unit.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 
-/** The rule as a write path reaches it: dispatched off the node's own kind. */
+beforeEach(installLayoutStubs);
+afterEach(destroyMountedEditors);
+
+/** The rule as a write path reaches it, over a diagram that held `source`. */
 function write(source: string, raw: string): string {
-	const doc = parse(source);
-	return normalizeOwnRaw(doc.children[0], raw, documentLineEnding(doc));
+	const [unit] = installPluginList([mermaid], ({ cause }) => {
+		throw cause;
+	});
+	const rule = makingOf(unit.contribution.blocks![0])!.registration.rawWrite!;
+	const lineEnding = source.includes('\r\n') ? '\r\n' : '\n';
+	const node = { kind: 'mermaid/diagram', raw: source, leadingTrivia: '' };
+	return rule.normalize(raw, { node, mode: 'literal', lineEnding } as never);
 }
 
-beforeEach(() => {
-	registerMermaidKind(testView());
-});
+const kinds = (source: string) =>
+	grammar([mermaid])
+		.parse(source)
+		.blocks.map((b) => b.type.name);
 
-describe('a truncating write of a mermaid block gets its closing fence back', () => {
+describe('a truncating write of a diagram gets its closing fence back', () => {
 	it.each([
 		[
 			'a paste over the closer',
@@ -61,10 +74,7 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 		]
 	])('%s', (_case, source, written, expected) => {
 		expect(write(source, written)).toBe(expected);
-		expect(parse(write(source, written) + '\nTail\n').children.map((c) => c.kind)).toEqual([
-			'mermaid',
-			'paragraph'
-		]);
+		expect(kinds(write(source, written) + '\nTail\n')).toEqual(['mermaid/diagram', 'paragraph']);
 	});
 
 	it('leaves a fence that still holds its closer alone', () => {
@@ -73,14 +83,22 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 		);
 	});
 
-	// Miss-analysis: no test wrote the two shapes the built-in code block repairs (GH #566).
-	// Miss-analysis (GH #768): this row pinned the stranded closer's drop as intended.
 	it('keeps the closer a write stranded by taking the opener line', () => {
 		expect(write('```mermaid\ngraph TD\n```\n', 'graph TD\n```\n')).toBe('graph TD\n```\n');
 	});
 
-	it('keeps a fence whose info string is no longer mermaid closed', () => {
-		expect(write('```mermaid\ngraph TD\n```\n', '```js\nA\n')).toBe('```js\nA\n```\n');
+	// A fence whose info string a write changed reads as code, so the code block's rule closes it, a
+	// write past the block included.
+	it('keeps a fence whose info string is no longer mermaid closed', async () => {
+		const source = '```mermaid\ngraph TD\n```\n\ntail\n';
+		const editor = mountEditor({ source, plugins: [mermaid] });
+		await editor.settle();
+		const to = source.indexOf('\n\ntail');
+		expect(await editor.instance.edit().replace({ from: 0, to }, '```js\nA').commit()).toEqual({
+			ok: true
+		});
+		await editor.settle();
+		expect(editor.source()).toBe('```js\nA\n```\n\ntail\n');
 	});
 
 	// Applied twice by two write paths in one operation, the second pass must add nothing.

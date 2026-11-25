@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { roundTripStable, activeBlockPath } from './helpers';
-import { MermaidPage } from './mermaid-helpers';
+import { DIAGRAM_HOST, MermaidPage } from './mermaid-helpers';
 import { wholeBlockInput } from '../../whole-block-input';
 import { multiClickElement } from '../../multi-click';
 import { edgeKey } from '../../platform-keys';
@@ -63,7 +63,7 @@ class MermaidSeedPage extends MermaidPage {
 	/** Where whole-block focus lands on the first diagram, scoped to it: a document-wide
 	 *  locator would pass on either of the seed's two. */
 	get firstInputHost() {
-		return wholeBlockInput(this.block.first());
+		return wholeBlockInput(this.page.locator(DIAGRAM_HOST).first());
 	}
 
 	/** Toolbar buttons stay hidden until the block is hovered or focused, and a real user hovers
@@ -93,7 +93,7 @@ test.describe('mermaid reference plugin', () => {
 
 	test('seed renders both diagrams as the mermaid kind with SVG; ```js stays fencedCode', async () => {
 		await expect(editor.block).toHaveCount(3);
-		for (const i of [1, 2, 3]) expect(await editor.bridge.getBlockKind(i)).toBe('mermaid');
+		for (const i of [1, 2, 3]) expect(await editor.bridge.getBlockKind(i)).toBe('mermaid/diagram');
 		expect(await editor.bridge.getBlockKind(4)).toBe('fencedCode');
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});

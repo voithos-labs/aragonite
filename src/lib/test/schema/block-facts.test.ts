@@ -25,7 +25,7 @@ import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
 import { toc } from '#packages/toc/src/index.js';
@@ -38,7 +38,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	footnotes: footnotesPlugin,
 	'highlight-occurrences': () => highlightOccurrences,
 	latex: () => latex,
-	mermaid: mermaidPlugin,
+	mermaid: () => mermaid,
 	parrot: parrotPlugin,
 	'slash-commands': () => slashCommands,
 	toc: () => toc

@@ -15,7 +15,6 @@ import { computeInlineContent, grammar, isProseKind, type Piece } from '#lib/plu
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { DETAILS } from '#packages/details/src/index.js';
 import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
-import { MERMAID } from '#packages/mermaid/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
@@ -51,11 +50,11 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	details: [DETAILS],
 	emoji: [EMOJI],
 	footnotes: [FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND],
-	mermaid: [MERMAID],
 	// Inline math reads through the demo's plugin values, as emoji does; its block is a block type.
 	latex: [MATH],
 	// Block types, read only by an editor running their plugin, so no page-wide parse holds them;
 	// `plugins/showcase-route.spec.ts` sees them on the page.
+	mermaid: [],
 	parrot: [],
 	toc: [],
 	// Declares no kind at all: its demonstration is a paragraph repeating a word, asserted

@@ -6,7 +6,6 @@ import { resetPluginPlatformForTests } from '#lib/testing.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrot, parrotPlugin } from '#packages/parrot/src/index.js';
 import {
 	destroyMountedEditors,
@@ -30,24 +29,18 @@ afterEach(() => allowDevWarns(['plugin-install']));
  * route's grammar, and its SSR markup can describe different kinds than the hydrating client.
  */
 
-// The parser never renders, so a stub renderer stands in; only which `setup` plugins install, and
-// in what order, can change a parse (a plugin value is each editor's own).
-const stubMermaid = (): EditorPlugin => mermaidPlugin({ renderer: async () => '<svg />' });
-
 // The setup plugins in the `plugins` props of `/` and `/changelog` (same names, same order) and of
 // `/test/plugins`; a plugin value installs nothing process-wide, so it can't change the order.
 const demoRouteSet = (): EditorPlugin[] => [
 	admonitionsPlugin(),
 	detailsPlugin(),
-	footnotesPlugin(),
-	stubMermaid()
+	footnotesPlugin()
 ];
 
 const harnessSet = (): EditorPlugin[] => [
 	calloutPlugin(),
 	detailsPlugin(),
 	admonitionsPlugin(),
-	stubMermaid(),
 	memoPlugin(),
 	docStatsPlugin
 ];

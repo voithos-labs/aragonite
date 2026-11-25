@@ -53,7 +53,7 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 		expect(await editor.bridge.getSource()).toBe(original); // focus only — no byte change
 
 		await page.keyboard.press('Backspace');
-		await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
+		await waitForDoc(page, (s) => !s.kinds.includes('mermaid/diagram'));
 		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'paragraph']);
 
 		await editor.undo();
@@ -69,7 +69,7 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 
 		await waitForDoc(page, (s) => s.rootCount === 4);
 		const doc = await readDoc(page);
-		expect(doc.kinds).toEqual(['paragraph', 'mermaid', 'paragraph', 'paragraph']);
+		expect(doc.kinds).toEqual(['paragraph', 'mermaid/diagram', 'paragraph', 'paragraph']);
 		expect(doc.texts[2]).toBe('');
 		expect(await activeBlockPath(page)).toEqual([2]);
 	});
@@ -81,12 +81,12 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 		await expect(editor.inputHost).toBeFocused();
 
 		await page.keyboard.press('Alt+ArrowDown');
-		await waitForDoc(page, (s) => s.kinds[2] === 'mermaid');
-		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'paragraph', 'mermaid']);
+		await waitForDoc(page, (s) => s.kinds[2] === 'mermaid/diagram');
+		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'paragraph', 'mermaid/diagram']);
 		await expect(editor.inputHost).toBeFocused();
 
 		await page.keyboard.press('Alt+ArrowUp');
-		await waitForDoc(page, (s) => s.kinds[1] === 'mermaid');
+		await waitForDoc(page, (s) => s.kinds[1] === 'mermaid/diagram');
 	});
 
 	test('the Edit button opens the broken source; committing a fix renders the diagram and focuses it', async ({

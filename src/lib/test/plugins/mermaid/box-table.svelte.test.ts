@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 // Mermaid's edit box, row for row as 0.11.5 had it: what each diagram reads as, what its box shows
-// when it opens, and the bytes a text written in it leaves. Every expected value is 0.11.5's
-// output, mounted in Chromium on its export.
+// when it opens, and the bytes a text written in it leaves. Every expected value is 0.11.5's: the
+// box rows mounted in Chromium on its export, the reads from its parser.
 // Miss-analysis: the box's writes were pinned through the kind's metadata rebuild, so no row held
 // the bytes a box leaves whatever writes them.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { headless } from '#lib/testing.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -15,8 +15,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 
-const DIAGRAM = 'mermaid';
-const plugin = () => mermaidPlugin();
+const DIAGRAM = 'mermaid/diagram';
 
 beforeEach(() => {
 	headless();
@@ -50,7 +49,13 @@ const READS: [string, Shape[]][] = [
 	[`${F}Mermaid\nx\n${F}\n`, [['fencedCode', `${F}Mermaid\nx\n${F}\n`]]],
 	[`${F}mermaid\r\nx\r\n${F}\r\n`, [[DIAGRAM, `${F}mermaid\r\nx\r\n${F}\r\n`]]],
 	[`> ${F}mermaid\n> x\n> ${F}\n`, [['blockquote', [[DIAGRAM, `${F}mermaid\nx\n${F}\n`]]]]],
-	[`${F} mermaid\nx\n${F}\n`, [[DIAGRAM, `${F} mermaid\nx\n${F}\n`]]]
+	[`${F} mermaid\nx\n${F}\n`, [[DIAGRAM, `${F} mermaid\nx\n${F}\n`]]],
+	[`${F}js\nconst x = 1;\n${F}\n`, [['fencedCode', `${F}js\nconst x = 1;\n${F}\n`]]],
+	[`    ${F}mermaid\n`, [['indentedCode', `    ${F}mermaid\n`]]],
+	[
+		`${F}\`\n${F}mermaid\nx\n${F}\n${F}\`\n`,
+		[['fencedCode', `${F}\`\n${F}mermaid\nx\n${F}\n${F}\`\n`]]
+	]
 ];
 
 /** [source, what the box shows as it opens, the text written in it (null: closed unchanged), the
@@ -158,7 +163,7 @@ function openBox(editor: MountedEditor): HTMLTextAreaElement {
 
 describe('a diagram reads as 0.11.5 read it', () => {
 	it.each(READS)('%j', async (source, blocks) => {
-		const editor = mountEditor({ source, plugins: [plugin()] });
+		const editor = mountEditor({ source, plugins: [mermaid] });
 		await editor.settle();
 		expect(editor.instance.doc.blocks.map(shape)).toEqual(blocks);
 	});
@@ -166,7 +171,7 @@ describe('a diagram reads as 0.11.5 read it', () => {
 
 describe("a diagram's box shows and writes as 0.11.5's did", () => {
 	it.each(WRITES)('%j shows %j, given %j writes %j', async (source, seed, text, written) => {
-		const editor = mountEditor({ source, plugins: [plugin()] });
+		const editor = mountEditor({ source, plugins: [mermaid] });
 		await editor.settle();
 		const box = openBox(editor);
 		expect(box.value).toBe(seed);
@@ -178,5 +183,18 @@ describe("a diagram's box shows and writes as 0.11.5's did", () => {
 		flushSync();
 		await editor.settle();
 		expect(editor.source()).toBe(written);
+		// And it reads back as a diagram holding that text, in the block's own line endings.
+		const diagram = editor.instance.doc.blocks
+			.flatMap((top) => [...top.walk()])
+			.find((block) => block.type.name === DIAGRAM);
+		expect(diagram?.body.replace(/\r\n/g, '\n')).toBe(text ?? seed);
 	});
+});
+
+it('reads a mermaid fence as a code block in an editor that does not list mermaid', async () => {
+	const source = `${F}mermaid\ngraph TD\n\tA --> B\n${F}\n`;
+	const editor = mountEditor({ source, plugins: [] });
+	await editor.settle();
+	expect(editor.instance.doc.blocks.map(shape)).toEqual([['fencedCode', source]]);
+	expect(editor.source()).toBe(source);
 });

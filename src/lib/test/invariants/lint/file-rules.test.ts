@@ -1165,6 +1165,8 @@ const RULES: FileRule[] = [
 		population: (file) => ACTIVE_IDENTITY_RE.test(file.code),
 		matches: (file) => !HOST_AWARE_RE.test(file.code),
 		allowed: {
+			'packages/mermaid/src/MermaidBlock.svelte':
+				'where the edit box’s caret is: its own textarea, which the whole-block host never is',
 			'src/lib/components/blocks/editable/surface-backend.ts':
 				'the editable surface this backend was built over; a whole-block kind builds none',
 			'src/lib/components/blocks/editable/editable-surface.ts':

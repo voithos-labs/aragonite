@@ -16,6 +16,7 @@ import {
 import { svelteBlock } from '#lib/components/drawn-block/svelte-block.svelte.js';
 import { check, isCheckFailure, type CheckReport, type Excuses } from '#lib/testing/check.js';
 import ShutHandle from '#lib/test/plugins/fixtures/ShutHandle.svelte';
+import { mermaid } from '#packages/mermaid/src/index.js';
 
 async function reportOf(run: Promise<CheckReport>): Promise<CheckReport> {
 	try {
@@ -126,6 +127,12 @@ describe('drawnCommand', () => {
 		const report = await check(plugin);
 		expect(rowOf(report, 'undrawn/loose')?.status).toBe('not-applicable');
 		expect(rowOf(report, 'undrawn/plain')?.status).toBe('not-applicable');
+	});
+
+	it("passes mermaid's two commands, each run with what its diagram's drawing hands", async () => {
+		const report = await check(mermaid);
+		expect(rowOf(report, 'mermaid/edit')?.status).toBe('passed');
+		expect(rowOf(report, 'mermaid/focus')?.status).toBe('passed');
 	});
 
 	it('takes no excuse', () => {

@@ -1,60 +1,63 @@
-// The mermaid renderer slot as `mermaidPlugin` wires it: the theme and a fresh element id reaching
-// the injected renderer, the SVG wrapped as a result, and a rejection or no renderer as an error.
+// One editor's renderings as the plugin wires them: the theme and a fresh element id reaching the
+// injected renderer, the SVG wrapped as a result, a rejection or no renderer as an error, and a
+// second editor keeping its own.
 import { describe, it, expect, vi } from 'vitest';
-import { installPlugins } from '#lib';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
-import { mermaidSlot, type MermaidRenderer } from '#packages/mermaid/src/mermaid-renderer.js';
+import { mermaidRenders } from '#packages/mermaid/src/mermaid-renderer.js';
+import type { MermaidRenderer } from '#packages/mermaid/src/index.js';
 
-function install(renderer?: MermaidRenderer): void {
-	installPlugins([mermaidPlugin({ renderer })]);
-}
-
-describe('the mermaid renderer slot', () => {
+describe("one editor's diagram renderings", () => {
 	it('draws for the theme, once per theme, with a fresh element id per render', async () => {
 		const renderer = vi.fn<MermaidRenderer>(
 			async (code, _id, { theme }) => `<svg data-theme="${theme}">${code}</svg>`
 		);
-		install(renderer);
+		const renders = mermaidRenders(renderer);
 
-		const dark = await mermaidSlot.render('graph TD', { theme: 'dark' });
+		const dark = await renders.render('graph TD', 'dark');
 		expect(dark).toEqual({ svg: '<svg data-theme="dark">graph TD</svg>' });
-		expect(await mermaidSlot.render('graph TD', { theme: 'dark' })).toBe(dark);
-		expect(await mermaidSlot.render('graph TD', { theme: 'light' })).toEqual({
+		expect(await renders.render('graph TD', 'dark')).toBe(dark);
+		expect(await renders.render('graph TD', 'light')).toEqual({
 			svg: '<svg data-theme="light">graph TD</svg>'
 		});
 		expect(renderer).toHaveBeenCalledTimes(2);
 
 		// A second diagram under the same theme is its own render, never the first one's SVG.
-		expect(await mermaidSlot.render('graph LR', { theme: 'dark' })).toEqual({
+		expect(await renders.render('graph LR', 'dark')).toEqual({
 			svg: '<svg data-theme="dark">graph LR</svg>'
 		});
-		expect(renderer).toHaveBeenCalledTimes(3);
-
-		// Mermaid renders into a DOM element by id, so two renders sharing one would collide.
-		const [first, second] = renderer.mock.calls.map(([, id]) => id);
-		expect(first).not.toBe(second);
+		const ids = renderer.mock.calls.map(([, id]) => id);
+		expect(new Set(ids).size).toBe(ids.length);
+		expect(ids.every((id) => id.startsWith('aragonite-mermaid-'))).toBe(true);
 	});
 
 	it('resolves a rejection to its message, cached like a success', async () => {
 		const renderer = vi.fn<MermaidRenderer>(async () => {
-			throw new Error('No diagram type detected');
+			throw new Error('Parse error on line 1');
 		});
-		install(renderer);
+		const renders = mermaidRenders(renderer);
 
-		const first = await mermaidSlot.render('nope', { theme: 'dark' });
-		const second = await mermaidSlot.render('nope', { theme: 'dark' });
-		expect([first, second]).toEqual([
-			{ error: 'No diagram type detected' },
-			{ error: 'No diagram type detected' }
-		]);
+		expect(await renders.render('notadiagram', 'light')).toEqual({
+			error: 'Parse error on line 1'
+		});
+		await renders.render('notadiagram', 'light');
 		expect(renderer).toHaveBeenCalledTimes(1);
 	});
 
-	it('reports no renderer on a bare install, and resolves to the not-configured error', async () => {
-		install();
-		expect(mermaidSlot.configured).toBe(false);
-		expect(await mermaidSlot.render('graph TD', { theme: 'dark' })).toEqual({
+	it('reports no renderer, and resolves to the not-configured error', async () => {
+		const renders = mermaidRenders(undefined);
+		expect(renders.configured).toBe(false);
+		expect(await renders.render('graph TD', 'light')).toEqual({
 			error: 'renderer not configured'
+		});
+	});
+
+	it('keeps each editor’s renderings apart', async () => {
+		const one = vi.fn<MermaidRenderer>(async () => '<svg>one</svg>');
+		const two = vi.fn<MermaidRenderer>(async () => '<svg>two</svg>');
+		expect(await mermaidRenders(one).render('graph TD', 'light')).toEqual({
+			svg: '<svg>one</svg>'
+		});
+		expect(await mermaidRenders(two).render('graph TD', 'light')).toEqual({
+			svg: '<svg>two</svg>'
 		});
 	});
 });

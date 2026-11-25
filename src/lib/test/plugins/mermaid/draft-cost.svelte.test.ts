@@ -5,7 +5,7 @@
 // from the moment it was drawn would have slowed every key in the document unseen.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { headless } from '#lib/testing.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -44,11 +44,23 @@ const DIAGRAMS = Array.from(
 describe('diagrams with their boxes closed', () => {
 	it('record nothing for a letter typed in a paragraph beside them', async () => {
 		const source = `${DIAGRAMS.join('\n\n')}\n\ntail\n`;
-		const editor = mountEditor({ source, plugins: [mermaidPlugin()] });
+		const editor = mountEditor({ source, plugins: [mermaid] });
 		await editor.settle();
 		typeInto(surfaceAt(editor, [DIAGRAMS.length]), 'tails');
 		await editor.settle();
 		expect(editor.source()).toBe(`${DIAGRAMS.join('\n\n')}\n\ntails\n`);
+		expect(records.count).toBe(0);
+	});
+});
+
+describe('a diagram with its box editing', () => {
+	it('records nothing for a letter typed beside an empty diagram, whose box stays open', async () => {
+		const editor = mountEditor({ source: '```mermaid\n```\n\ntail\n', plugins: [mermaid] });
+		await editor.settle();
+		expect(editor.target.querySelector('[data-testid="mermaid-source"]')).not.toBeNull();
+		typeInto(surfaceAt(editor, [1]), 'tails');
+		await editor.settle();
+		expect(editor.source()).toBe('```mermaid\n```\n\ntails\n');
 		expect(records.count).toBe(0);
 	});
 });

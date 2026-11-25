@@ -22,6 +22,7 @@ import { normalizeChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-activation.js';
 import { createEditorContributions } from '#lib/schema/editor-contributions.js';
 import { installPluginList } from '#lib/schema/plugin-unit.js';
+import { installBlockTypes } from '#lib/schema/block-type.js';
 import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
@@ -31,7 +32,7 @@ import { detailsPlugin, DETAILS_SUMMARY } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
-import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { slashCommands } from '#packages/slash-commands/src/index.js';
 import { toc } from '#packages/toc/src/index.js';
@@ -40,7 +41,7 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // Every bundled plugin, so its kinds' keymaps and its global chords join the sweep. Third-party
 // chords stay out: the gate only sees code this repo ships.
-const BUNDLED_PLUGINS = [admonitionsPlugin(), detailsPlugin(), footnotesPlugin(), mermaidPlugin()];
+const BUNDLED_PLUGINS = [admonitionsPlugin(), detailsPlugin(), footnotesPlugin()];
 // Installed as the file loads too, so the row tables below can name the bundled kinds.
 installPlugins(BUNDLED_PLUGINS);
 
@@ -60,13 +61,26 @@ const contributions = createEditorContributions({
 		throw cause;
 	}
 });
-contributions.read(
-	installPluginList([slashCommands, parrotPlugin(), latex, toc, emoji], ({ cause }) => {
+const VALUES = installPluginList(
+	[slashCommands, parrotPlugin(), latex, toc, emoji, mermaid],
+	({ cause }) => {
 		throw cause;
-	})
+	}
 );
+contributions.read(VALUES);
 const BUNDLED: PluginActivation = { isActive: everyInstalledPlugin.isActive, contributions };
-beforeEach(() => installPlugins(BUNDLED_PLUGINS));
+// The values' block types lent to the page, as an editor running them lends them, so their keys
+// join the sweep.
+beforeEach(() => {
+	installPlugins(BUNDLED_PLUGINS);
+	installBlockTypes(
+		VALUES,
+		({ cause }) => {
+			throw cause;
+		},
+		[]
+	);
+});
 
 // ── Doc parsing ─────────────────────────────────────────────────────────────
 // Map the display key names the doc uses to the event key names the code sees.
@@ -220,8 +234,8 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		commands: ['chrome.descendToBody']
 	},
 	"Open the diagram's focus view": {
-		kind: declaredPluginKind(MERMAID),
-		commands: ['mermaid.focus' as CommandId]
+		kind: 'mermaid/diagram' as AnyBlockKind,
+		commands: ['mermaid/focus' as CommandId]
 	}
 };
 
@@ -601,7 +615,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 		const keys = boundClaims().map(({ chord, owner }) => claimKey(chord, owner));
 		expect(keys).toContain('Mod+Z @ global');
 		expect(keys).toContain('Mod+/ @ slash-commands');
-		expect(keys).toContain('Mod+M @ mermaid');
+		expect(keys).toContain('Mod+M @ mermaid/diagram');
 	});
 
 	// Miss-analysis: a file-owned exemption was checked against the claim list, never the rows.

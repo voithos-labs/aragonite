@@ -11,7 +11,6 @@ import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
 import { toc } from '#packages/toc/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 import {
 	destroyMountedEditors,
@@ -22,7 +21,7 @@ import {
 const DETAILS_PLUGIN = detailsPlugin();
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), DETAILS_PLUGIN, footnotesPlugin(), mermaidPlugin()]);
+	installPlugins([admonitionsPlugin(), DETAILS_PLUGIN, footnotesPlugin()]);
 });
 afterEach(destroyMountedEditors);
 

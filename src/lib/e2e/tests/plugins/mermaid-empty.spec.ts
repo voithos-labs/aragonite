@@ -38,7 +38,7 @@ test.describe('mermaid empty diagram', () => {
 		await page.keyboard.press('Enter');
 		await page.keyboard.type('```mermaid');
 
-		expect(await editor.bridge.getBlockKind(1)).toBe('mermaid');
+		expect(await editor.bridge.getBlockKind(1)).toBe('mermaid/diagram');
 		await expect(editor.textarea).toBeFocused();
 		await expect(editor.error).toHaveCount(0);
 
