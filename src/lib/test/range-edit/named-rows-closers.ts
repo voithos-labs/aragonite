@@ -434,6 +434,26 @@ const MIXED_ROWS: NamedRow[] = [
 	}
 ];
 
+// Miss-analysis: only a mounted commit checks for a lone `\r`, and no mounted test mixed endings; the
+// laws read the end line to its text, never its line ending, and the byte map put a `\n` on its `\r`.
+const MIXED_ENDING_ROWS: NamedRow[] = [
+	...cut(
+		'L4 with mixed line endings a closing line kept under joined text leaves no lone CR',
+		':::note\r\nbo⟦dy\r\n:::\n\r\npa⟧ra\n',
+		':::note\r\nbora\r\n:::\n'
+	),
+	...cut(
+		'L4 with mixed line endings a lazy line joined two quotes deep keeps its own line ending',
+		'> > one⟦\r\n⟧two\n',
+		'> > onetwo\n'
+	),
+	...cut(
+		'L4 with mixed line endings a lazy line joined in a list in a list keeps its own line ending',
+		'- 1. one⟦\r\n⟧two\n- three\n',
+		'- 1. onetwo\n- three\n'
+	)
+];
+
 // Miss-analysis: every range the rows drew into a block that runs on ended mid-line, so none ended at
 // a line's end, where whole lines took that line and its markers stood again before the next line's.
 const LINE_END_ROWS: NamedRow[] = [
@@ -896,6 +916,7 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...TEXT_AFTER_ROWS,
 	...ENTERED_ROWS,
 	...MIXED_ROWS,
+	...MIXED_ENDING_ROWS,
 	...LINE_END_ROWS,
 	...COMPOSITION_ROWS,
 	...LINE_BREAK_ROWS,

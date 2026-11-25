@@ -4,6 +4,12 @@ import { displayLength } from '#lib/core/lines.js';
 import fc from 'fast-check';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { isReservedChromeChild } from '#lib/schema/reserved-chrome.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { allBlockPaths } from '../invariants/arbitraries/cst';
 import { arbLawDocument } from '../range-laws/shapes';
 import { testReading } from '../range-edit/test-host';
 import {
@@ -170,4 +176,47 @@ describe('a list’s map reads only the items a lookup asks about', () => {
 		list.childSpans[list.childSpans.length - 1] = list.raw.length;
 		expect(documentByteMap(measured(doc)).byteOf([0, 5, 0], 0)).toBe(5 * 9 + 2);
 	});
+});
+
+// Miss-analysis: `byte-layout-parity` asks only caret positions and skips a leaf's line ending by
+// contract, and `byte-map-spans` compares two answers that shared the clamp, so no row read a `\n`.
+describe('every offset of a nested block, its line ending included', () => {
+	const SHAPES: Record<string, string> = {
+		quote: 'intro\n\n> foo bar\n> baz qux\n',
+		'list item': '- foo bar\n  baz qux\n- next\n',
+		callout: ':::note Title\nfoo bar\nbaz qux\n:::\n',
+		alert: '> [!NOTE]\n> foo bar\n> baz qux\n',
+		details: '<details>\n<summary>T</summary>\n\nfoo bar\nbaz qux\n\n</details>\n',
+		footnote: 'x[^1]\n\n[^1]: foo bar\n    baz qux\n',
+		table: '| foo | bar |\n|---|---|\n| baz | qux |\n'
+	};
+	const ENDINGS = [
+		['LF', '\n'],
+		['CRLF', '\r\n']
+	] as const;
+
+	for (const [name, lf] of Object.entries(SHAPES)) {
+		for (const [ending, eol] of ENDINGS) {
+			it(`${name}, ${ending}: each character at its byte, a last child's end past its line`, () => {
+				installPlugins(SYNTAX_PLUGINS);
+				const source = lf.replaceAll('\n', eol);
+				const doc = readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
+				const map = documentByteMap(measured(doc));
+				for (const path of allBlockPaths(doc).filter((at) => at.length > 1)) {
+					const parent = blockNodeAt(doc, path.slice(0, -1))!;
+					const index = path[path.length - 1];
+					// A title row's line ending stays before its container's closing tag.
+					if (isReservedChromeChild(parent, index)) continue;
+					const { raw } = blockNodeAt(doc, path)!;
+					const bytes = Array.from(raw, (_, i) => map.byteOf(path, i)!);
+					const at = path.join('.');
+					expect(bytes.map((byte) => source[byte]).join(''), `${at} reads its bytes`).toBe(raw);
+					expect(new Set(bytes).size, `${at} takes a byte a character`).toBe(raw.length);
+					if (index === parent.children!.length - 1) {
+						expect(map.byteOf(path, raw.length), `${at} ends`).toBe(map.endOf(path, raw.length));
+					}
+				}
+			});
+		}
+	}
 });
