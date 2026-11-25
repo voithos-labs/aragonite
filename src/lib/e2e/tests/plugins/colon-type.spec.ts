@@ -12,7 +12,7 @@ const MODES = ['live', 'source'] as const;
 /** A seed, the name its `:::` type answers to, and the kind that name reads as. */
 const TYPES = [
 	{ seed: 'asides', name: 'aside', kind: 'asides/aside' },
-	{ seed: 'admonitions', name: 'tip', kind: 'admonition' }
+	{ seed: 'admonitions-alone', name: 'tip', kind: 'admonitions/admonition' }
 ] as const;
 
 async function open(page: PluginsPage['page'], mode: Mode, seed: string, source: string) {

@@ -17,9 +17,7 @@ const NAMES_READ_IN_ONE_FILE: CallSiteRule = {
 	holds: () => false,
 	allowed: {
 		'src/lib/invariants/install.ts :: assertRestoredUnderGrammar':
-			'a grammar view built for a restore check, handing on its editor’s names unread',
-		'packages/admonitions/src/admonition-kind.ts :: registerAdmonitions':
-			'the admonitions’ old registration, which its move onto a colon type deletes'
+			'a grammar view built for a restore check, handing on its editor’s names unread'
 	},
 	reason: 'ask `resolveDirective` or `startsContainerName`, which read every name an editor holds',
 	hits: [{ relPath: 'src/lib/schema/x.ts', code: 'function f(g) {\n\treturn g.colonTypes();\n}' }],

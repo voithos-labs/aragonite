@@ -27,7 +27,7 @@ test.describe('plugin admonitions: native alert paste', () => {
 		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('> [!TIP]');
-		expect((await readDoc(page)).kinds).toContain('githubAlert');
+		expect((await readDoc(page)).kinds).toContain('admonitions/alert');
 		expect(await editor.bridge.getSource()).not.toContain(':::tip');
 		expect(await roundTripStable(page)).toBe(true);
 
@@ -52,7 +52,7 @@ test.describe('plugin admonitions: native alert paste', () => {
 		expect(source).toContain('> [!NOTE]');
 		expect(source).not.toContain(':::');
 		const kinds = (await readDoc(page)).kinds;
-		expect(kinds).toContain('githubAlert');
+		expect(kinds).toContain('admonitions/alert');
 		expect(kinds).toContain('fencedCode');
 	});
 
@@ -71,7 +71,7 @@ test.describe('plugin admonitions: native alert paste', () => {
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');
 		const kinds = (await readDoc(page)).kinds;
-		expect(kinds).toContain('githubAlert');
+		expect(kinds).toContain('admonitions/alert');
 		expect(kinds).not.toContain('table');
 		expect(await roundTripStable(page)).toBe(true);
 	});

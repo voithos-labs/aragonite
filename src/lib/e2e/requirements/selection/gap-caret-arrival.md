@@ -56,7 +56,7 @@ are in `gap-caret-surface.md`.
   the between-two-strips rule is for.
 - Entering a container from outside lands on its deepest leaf and does not visit a gap at
   the end of the nested child list; only a move that starts inside that child list sees it.
-- Strip containers (blockquote, list, `githubAlert`) declare no edges, because their unwrap
+- Strip containers (blockquote, list, `admonitions/alert`) declare no edges, because their unwrap
   and exit gestures own insertion. Opaque containers (callouts, details, the generic
   directive) declare both (#93); those boundaries are pinned in
   `plugins/gap-caret-opaque-containers.md`.

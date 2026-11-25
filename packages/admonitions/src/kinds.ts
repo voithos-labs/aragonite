@@ -1,11 +1,9 @@
 /**
- * Shared vocabulary for the admonitions plugin, in its own module so registration
- * and the component agree on names without a circular import.
+ * Shared vocabulary for the admonitions plugin, in its own module so the plugin value and the
+ * component agree on names without a circular import.
  */
-export const ADMONITION = 'admonition';
-export const GITHUB_ALERT = 'githubAlert';
 
-/** In cycle order; index 0 is the fallback when a node carries no name in its metadata. */
+/** In cycle order; index 0 is the fallback for a name that is none of these. */
 export const ADMONITION_KINDS = ['note', 'tip', 'important', 'warning', 'caution'] as const;
 export type AdmonitionName = (typeof ADMONITION_KINDS)[number];
 
@@ -21,14 +19,12 @@ export function capitalize(name: string): string {
 	return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-/** The name, read at parse; the opener line itself is child 0. Primitive-valued only: the undo
- *  clone shallow-copies metadata. */
-export interface AdmonitionMetadata {
+/** A box's data: the name after its `:::`, which the cycle rewrites. */
+export interface AdmonitionData {
 	name: string;
 }
 
-/** The marker's type as typed (`NOTE`, `Note`), stored verbatim so the writer re-emits
- *  the source casing; display code lowercases it through `coerceAdmonitionName`. */
-export interface GithubAlertMetadata {
+/** An alert's data: its type as typed (`NOTE`, `Note`), which its head line writes back. */
+export interface AlertData {
 	alertType: string;
 }

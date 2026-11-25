@@ -9,7 +9,7 @@ import { PluginsPage } from './helpers';
 
 const BELOW = {
 	'a math block': { raw: '$$\nx\n$$\n', kind: 'latex/block' },
-	'a directive block': { raw: ':::tip\nbody\n:::\n', kind: 'admonition' }
+	'a directive block': { raw: ':::tip\nbody\n:::\n', kind: 'admonitions/admonition' }
 } as const;
 
 const MODES: PresentationMode[] = ['source', 'live'];
@@ -95,7 +95,7 @@ for (const mode of MODES) {
 			await page.keyboard.type('ote');
 			await editor.bridge.waitForSourceContains('Top\n\n:::note\n:::\n');
 			await expect.poll(caretAt).toEqual({ path: [1, 0], offset: 7 });
-			expect(await editor.bridge.getBlockKind(1)).toBe('admonition');
+			expect(await editor.bridge.getBlockKind(1)).toBe('admonitions/admonition');
 			await expectBelowWhole(BELOW['a directive block']);
 		});
 

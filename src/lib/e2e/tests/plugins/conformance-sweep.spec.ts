@@ -34,7 +34,7 @@ const ENROLLMENT_FLOOR = [
 	'latex/block',
 	'toc/toc',
 	'callout',
-	'admonition'
+	'admonitions/admonition'
 ];
 
 // ── Enrollment ────────────────────────────────────────────────────────────────

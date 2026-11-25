@@ -45,6 +45,7 @@
 	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
 	import { alertsPlugin } from './alerts/alerts-plugin';
 	import { asidesPlugin } from './asides/asides-plugin';
+	import { admonitions } from '@voithos-labs/aragonite-admonitions';
 	import './asides/asides.css';
 	import '../../../../examples/showcase/tag-marks.css';
 	import type { PluginsProp } from '#lib';
@@ -65,9 +66,9 @@
 	// One instance across the two seeds that want it: a second call would define the same plugin
 	// name twice in the process-global registry, which warns on every page load.
 	const tagMarks = tagMarksPlugin();
-	// Seeds that run on their own plugins alone.
-	// `asides` runs alone so its value is the one thing that turns the directive grammar on.
-	const SEEDS_WITHOUT_BASE = ['fence-lines', 'asides'];
+	// Seeds that run on their own plugins alone; under `asides` and `admonitions-alone` the value is
+	// the one thing that turns the directive grammar on.
+	const SEEDS_WITHOUT_BASE = ['fence-lines', 'asides', 'admonitions-alone'];
 
 	// The decoration examples annotate whatever text is there, so each installs only under its
 	// own seed: leaking into the others, their decorations would disturb those suites.
@@ -127,6 +128,8 @@
 		alerts: [alertsPlugin],
 		// Two `:::` types a plugin value makes on `colonLines`; nothing else turns directives on here.
 		asides: [asidesPlugin],
+		// The admonitions alone, a pasted alert landing as a `:::` box.
+		'admonitions-alone': [admonitions({ convertAlertsOnPaste: true })],
 		// A table of contents on `depends`; its type opens only in this seed.
 		outline: [outlinePlugin],
 		// Footnote numbers as a paint on `paintDepends`; its references paint only in this seed.
@@ -220,6 +223,7 @@
 		callout: ':::callout Title\nFirst\n:::\n',
 		details: '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n',
 		admonitions: ADMONITIONS_SEED,
+		'admonitions-alone': ADMONITIONS_SEED,
 		math: 'Before $x^2$ after\n\nNext\n',
 		// Two inline equations in one paragraph: a click elsewhere in the block collapses the
 		// shown source, and a click on the second widget switches to it.

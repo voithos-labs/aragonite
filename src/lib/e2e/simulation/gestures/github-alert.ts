@@ -24,12 +24,12 @@ export async function typeGithubAlert(
 	await editor.typeSlowly('>');
 	await waitForKindAt(ctx, alertIndex, 'blockquote');
 	await editor.typeSlowly(`[!${alertType}]`);
-	await waitForKindAt(ctx, alertIndex, 'githubAlert');
+	await waitForKindAt(ctx, alertIndex, 'admonitions/alert');
 	await editor.waitForRenderFlush();
 	await editor.typeSlowly(body);
 
 	await editor.bridge.waitForSourceContains(`> [!${alertType}]\n> ${body}`);
-	await waitForKindAt(ctx, alertIndex, 'githubAlert');
+	await waitForKindAt(ctx, alertIndex, 'admonitions/alert');
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
 }
@@ -59,7 +59,11 @@ export async function mergeGithubAlertMiddleChild(
 	);
 
 	const after = await alertShape(ctx, alertIndex);
-	if (after.rootCount !== before.rootCount || after.kind !== 'githubAlert' || !after.hasMarker) {
+	if (
+		after.rootCount !== before.rootCount ||
+		after.kind !== 'admonitions/alert' ||
+		!after.hasMarker
+	) {
 		throw new Error(
 			`[${ctx.label}] middle-child merge escaped the alert or dropped the marker.\n` +
 				`BEFORE: ${JSON.stringify(before)}\nAFTER:  ${JSON.stringify(after)}`
@@ -76,7 +80,7 @@ export async function mergeGithubAlertMiddleChild(
 export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const marker = markerText(await alertShape(ctx, alertIndex));
-	const alertsBefore = (await docKinds(ctx)).filter((k) => k === 'githubAlert').length;
+	const alertsBefore = (await docKinds(ctx)).filter((k) => k === 'admonitions/alert').length;
 
 	await editor.clickBlockAtPath([alertIndex, 0], 0);
 	await page.keyboard.press(edgeKey('lineStart'));
@@ -84,7 +88,7 @@ export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Pr
 	await editor.bridge.waitForSourceNotContains(marker);
 
 	const source = await editor.bridge.getSource();
-	const alertsAfter = (await docKinds(ctx)).filter((k) => k === 'githubAlert').length;
+	const alertsAfter = (await docKinds(ctx)).filter((k) => k === 'admonitions/alert').length;
 	if (alertsAfter !== alertsBefore - 1 || source.includes(':::')) {
 		throw new Error(
 			`[${ctx.label}] unwrap did not drop exactly one githubAlert, or rewrote bytes to :::.\n` +
@@ -115,7 +119,7 @@ export async function reorderGithubAlertBodyChild(
 	const after = await alertShape(ctx, alertIndex);
 	if (
 		after.rootCount !== before.rootCount ||
-		after.kind !== 'githubAlert' ||
+		after.kind !== 'admonitions/alert' ||
 		!after.hasMarker ||
 		after.childCount !== before.childCount
 	) {

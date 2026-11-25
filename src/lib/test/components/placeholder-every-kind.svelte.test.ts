@@ -13,7 +13,7 @@ import {
 import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import type { PlaceholderBlock, PluginsProp } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
 import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotes } from '#packages/footnotes/src/index.js';
@@ -29,7 +29,7 @@ afterEach(destroyMountedEditors);
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
-	admonitions: admonitionsPlugin,
+	admonitions: () => admonitions,
 	details: () => details,
 	emoji: () => emoji,
 	footnotes: () => footnotes,
@@ -76,8 +76,8 @@ const NEVER_ASKED: Record<string, string> = {
 	list: CONTAINER,
 	listItem: CONTAINER,
 	directiveContainer: CONTAINER,
-	admonition: CONTAINER,
-	githubAlert: CONTAINER,
+	'admonitions/admonition': CONTAINER,
+	'admonitions/alert': CONTAINER,
 	'details/details': CONTAINER,
 	'footnotes/definition': CONTAINER,
 	mermaid: 'edited in its own textarea, which is not the shared editable element'

@@ -15,7 +15,7 @@ import {
 } from '#lib/schema/plugin-install.js';
 import { pluginKindOwner } from '#lib/schema/plugin-kind.js';
 import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
 import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotes } from '#packages/footnotes/src/index.js';
@@ -28,7 +28,7 @@ import { toc } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
-	admonitions: admonitionsPlugin,
+	admonitions: () => admonitions,
 	details: () => details,
 	emoji: () => emoji,
 	footnotes: () => footnotes,
@@ -41,9 +41,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 };
 
 /** A plugin kind no insert entry makes, and why. */
-const NOT_INSERTED: Record<string, string> = {
-	githubAlert: 'the note entry inserts the admonition spelling of the same callout'
-};
+const NOT_INSERTED: Record<string, string> = {};
 
 beforeEach(() => {
 	installPlugins(normalizePluginEntries(Object.values(BUNDLED).map((plugin) => plugin())).plugins);

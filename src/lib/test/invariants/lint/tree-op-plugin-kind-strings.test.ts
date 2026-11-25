@@ -2,12 +2,15 @@
  * No plugin kind name in a core dispatch layer (`editor.md` § What this is). Core naming a plugin kind
  * reads correctly and passes every behavioral test, so only a scan catches it. Scope is
  * `tree-operations/`, `editor-actions/` and `selection/`; the forbidden set derives from
- * what the first-party plugins brand, and built-in kinds are core's own vocabulary.
+ * what the first-party plugins brand, and the `setup` registrations the test harness keeps of them,
+ * and built-in kinds are core's own vocabulary.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { collectEditorSources, PLUGIN_SOURCE_ROOTS, type SourceFile } from './scan-source';
 import { SOURCE_DIR } from './source-paths';
+
+const BRANDING_SRCS = [...PLUGIN_SOURCE_ROOTS, path.resolve(SOURCE_DIR.testHarness)];
 
 const DISPATCH_SRCS = [
 	path.resolve(SOURCE_DIR.treeOperations),
@@ -74,7 +77,7 @@ function violations(
 // ── The scan ──────────────────────────────────────────────────────────────────
 
 describe('G4.x no plugin kind name in a core dispatch layer', () => {
-	const pluginSources = collectEditorSources(PLUGIN_SOURCE_ROOTS);
+	const pluginSources = collectEditorSources(BRANDING_SRCS);
 	const dispatchSources = DISPATCH_SRCS.flatMap((dir) => collectEditorSources(dir));
 	const forbidden = pluginBlockKindLiterals(pluginSources);
 	const layerSizes = DISPATCH_SRCS.map((dir) => collectEditorSources(dir).length);
@@ -108,7 +111,7 @@ describe('G4.x no plugin kind name in a core dispatch layer', () => {
 // ── Non-vacuity ───────────────────────────────────────────────────────────────
 
 describe('G4.x no plugin kind name in a core dispatch layer: non-vacuity', () => {
-	const forbidden = pluginBlockKindLiterals(collectEditorSources(PLUGIN_SOURCE_ROOTS));
+	const forbidden = pluginBlockKindLiterals(collectEditorSources(BRANDING_SRCS));
 
 	it('resolves a const-defined plugin kind and a directly-quoted one', () => {
 		const sources: SourceFile[] = [

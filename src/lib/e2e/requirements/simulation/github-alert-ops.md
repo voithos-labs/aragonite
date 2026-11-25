@@ -1,7 +1,7 @@
 # Feature: GitHub-alert ops, native alert container (note-taking simulation)
 
 A loaded-ops session on the plugins route over the admonitions plugin's native GitHub
-alerts. A `> [!TYPE]` blockquote is its own `githubAlert` strip container in the
+alerts. A `> [!TYPE]` blockquote is its own `admonitions/alert` strip container in the
 blockquote mold: the marker line lives only in the container raw and metadata, the body
 is real child blocks, and the bytes are never rewritten to `:::`. The session drives
 real edits across the container's lifecycle while the reference checks (the
@@ -18,28 +18,28 @@ at every checkpoint.
 ## Happy paths
 
 - typing `> [!TYPE]` on a fresh line one key at a time promotes the block to a blockquote
-  at `>` and reclassifies it to an empty `githubAlert` when the marker closes, leaving the
+  at `>` and reclassifies it to an empty `admonitions/alert` when the marker closes, leaving the
   caret in its body, so typing the body straight on (no second Enter, which exits the
-  quote) lands a `githubAlert` root child whose body carries the typed text, bytes
+  quote) lands a `admonitions/alert` root child whose body carries the typed text, bytes
   reading `> [!TYPE]\n> …`
 - editing inside the alert body rebuilds the container's raw through the `> [!TYPE]`
-  marker (preserved verbatim) and keeps the `githubAlert` kind
+  marker (preserved verbatim) and keeps the `admonitions/alert` kind
 
 ## Edge cases
 
 - Alt+Arrow on a body block moves it among its siblings inside the alert (the strip
   container's reorder-within capability, which the quote-unwrap climb never reached); the
-  alert keeps its `githubAlert` kind, its `> [!TYPE]` marker, its position at the root,
+  alert keeps its `admonitions/alert` kind, its `> [!TYPE]` marker, its position at the root,
   and its child count, all asserted by the gesture, so a regression that moved the whole
   alert instead (the root count changes) or rebuilt it as a blockquote (the marker drops)
   fails loudly
 - Backspace at the start of a non-first body block merges it into the previous body block
-  (the container `default-merge`); the alert stays one `githubAlert` root with its marker
+  (the container `default-merge`); the alert stays one `admonitions/alert` root with its marker
   intact and its position at the root unchanged, so the merge never escapes the
   container. The gesture asserts this, so a regression in the middle child's `unwrapRole`
   cannot record a corrupted tree as truth
 - Backspace at the very start of the first body block lifts the first child out and drops
-  the marker (the container `lift-first-child-drop-opener`): exactly one `githubAlert` vanishes, its
+  the marker (the container `lift-first-child-drop-opener`): exactly one `admonitions/alert` vanishes, its
   body reparses as a plain block, and the bytes are never rewritten to `:::`
 - every promotion, merge or unwrap lands mid-document, never the end-of-document append
   the expectation tracker predicts, so each gesture waits for a structural signal it can

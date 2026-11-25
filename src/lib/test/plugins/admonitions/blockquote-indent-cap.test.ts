@@ -1,15 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse, serialize } from '#lib';
-import { admonitionsPlugin, convertGithubAlerts } from '#packages/admonitions/src/index.js';
+import { parse as parseDoc, serialize } from '#lib';
+import { convertGithubAlerts } from '#packages/admonitions/src/index.js';
 import { stripQuoteMarker } from '#packages/admonitions/src/gh-alert.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { ALERT, admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
 
 // The plugin's quote grammar is capped at CommonMark's 0 to 3 space block indent,
 // like the built-in blockquote's. Over-accepting strips a `>` the built-in keeps
 // literal, so an edit rewrites prose into a quote marker.
+let grammar: ReturnType<typeof admonitionsGrammar>;
+const parse = (source: string) => parseDoc(source, { grammar });
+
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	grammar = admonitionsGrammar();
 });
 
 describe('stripQuoteMarker honors the 0–3 space indent cap', () => {
@@ -30,7 +33,7 @@ describe('githubAlert body keeps bytes the built-in blockquote keeps', () => {
 	it('preserves a tab-indented quote line as body content', () => {
 		const source = '> [!NOTE]\n\t> body\n';
 		const alert = parse(source).children[0];
-		expect(alert.kind).toBe('githubAlert');
+		expect(alert.kind).toBe(ALERT);
 		expect(alert.children?.map((c) => c.raw).join('')).toContain('\t> body');
 		expect(serialize(parse(source))).toBe(source);
 	});
@@ -41,10 +44,10 @@ describe('githubAlert body keeps bytes the built-in blockquote keeps', () => {
 		const before = alert.children!.map((c) => c.raw).join('');
 		expect(before).toContain('    > b');
 
-		writeContainerRaw(alert, defaultGrammarView);
+		writeContainerRaw(alert, grammar);
 
 		const after = parse(alert.raw).children[0];
-		expect(after.kind).toBe('githubAlert');
+		expect(after.kind).toBe(ALERT);
 		expect(after.children!.map((c) => c.raw).join('')).toBe(before);
 	});
 });

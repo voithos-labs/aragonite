@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse, serialize } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { parse as parseDoc, serialize } from '#lib';
 import { convertGithubAlertsInDocument } from '#packages/admonitions/src/convert-document.js';
+import { ADMONITION, ALERT, admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
+
+let grammar: ReturnType<typeof admonitionsGrammar>;
+const parse = (source: string) => parseDoc(source, { grammar });
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	grammar = admonitionsGrammar();
 });
 
 describe('convertGithubAlertsInDocument', () => {
@@ -62,7 +65,7 @@ describe('convertGithubAlertsInDocument', () => {
 		// With native rendering, a top-level alert is a `githubAlert`, not a
 		// `blockquote`; the converter must still rewrite it to directive source.
 		const src = '> [!NOTE]\n> Native.\n';
-		expect(parse(src).children[0].kind).toBe('githubAlert');
+		expect(parse(src).children[0].kind).toBe(ALERT);
 		expect(convertGithubAlertsInDocument(src).converted).toBe(':::note\nNative.\n:::\n');
 	});
 
@@ -70,7 +73,7 @@ describe('convertGithubAlertsInDocument', () => {
 		const src = 'Intro.\n\n> [!WARNING]\n> Careful now.\n\n```text\n> [!NOTE]\n```\n';
 		const { converted } = convertGithubAlertsInDocument(src);
 		const doc = parse(converted);
-		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'admonition', 'fencedCode']);
+		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', ADMONITION, 'fencedCode']);
 		expect(serialize(doc)).toBe(converted);
 	});
 });

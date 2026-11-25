@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse, serialize } from '#lib';
+import { parse as parseDoc, serialize } from '#lib';
 import { getPluginMetadata, rowContentRange, type CstNode } from '#lib/plugin.js';
-import { admonitionsPlugin, convertGithubAlerts } from '#packages/admonitions/src/index.js';
-import type { AdmonitionMetadata } from '#packages/admonitions/src/kinds.js';
+import { convertGithubAlerts } from '#packages/admonitions/src/index.js';
+import type { AdmonitionData } from '#packages/admonitions/src/kinds.js';
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
+import { ADMONITION, admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
+
+let grammar: ReturnType<typeof admonitionsGrammar>;
+const parse = (source: string) => parseDoc(source, { grammar });
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	grammar = admonitionsGrammar();
 });
 
 function titleOf(node: CstNode): string {
@@ -15,21 +19,24 @@ function titleOf(node: CstNode): string {
 }
 
 describe('admonition round-trip (registered)', () => {
-	roundTripCases([
-		':::note\nBody.\n:::\n',
-		':::tip Pro tip\nBody.\n:::\n',
-		':::warning Careful\nLine one.\n\nLine two.\n:::\n',
-		':::important\nA\n:::\n',
-		':::caution\nDanger.\n:::\n',
-		'# Heading\n\n:::note Titled\nInside.\n:::\n\nAfter.\n',
-		'::::note\n:::tip\nnested inner directive stays body\n:::\n::::\n'
-	]);
+	roundTripCases(
+		[
+			':::note\nBody.\n:::\n',
+			':::tip Pro tip\nBody.\n:::\n',
+			':::warning Careful\nLine one.\n\nLine two.\n:::\n',
+			':::important\nA\n:::\n',
+			':::caution\nDanger.\n:::\n',
+			'# Heading\n\n:::note Titled\nInside.\n:::\n\nAfter.\n',
+			'::::note\n:::tip\nnested inner directive stays body\n:::\n::::\n'
+		],
+		() => grammar
+	);
 
 	it('parses to the admonition kind and reads its name from metadata', () => {
 		const doc = parse(':::warning Careful\nBody.\n:::\n');
 		const node = doc.children[0];
-		expect(node.kind).toBe('admonition');
-		expect(getPluginMetadata<AdmonitionMetadata>(node)?.name).toBe('warning');
+		expect(node.kind).toBe(ADMONITION);
+		expect(getPluginMetadata<AdmonitionData>(node)?.name).toBe('warning');
 	});
 
 	it('places the opener line in child 0 and the body in children 1+', () => {
@@ -61,8 +68,8 @@ describe('GitHub-alert transform feeds a parseable admonition', () => {
 		const { converted } = convertGithubAlerts('> [!WARNING]\n> Critical.\n> More.');
 		const src = converted + '\n';
 		const doc = parse(src);
-		expect(doc.children[0].kind).toBe('admonition');
-		expect(getPluginMetadata<AdmonitionMetadata>(doc.children[0])?.name).toBe('warning');
+		expect(doc.children[0].kind).toBe(ADMONITION);
+		expect(getPluginMetadata<AdmonitionData>(doc.children[0])?.name).toBe('warning');
 		expect(serialize(doc)).toBe(src);
 	});
 });

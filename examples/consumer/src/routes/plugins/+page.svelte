@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import { calloutPlugin } from '../../plugins/callout/register';
 	import { details } from '@voithos-labs/aragonite-details';
-	import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+	import { admonitions } from '@voithos-labs/aragonite-admonitions';
 	import { latex } from '@voithos-labs/aragonite-latex';
 	import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
 	import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
@@ -17,7 +17,7 @@
 	const plugins = [
 		calloutPlugin(),
 		details,
-		admonitionsPlugin(),
+		admonitions,
 		latex({ renderer: katexRenderer }),
 		// No renderer: the consumer wires no mermaid engine, so this exercises the packaged
 		// plugin's no-engine fallback from outside the repo.

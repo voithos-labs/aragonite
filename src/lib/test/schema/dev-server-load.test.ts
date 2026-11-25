@@ -14,12 +14,13 @@ it(
 		configureEditorEnv({ isDev: true, isTest: false });
 		await import('#lib/index.js');
 		await import('#lib/svelte.js');
-		const { activateDirectives, declarePluginKind, parse } = await import('#lib/plugin.js');
+		const { activateDirectives, declarePluginKind, grammar } = await import('#lib/plugin.js');
 		const { registerEditorBuiltIns } = await import('#lib/components/editor-built-ins.js');
 		const { installPlugins, normalizePluginEntries } =
 			await import('#lib/schema/plugin-install.js');
+		const { admonitions } = await import('#packages/admonitions/src/index.js');
 		const plugins = await Promise.all([
-			import('#packages/admonitions/src/index.js').then((m) => m.admonitionsPlugin()),
+			admonitions,
 			import('#packages/details/src/index.js').then((m) => m.details),
 			import('#packages/emoji/src/index.js').then((m) => m.emoji),
 			import('#packages/footnotes/src/index.js').then((m) => m.footnotes),
@@ -36,7 +37,11 @@ it(
 			activateDirectives();
 			installPlugins(normalizePluginEntries(plugins).plugins);
 		}).not.toThrow();
-		expect(parse(':::note\nx\n:::\n').children.map((c) => c.kind)).toEqual(['admonition']);
+		expect(
+			grammar([admonitions])
+				.parse(':::note\nx\n:::\n')
+				.blocks.map((b) => b.type.name)
+		).toEqual(['admonitions/admonition']);
 		// The guard is live in this module graph, so the silence above is the package's own.
 		expect(() => declarePluginKind('dev-load-bare')).toThrow(/outside a plugin's setup/);
 	}

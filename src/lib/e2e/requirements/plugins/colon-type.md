@@ -2,8 +2,8 @@
 
 A plugin value's block type on `colonLines` is read by the editor's own `:::` grammar, which
 listing the type turns on. Driven on `/test/plugins?seed=asides`, where the value runs alone so
-nothing else turns directives on, beside `/test/plugins?seed=admonitions`, where the old
-registration's `:::tip` takes the same keys. Each row runs in live and source mode with real keys
+nothing else turns directives on, beside `/test/plugins?seed=admonitions-alone`, where the
+admonitions value runs alone too and its `:::tip` takes the same keys. Each row runs in live and source mode with real keys
 and checks the bytes, the caret and the kind.
 
 ## Happy paths

@@ -6,6 +6,8 @@
  */
 
 import { parse, type CstNode } from '#lib';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import type { admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
@@ -21,8 +23,15 @@ import {
 	makeStubFocus
 } from '#lib/test/harness/editor-actions.js';
 
-export function containerAt(source: string, path: number[]) {
-	const harness = makeEditorActionsDeps(parse(source).children);
+/** `source` read with `grammar`, and the actions of the container at `path`. */
+export function containerAt(
+	source: string,
+	path: number[],
+	grammar: ReturnType<typeof admonitionsGrammar>
+) {
+	const harness = makeEditorActionsDeps(parse(source, { grammar }).children, {
+		reading: fixtureReading({ grammar })
+	});
 	const controller = createUndoController(harness.deps);
 	const containerEdit = createContainerEditActions(harness.deps, controller);
 	const getNode = () =>

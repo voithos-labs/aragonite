@@ -21,8 +21,8 @@ import {
 	type ContainerBodyWrap,
 	type CstNode,
 	type OpenContext
-} from '@voithos-labs/aragonite/plugin';
-import { matchAlertMarker } from './gh-alert';
+} from '#lib/plugin.js';
+import { matchAlertMarker } from '#packages/admonitions/src/gh-alert.js';
 import { GITHUB_ALERT, type GithubAlertMetadata } from './kinds';
 
 /** The `> [!TYPE]` line is the alert's own marker, so a blank line against it separates

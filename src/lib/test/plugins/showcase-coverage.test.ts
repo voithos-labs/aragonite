@@ -12,7 +12,7 @@ import {
 	type InlineNode
 } from '#lib/core/nodes.js';
 import { computeInlineContent, grammar, isProseKind, type Piece } from '#lib/plugin.js';
-import { ADMONITION, GITHUB_ALERT } from '#lib/test/harness/registered-admonitions.js';
+import { ADMONITION, ALERT } from '#lib/test/support/admonitions-grammar.js';
 import { listGrammar } from '#lib/schema/own-syntax.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { DEFINITION, REFERENCE } from '#lib/test/support/footnotes-grammar.js';
@@ -48,7 +48,7 @@ const NOT_YET_DEMONSTRATED: Record<string, string> = {
 /** Bundled plugin directory → a kind whose presence proves its syntax is on the tour, checked
  *  against the directory listing so a plugin dropped from the demo set fails here. */
 const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
-	admonitions: [ADMONITION, GITHUB_ALERT],
+	admonitions: [ADMONITION, ALERT],
 	details: ['details/details'],
 	emoji: [EMOJI],
 	footnotes: [DEFINITION, REFERENCE],

@@ -1,39 +1,35 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '#lib';
+import { parse as parseDoc } from '#lib';
 import { liftFirstChild, plainQuote } from '#lib/tree-operations/index.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { ALERT, admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
 
 // The alert branch of the shared quote-unwrap primitive (Rule U2): a `[!TYPE]` marker
 // is opener-only, so lifting a body child drops it and the remainder reparses as a
 // plain blockquote. Blockquote coverage lives in tree-operations/unwrap-blockquote.
 
+let grammar: ReturnType<typeof admonitionsGrammar>;
+const parse = (source: string) => parseDoc(source, { grammar });
+
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	grammar = admonitionsGrammar();
 });
 
 const parseAlert = (src: string) => {
 	const node = parse(src).children[0];
-	expect(node.kind).toBe('githubAlert');
+	expect(node.kind).toBe(ALERT);
 	return node;
 };
 
 describe('github alert: unwrap first child drops the marker', () => {
 	it('lifts the sole body block, leaving no alert', () => {
-		const result = liftFirstChild(
-			parseAlert('> [!NOTE]\n> only line\n'),
-			plainQuote(defaultGrammarView)
-		);
+		const result = liftFirstChild(parseAlert('> [!NOTE]\n> only line\n'), plainQuote(grammar));
 		expect(result).toHaveLength(1);
 		expect(result[0].kind).toBe('paragraph');
 		expect((result[0].raw ?? '').trim()).toBe('only line');
 	});
 
 	it('lifts the first body block; the remainder is a plain blockquote', () => {
-		const result = liftFirstChild(
-			parseAlert('> [!NOTE]\n> a\n>\n> b\n'),
-			plainQuote(defaultGrammarView)
-		);
+		const result = liftFirstChild(parseAlert('> [!NOTE]\n> a\n>\n> b\n'), plainQuote(grammar));
 		expect(result).toHaveLength(2);
 		expect((result[0].raw ?? '').trim()).toBe('a');
 		expect(result[1].kind).toBe('blockquote');

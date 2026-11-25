@@ -84,8 +84,8 @@ test.describe('the plugins prop is the enablement set', () => {
 		await test.step('an unlisted directive name reads as the generic directive', async () => {
 			const listed = page.getByTestId('editor-listing');
 			const unlisted = page.getByTestId('editor-not-listing');
-			await expect(listed.locator('[data-block-kind="admonition"]')).toHaveCount(1);
-			await expect(unlisted.locator('[data-block-kind="admonition"]')).toHaveCount(0);
+			await expect(listed.locator('[data-block-kind="admonitions/admonition"]')).toHaveCount(1);
+			await expect(unlisted.locator('[data-block-kind="admonitions/admonition"]')).toHaveCount(0);
 			await expect(unlisted.locator('[data-block-kind="directiveContainer"]')).toHaveCount(1);
 		});
 

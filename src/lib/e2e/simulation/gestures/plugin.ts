@@ -52,7 +52,7 @@ export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 			const t = (window as any).__test;
 			if (!(t.getSource() as string).includes('[!TIP]')) return false;
 			const count = t.getBlockCount() as number;
-			for (let i = 0; i < count; i++) if (t.getBlockKind(i) === 'githubAlert') return true;
+			for (let i = 0; i < count; i++) if (t.getBlockKind(i) === 'admonitions/alert') return true;
 			return false;
 		},
 		null,

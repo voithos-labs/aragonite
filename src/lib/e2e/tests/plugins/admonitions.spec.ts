@@ -96,12 +96,12 @@ test.describe('plugin admonitions', () => {
 		const convert = page.getByTestId('convert-alerts');
 		// Precondition: a native alert exists (a `githubAlert`, not a plain blockquote) → enabled.
 		await expect(convert).toBeEnabled();
-		expect((await readDoc(page)).kinds[5]).toBe('githubAlert');
+		expect((await readDoc(page)).kinds[5]).toBe('admonitions/alert');
 
 		await convert.click();
 
 		await editor.bridge.waitForSourceContains(':::caution\nStill a blockquote alert.\n:::');
-		expect((await readDoc(page)).kinds[5]).toBe('admonition');
+		expect((await readDoc(page)).kinds[5]).toBe('admonitions/admonition');
 		await expect(page.locator(".admonition[data-alert-source='directive']")).toHaveCount(4);
 		await expect(page.locator(".admonition[data-alert-source='github']")).toHaveCount(0);
 

@@ -9,7 +9,7 @@ process is active.
 
 `/test/plugins/activation` mounts two editors over the same seed. The first lists
 `parrotPlugin()`, a block type, `blockBadgePlugin`, a decoration source, `emoji`, inline syntax
-with a widget, `admonitionsPlugin()`, directive names, and the latex plugin, inline math; the
+with a widget, `admonitions`, directive names, and the latex plugin, inline math; the
 second lists only `docStatsPlugin` and `chordCountPlugin`, whose command has a chord, and none
 of those. Each
 editor parses the seed in its own grammar, so the first holds a parrot block, an emoji glyph, a

@@ -1,65 +1,35 @@
 <!--
-  One alert box for both kinds: the directive admonition (its opener line, holding the title, at
-  child 0) and the GitHub alert (no title, a static badge instead).
+  One callout box for both types: a `:::note` box, whose opening line is its title row, and a GitHub
+  alert, which has no title, a static badge instead.
 -->
 <script lang="ts">
-	import {
-		getPluginMetadata,
-		isBlankText,
-		rowContentRange,
-		type NodeView
-	} from '@voithos-labs/aragonite/plugin';
-	import { BlockList, createContainerBlock } from '@voithos-labs/aragonite/svelte';
-	import {
-		capitalize,
-		coerceAdmonitionName,
-		GITHUB_ALERT,
-		type AdmonitionMetadata,
-		type GithubAlertMetadata
-	} from './kinds';
+	import { isBlankText, type ContainerDrawContext } from '@voithos-labs/aragonite/plugin';
+	import type { SvelteBlockProps } from '@voithos-labs/aragonite/svelte';
+	import { capitalize, coerceAdmonitionName, type AdmonitionData, type AlertData } from './kinds';
 
-	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
-	let boxEl: HTMLElement | undefined = $state();
+	let { block, Slot }: SvelteBlockProps<AdmonitionData | AlertData, ContainerDrawContext> =
+		$props();
 
-	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getBoxEl: () => boxEl
-	});
-
-	const isAlert = $derived(node.kind === GITHUB_ALERT);
+	const alertType = $derived('alertType' in block.data ? block.data.alertType : null);
 	const kind = $derived(
-		isAlert
-			? coerceAdmonitionName(getPluginMetadata<GithubAlertMetadata>(node)?.alertType?.toLowerCase())
-			: coerceAdmonitionName(getPluginMetadata<AdmonitionMetadata>(node)?.name)
+		coerceAdmonitionName(alertType?.toLowerCase() ?? (block.data as AdmonitionData).name)
 	);
-	const titleEmpty = $derived(isAlert || isBlankText(titleOf(node)));
-
-	function titleOf(admonition: NodeView): string {
-		const { start, end } = rowContentRange(admonition);
-		return admonition.children?.[0]?.raw.slice(start, end) ?? '';
-	}
-
-	export { containerApi };
+	const titleEmpty = $derived(alertType !== null || isBlankText(block.title?.text ?? ''));
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="admonition"
 	data-kind={kind}
 	data-title-empty={titleEmpty}
-	data-alert-source={isAlert ? 'github' : 'directive'}
-	aria-label={`${capitalize(kind)} ${isAlert ? 'alert' : 'admonition'}`}
-	bind:this={boxEl}
-	onkeydown={handleKeydown}
+	data-alert-source={alertType === null ? 'directive' : 'github'}
+	aria-label={`${capitalize(kind)} ${alertType === null ? 'admonition' : 'alert'}`}
 >
-	{#if isAlert}
+	{#if alertType !== null}
 		<!-- Static badge: contenteditable=false keeps the caret in the body, where the
 		     alert's real content lives. -->
 		<div class="admonition-title" contenteditable="false" aria-hidden="true"></div>
 	{/if}
-	<BlockList {...blockListProps} />
+	<Slot of="children" />
 </div>
 
 <style>
@@ -99,11 +69,13 @@
 		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 1.3h6l4 4v6l-4 4H5l-4-4V5.3zM7.1 4h1.8v5H7.1zm0 6h1.8v1.6H7.1z'/%3E%3C/svg%3E");
 	}
 
-	/* Positioned so the icon and untitled-name pseudo-elements anchor to the row: the alert's badge,
-	   or this admonition's own opener line, not one nested deeper. */
+	/* The icon and the untitled name anchor to the row: the alert's badge, or this box's own opener
+	   line, two elements down (the slot, the list's holder), never one nested deeper. */
 	.admonition :global(.admonition-title),
 	.admonition
-		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line) {
+		> :global(
+			* > * > .block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line
+		) {
 		position: relative;
 		font-weight: 600;
 		color: var(--adm-accent);
@@ -122,7 +94,7 @@
 	.admonition :global(.admonition-title::before),
 	.admonition
 		> :global(
-			.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line::before
+			* > * > .block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line::before
 		) {
 		content: '';
 		position: absolute;
@@ -141,7 +113,9 @@
 	   shows as a second line; capping to one row keeps the gap to the body the titled one's. */
 	.admonition[data-title-empty='true'] :global(.admonition-title),
 	.admonition[data-title-empty='true']
-		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line) {
+		> :global(
+			* > * > .block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line
+		) {
 		height: 1.4em;
 	}
 
@@ -150,11 +124,15 @@
 	.admonition :global(.admonition-title::after),
 	:global(.editor[data-presentation='reading'])
 		.admonition[data-title-empty='true']
-		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line::after),
+		> :global(
+			* > * > .block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line::after
+		),
 	:global(.editor[data-presentation])
 		.admonition[data-title-empty='true']
 		> :global(
-			.block-list
+			*
+				> *
+				> .block-list
 				> [data-block-kind='directiveOpenerLine']
 				.directive-opener-line:not(:focus-within)::after
 		) {

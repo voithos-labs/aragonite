@@ -1,4 +1,4 @@
-import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+import { admonitions } from '@voithos-labs/aragonite-admonitions';
 import { highlight } from '@voithos-labs/aragonite-highlight';
 import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
 import { details } from '@voithos-labs/aragonite-details';
@@ -17,7 +17,7 @@ import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
 // The one place the demo routes create their plugins: definitions are process-global and the
 // first install wins, so a route that wants different options passes `{ plugin, options }` rather
 // than its own array. Exported one by one as well as in a set, since a route may install a few.
-export const DEMO_ADMONITIONS = admonitionsPlugin();
+export const DEMO_ADMONITIONS = admonitions;
 export const DEMO_DETAILS = details;
 export const DEMO_TOC = toc;
 export const DEMO_FOOTNOTES = footnotes;

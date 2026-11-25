@@ -1,17 +1,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '#lib';
-import { admonitionsPlugin, convertGithubAlerts } from '#packages/admonitions/src/index.js';
+import { parse as parseDoc } from '#lib';
+import { convertGithubAlerts } from '#packages/admonitions/src/index.js';
 import { convertAlertBlockquoteRaw } from '#packages/admonitions/src/gh-alert.js';
 import { documentLineEnding } from '#lib/plugin.js';
 import { convertGithubAlertsInDocument } from '#packages/admonitions/src/convert-document.js';
+import { ALERT, admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
+
+let grammar: ReturnType<typeof admonitionsGrammar>;
+const parse = (source: string) => parseDoc(source, { grammar });
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	grammar = admonitionsGrammar();
 });
 
 /** The single-blockquote core, fed the extent the parser decided for the alert. */
 function convertedAlertRegion(source: string): string {
-	const alert = parse(source).children.find((child) => child.kind === 'githubAlert');
+	const alert = parse(source).children.find((child) => child.kind === ALERT);
 	if (!alert) throw new Error(`fixture parses to no githubAlert: ${JSON.stringify(source)}`);
 	return convertAlertBlockquoteRaw(alert.raw, documentLineEnding(parse(source)))!;
 }

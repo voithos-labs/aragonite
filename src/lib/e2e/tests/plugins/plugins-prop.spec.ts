@@ -29,7 +29,7 @@ test.describe('plugins prop: install before the first parse', () => {
 
 		// admonitions sits last in the prop's array, so a fallback here would mean installing
 		// stopped after the first entry.
-		expect((await readDoc(page)).kinds).toContain('admonition');
+		expect((await readDoc(page)).kinds).toContain('admonitions/admonition');
 	});
 
 	test('re-runs the prop cleanly on a fresh load', async ({ page }) => {

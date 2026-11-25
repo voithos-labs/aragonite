@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '#lib';
+import { parse as parseDoc } from '#lib';
 import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
-import { admonitionsPlugin, convertGithubAlerts } from '#packages/admonitions/src/index.js';
+import { convertGithubAlerts } from '#packages/admonitions/src/index.js';
 import { convertGithubAlertsInDocument } from '#packages/admonitions/src/convert-document.js';
-import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { rebuildUnsharedAncestry } from '#lib/tree-operations/chain-rebuild.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { ADMONITION, admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
+
+let grammar: ReturnType<typeof admonitionsGrammar>;
+const parse = (source: string) => parseDoc(source, { grammar });
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	grammar = admonitionsGrammar();
 });
 
 /**
@@ -21,7 +23,7 @@ function rebuiltWithBody(source: string, bodyRaw: string) {
 	const doc = parse(source);
 	const node = doc.children[0];
 	node.children![1].raw = bodyRaw;
-	rebuildUnsharedAncestry(doc, [0], createSharingState(), null, fixtureGrammar);
+	rebuildUnsharedAncestry(doc, [0], createSharingState(), null, grammar);
 	// The widened opener line is re-read into a new node at the position.
 	return doc.children[0];
 }
@@ -31,7 +33,7 @@ describe('admonition fence escalation past body colon runs', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
 		const reparsed = parse(node.raw);
 		expect(reparsed.children.length).toBe(1);
-		expect(reparsed.children[0].kind).toBe('admonition');
+		expect(reparsed.children[0].kind).toBe(ADMONITION);
 		expect(reparsed.children[0].children?.[1].raw).toBe('before\n:::\nafter\n');
 	});
 
@@ -39,23 +41,23 @@ describe('admonition fence escalation past body colon runs', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', '::::::\n');
 		const reparsed = parse(node.raw);
 		expect(reparsed.children.length).toBe(1);
-		expect(reparsed.children[0].kind).toBe('admonition');
+		expect(reparsed.children[0].kind).toBe(ADMONITION);
 		expect(reparsed.children[0].children?.[1].raw).toBe('::::::\n');
 	});
 
 	it('leaves G1.12 clean after a colliding body edit', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
-		expect(checkOpaqueStaleRaw(node, fixtureGrammar)).toBeNull();
+		expect(checkOpaqueStaleRaw(node, grammar)).toBeNull();
 	});
 
 	// The lengthened count is read back into metadata, so a second rebuild must emit the same
 	// bytes from it.
 	it('stays deterministic across repeated rebuilds (G1.13)', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
-		expect(checkOpaqueRebuildDeterminism(node, defaultGrammarView)).toBeNull();
+		expect(checkOpaqueRebuildDeterminism(node, grammar)).toBeNull();
 
 		const once = node.raw;
-		writeContainerRaw(node, defaultGrammarView);
+		writeContainerRaw(node, grammar);
 		expect(node.raw).toBe(once);
 	});
 
@@ -92,14 +94,14 @@ describe('GitHub-alert conversion escalates past colon runs in the alert body', 
 		const { converted } = convertGithubAlertsInDocument('> [!NOTE]\n> :::\n> more\n');
 		const doc = parse(converted);
 		expect(doc.children.length).toBe(1);
-		expect(doc.children[0].kind).toBe('admonition');
+		expect(doc.children[0].kind).toBe(ADMONITION);
 	});
 
 	it('escalates the naive full-text converter identically', () => {
 		const { converted } = convertGithubAlerts('> [!NOTE]\n> ::::\n> more\n');
 		const doc = parse(converted + '\n');
 		expect(doc.children.length).toBe(1);
-		expect(doc.children[0].kind).toBe('admonition');
+		expect(doc.children[0].kind).toBe(ADMONITION);
 	});
 
 	it('leaves a collision-free conversion on the canonical 3-colon fence', () => {

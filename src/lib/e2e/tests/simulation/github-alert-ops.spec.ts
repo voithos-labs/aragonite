@@ -37,19 +37,19 @@ test.describe('github-alert-ops simulation', () => {
 		const g = new Gestures(ctx, makeRng(1));
 
 		await assertCheckpoint(ctx, 'loaded');
-		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
+		expect(await editor.bridge.getBlockKind(1)).toBe('admonitions/alert');
 
 		// ── Build an alert after the last block; the one already there stays at [1] ──
 		// Types `> [!TIP]` and a body key by key, so the block becomes a container with the body
 		// inside; the typed alert ends up at [3].
 		await g.typeGithubAlert(2, 'TIP', 'Fresh alert body');
-		expect(await editor.bridge.getBlockKind(3)).toBe('githubAlert');
+		expect(await editor.bridge.getBlockKind(3)).toBe('admonitions/alert');
 		expect(await editor.bridge.getSource()).toContain('> [!TIP]\n> Fresh alert body');
 		await assertCheckpoint(ctx, 'typed-from-scratch');
 
 		// ── Editing inside the typed alert rebuilds it and keeps its kind ───────────
 		await g.editContainerBody([3, 0], ' plus');
-		expect(await editor.bridge.getBlockKind(3)).toBe('githubAlert');
+		expect(await editor.bridge.getBlockKind(3)).toBe('admonitions/alert');
 		expect(await editor.bridge.getSource()).toContain('Fresh alert body plus');
 		await assertCheckpoint(ctx, 'body-edited');
 
@@ -57,7 +57,7 @@ test.describe('github-alert-ops simulation', () => {
 		// Alt+ArrowDown swaps body child 0 in place; the alert keeps its kind, its marker and its
 		// position in the document.
 		await g.reorderGithubAlertBodyChild(1, 0, 1);
-		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
+		expect(await editor.bridge.getBlockKind(1)).toBe('admonitions/alert');
 		expect(await editor.bridge.getSource()).toContain('[!WARNING]');
 		await assertCheckpoint(ctx, 'body-reordered');
 
@@ -69,14 +69,14 @@ test.describe('github-alert-ops simulation', () => {
 
 		// ── Unwrap the existing alert: the marker goes and [1] reparses as plain ────
 		await g.unwrapGithubAlert(1);
-		expect(await editor.bridge.getBlockKind(1)).not.toBe('githubAlert');
+		expect(await editor.bridge.getBlockKind(1)).not.toBe('admonitions/alert');
 		expect(await editor.bridge.getSource()).not.toContain('[!WARNING]');
 		await assertCheckpoint(ctx, 'unwrapped');
 
 		// ── One undo of that Backspace brings the alert back ─────────────────────────
 		await g.pause();
 		await g.undo();
-		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
+		expect(await editor.bridge.getBlockKind(1)).toBe('admonitions/alert');
 		expect(await editor.bridge.getSource()).toContain('[!WARNING]');
 		await assertCheckpoint(ctx, 'undo-unwrap');
 	});

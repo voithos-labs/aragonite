@@ -25,7 +25,7 @@ const OPENERS: Opener[] = [
 	{ opener: '$$', below: { raw: '$$\nx\n$$\n', kind: 'latex/block' }, written: '$$\n$$', cut: 1 },
 	{
 		opener: ':::note',
-		below: { raw: ':::tip\nbody\n:::\n', kind: 'admonition' },
+		below: { raw: ':::tip\nbody\n:::\n', kind: 'admonitions/admonition' },
 		written: ':::note\n:::',
 		cut: 3
 	},

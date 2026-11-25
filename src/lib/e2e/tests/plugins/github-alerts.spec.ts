@@ -36,7 +36,7 @@ test.describe('plugin github alerts', () => {
 		expect(badge).toContain('Caution');
 
 		// The alert block keeps its GitHub bytes verbatim, never rewritten to `:::caution`.
-		expect((await readDoc(page)).kinds[5]).toBe('githubAlert');
+		expect((await readDoc(page)).kinds[5]).toBe('admonitions/alert');
 		expect((await readContainer(page, 5)).raw).toBe('> [!CAUTION]\n> Still a blockquote alert.\n');
 	});
 
@@ -50,7 +50,7 @@ test.describe('plugin github alerts', () => {
 		const source = await editor.bridge.getSource();
 		// The marker survived the rebuild verbatim; the kind is stable.
 		expect(source).toContain('> [!CAUTION]\n> Still a blockquote alert. EDITED');
-		expect((await readDoc(page)).kinds[5]).toBe('githubAlert');
+		expect((await readDoc(page)).kinds[5]).toBe('admonitions/alert');
 		expect(await roundTripStable(page)).toBe(true);
 
 		await editor.undo();
@@ -67,9 +67,9 @@ test.describe('plugin github alerts', () => {
 
 		// The body block lifts out and the marker goes: no alert remains, the content is a plain
 		// block, and the bytes are never rewritten to `:::`.
-		await waitForDoc(page, (s) => !s.kinds.includes('githubAlert'));
+		await waitForDoc(page, (s) => !s.kinds.includes('admonitions/alert'));
 		const doc = await readDoc(page);
-		expect(doc.kinds).not.toContain('githubAlert');
+		expect(doc.kinds).not.toContain('admonitions/alert');
 		expect(doc.texts).toContain('hello there');
 		expect(await editor.bridge.getSource()).not.toContain('[!TIP]');
 		expect(await roundTripStable(page)).toBe(true);
@@ -88,7 +88,7 @@ test.describe('plugin github alerts', () => {
 		// `githubAlert` with its marker, never lifting the block out.
 		const alert = await waitForContainer(page, 0, (s) => s.childCount === 1);
 		expect(alert.rootCount).toBe(1);
-		expect(alert.kind).toBe('githubAlert');
+		expect(alert.kind).toBe('admonitions/alert');
 		expect(alert.childTexts[0]).toContain('first');
 		expect(alert.childTexts[0]).toContain('second');
 		expect(alert.raw).toContain('[!TIP]');
@@ -107,13 +107,13 @@ test.describe('plugin github alerts', () => {
 
 		await editor.bridge.waitForSourceMatches(/> second[\s\S]*> first/);
 		const alert = await readContainer(page, 1);
-		expect(alert.kind).toBe('githubAlert');
+		expect(alert.kind).toBe('admonitions/alert');
 		expect(alert.childCount).toBe(2);
 		expect(alert.childTexts[0]).toContain('second');
 		expect(alert.childTexts[1]).toContain('first');
 		expect(alert.raw).toContain('[!TIP]'); // the marker survived the rebuild
 		// Nothing moved: the surrounding blocks keep their positions.
-		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'githubAlert', 'paragraph']);
+		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'admonitions/alert', 'paragraph']);
 		expect(await roundTripStable(page)).toBe(true);
 
 		await editor.undo(); // one entry restores the order
@@ -129,11 +129,11 @@ test.describe('plugin github alerts', () => {
 		await editor.typeSlowly('>');
 		await waitForDoc(page, (s) => s.kinds[1] === 'blockquote');
 		await editor.typeSlowly('[!TIP]');
-		await waitForDoc(page, (s) => s.kinds[1] === 'githubAlert');
+		await waitForDoc(page, (s) => s.kinds[1] === 'admonitions/alert');
 		await editor.typeSlowly('Fresh alert body');
 
-		const doc = await waitForDoc(page, (s) => s.kinds.includes('githubAlert'));
-		const alertIndex = doc.kinds.indexOf('githubAlert');
+		const doc = await waitForDoc(page, (s) => s.kinds.includes('admonitions/alert'));
+		const alertIndex = doc.kinds.indexOf('admonitions/alert');
 		expect((await readContainer(page, alertIndex)).childTexts).toContain('Fresh alert body');
 		expect(await editor.bridge.getSource()).toContain('> [!TIP]\n> Fresh alert body');
 		expect(await roundTripStable(page)).toBe(true);

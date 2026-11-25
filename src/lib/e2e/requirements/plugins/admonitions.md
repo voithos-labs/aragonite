@@ -1,11 +1,9 @@
 # Feature: Plugin Admonitions, dogfood battery
 
-The admonitions dogfood registers one `admonition` container kind that five directive names
-(`note`/`tip`/`important`/`warning`/`caution`) resolve into, reading their variant back from
-metadata. Child 0 is the editable title leaf; the opener line carries the kind and the title,
-and is rebuilt from the children plus the metadata after every edit. In the composed harness the
-callout dogfood takes `note`/`warning` first, so every scenario here drives a kind the
-admonitions plugin owns (`tip`/`important`/`caution`).
+The admonitions plugin's one box type, `admonitions/admonition`, answers five `:::` names
+(`note`/`tip`/`important`/`warning`/`caution`), and its data is the name. Child 0 is the editable
+title row; the opener line carries the name and the title, and the editor writes the box's other
+lines around its children after every edit.
 
 The seed (`?seed=admonitions`) holds a heading, an untitled `:::important`, a titled
 `:::tip Pro tip` and a titled `:::caution Heads up`, a convertible top-level `> [!CAUTION]`

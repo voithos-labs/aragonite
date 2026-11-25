@@ -64,7 +64,7 @@ test.describe('opaque containers decline nested reorder', () => {
 	}) => {
 		await editor.loadContent(ADMONITION);
 		const admonition = await readContainer(page, 0);
-		expect(admonition.kind).toBe('admonition');
+		expect(admonition.kind).toBe('admonitions/admonition');
 		expect(admonition.childKinds).toEqual(['directiveOpenerLine', 'paragraph', 'paragraph']);
 
 		await expect(ownHandle(page, [0, 0])).toHaveCount(0); // title chrome
@@ -102,7 +102,11 @@ test.describe('opaque containers decline nested reorder', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 
 		// The container never moved to another document index: the order is preserved.
-		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'admonition', 'paragraph']);
+		expect((await readDoc(page)).kinds).toEqual([
+			'paragraph',
+			'admonitions/admonition',
+			'paragraph'
+		]);
 	});
 
 	test('a declined Alt+Arrow pushes no undo entry the next Ctrl+Z would consume', async ({

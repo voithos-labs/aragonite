@@ -9,7 +9,6 @@ import {
 	registerBlockKind,
 	registerBlockCommand,
 	registerDirective,
-	registerPasteTransform,
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
@@ -18,23 +17,14 @@ import {
 	type CstNode,
 	type ParsedDirective,
 	type PluginBlockKind
-} from '@voithos-labs/aragonite/plugin';
+} from '#lib/plugin.js';
 import {
 	ADMONITION,
 	ADMONITION_KINDS,
 	coerceAdmonitionName,
 	type AdmonitionMetadata
 } from './kinds';
-import { githubAlertsPasteTransform } from './convert-document';
 import { registerGithubAlert } from './github-alert-kind';
-
-export interface AdmonitionsOptions {
-	/**
-	 * Rewrite pasted GitHub-alert blockquotes to `:::name` source before the parse
-	 * (default false). Off, they stay GitHub bytes and render as `githubAlert`.
-	 */
-	convertAlertsOnPaste?: boolean;
-}
 
 /** The body's blocks; the grammar puts the opener line, which holds the title, in front of them. */
 function admonitionFromDirective(kind: PluginBlockKind) {
@@ -55,7 +45,7 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 }
 
 /** `view` draws both the admonition and the GitHub alert. */
-export function registerAdmonitions(view: BlockView, options?: AdmonitionsOptions): void {
+export function registerAdmonitions(view: BlockView): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
 
 	const admonition = declarePluginKind(ADMONITION);
@@ -97,10 +87,6 @@ export function registerAdmonitions(view: BlockView, options?: AdmonitionsOption
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
 		samples: [':::note Heads up\n\nbody\n\n:::\n']
 	});
-
-	if (options?.convertAlertsOnPaste) {
-		registerPasteTransform(githubAlertsPasteTransform);
-	}
 
 	registerGithubAlert(view);
 }

@@ -1,10 +1,9 @@
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '#lib';
+import { parse as parseDoc } from '#lib';
 import { checkStaleRaw } from '#lib/invariants/node-shape.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { ALERT, admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
 
 // Typing `> [!TIP]` reparses into a marker-only alert whose raw cannot account for the empty
 // paragraph the editor adds for the caret; a blockquote's `>` line doubles as that blank body,
@@ -12,8 +11,11 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 // raw and the children disagree (G1.1). A marker line with no ending is the file's last line,
 // and the empty body stays on it.
 
+let grammar: ReturnType<typeof admonitionsGrammar>;
+const parse = (source: string) => parseDoc(source, { grammar });
+
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	grammar = admonitionsGrammar();
 });
 
 describe('github alert: empty-body backfill stays consistent', () => {
@@ -22,12 +24,12 @@ describe('github alert: empty-body backfill stays consistent', () => {
 		['> [!TIP]', '> [!TIP]']
 	])('reparsing %j into a marker-only alert rebuilds raw for the backfilled body', (text, raw) => {
 		const doc = parse('para\n');
-		updateNodeContent(doc, 0, text, fixtureGrammar, createSharingState());
+		updateNodeContent(doc, 0, text, grammar, createSharingState());
 
 		const alert = doc.children[0];
-		expect(alert.kind).toBe('githubAlert');
+		expect(alert.kind).toBe(ALERT);
 		expect(alert.children?.length).toBe(1);
 		expect(alert.raw).toBe(raw);
-		expect(checkStaleRaw(alert, fixtureGrammar)).toBeNull();
+		expect(checkStaleRaw(alert, grammar)).toBeNull();
 	});
 });

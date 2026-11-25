@@ -19,7 +19,7 @@ import { reservedChromeKindOf } from '#lib/schema/reserved-chrome.js';
 import { blockFacts, type BlockFacts } from '#lib/schema/block-facts.js';
 import { isWholeBlockUnit } from '#lib/schema/whole-block-unit.js';
 import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
 import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { footnotes } from '#packages/footnotes/src/index.js';
@@ -32,7 +32,7 @@ import { toc } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => PluginsProp[number]> = {
-	admonitions: admonitionsPlugin,
+	admonitions: () => admonitions,
 	details: () => details,
 	emoji: () => emoji,
 	footnotes: () => footnotes,
@@ -52,10 +52,9 @@ beforeEach(() => installPlugins(PLUGINS));
 
 const MARKER_LINES: Record<string, 'every-line' | 'first-line'> = {
 	blockquote: 'every-line',
-	githubAlert: 'every-line',
 	listItem: 'first-line'
 };
-const LAZY_LINES = ['blockquote', 'githubAlert', 'listItem'];
+const LAZY_LINES = ['blockquote', 'listItem'];
 const BUILT_IN_SHAPES: Record<string, BlockFacts['lines']> = {
 	list: 'items',
 	table: 'rows',
@@ -64,8 +63,7 @@ const BUILT_IN_SHAPES: Record<string, BlockFacts['lines']> = {
 /** Containers a pasted one of the same kind joins, by the metadata field they share (null: any). */
 const MERGE_KEYS: Record<string, string | null> = {
 	blockquote: null,
-	list: 'ordered',
-	githubAlert: 'alertType'
+	list: 'ordered'
 };
 /** Literal kinds whose lines are no body: a line pasted in one is not one of its lines. */
 const NO_BODY_LINES = ['linkReferenceDefinition'];

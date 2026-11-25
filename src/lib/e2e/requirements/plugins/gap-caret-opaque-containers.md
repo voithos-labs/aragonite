@@ -4,7 +4,7 @@ Opaque containers (the admonition callouts, details, the generic `:::` directive
 the group with no way out through typing: two callouts side by side leave nowhere to type a
 paragraph between them. The rule for that group (#93): every opaque kind declares
 `gapEdges: 'both'`, while the containers whose marker is stripped (blockquote, list, listItem,
-githubAlert) declare nothing, because their own unwrap and exit gestures already let you insert
+admonitions/alert) declare nothing, because their own unwrap and exit gestures already let you insert
 a block. Whether a boundary qualifies is read from the descriptor, and no selection code names a
 kind.
 

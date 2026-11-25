@@ -1,30 +1,34 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse, serialize } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { parse as parseDoc, serialize } from '#lib';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { describeConvergence, parseConverges } from '#lib/testing/parse-convergence.js';
 import { nodeAt } from '#lib/tree-operations/index.js';
 import { makeContainerHarness, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { containerAt, typeSlowly } from './formation-harness';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { ALERT, admonitionsGrammar } from '#lib/test/support/admonitions-grammar.js';
 
 // Per-keystroke `> [!TYPE]` formation. Typing the marker one character at a time only
 // ever writes the container's inner child, so nothing in that child's own reparse notices
 // that the blockquote's rebuilt raw now opens as a `githubAlert`: inserting the whole marker
 // at once does classify it, and this path would quietly not.
 
+let grammar: ReturnType<typeof admonitionsGrammar>;
+const parse = (source: string) => parseDoc(source, { grammar });
+
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	grammar = admonitionsGrammar();
 });
 
 describe('github alert: per-keystroke marker formation', () => {
 	it('reclassifies the blockquote once the marker completes', async () => {
-		const h = containerAt('> [!TI\n', [0]);
+		const h = containerAt('> [!TI\n', [0], grammar);
 
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
 
-		expect(h.getNode().kind).toBe('githubAlert');
-		expect(describeConvergence(h.deps.doc)).toBeNull();
+		expect(h.getNode().kind).toBe(ALERT);
+		expect(describeConvergence(h.deps.doc, grammar)).toBeNull();
 		expect(serialize(h.deps.doc)).toBe('> [!TIP]\n>\n');
 	});
 
@@ -34,7 +38,7 @@ describe('github alert: per-keystroke marker formation', () => {
 		{ where: 'at the root', source: '> [!TI\n> body\n', quote: [0] },
 		{ where: 'inside a list item', source: '- > [!TI\n  > body\n', quote: [0, 0, 0] }
 	])('lands the caret at the alert body start $where', async ({ source, quote }) => {
-		const h = makeContainerHarness(source, quote);
+		const h = makeContainerHarness(source, quote, { reading: fixtureReading({ grammar }) });
 
 		await h.bundle.blockEdit.updateBlockContent(
 			0,
@@ -53,21 +57,21 @@ describe('github alert: per-keystroke marker formation', () => {
 			6
 		);
 
-		expect(h.getNode().kind).toBe('githubAlert');
+		expect(h.getNode().kind).toBe(ALERT);
 		expect(h.getNode().children!.map((c) => c.raw)).toEqual(['body\n']);
 		expect(h.landings).toMatchObject([{ leafPath: [...quote, 0], offset: 0 }]);
 	});
 
 	it('keeps a multi-block body addressable, ids and all', async () => {
-		const h = containerAt('> [!TI\n>\n> one\n>\n> two\n', [0]);
+		const h = containerAt('> [!TI\n>\n> one\n>\n> two\n', [0], grammar);
 
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
 
 		const alert = h.getNode();
-		expect(alert.kind).toBe('githubAlert');
+		expect(alert.kind).toBe(ALERT);
 		expect(alert.children).toHaveLength(2);
 		expect(alert.childIds?.filter(Boolean)).toHaveLength(2);
-		expect(parseConverges(h.deps.doc)).toBe(true);
+		expect(parseConverges(h.deps.doc, grammar)).toBe(true);
 	});
 
 	// Two different container shapes: a blockquote's strip rebuild re-prefixes its lines,
@@ -76,46 +80,48 @@ describe('github alert: per-keystroke marker formation', () => {
 		['an enclosing blockquote', '> > [!TI\n', [0, 0], [0], 'blockquote'],
 		['an enclosing list item', '- > [!TI\n', [0, 0, 0], [0, 0], 'listItem']
 	])('forms at depth inside %s', async (_label, source, alertPath, hostPath, hostKind) => {
-		const h = containerAt(source, alertPath);
+		const h = containerAt(source, alertPath, grammar);
 
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
 
 		expect(nodeAt(h.deps.doc, hostPath)?.kind).toBe(hostKind);
-		expect(nodeAt(h.deps.doc, alertPath)?.kind).toBe('githubAlert');
-		expect(parseConverges(h.deps.doc)).toBe(true);
+		expect(nodeAt(h.deps.doc, alertPath)?.kind).toBe(ALERT);
+		expect(parseConverges(h.deps.doc, grammar)).toBe(true);
 	});
 
 	// The identity rule the swap relies on: block ids live in the parent's parallel array,
 	// never on the node, so replacing the child at that index keeps the id for free.
 	it('keeps the container id at its slot across the swap', async () => {
-		const h = containerAt('> [!TI\n', [0]);
+		const h = containerAt('> [!TI\n', [0], grammar);
 		const idBefore = h.getBlockIds()[0];
 
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
 
-		expect(h.getNode().kind).toBe('githubAlert');
+		expect(h.getNode().kind).toBe(ALERT);
 		expect(h.getBlockIds()).toEqual([idBefore]);
 	});
 
 	// The list item's own raw (`- [!TIP]`) parses to a list, so a re-derivation keyed off
 	// the raw alone rather than the opener registry would swallow the item.
 	it('leaves a list item a list item when its text completes a marker', async () => {
-		const h = containerAt('- [!TI\n', [0, 0]);
+		const h = containerAt('- [!TI\n', [0, 0], grammar);
 
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
 
 		expect(h.deps.doc.children[0].kind).toBe('list');
 		expect(h.deps.doc.children[0].children?.[0].kind).toBe('listItem');
-		expect(parseConverges(h.deps.doc)).toBe(true);
+		expect(parseConverges(h.deps.doc, grammar)).toBe(true);
 	});
 
 	// Inserting the whole marker at once is the shipped path and the reference result:
 	// per-keystroke formation must produce the same document and the same undo depth.
 	it('agrees with the atomic whole-marker insert', async () => {
-		const typed = containerAt('> [!TI\n', [0]);
+		const typed = containerAt('> [!TI\n', [0], grammar);
 		await typeSlowly(typed.bundle, 0, '[!TI', 'P]');
 
-		const atomic = makeEditorActionsDeps(parse('x\n').children);
+		const atomic = makeEditorActionsDeps(parse('x\n').children, {
+			reading: fixtureReading({ grammar })
+		});
 		const atomicActions = createBlockEditActions(atomic.deps, createUndoController(atomic.deps));
 		await atomicActions.updateBlockContent(0, '> [!TIP]\n', 'authored', 'join-typing', 1, 9);
 
@@ -130,7 +136,7 @@ describe('github alert: per-keystroke marker formation', () => {
 	// Guards the shared snapshot against a future swap corrupting it; it cannot fail for a
 	// missing reclassification, where the snapshot is trivially a blockquote.
 	it('restores the pre-formation blockquote on undo', async () => {
-		const h = containerAt('> [!TI\n', [0]);
+		const h = containerAt('> [!TI\n', [0], grammar);
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
 
 		const restored = h.deps.undoManager.getStacks().undo.at(-1)!.snapshot;

@@ -29,11 +29,11 @@ interface Exemption {
 /** Publishing the entry point an entry waits on empties that entry, and a dead one fails below. */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
-		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		specifiers: ['#lib/schema/container-writer.js'],
 		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-round-trip.test.ts': {
-		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		specifiers: ['#lib/schema/container-writer.js'],
 		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/footnotes/definition-container.test.ts': {
@@ -45,7 +45,6 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/invariants/node-shape.js',
 			'#lib/tree-operations/sharing.js',
 			'#lib/tree-operations/chain-rebuild.js',
-			'#lib/schema/editor-grammar.js',
 			'#lib/schema/container-writer.js'
 		],
 		reason:
@@ -97,9 +96,8 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'reads a node by path out of a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-unwrap.test.ts': {
-		specifiers: ['#lib/tree-operations/index.js', '#lib/schema/editor-grammar.js'],
-		reason:
-			'nothing published unwraps a child from its quote off a parsed document, or names the grammar the unwrap reads its remainder with'
+		specifiers: ['#lib/tree-operations/index.js'],
+		reason: 'nothing published unwraps a child from its quote off a parsed document'
 	},
 	'src/lib/test/plugins/details/terminator-collision.test.ts': {
 		specifiers: [
