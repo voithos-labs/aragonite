@@ -115,9 +115,9 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 		},
 		multiLine: true,
 		split,
-		/** The block's bytes with `text` as its body, through the write rule, so a fence grows past a
-		 *  body line that would close it. An emptied body takes its last line break with it. */
-		writeBody(node: NodeView, text: string, ending: LineEnding): string {
+		/** The block's bytes with `text` as its body, a fence grown past a line that would close it;
+		 *  null where one still would. An emptied body takes its last line break with it. */
+		writeBody(node: NodeView, text: string, ending: LineEnding): string | null {
 			const raw = node.raw;
 			const lines = withLineEnding(text, ending);
 			const at = bodyOf(raw);
@@ -132,7 +132,14 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 					? head + lines + ending + raw.slice(start)
 					: head + ending + lines;
 			}
-			return writes.normalize(written, { node, mode: 'literal', lineEnding: ending });
+			// A one-line block given lines takes them on lines of its own, as a typed break does.
+			const shown = trimTrailingLineEnding(written);
+			const broken = text.includes('\n') ? brokenOneLine(fixed, shown) : null;
+			if (broken?.closed)
+				written = onOwnLines(shown, broken, 0).text + ownTrailingLineEnding(written);
+			const out = writes.normalize(written, { node, mode: 'literal', lineEnding: ending });
+			const read = parts(out, false);
+			return read && trimTrailingLineEnding(out.slice(read.closerEnd)) === '' ? out : null;
 		},
 		/** The shown text in the shape the block keeps while it's edited: a one-line block a line
 		 *  break went into on lines of its own, and a closed block with no body line given one. */

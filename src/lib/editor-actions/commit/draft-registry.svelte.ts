@@ -7,7 +7,7 @@
  * undo, the redo and the mode change that close the drafts save them first.
  */
 
-import { tick } from 'svelte';
+import { tick, untrack } from 'svelte';
 import type { Draft, DraftCloseCause, DraftResult, DraftSpec } from '../../schema/drafts';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import type { CommitSnapshotArg, SourceSplice } from '../../action-contracts';
@@ -136,8 +136,9 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		let illegal: string | null = null;
 		let ended = false;
 		let closed = false;
-		let committing = false;
-		saving?.push({ committed: () => committing || ended });
+		// Set once its commit lands or answers at once, so one waiting on a render isn't committed.
+		let answered = false;
+		saving?.push({ committed: () => answered || ended });
 		// Fixed at its end, since an ended draft stops hearing writes.
 		let touchedAtEnd = false;
 
@@ -313,15 +314,16 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				return mapped && byteAt(partLengths(deps.doc()), mapped.from);
 			},
 			async commit(options) {
-				committing = true;
 				if (closed) return refused('closed', 'the menu it was picked from closed first');
 				if (ended) return refused('empty', 'the draft was ended');
 				const none = writes.length + datas.length + bodies.length + inserts.length === 0;
-				if (none && !illegal) return refused('empty', 'nothing was written to it');
+				answered = none && !illegal;
+				if (answered) return refused('empty', 'nothing was written to it');
 				try {
 					// A commit made inside a render (a field's blur as windowing removes its block)
 					// lands once that render is done, as a write from inside one corrupts it.
 					if ($effect.tracking()) await tick();
+					answered = true;
 					return await land(options?.caret);
 				} finally {
 					end();
@@ -364,16 +366,20 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			return made;
 		},
 		closeAll(cause) {
-			if (cause !== 'document-swap') saveAll();
-			for (const [made, spec] of [...closers]) {
-				closers.delete(made);
-				if (cause === 'document-swap') torn.add(made);
-				spec.close(cause);
-				made.end();
-			}
-			// The records measure a document that's gone; a re-read keeps it, and its drafts.
-			for (const opened of [...open]) if (!opened.on.live) drop(opened);
-			version++;
+			// Untracked, so a write a save or a closer commits lands now, though a host's effect ran
+			// the undo, and the undo takes it back.
+			untrack(() => {
+				if (cause !== 'document-swap') saveAll();
+				for (const [made, spec] of [...closers]) {
+					closers.delete(made);
+					if (cause === 'document-swap') torn.add(made);
+					spec.close(cause);
+					made.end();
+				}
+				// The records measure a document that's gone; a re-read keeps it, and its drafts.
+				for (const opened of [...open]) if (!opened.on.live) drop(opened);
+				version++;
+			});
 		},
 		holdSave(save) {
 			saves.add(save);
