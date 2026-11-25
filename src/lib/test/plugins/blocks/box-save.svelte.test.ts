@@ -132,6 +132,20 @@ describe("a box's unwritten text", () => {
 		expect(editor.source()).toBe('Above!\n\n```box\ntyped\n```\n');
 	});
 
+	it("is left alone by a second editor's undo, mode change and load", async () => {
+		const editor = await mounted();
+		const other = mountEditor({ source: 'Other\n\n```box\nb\n```\n', plugins: [boxes] });
+		await other.settle();
+		typeInBox(editor, 'typed');
+		other.instance.runCommand('history.undo');
+		other.props.presentationMode = 'live';
+		await other.settle();
+		other.props.source = 'Swapped\n';
+		await other.settle();
+		expect(editor.source()).toBe('Above!\n\n```box\nfirst\n```\n');
+		expect(fieldOf(editor)).toBe('typed');
+	});
+
 	it('is saved before a redo, which then has nothing left to redo', async () => {
 		const editor = await mounted();
 		await run(editor, 'history.undo');
