@@ -26,10 +26,21 @@ async function open(page: Page, mode: Mode, source = T): Promise<PluginsPage> {
 	return editor;
 }
 
-/** Holds the marker of the row at `path` as a user does: a caret where the title starts (live) or
- *  at the row's start (source), then Shift keys over the marker. */
-async function selectMarker(editor: PluginsPage, mode: Mode, path = [0, 0], marker = ':::tip ') {
+/** Holds the opening row's `:::tip ` as a user does: up from the body, then to the row's start. */
+async function selectMarker(editor: PluginsPage, mode: Mode): Promise<void> {
+	await editor.focusBlockAtPath([0, 1], 0);
+	await editor.page.keyboard.press('ArrowUp');
+	await extendOverMarker(editor, mode, ':::tip ');
+}
+
+/** Holds the marker of the row at `path` from a caret on the row: where the title starts (live) or
+ *  at the row's start (source), for a body that takes no caret (a rule). */
+async function selectMarkerOnRow(editor: PluginsPage, mode: Mode, path: number[], marker: string) {
 	await editor.focusBlockAtPath(path, mode === 'live' ? marker.length : 0);
+	await extendOverMarker(editor, mode, marker);
+}
+
+async function extendOverMarker(editor: PluginsPage, mode: Mode, marker: string): Promise<void> {
 	if (mode === 'live') await editor.page.keyboard.press(extendKey('lineStart'));
 	else for (let i = 0; i < marker.length; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 	expect(await editor.page.evaluate(() => getSelection()?.toString())).toBe(marker);
@@ -156,7 +167,7 @@ test.describe('The shapes a broken opening row unwraps', () => {
 		for (const [name, source, path, marker, bytes] of SHAPES)
 			test(`(${mode}) ${name}`, async ({ page }) => {
 				const editor = await open(page, mode, source);
-				await selectMarker(editor, mode, path, marker);
+				await selectMarkerOnRow(editor, mode, path, marker);
 				await page.keyboard.press('Backspace');
 				await editor.bridge.waitForSourceEquals(bytes);
 			});
@@ -168,6 +179,16 @@ test.describe('The shapes a broken opening row unwraps', () => {
 			await page.keyboard.press('Backspace');
 			await editor.bridge.waitForSourceEquals(UNWRAPPED);
 		});
+
+	test('(source) a paste over the untitled row held whole', async ({ page }) => {
+		const editor = await open(page, 'source', ':::tip\nbody\n:::\n');
+		await editor.focusBlockAtPath([0, 1], 0);
+		await page.keyboard.press('ArrowUp');
+		await page.keyboard.press(extendKey('lineEnd'));
+		await editor.seedClipboard('X');
+		await editor.paste();
+		await editor.bridge.waitForSourceEquals('X\n\nbody\n');
+	});
 
 	test('(source) the titled row held whole', async ({ page }) => {
 		const editor = await open(page, 'source');

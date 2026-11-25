@@ -4,8 +4,8 @@ A `:::` container opens with a row (`:::tip Title`) and closes with a line of co
 removed from that row which leaves it fewer than three colons takes the rest of the row's syntax
 and the closing line too: what is left of the title stands as a paragraph, a blank line, then the
 body as ordinary blocks. Driven on `/test/plugins?seed=admonitions` in live and source mode, the
-marker held by keys from a caret on the row (live: at the title's start, Shift+Home; source: at
-the row's start, Shift+ArrowRight over the marker), in every shape below too.
+marker held by keys (live: ArrowUp from the body, Shift+Home; source: ArrowUp, Shift+ArrowRight
+seven times). The shapes below hold theirs from a caret on the row, since a rule takes no caret.
 
 Miss-analysis: every row over an opening row was a range that ran off it or a key at a caret, so
 none removed a selection inside the row, and the closing line it left read as text.
@@ -23,6 +23,7 @@ none removed a selection inside the row, and the closing line it left read as te
 
 - An untitled row selected whole: `body` alone, no paragraph above it
 - In source mode the titled row selected whole (Shift+End): `body` alone
+- In source mode, `X` pasted over the untitled row selected whole: `X`, a blank line, `body`, no closing line (the paste once kept it)
 - The inner box of a `::::note` over a `:::tip`: the inner box only unwraps, inside the note
 - In a quote and in a list item: the paragraph, a blank line behind the markers, the body
 - A generic `:::foo` box unwraps as a callout does
