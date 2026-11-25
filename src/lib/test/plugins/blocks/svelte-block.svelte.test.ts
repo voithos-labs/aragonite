@@ -5,6 +5,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin } from '#lib/schema/plugin-install.js';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
+import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
+import { command } from '#lib/schema/plugin-command.js';
+import type { Block } from '#lib/schema/doc-view.js';
 import { svelteBlock } from '#lib/components/drawn-block/svelte-block.svelte.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
@@ -18,6 +21,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import SlottedNote from '../fixtures/SlottedNote.svelte';
 import DrawnDie from '../fixtures/DrawnDie.svelte';
+import SavedField from '../fixtures/SavedField.svelte';
 
 beforeEach(installLayoutStubs);
 afterEach(async () => {
@@ -108,5 +112,50 @@ describe('svelteBlock', () => {
 		editor.instance.__test.getBlockComponent([1]).focus?.(0);
 		await editor.settle();
 		expect(document.activeElement).toBe(blockHostAt(editor, [1]).querySelector('.die'));
+	});
+
+	// Miss-analysis: the wrapper's `save` and `handle` getters were added with no component declaring
+	// either, so deleting them left every suite green.
+	it('hands the editor the `save` and `handle` its component declares with `useDrawn`', async () => {
+		const handed: unknown[] = [];
+		const focusField = command<Block<never>, { focus(): void }>({
+			id: 'focus-field',
+			title: 'Focus the field',
+			run: (_editor, _block, field) => {
+				handed.push(field);
+				field?.focus();
+			}
+		});
+		const saved = definePlugin({
+			name: 'saved',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				blocks: [
+					fencedBlock({
+						name: 'field',
+						label: 'Field',
+						fence: { info: 'field' },
+						sample: '```field\nx\n```',
+						insert: { none: 'a test block type' },
+						actions: [{ label: 'Focus', command: focusField }],
+						edit: 'box',
+						draw: svelteBlock(SavedField)
+					})
+				]
+			})
+		});
+		const editor = mountEditor({ source: '```field\nfirst\n```\n', plugins: [saved] });
+		await editor.settle();
+		const field = () => editor.target.querySelector<HTMLTextAreaElement>('.saved-field')!;
+		field().value = 'typed';
+		editor.instance.runCommand('history.undo');
+		await editor.settle();
+		editor.instance.runCommand('history.redo');
+		await editor.settle();
+		expect(editor.source()).toBe('```field\ntyped\n```\n');
+		expect(editor.instance.run(focusField, editor.instance.doc.blocks[0])).toBe(true);
+		expect(handed).toHaveLength(1);
+		expect(document.activeElement).toBe(field());
 	});
 });
