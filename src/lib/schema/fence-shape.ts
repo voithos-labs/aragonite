@@ -23,6 +23,7 @@ import { joinRaw } from '../core/parser';
 import {
 	fenceAnatomy,
 	fenceReading,
+	fenceRunLength,
 	matchFenceInfo,
 	type FenceOpen
 } from '../core/parsers/fence-syntax';
@@ -137,7 +138,8 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 			const broken = text.includes('\n') ? brokenOneLine(fixed, shown) : null;
 			if (broken?.closed)
 				written = onOwnLines(shown, broken, 0).text + ownTrailingLineEnding(written);
-			const out = writes.normalize(written, { node, mode: 'literal', lineEnding: ending });
+			const normalized = writes.normalize(written, { node, mode: 'literal', lineEnding: ending });
+			const out = opensInfo(raw) ? keptCloser(raw, normalized) : normalized;
 			const read = parts(out, false);
 			return read && trimTrailingLineEnding(out.slice(read.closerEnd)) === '' ? out : null;
 		},
@@ -223,6 +225,18 @@ function withBodyLine(shown: ShownFence | null, lineEnding: LineEnding): CaretTe
 		text: openerLine + ending + ending + shown.closer + shown.after,
 		caret: openerLine.length + ending.length
 	};
+}
+
+// A body write grows a fence and never shortens one: a closer still as long as the grown opener
+// stays as it was written.
+function keptCloser(was: string, now: string): string {
+	const before = fenceAnatomy(was);
+	const after = fenceAnatomy(now);
+	if (!before?.closed || !after?.closed || before.marker !== after.marker) return now;
+	const closer = trimTrailingLineEnding(was.slice(before.closerStart));
+	if (fenceRunLength(closer, before.marker) < after.length) return now;
+	const end = after.closerStart + trimTrailingLineEnding(now.slice(after.closerStart)).length;
+	return now.slice(0, after.closerStart) + closer + now.slice(end);
 }
 
 /* -------------------------------------------------------------------------- */

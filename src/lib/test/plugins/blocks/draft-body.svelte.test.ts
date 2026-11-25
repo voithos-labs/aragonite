@@ -95,7 +95,16 @@ describe('a body written', () => {
 		['```mermaid\n```\n', 'y', '```mermaid\ny\n```\n'],
 		['```mermaid\n', 'x\n', '```mermaid\nx\n\n'],
 		['```mermaid\nx\n', 'y\nz', '```mermaid\ny\nz\n'],
-		['```mermaid\nx\n```', 'y\nz', '```mermaid\ny\nz\n```']
+		['```mermaid\nx\n```', 'y\nz', '```mermaid\ny\nz\n```'],
+		// Miss-analysis: every closer drawn matched its opener's run, so none was already long enough.
+		[
+			'```mermaid\ngraph TD\n  `````  \n',
+			'graph TD\n```',
+			'````mermaid\ngraph TD\n```\n  `````  \n'
+		],
+		['~~~mermaid\nx\n~~~~~\n', 'a\n~~~', '~~~~mermaid\na\n~~~\n~~~~~\n'],
+		['```mermaid\n`````\n', '```', '````mermaid\n```\n`````\n'],
+		['```mermaid\nx\n````\n', 'a\n`````', '``````mermaid\na\n`````\n``````\n']
 	])('%j given %j writes %j', async (source, text, expected) => {
 		const { result, after } = await written(source, text);
 		expect(result).toEqual({ ok: true });
@@ -108,6 +117,7 @@ describe('a body written', () => {
 		['> ```mermaid\n> x\n> y\n> ```\n', '', '> ```mermaid\n> ```\n'],
 		['> ```mermaid\n> ```\n', 'a\nb', '> ```mermaid\n> a\n> b\n> ```\n'],
 		['> ```mermaid\n> x\n> ```\n', '```', '> ````mermaid\n> ```\n> ````\n'],
+		['> ```mermaid\n> x\n> `````\n', '```', '> ````mermaid\n> ```\n> `````\n'],
 		['> - ```mermaid\n>   x\n>   ```\n', 'a\nb', '> - ```mermaid\n>   a\n>   b\n>   ```\n']
 	])('inside a container, %j given %j writes %j', async (source, text, expected) => {
 		const { result, after } = await written(source, text);
@@ -177,16 +187,20 @@ const fenceBlock = fc
 		body: fc.array(fc.tuple(line, ending), { maxLength: 4 }),
 		ending,
 		closed: fc.boolean(),
+		// A closer may run longer than its opener and carry trailing spaces.
+		longer: fc.integer({ min: 0, max: 2 }),
+		trail: fc.constantFrom('', '  '),
 		last: fc.boolean(),
 		inside: fc.constantFrom('', '> ', '- ')
 	})
-	.map(({ marker, run, indent, body, ending, closed, last, inside }) => {
+	.map(({ marker, run, indent, body, ending, closed, longer, trail, last, inside }) => {
 		const fence = marker.repeat(run);
 		// A body line of the fence's marker, as long or longer, would close it.
 		const closes = new RegExp(`^${marker}{${run},}[ \\t]*$`);
 		const kept = body.filter(([text]) => !closes.test(text.trimStart()));
 		const lines = [indent + fence + 'mermaid' + ending, ...kept.map(([t, e]) => indent + t + e)];
-		if (closed) lines.push(indent + fence + (last ? '' : ending));
+		const closer = indent + marker.repeat(run + longer) + trail;
+		if (closed) lines.push(closer + (last ? '' : ending));
 		const rest = inside === '- ' ? '  ' : inside;
 		return lines.map((l, i) => (i === 0 ? inside : rest) + l).join('');
 	});
@@ -208,6 +222,17 @@ const texBlock = fc
 		return lines.map((l, i) => (i === 0 ? inside : rest) + l).join('');
 	});
 const anyBlock = fc.oneof(fenceBlock, texBlock);
+
+/** The marker run of the line closing the source's fence, or null where its last line closes none. */
+function closerRun(source: string): number | null {
+	const lines = source.split(/\r?\n/).filter((line) => line !== '');
+	// After the markers of the quote or the item around the block.
+	const opener = /^(?:> |- )? {0,3}(`{3,}|~{3,})/.exec(lines[0])?.[1];
+	const last = lines.length > 1 ? lines[lines.length - 1] : '';
+	const closer = /^(?:> | {2})? {0,3}(`{3,}|~{3,})[ \t]*$/.exec(last)?.[1];
+	const closes = opener && closer?.[0] === opener[0] && closer.length >= opener.length;
+	return closes ? closer.length : null;
+}
 
 describe('the law', () => {
 	// Miss-analysis: the property drew code fences alone and asked only with the body as read, which
@@ -252,6 +277,9 @@ describe('the law', () => {
 					const block = blockOf(editor);
 					expect(block.type.name).toBe(type);
 					expect(block.body).toBe(t.replace(/\n/g, ending));
+					// A closer that closed the block is never written shorter.
+					const before = closerRun(source);
+					if (before !== null) expect(closerRun(editor.source())).toBeGreaterThanOrEqual(before);
 				}
 				await editor.destroy();
 			}),
