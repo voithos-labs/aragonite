@@ -1,0 +1,18 @@
+/* The harness boxes: a rule down the left, and each opening line in its type's colour. */
+.aside-box,
+.wide-box {
+	margin: 0.8em 0;
+	padding: 0.15em 0 0.15em 1em;
+	border-left: 3px solid #2da44e;
+}
+.wide-box {
+	border-left-color: #8250df;
+}
+.aside-heading {
+	font-weight: 600;
+	color: #2da44e;
+}
+.wide-heading {
+	font-weight: 600;
+	color: #8250df;
+}

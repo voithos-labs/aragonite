@@ -44,6 +44,8 @@
 	import { followKeysPlugin } from './follow-keys/follow-keys-plugin';
 	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
 	import { alertsPlugin } from './alerts/alerts-plugin';
+	import { asidesPlugin } from './asides/asides-plugin';
+	import './asides/asides.css';
 	import '../../../../examples/showcase/tag-marks.css';
 	import type { PluginsProp } from '#lib';
 
@@ -64,7 +66,8 @@
 	// name twice in the process-global registry, which warns on every page load.
 	const tagMarks = tagMarksPlugin();
 	// Seeds that run on their own plugins alone.
-	const SEEDS_WITHOUT_BASE = ['fence-lines'];
+	// `asides` runs alone so its value is the one thing that turns the directive grammar on.
+	const SEEDS_WITHOUT_BASE = ['fence-lines', 'asides'];
 
 	// The decoration examples annotate whatever text is there, so each installs only under its
 	// own seed: leaking into the others, their decorations would disturb those suites.
@@ -122,6 +125,8 @@
 		'fence-lines': [fenceLinesPlugin],
 		// A container whose type takes a key and offers a menu row of its own.
 		alerts: [alertsPlugin],
+		// Two `:::` types a plugin value makes on `colonLines`; nothing else turns directives on here.
+		asides: [asidesPlugin],
 		// A table of contents on `depends`; its type opens only in this seed.
 		outline: [outlinePlugin],
 		// Footnote numbers as a paint on `paintDepends`; its references paint only in this seed.
@@ -270,6 +275,8 @@
 			'before\n\n```js\nfirst line\nsecond line\n```\n\nbetween\n\n%%%\nfirst line\nsecond line\n%%%\n\nafter\n\n%%plain\nplain body\n%%\n',
 		drawn:
 			'above the field, a line\n\n```field\nfirst line here\nsecond line here\n```\n\nbelow the field, a line\n\n```shown\nhello\n```\n\n%> aside text\n',
+		// A titled `:::aside` and an untitled one between paragraphs.
+		asides: 'before\n\n:::aside T\nbody\n:::\n\nbetween\n\n:::aside\nbody\n:::\n\nafter\n',
 		// A paragraph above a fold, open, and a paragraph below.
 		folds: 'above\n\n[fold open]\ntitle: T\n\nbody\n\n[/fold]\n\nbelow\n',
 		// Three headings under an outline, the last far enough down that the outline leaves the

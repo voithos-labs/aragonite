@@ -104,6 +104,29 @@ describe('an editor listing a colon type and nothing else', () => {
 			{ name: 'margin' }
 		]);
 	});
+
+	it('leaves out a later type that claims a name an earlier one holds, and says so', async () => {
+		const errors: unknown[] = [];
+		const twin = container<ColonData>({
+			...ASIDE,
+			name: 'twin',
+			lines: colonLines({ names: ['margin'] })
+		});
+		const plugin = definePlugin({
+			name: 'twins',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ blocks: [container<ColonData>(ASIDE), twin] })
+		});
+		const m = mountEditor({
+			source: ':::margin T\nbody\n:::\n',
+			plugins: [plugin],
+			onError: (e) => errors.push(e)
+		});
+		await m.settle();
+		expect(kinds(m.instance.doc.blocks)).toEqual(['twins/aside']);
+		expect(String((errors[0] as { cause?: unknown })?.cause)).toMatch(/:::margin/);
+	});
 });
 
 describe('a colon type’s data and attributes', () => {
@@ -152,6 +175,16 @@ describe('a colon type’s data and attributes', () => {
 		m.instance.runCommand('history.undo');
 		await m.settle();
 		expect(m.source()).toBe(':::aside{.a} T\nbody\n:::\n');
+	});
+
+	it('refuses a name it doesn’t hold through edit().data, the bytes kept', async () => {
+		const m = mountEditor({ source: ':::aside T\nbody\n:::\n', plugins: [asides] });
+		await m.settle();
+		const block = m.instance.doc.blocks[0] as Block<ColonData>;
+		const result = await m.instance.edit().data(block, { name: 'foo' }).commit();
+		await m.settle();
+		expect(result).toMatchObject({ ok: false, reason: 'illegal' });
+		expect(m.source()).toBe(':::aside T\nbody\n:::\n');
 	});
 
 	it('takes no fold yet, refused when the type is made', () => {

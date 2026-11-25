@@ -101,6 +101,37 @@ describe.each(HELPERS)('a titled container drawn with %s', (_name, draw) => {
 	});
 });
 
+describe('a titled container’s draw', () => {
+	it('finds its title row already in place when draw runs', async () => {
+		let atDraw: HTMLElement | null = null;
+		const plugin = definePlugin({
+			name: 'frames',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				blocks: [
+					container<FoldData>({
+						name: 'fold',
+						label: 'Fold',
+						lines: FOLD_LINES,
+						sample: FOLD_SAMPLE,
+						insert: { none: 'a test block type' },
+						draw: (_block, ctx) => {
+							atDraw = ctx.title;
+							const dom = document.createElement('div');
+							dom.append(ctx.children);
+							return { dom };
+						}
+					})
+				]
+			})
+		});
+		const m = mountEditor({ source: FOLD_SAMPLE, plugins: [plugin] });
+		await m.settle();
+		expect(atDraw).toBe(surfaceAt(m, [0, 0]));
+	});
+});
+
 describe('a container with no title row', () => {
 	it('hands null as ctx.title', async () => {
 		let seen: ContainerDrawContext | null = null;

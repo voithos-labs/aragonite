@@ -75,8 +75,12 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		rows: (kind) => (row ? [{ kind: titleRowKind(kind), ...row }] : []),
 		colonNames: colon?.names,
 		writeData(node, data, grammar) {
-			// A colon type's data is the name its opening line spells, the one part of the row it reads.
-			if (colon) return colon.renamed(node.raw, (data as { name: string }).name);
+			// A colon type's data is the name its opening line spells, the one part of the row it reads;
+			// a name it doesn't hold would read as another type.
+			if (colon) {
+				const { name } = data as { name: string };
+				return colon.names.includes(name) ? colon.renamed(node.raw, name) : null;
+			}
 			const copy = cloneNode(node);
 			copy.metadata = data as CstNode['metadata'];
 			writeContainerRaw(copy, grammar);
