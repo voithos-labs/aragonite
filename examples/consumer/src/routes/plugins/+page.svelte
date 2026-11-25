@@ -8,7 +8,7 @@
 	import { toc } from '@voithos-labs/aragonite-toc';
 	import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
 	import { emoji } from '@voithos-labs/aragonite-emoji';
-	import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
+	import { footnotes } from '@voithos-labs/aragonite-footnotes';
 	import { highlight } from '@voithos-labs/aragonite-highlight';
 	import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
 
@@ -27,7 +27,7 @@
 		// Trigger bytes shared with the seed's `:::name` and `[[toc]]`: listed here to prove the
 		// readings coexist rather than contest a claim.
 		emoji,
-		footnotesPlugin(),
+		footnotes,
 		highlight({ renderer: highlightJs() })
 	];
 </script>

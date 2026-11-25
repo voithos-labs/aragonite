@@ -40,7 +40,7 @@ test.describe('plugin container: footnote definition', () => {
 			'A note reference [^a] in prose.\n\n[^a]: The note body. more\n'
 		);
 		const def = await readContainer(page, 1);
-		expect(def.kind).toBe('footnote-def');
+		expect(def.kind).toBe('footnotes/definition');
 		// The container's own raw was rebuilt, marker and edited body together; childTexts alone
 		// would still pass with a stale container raw.
 		expect(def.raw).toBe('[^a]: The note body. more\n');
@@ -83,7 +83,7 @@ test.describe('plugin container: footnote definition', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('[^a]: The note body.\n');
 		expect(await editor.bridge.getSource()).toBe(SEED);
-		expect((await readContainer(page, 1)).kind).toBe('footnote-def');
+		expect((await readContainer(page, 1)).kind).toBe('footnotes/definition');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -161,7 +161,7 @@ test.describe('plugin container: footnote definition', () => {
 		await editor.bridge.waitForSourceContains('[^b]: brand new note');
 
 		const def = await readContainer(page, 1);
-		expect(def.kind).toBe('footnote-def');
+		expect(def.kind).toBe('footnotes/definition');
 		expect(def.childKinds).toEqual(['paragraph']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});

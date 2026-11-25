@@ -31,7 +31,11 @@ export function widgetElByStart(el: HTMLElement, start: number): HTMLElement | n
  *  at `offset` focuses, so a jump back to a reference lands on the reference. */
 export function widgetTabStopEndingAt(el: HTMLElement, offset: number): HTMLElement | null {
 	const widget = el.querySelector(`[data-inline-widget][data-source-end="${offset}"]`);
-	if (!widget) return null;
+	return widget && widgetTabStop(widget);
+}
+
+/** A widget's own tab stop: its element or the first descendant that takes focus. */
+export function widgetTabStop(widget: Element): HTMLElement | null {
 	return (
 		[widget, ...widget.querySelectorAll('*')].find(
 			(node): node is HTMLElement => node instanceof HTMLElement && node.tabIndex >= 0

@@ -22,7 +22,7 @@ import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-so
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { footnotes } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
@@ -35,7 +35,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: () => details,
 	emoji: () => emoji,
-	footnotes: footnotesPlugin,
+	footnotes: () => footnotes,
 	'highlight-occurrences': () => highlightOccurrences,
 	latex: () => latex,
 	mermaid: mermaidPlugin,
@@ -53,10 +53,9 @@ beforeEach(() => installPlugins(PLUGINS));
 const MARKER_LINES: Record<string, 'every-line' | 'first-line'> = {
 	blockquote: 'every-line',
 	githubAlert: 'every-line',
-	listItem: 'first-line',
-	'footnote-def': 'first-line'
+	listItem: 'first-line'
 };
-const LAZY_LINES = ['blockquote', 'githubAlert', 'listItem', 'footnote-def'];
+const LAZY_LINES = ['blockquote', 'githubAlert', 'listItem'];
 const BUILT_IN_SHAPES: Record<string, BlockFacts['lines']> = {
 	list: 'items',
 	table: 'rows',
@@ -66,8 +65,7 @@ const BUILT_IN_SHAPES: Record<string, BlockFacts['lines']> = {
 const MERGE_KEYS: Record<string, string | null> = {
 	blockquote: null,
 	list: 'ordered',
-	githubAlert: 'alertType',
-	'footnote-def': 'label'
+	githubAlert: 'alertType'
 };
 /** Literal kinds whose lines are no body: a line pasted in one is not one of its lines. */
 const NO_BODY_LINES = ['linkReferenceDefinition'];

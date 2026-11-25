@@ -22,7 +22,7 @@ it(
 			import('#packages/admonitions/src/index.js').then((m) => m.admonitionsPlugin()),
 			import('#packages/details/src/index.js').then((m) => m.details),
 			import('#packages/emoji/src/index.js').then((m) => m.emoji),
-			import('#packages/footnotes/src/index.js').then((m) => m.footnotesPlugin()),
+			import('#packages/footnotes/src/index.js').then((m) => m.footnotes),
 			import('#packages/highlight-occurrences/src/index.js').then((m) => m.highlightOccurrences),
 			import('#packages/latex/src/index.js').then((m) => m.latex),
 			import('#packages/mermaid/src/index.js').then((m) => m.mermaidPlugin()),

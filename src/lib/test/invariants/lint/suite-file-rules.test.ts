@@ -308,6 +308,8 @@ const RULES: FileRule[] = [
 				'floods the inline parse with unclosed `<!--` openers; it reads no source',
 			'src/lib/test/plugins/inline/inline-reads.test.ts':
 				'its function matchers read document text; it reads no source',
+			'src/lib/test/harness/footnotes/footnote-reference.ts':
+				'the footnotes package before it was a plugin value: its matcher reads document text, no source',
 			'src/lib/test/range-laws/shapes.ts':
 				'draws HTML comment blocks (`<!--`) as document text; it reads no source',
 			'src/lib/test/invariants/lint/consumer-guide-reserved-set.test.ts':

@@ -13,6 +13,7 @@ jump has to mount its target.
 
 - **Reading mode, reference:** Tab from the referencing paragraph focuses the reference, named
   `Footnote 1`; Enter mounts its definition and brings it into view
+- **Reading mode, Space:** Space on the focused reference jumps as Enter does
 - **Reading mode, the way back:** where focus lands after each jump, and where Tab goes from
   there, is in `reading-jump-focus.md`
 - **Reading mode, from a click:** Tab from a click in the definition's text focuses its marker,

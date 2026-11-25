@@ -41,6 +41,7 @@
 	import { outlinePlugin } from './outline/outline-plugin';
 	import { noteNumbersPlugin } from './note-numbers/note-numbers-plugin';
 	import { noteRefsPlugin } from './note-refs/note-refs-plugin';
+	import { followKeysPlugin } from './follow-keys/follow-keys-plugin';
 	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
 	import { alertsPlugin } from './alerts/alerts-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
@@ -127,6 +128,8 @@
 		'note-numbers': [noteNumbersPlugin],
 		// Footnote references as inline widgets on `depends`; they draw only in this seed.
 		'note-refs': [noteRefsPlugin],
+		// A chip that follows, with a tab stop and a button of its own; it draws only in this seed.
+		'follow-keys': [followKeysPlugin],
 		// A command that writes through `edit()`; the openers suite runs on this seed.
 		math: [draftWriterPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
@@ -302,6 +305,8 @@
 		'inline-link': 'See [[note|Shown]] here\n\nAfter\n',
 		// The widget under a block of its own, so its document bytes aren't its block's.
 		'inline-key': 'Before\n\nan {{chip}} here\n',
+		// A chip mid-prose and a block to click away to.
+		'follow-keys': 'Go to @home now\n\nAfter\n',
 		// A highlight mid-prose (block 0), plain words to toggle one on (block 1).
 		'highlight-mark': 'A ==bright== word\n\nplain words here\n\n| a |\n| - |\n| cell words |\n',
 		// Anchors in one block (0), across two (1 and 2), around a bold (3), at a line's start and
@@ -342,7 +347,7 @@
 	const THEME_TOGGLE_SEEDS = ['mermaid', 'fence-lines'];
 	// The seeds whose links follow on a plain click, as a host that opts in, with a toggle to
 	// switch the gesture back after mount.
-	const PLAIN_LINK_CLICK_SEEDS = ['wikilinks'];
+	const PLAIN_LINK_CLICK_SEEDS = ['wikilinks', 'follow-keys'];
 	// svelte-ignore state_referenced_locally
 	let linkClick = $state<LinkClick>(
 		PLAIN_LINK_CLICK_SEEDS.includes(data.seed ?? '') ? 'plain' : 'modifier'

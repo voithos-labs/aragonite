@@ -67,7 +67,7 @@
 	import { blockTypeIn } from './editor-root/headless-grammar';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
-	import { bindActivationClick, createPressTracker } from '../activation-click';
+	import { bindActivationClick, createPressTracker, PLAIN_CLICK } from '../activation-click';
 	import { advanceSignatureEpoch, definitionsAfter } from './link-reference-map';
 	import type { LinkReferenceResolver } from '../core/inline/scan/definitions';
 	import { createUndoManager } from '../undo/manager';
@@ -406,7 +406,7 @@
 	const presses = createPressTracker();
 	const activationClick = bindActivationClick(reading.mode, () => linkClick, presses);
 	// The pointer cursor on links shows where a plain click follows them.
-	const plainClickFollows = $derived(activationClick({ ctrlKey: false, metaKey: false }));
+	const plainClickFollows = $derived(activationClick(PLAIN_CLICK));
 	// The root list's child component refs, plain rather than `$state` (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
 	const blockRefSlots = refSlotsOver(blockRefs);

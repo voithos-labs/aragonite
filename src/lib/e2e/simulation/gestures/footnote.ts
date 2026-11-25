@@ -107,7 +107,7 @@ export async function footnoteDefinitionExitBackspace(
 	const lifted =
 		shape.liftedKind === 'paragraph' &&
 		(keepsContainer
-			? shape.nextKind === 'footnote-def' &&
+			? shape.nextKind === 'footnotes/definition' &&
 				shape.nextChildren === counts.children - 1 &&
 				shape.root === counts.root + 1
 			: shape.root === counts.root);

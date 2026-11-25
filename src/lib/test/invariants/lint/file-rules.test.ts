@@ -1582,9 +1582,9 @@ const RULES: FileRule[] = [
 			'src/lib/selection/dead-space-caret.ts': 'a modified click places no caret in empty space',
 			'src/lib/selection/multi-click.ts': 'a modified press is not a multi-click select'
 		},
-		reaches: [SOURCE.editorRootGestures, SOURCE.footnoteReference],
+		reaches: [SOURCE.editorRootGestures, SOURCE.noteRefsHarness],
 		reason:
-			'whether a click follows a link or a widget depends on the mode and the host’s `linkClick`, so a hand Ctrl/Cmd read answers for one host only: call `EditorContext.isActivationClick(e)` in a block, the `isActivationClick` prop in an inline widget, or `EditorPolicies.activationClick` inside the editor',
+			'whether a click follows a link or a widget depends on the mode and the host’s `linkClick`, so a hand Ctrl/Cmd read answers for one host only: call `ctx.follows(e)` in a drawing, `EditorContext.isActivationClick(e)` in a block, the `isActivationClick` prop in an inline widget, or `EditorPolicies.activationClick` inside the editor',
 		hits: [
 			at(
 				'src/routes/test/plugins/x/Link.svelte',

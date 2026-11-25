@@ -1,36 +1,31 @@
 // The strip-container case of the split-separator rule: a definition's body is real child
 // blocks, so without a separator the two children re-emit as continuation lines that
 // reparse back into one paragraph.
-import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse, serialize } from '#lib';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-
+import { describe, expect, it } from 'vitest';
+import { parse, serialize } from '#lib';
 import { splitNode } from '#lib/tree-operations/index.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { footnotesGrammar } from '#lib/test/support/footnotes-grammar.js';
 
 describe('footnote definition Enter at the end of the body', () => {
-	beforeEach(() => {
-		installPlugins([footnotesPlugin()]);
-	});
-
 	it('keeps the typed second child a second child on reparse', () => {
-		const doc = parse('[^a]: one\n');
+		const grammar = footnotesGrammar();
+		const doc = parse('[^a]: one\n', { grammar });
 		const def = doc.children[0];
 		splitNode(
 			{ children: def.children!, owner: def, lineEnding: '\n' },
 			0,
 			'one'.length,
 			createSharingState(),
-			fixtureReading()
+			fixtureReading({ grammar })
 		);
 		def.children![1].raw = 'two\n';
-		writeContainerRaw(def, defaultGrammarView);
+		writeContainerRaw(def, grammar);
 
-		expect(describeConvergence(doc)).toBeNull();
+		expect(describeConvergence(doc, grammar)).toBeNull();
 		expect(serialize(doc)).toBe('[^a]: one\n\n    two\n');
 	});
 });

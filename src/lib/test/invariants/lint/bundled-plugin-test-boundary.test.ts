@@ -37,7 +37,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/footnotes/definition-container.test.ts': {
-		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		specifiers: ['#lib/schema/container-writer.js'],
 		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/admonitions/fence-escalation.test.ts': {
@@ -153,36 +153,20 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/tree-operations/index.js',
 			'#lib/tree-operations/sharing.js',
 			'#lib/testing/parse-convergence.js',
-			'#lib/schema/container-writer.js',
-			'#lib/schema/editor-grammar.js'
+			'#lib/schema/container-writer.js'
 		],
 		reason:
 			'nothing published splits a parsed document (nor makes the sharing state the split takes), ' +
 			'no published parse convergence, and nothing published writes a container from its line ' +
 			'shape outside a commit'
 	},
-	'src/lib/test/plugins/footnotes/numbering-incremental.test.ts': {
-		specifiers: [
-			'#lib/editor-actions/block-edit.js',
-			'#lib/editor-actions/commit/undo-controller.js',
-			'#lib/perf/instruments.js',
-			'#lib/schema/container-raw.js'
-		],
+	'src/lib/test/plugins/footnotes/editors.svelte.test.ts': {
+		specifiers: ['#lib/perf/instruments.js'],
 		reason:
-			'no headless editor-actions environment, no published ancestry rebuild, and the perf ' +
-			'instruments a plugin proves its own memoization with are unpublished'
-	},
-	'src/lib/test/plugins/footnotes/reference-shared-walk.test.ts': {
-		specifiers: [
-			'#lib/perf/instruments.js',
-			'#lib/components/blocks/text/TextEditableBlock.svelte'
-		],
-		reason:
-			'the perf instruments are unpublished, and so is the built-in text surface a widget ' +
-			'renders into'
+			'the perf instruments are unpublished, and they are what counts the blocks a key asks of `depends`'
 	},
 	'src/lib/test/plugins/footnotes/reference.test.ts': {
-		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/editor-grammar.js'],
+		specifiers: ['#lib/core/inline/inline-widgets.js'],
 		reason:
 			'no registry read-back: a widget kind registers its component but never reads it, and ' +
 			'the read takes a grammar no entry point publishes'

@@ -70,7 +70,7 @@ test.describe('footnote-ops simulation', () => {
 		// ── Definitions: build one, split its body, edit it, leave it ──────────────
 		const defIndex = (await editor.bridge.getBlockCount()) - 1;
 		await g.typeFootnoteDefinition(defIndex, 'b', 'A second note.');
-		expect(await editor.bridge.getBlockKind(defIndex)).toBe('footnote-def');
+		expect(await editor.bridge.getBlockKind(defIndex)).toBe('footnotes/definition');
 		await expect(page.locator('.footnote-def')).toHaveCount(2);
 		await assertCheckpoint(ctx, 'definition-typed');
 

@@ -16,7 +16,7 @@ import type { PlaceholderBlock, PluginsProp } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { footnotes } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
@@ -32,7 +32,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: () => details,
 	emoji: () => emoji,
-	footnotes: footnotesPlugin,
+	footnotes: () => footnotes,
 	'highlight-occurrences': () => highlightOccurrences,
 	latex: () => latex,
 	mermaid: mermaidPlugin,
@@ -79,7 +79,7 @@ const NEVER_ASKED: Record<string, string> = {
 	admonition: CONTAINER,
 	githubAlert: CONTAINER,
 	'details/details': CONTAINER,
-	'footnote-def': CONTAINER,
+	'footnotes/definition': CONTAINER,
 	mermaid: 'edited in its own textarea, which is not the shared editable element'
 };
 

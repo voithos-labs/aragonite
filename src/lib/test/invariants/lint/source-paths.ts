@@ -154,7 +154,7 @@ export const SOURCE = {
 	latexBlockMath: 'packages/latex/src/BlockMath.svelte',
 	mathShape: 'packages/latex/src/math-shape.ts',
 	mermaidBlock: 'packages/mermaid/src/MermaidBlock.svelte',
-	footnoteReference: 'packages/footnotes/src/FootnoteReference.svelte',
+	noteRefsHarness: 'src/routes/test/plugins/note-refs/note-refs-plugin.ts',
 	editorCss: 'src/lib/styles/editor.css',
 	themeTokens: 'src/lib/styles/editor-theme.css',
 
@@ -331,7 +331,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	latexBlockMath: 'function keepSourceFocus(',
 	mathShape: 'export const DOLLAR_FENCE',
 	mermaidBlock: 'function focusSurfaceEl(',
-	footnoteReference: 'function jumpToDefinition(',
+	noteRefsHarness: 'export const seeAlso',
 	editorCss: '.code-tok-keyword {',
 	themeTokens: ':where(.aragonite-editor-theme) {',
 

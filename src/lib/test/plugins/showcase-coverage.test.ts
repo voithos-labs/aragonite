@@ -15,7 +15,7 @@ import { computeInlineContent, grammar, isProseKind, type Piece } from '#lib/plu
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { listGrammar } from '#lib/schema/own-syntax.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#lib/test/harness/registered-footnotes.js';
+import { DEFINITION, REFERENCE } from '#lib/test/support/footnotes-grammar.js';
 import { MERMAID } from '#packages/mermaid/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
@@ -51,7 +51,7 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	admonitions: [ADMONITION, GITHUB_ALERT],
 	details: ['details/details'],
 	emoji: [EMOJI],
-	footnotes: [FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND],
+	footnotes: [DEFINITION, REFERENCE],
 	mermaid: [MERMAID],
 	// Inline math reads through the demo's plugin values, as emoji does; its block is a block type.
 	latex: [MATH],
@@ -71,7 +71,7 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 };
 
 /** The inline kinds the bundled plugins add. No registry lists them, so their names stand in. */
-const PLUGIN_INLINE_KINDS = [EMOJI, FOOTNOTE_REF_KIND, MATH];
+const PLUGIN_INLINE_KINDS = [EMOJI, REFERENCE, MATH];
 
 const { plugins: SETUP_PLUGINS, values: PLUGIN_VALUES } = normalizePluginEntries(DEMO_PLUGINS);
 

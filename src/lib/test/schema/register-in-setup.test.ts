@@ -75,11 +75,11 @@ describe('a duplicate on a dev server', () => {
 	// Hot reload re-evaluates a plugin's module into a new unit with the same name; the install
 	// keeps the first and never re-runs a setup, so no plugin entry meets a duplicate.
 	it('never reaches a plugin entry: a re-evaluated plugin module keeps the first registration', async () => {
-		const first = await import('#packages/footnotes/src/footnotes-plugin.js');
+		const first = await import('#lib/test/harness/footnotes/footnotes-plugin.js');
 		installPlugins([first.footnotesPlugin()]);
 		const registered = getBlockKindDescriptor(declaredPluginKind('footnote-def'));
 		// A query makes a second instance of the module, sharing every registry with the first.
-		const reevaluatedPath = '#packages/footnotes/src/footnotes-plugin.ts?reeval';
+		const reevaluatedPath = '#lib/test/harness/footnotes/footnotes-plugin.ts?reeval';
 		const reevaluated: typeof first = await import(/* @vite-ignore */ reevaluatedPath);
 		expect(reevaluated.footnotesPlugin).not.toBe(first.footnotesPlugin);
 		installPlugins([reevaluated.footnotesPlugin()]);

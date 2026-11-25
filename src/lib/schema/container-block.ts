@@ -141,7 +141,7 @@ export function ambientMarker<D extends object>(
 	const range = {
 		start: 0,
 		end: link.length(data),
-		className: 'marker-link',
+		className: link.className ?? 'marker-link',
 		role: 'link' as const,
 		label: link.label(data),
 		onClick(e: MouseEvent) {

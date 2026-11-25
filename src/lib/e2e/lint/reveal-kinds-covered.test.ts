@@ -11,7 +11,7 @@ const SPEC = 'src/lib/e2e/tests/plugins/widget-reveal-caret.spec.ts';
 // The registering file, and the kind name its row carries, or the spec that covers a spanned kind.
 const REGISTRATIONS: Record<string, { kind: string } | { coveredBy: string }> = {
 	'src/lib/core/directive/kinds.ts': { kind: 'directiveText' },
-	'packages/footnotes/src/footnote-reference.ts': { kind: 'footnote-ref' },
+	'packages/footnotes/src/footnotes-plugin.ts': { kind: 'footnotes/ref' },
 	'src/routes/test/plugins/tags/tag-plugin.ts': { kind: 'harness-tag' },
 	'src/routes/test/plugins/wikilinks/link-plugin.ts': { kind: 'harness-wikilinks/wikilink' },
 	'packages/latex/src/math-inline.ts': {

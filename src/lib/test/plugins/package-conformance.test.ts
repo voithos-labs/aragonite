@@ -25,6 +25,7 @@ describe('every bundled plugin passes its own published conformance suite', () =
 		expect(values).toEqual([
 			'details',
 			'emoji',
+			'footnotes',
 			'highlight',
 			'highlight-occurrences',
 			'latex',

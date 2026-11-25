@@ -17,6 +17,9 @@ export type ClickInput = Pick<MouseEvent, 'ctrlKey' | 'metaKey'> &
 /** One editor's answer for a click on something that goes somewhere. */
 export type ActivationClick = (click: ClickInput) => boolean;
 
+/** A plain click, for asking where one would follow. */
+export const PLAIN_CLICK: ClickInput = { ctrlKey: false, metaKey: false };
+
 /** Where the editor's last press went down, so a click can tell it ended a drag. */
 export interface PressTracker {
 	press(at: { clientX: number; clientY: number }): void;

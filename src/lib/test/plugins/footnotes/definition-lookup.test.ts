@@ -1,40 +1,34 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse } from '#lib';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-// Plugin-internal: this lookup answers a reference widget's jump, which only a mounted
-// widget makes.
-import { findFootnoteDefinitionLanding } from '#packages/footnotes/src/footnote-lookup.js';
+import { describe, expect, it } from 'vitest';
+import { grammar } from '#lib/plugin.js';
+import { footnotes } from '#packages/footnotes/src/index.js';
+// Plugin-internal: where a reference's jump lands, which only a mounted widget asks.
+import { definitionStart } from '#packages/footnotes/src/footnotes-plugin.js';
+
+const landing = (source: string, label: string) =>
+	definitionStart(grammar([footnotes]).parse(source), label);
 
 describe('footnote definition lookup (where a reference jump lands)', () => {
-	beforeEach(() => {
-		// Install so `[^label]:` opens a footnote-def at all; without the plugin every
-		// definition line parses as a paragraph and the lookup finds nothing.
-		installPlugins([footnotesPlugin()]);
-	});
-
-	it('lands in the definition body, not on the container that holds no caret', () => {
-		const doc = parse('Prose [^a] and [^b].\n\n[^a]: A def.\n\n[^b]: B def.\n');
-		expect(findFootnoteDefinitionLanding(doc, 'a')).toEqual([1, 0]);
-		expect(findFootnoteDefinitionLanding(doc, 'b')).toEqual([2, 0]);
+	it('lands at the start of the definition body, not on its marker', () => {
+		const source = 'Prose [^a] and [^b].\n\n[^a]: A def.\n\n[^b]: B def.\n';
+		expect(landing(source, 'a')).toBe(source.indexOf('A def.'));
+		expect(landing(source, 'b')).toBe(source.indexOf('B def.'));
 	});
 
 	it('walks into a container to find a nested definition', () => {
-		const doc = parse('Prose [^a].\n\n> [^a]: Quoted def.\n');
-		expect(findFootnoteDefinitionLanding(doc, 'a')).toEqual([1, 0, 0]);
+		const source = 'Prose [^a].\n\n> [^a]: Quoted def.\n';
+		expect(landing(source, 'a')).toBe(source.indexOf('Quoted'));
 	});
 
 	it('returns null for a label no definition carries', () => {
-		const doc = parse('An orphan [^missing].\n\n[^other]: Other def.\n');
-		expect(findFootnoteDefinitionLanding(doc, 'missing')).toBeNull();
+		expect(landing('An orphan [^missing].\n\n[^other]: Other def.\n', 'missing')).toBeNull();
 	});
 
 	it('answers with the first of two definitions sharing a label', () => {
-		const doc = parse('Prose [^a].\n\n[^a]: First.\n\n[^a]: Second.\n');
-		expect(findFootnoteDefinitionLanding(doc, 'a')).toEqual([1, 0]);
+		const source = 'Prose [^a].\n\n[^a]: First.\n\n[^a]: Second.\n';
+		expect(landing(source, 'a')).toBe(source.indexOf('First.'));
 	});
 
 	it('finds a definition that sits before its reference', () => {
-		const doc = parse('[^a]: Defined up front.\n\nProse [^a].\n');
-		expect(findFootnoteDefinitionLanding(doc, 'a')).toEqual([0, 0]);
+		expect(landing('[^a]: Defined up front.\n\nProse [^a].\n', 'a')).toBe(6);
 	});
 });

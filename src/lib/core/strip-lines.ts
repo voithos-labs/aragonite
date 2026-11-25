@@ -54,6 +54,8 @@ export interface IndentedLines<D extends object> {
 		length(data: D): number;
 		label(data: D): string;
 		follow(data: D, editor: Editor): void;
+		/** The class on its element; default `marker-link`. */
+		className?: string;
 	};
 }
 

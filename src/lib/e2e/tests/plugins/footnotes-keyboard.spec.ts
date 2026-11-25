@@ -31,6 +31,16 @@ test.describe('footnotes: reading mode keyboard navigation', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('Space on the focused reference jumps to its definition too', async ({ page }) => {
+		const { md, defA } = navDoc();
+		await editor.load(md, 'reading');
+		await editor.refs().nth(0).focus();
+		await page.keyboard.press(' ');
+
+		await expect.poll(() => blockView(page, [defA])).toEqual({ mounted: true, inView: true });
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('Tab from a click in the definition’s text reaches its marker', async ({ page }) => {
 		const { md, defA } = navDoc();
 		await editor.load(md, 'reading');

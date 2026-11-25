@@ -78,7 +78,8 @@ export type InlineArm<D> =
 			/** What the drawing reads of a top-level block, from its content alone (the footnotes it
 			 *  references), handed back as `props.depends`; a changed answer draws the widget again. */
 			depends?(block: Block): string;
-			/** Runs on the click the host picked for links, with `click: 'follow'`. */
+			/** Runs on the click the host picked for links, with `click: 'follow'`, and on Enter or Space
+			 *  on the widget's own tab stop wherever a plain click would follow. */
 			follow?(data: D, editor: Editor): void;
 			/** A key pressed while the widget is selected whole: true takes it. Write through
 			 *  `props.editor.edit()`; the key's target is the editable it sits in. */

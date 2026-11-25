@@ -70,10 +70,8 @@ import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations
 import type { Reading } from '../../../schema/reading';
 import { rangeWrite, type TextWrite } from '../editable/surface-write';
 import type { ShownSourceState } from './shown-source.svelte';
-import type { ActivationClick, ClickInput } from '../../../activation-click';
+import { PLAIN_CLICK, type ActivationClick, type ClickInput } from '../../../activation-click';
 import type { TextMoves } from '../../overlays/text-moves';
-
-const PLAIN_CLICK: ClickInput = { ctrlKey: false, metaKey: false };
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;

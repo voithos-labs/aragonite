@@ -321,8 +321,73 @@ test.describe('footnote reference: double-click takes the whole token', () => {
 	}
 });
 
-// The cell's own `navigateTo` wiring: a reference inside a table cell goes through a different
-// element than prose, so a dropped hand-off there is invisible to every test above.
+// A jump whose target sits in a closed `<details>` opens the section first, as one undo step, and
+// lands where it would in an open one; the opening's bytes move the target, so it is read again.
+test.describe('footnote jump: into a closed section', () => {
+	const DEF_CLOSED =
+		'See[^a] here.\n\n<details>\n<summary>S</summary>\n\n[^a]: Note.\n\n</details>\n';
+	const REF_CLOSED =
+		'<details>\n<summary>S</summary>\n\nSee[^a] here.\n\n</details>\n\n[^a]: Note.\n';
+	const opened = (md: string) => md.replace('<details>', '<details open>');
+
+	for (const mode of ['live', 'source'] as const) {
+		test(`${mode} mode: Ctrl+click opens the definition's section and lands in its body`, async ({
+			page
+		}) => {
+			const editor = new FootnotePage(page);
+			await editor.load(DEF_CLOSED, mode);
+
+			await editor
+				.refs()
+				.first()
+				.click({ modifiers: ['ControlOrMeta'] });
+
+			await expect.poll(() => editor.bridge.getSource()).toBe(opened(DEF_CLOSED));
+			await expect
+				.poll(() => editor.bridge.getSelection())
+				.toMatchObject({ focus: { path: [1, 1, 0], offset: 0 } });
+			expect(await editor.bridge.getUndoDepth()).toBe(1);
+
+			await page.keyboard.press('ControlOrMeta+z');
+			await expect.poll(() => editor.bridge.getSource()).toBe(DEF_CLOSED);
+			await expect
+				.poll(() => editor.bridge.getSelection())
+				.toMatchObject({ focus: { path: [1, 0], offset: 0 } });
+			expect(await capturedErrors(page)).toEqual([]);
+		});
+
+		test(`${mode} mode: the marker opens the reference's section and lands past it`, async ({
+			page
+		}) => {
+			const editor = new FootnotePage(page);
+			await editor.load(REF_CLOSED, mode);
+
+			await editor.defMarker(1).click({ modifiers: ['ControlOrMeta'] });
+
+			await expect.poll(() => editor.bridge.getSource()).toBe(opened(REF_CLOSED));
+			await expect
+				.poll(() => editor.bridge.getSelection())
+				.toMatchObject({ focus: { path: [0, 1], offset: 7 } });
+			expect(await editor.bridge.getUndoDepth()).toBe(1);
+			expect(await capturedErrors(page)).toEqual([]);
+		});
+	}
+
+	test('reading mode: the section stays closed and the summary takes focus', async ({ page }) => {
+		const editor = new FootnotePage(page);
+		await editor.load(DEF_CLOSED, 'reading');
+
+		await editor.refs().first().click();
+
+		await expect.poll(() => activeBlockPath(page)).toEqual([1, 0]);
+		expect(await editor.bridge.getSource()).toBe(DEF_CLOSED);
+		expect(await editor.bridge.getUndoDepth()).toBe(0);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+});
+
+// A reference inside a table cell is drawn by the cell's own widget pool, a different element than
+// prose, so a dropped hand-off there is invisible to every test above.
 test.describe('footnote jump: from a table cell', () => {
 	test('Ctrl+click on a reference in a cell lands the caret in the definition', async ({
 		page

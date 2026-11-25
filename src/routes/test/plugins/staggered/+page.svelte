@@ -1,17 +1,17 @@
 <script module lang="ts">
 	import { calloutPlugin } from '../callout/register';
-	import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
+	import { memoPlugin } from '../memo/register';
 
-	// Editor 2 adds footnotesPlugin, a `setup` plugin whose opener registers process-wide: the late
-	// mount this harness is about. Its own plugin objects, not the shared demo set: a set every
-	// other route installs is already registered.
+	// Editor 2 adds memoPlugin, a `setup` plugin whose opener registers process-wide: the late mount
+	// this harness is about. Its own plugin objects, not the shared demo set: a set every other
+	// route installs is already registered.
 	const callout = calloutPlugin();
 	const editorOnePlugins = [callout];
-	const editorTwoPlugins = [callout, footnotesPlugin()];
+	const editorTwoPlugins = [callout, memoPlugin()];
 
-	// Editor 1 parses these bytes under callout only, so `[^1]:` reads as a paragraph;
-	// editor 2 parses them after footnotesPlugin registered, so it resolves.
-	const SEED = [':::callout Title', 'First', ':::', '', '[^1]: Note', ''].join('\n');
+	// Editor 1 parses these bytes under callout only, so `%%a memo` reads as a paragraph;
+	// editor 2 parses them after memoPlugin registered, so it resolves.
+	const SEED = [':::callout Title', 'First', ':::', '', '%%a memo', ''].join('\n');
 </script>
 
 <script lang="ts">

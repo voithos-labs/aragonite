@@ -2,8 +2,9 @@
 
 A `[^label]` reference points at its definition, and the definition's own `[^label]` marker
 points back at the first reference that gave it its number. Both jumps go through
-`rects.navigateTo`, so they mount a target that windowing had left out, scroll it into view, and
-put the caret in it; neither writes a byte. Both use the link gesture: a plain click in reading
+`view.reveal`, then `select`, so they mount a target that windowing had left out, scroll it into
+view, and put the caret in it; neither writes a byte, unless the target sits in a closed
+`<details>`, which opens as one undo step on the way. Both use the link gesture: a plain click in reading
 mode, where there is no caret to place, and Ctrl/Cmd+click in the editing modes. An unmodified
 click therefore still means what it always meant, which is to show the `[^label]` source on a
 reference and to put the caret in the body on a definition's marker. The way back lands
@@ -41,6 +42,11 @@ file covers the gesture the user makes.)
   click acts, and switching mode at runtime moves the cue with it
 - **A reference inside a table cell:** the cell is its own editable area, and the jump works
   from it exactly as it does from prose
+- **A target inside a closed `<details>`, editing modes:** the jump opens the section as one undo
+  step and lands where it would in an open one, the definition's body start or just past the
+  citation on the way back; Ctrl/Cmd+Z closes it again, the caret on its summary
+- **The same in reading mode:** the section stays closed, nothing is written, and its summary takes
+  focus
 
 ## User interactions
 
@@ -71,6 +77,9 @@ file covers the gesture the user makes.)
   unmounted block or a stale path would report there
 
 ## Miss-analysis
+
+- The closed section: the jump moved from `navigateTo`, which opens a closed section on the way,
+  to `select`, which lands on its title row, and no scenario put a target inside one.
 
 - The landing offset: every back-gesture scenario asserted the block the caret landed in and
   never the offset inside it, so offset 0 and the offset past the citation were the same

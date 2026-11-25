@@ -3,8 +3,8 @@ import { type ConsoleMessage, type Page } from '@playwright/test';
 import { gotoReady } from '../../goto-ready';
 
 // `/test/plugins/staggered` mounts editor 1 with `[calloutPlugin()]` at load and, on a click,
-// editor 2 adding `footnotesPlugin()`, read through `__test` and `__test2`. The late footnote
-// opener registration fires `[invariant:late-opener-registration]`, which the fixture requires; the
+// editor 2 adding `memoPlugin()`, read through `__test` and `__test2`. The late memo opener
+// registration fires `[invariant:late-opener-registration]`, which the fixture requires; the
 // count here adds that it fires once, not twice.
 test.use({ expectInvariants: ['late-opener-registration'] });
 
@@ -52,17 +52,15 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 	});
 
 	test('the late mount parses its own seed against the just-registered grammar', () => {
-		// Editor 2 installed footnotesPlugin before parsing, so `[^1]:` resolves to a footnote
-		// definition holding its paragraph, not to the paragraph editor 1 reads.
-		const note = blockOfKind(editorTwo, 'footnote-def');
-		expect(note).toBeDefined();
-		expect(note?.child0).toBe('paragraph');
-		expect(kindsOf(editorTwo)).toEqual(['callout', 'footnote-def']);
+		// Editor 2 installed memoPlugin before parsing, so `%%a memo` resolves to a memo, not to the
+		// paragraph editor 1 reads.
+		expect(blockOfKind(editorTwo, 'memo')).toBeDefined();
+		expect(kindsOf(editorTwo)).toEqual(['callout', 'memo']);
 	});
 
 	test('editor 1 does not re-parse against the later grammar; one expected late-opener warn', async () => {
-		// Editor 1 parsed before footnotesPlugin existed, and a parsed document never re-parses, so
-		// its `[^1]:` stays a paragraph and never becomes a footnote definition.
+		// Editor 1 parsed before memoPlugin existed, and a parsed document never re-parses, so its
+		// `%%a memo` stays a paragraph and never becomes a memo.
 		expect(kindsOf(editorOne)).toEqual(['callout', 'paragraph']);
 
 		// The fixture requires the tag and forbids the rest, so all that is left to assert is the

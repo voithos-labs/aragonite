@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-// Every bundled inline handler runs the published conformance kit as its first consumer, and a
-// local glyph stands in for the shapes none of them has (a plain DOM view, a whole delete). The
-// kit's failing cases live in `inline-conformance-red.test.ts`.
+// The conformance kit over the inline syntax handlers the process-wide registrars still take: the
+// directive text, the footnote reference as it was registered before it became a plugin value (a
+// Svelte view), and a local glyph (a plain DOM view, a whole delete). The kit's failing cases live
+// in `inline-conformance-red.test.ts`.
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib';
@@ -10,9 +11,8 @@ import { DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
 import { INLINE_PRIORITIES } from '#lib/plugin.js';
 import { declaredPluginInlineKind } from '#lib/plugin.js';
 import { runInlineKindConformance } from '#lib/testing.js';
-import type { InlineConformanceProfile, PluginConformanceSuite } from '#lib/testing.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import footnotesSuite from '#packages/footnotes/src/conformance.js';
+import type { InlineConformanceProfile } from '#lib/testing.js';
+import { FOOTNOTE_REF_KIND, registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 import { GLYPH_KIND, GLYPH_PRIORITY, glyphPlugin } from '#lib/test/harness/glyph-plugin.js';
 
@@ -20,18 +20,20 @@ const MINTS_ONLY_ITS_OWN_KIND =
 	'the rung mints only its own inline kind, which the scan leaves unstamped by design — ' +
 	'nothing outside the plugin has a grammar to re-serialize it with';
 
-/** A package's published inline profile, its kind read once the plugin has declared it. */
-function publishedRung(suite: PluginConformanceSuite): InlineConformanceProfile {
-	const { kind, ...profile } = suite.inline![0];
-	return {
-		...profile,
-		get kind() {
-			return declaredPluginInlineKind(kind!);
-		}
-	};
-}
-
-const footnoteRung = publishedRung(footnotesSuite);
+const footnoteRung: InlineConformanceProfile = {
+	trigger: '[',
+	prefix: '[^',
+	get kind() {
+		return declaredPluginInlineKind(FOOTNOTE_REF_KIND);
+	},
+	fixtures: ['[^note]', 'see [^a] and [^b]'],
+	// `[` is the link handler's own trigger, so every malformed reference falls through intact.
+	overlapFixtures: ['[^]', '[^ spaced]', '[^unterminated', 'a [link [^ ] here](https://x.dev)'],
+	overlapDecline: { mode: 'assert' },
+	widget: { mode: 'assert' },
+	editingPolicy: { mode: 'assert' },
+	imageClaim: { mode: 'exempt', reason: 'the recognizer builds only its own inline kind' }
+};
 
 /** A widget drawn as plain DOM and deleted whole, which no bundled inline syntax handler is. */
 const glyphRung: InlineConformanceProfile = {
@@ -66,7 +68,7 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 	beforeEach(() => {
 		// A `:` handler before the directive activation on purpose: that order is what leaves the
 		// directive recognizer unregistered, making its `registration` cell a live check.
-		installPlugins([glyphPlugin(), footnotesPlugin()]);
+		installPlugins([glyphPlugin(), registeredFootnotes()]);
 		activateDirectiveGrammar(testDirectiveViews());
 	});
 
@@ -91,7 +93,7 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 // otherwise pass as a quiet `boundary`.
 describe('the enrolled inline syntax handlers execute the cells their shape owns', () => {
 	beforeEach(() => {
-		installPlugins([glyphPlugin(), footnotesPlugin()]);
+		installPlugins([glyphPlugin(), registeredFootnotes()]);
 		activateDirectiveGrammar(testDirectiveViews());
 	});
 

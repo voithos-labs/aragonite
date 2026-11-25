@@ -21,7 +21,7 @@ import {
 	type CstNode,
 	type IndentedLines,
 	type OpenContext
-} from '@voithos-labs/aragonite/plugin';
+} from '#lib/plugin.js';
 import { FOOTNOTE_DEF_KIND } from './constants';
 
 export interface FootnoteDefMetadata {

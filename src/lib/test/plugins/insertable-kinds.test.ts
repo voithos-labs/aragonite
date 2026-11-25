@@ -18,7 +18,7 @@ import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-so
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
-import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { footnotes } from '#packages/footnotes/src/index.js';
 import { highlightOccurrences } from '#packages/highlight-occurrences/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
@@ -31,7 +31,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: () => details,
 	emoji: () => emoji,
-	footnotes: footnotesPlugin,
+	footnotes: () => footnotes,
 	'highlight-occurrences': () => highlightOccurrences,
 	latex: () => latex,
 	mermaid: mermaidPlugin,
@@ -42,7 +42,6 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 
 /** A plugin kind no insert entry makes, and why. */
 const NOT_INSERTED: Record<string, string> = {
-	'footnote-def': 'typing `[^x]:` makes one, under the reference it belongs to',
 	githubAlert: 'the note entry inserts the admonition spelling of the same callout'
 };
 

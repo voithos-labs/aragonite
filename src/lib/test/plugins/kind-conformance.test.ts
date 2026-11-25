@@ -12,8 +12,6 @@ import { runKindConformance } from '#lib/testing.js';
 import { KIND_CELL_CONTRACTS } from '#lib/testing/cell-contracts.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerFootnoteDefinition } from '#lib/test/harness/registered-footnotes.js';
-import { FOOTNOTE_DEF_KIND } from '#lib/test/harness/registered-footnotes.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
@@ -279,7 +277,6 @@ describe('kind conformance: a kind no line closes says what its wait crosses', (
 // The workspace's plugin packages are the bundled set, so a plugin directory added or
 // dropped outside this table fails the check below at once.
 const BUNDLED_INSTALLS: { dir: string; kind: string; install: (view: BlockView) => void }[] = [
-	{ dir: 'footnotes', kind: FOOTNOTE_DEF_KIND, install: registerFootnoteDefinition },
 	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
 	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind }
 ];
@@ -293,7 +290,7 @@ const NO_BLOCK_KIND_DIRS = new Set([
 ]);
 // Plugins whose blocks are block types, which only an editor running them parses: the kit reads
 // the page's grammar, so it doesn't reach them yet.
-const BLOCK_TYPE_DIRS = new Set(['details', 'latex', 'parrot', 'toc']);
+const BLOCK_TYPE_DIRS = new Set(['details', 'footnotes', 'latex', 'parrot', 'toc']);
 
 describe('kind conformance: bundled plugin kinds enroll', () => {
 	// Every kind the registrar registers, not only the headline one: title kinds with no

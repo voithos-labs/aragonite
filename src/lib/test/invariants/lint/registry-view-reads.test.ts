@@ -43,9 +43,7 @@ const DEFAULTED_READER_IMPORTERS: Record<string, string> = {
 	'src/lib/index.ts': 'the public barrel publishes parse and parseInline',
 	'src/lib/plugin.ts': 'the plugin barrel publishes parse and its no-editor computeInlineContent',
 	'packages/admonitions/src/convert-document.ts':
-		'a published whole-document conversion that runs with no editor',
-	'packages/footnotes/src/footnote-numbering.ts':
-		'the published numbering reads every plugin with no editor; a mounted widget passes its own reader'
+		'a published whole-document conversion that runs with no editor'
 };
 const mayImportDefaulted = (relPath: string): boolean =>
 	relPath in DEFAULTED_READER_IMPORTERS || relPath.startsWith(SOURCE_DIR.testing);

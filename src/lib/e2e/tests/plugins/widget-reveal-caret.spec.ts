@@ -32,7 +32,7 @@ const KINDS: KindRow[] = [
 		source: '#few'
 	},
 	{
-		kind: 'footnote-ref',
+		kind: 'footnotes/ref',
 		seed: 'footnotes',
 		doc: 'Ref ^a] here.\n\n[^a]: Body.\n',
 		at: 4,

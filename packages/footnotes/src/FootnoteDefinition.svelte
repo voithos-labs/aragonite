@@ -1,88 +1,15 @@
 <script lang="ts">
-	// The `[^label]: ` marker is drawn in front of the first child instead of being part of its
-	// text, the way a list item's `- ` is, so the body edits like ordinary prose and the marker
-	// stays read-only. Clicking the marker, or Enter on it in reading mode, jumps back to the first
-	// reference.
-	import {
-		getPluginMetadata,
-		type DocumentView,
-		type EditorRects,
-		type NodeView
-	} from '@voithos-labs/aragonite/plugin';
-	import { BlockList, createContainerBlock } from '@voithos-labs/aragonite/svelte';
-	import type { FootnoteDefMetadata } from './footnote-definition';
-	import { backToReferenceLabel } from './constants';
-	import { collectFootnoteReferences } from './footnote-numbering';
+	// A definition's drawing: a rule down the left margin and its children. The editor draws the
+	// `[^label]: ` marker in front of the first child, its `[^label]` a link back to the reference.
+	import type { ContainerDrawContext } from '@voithos-labs/aragonite/plugin';
+	import type { SvelteBlockProps } from '@voithos-labs/aragonite/svelte';
+	import type { DefinitionData } from './footnotes-plugin';
 
-	let {
-		node,
-		index,
-		myPath = [],
-		document,
-		rects
-	}: {
-		node: NodeView;
-		index: number;
-		myPath?: number[];
-		document?: DocumentView;
-		rects?: EditorRects;
-	} = $props();
-
-	let boxEl: HTMLElement | undefined = $state();
-
-	const label = $derived(getPluginMetadata<FootnoteDefMetadata>(node)?.label ?? '');
-	// Only `[^label]` is clickable; the colon and space after it are syntax nobody aims at.
-	const marker = $derived(`[^${label}]`);
-
-	const { blockListProps, containerApi, getPresentationMode, getEditor } = createContainerBlock({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getBoxEl: () => boxEl,
-		getAmbientPrefix: () => ({
-			text: `${marker}: `,
-			interactive: [
-				{
-					start: 0,
-					end: marker.length,
-					className: 'footnote-def-marker',
-					role: 'link',
-					label: backToReferenceLabel(label),
-					// A tab stop only where the block holds no caret for it to interrupt.
-					focusable: getPresentationMode() === 'reading',
-					onClick: onMarkerClick,
-					onActivate: jumpToFirstReference
-				}
-			]
-		})
-	});
-
-	function onMarkerClick(e: MouseEvent): void {
-		if (!getEditor()?.isActivationClick(e)) return;
-		// Skips the block's caret handling and the editor's root click handler on purpose:
-		// jumping is the only thing this click does.
-		e.preventDefault();
-		e.stopPropagation();
-		jumpToFirstReference();
-	}
-
-	// Looked up on each jump, never derived: the span's listeners are bound once when the span is
-	// built, so a path captured then would be the answer from whenever that was.
-	function jumpToFirstReference(): void {
-		if (!document) return;
-		// GFM numbers by first-reference order, so the first reference is the one this
-		// definition's number comes from.
-		const first = collectFootnoteReferences(document, getEditor()?.computeInlineContent).find(
-			(ref) => ref.label === label
-		);
-		if (first) void rects?.navigateTo(first.path, first.end);
-	}
-
-	export { containerApi };
+	let { block, Slot }: SvelteBlockProps<DefinitionData, ContainerDrawContext> = $props();
 </script>
 
-<div class="footnote-def" data-footnote-label={label} bind:this={boxEl}>
-	<BlockList {...blockListProps} />
+<div class="footnote-def" data-footnote-label={block.data.label}>
+	<Slot of="children" />
 </div>
 
 <style>

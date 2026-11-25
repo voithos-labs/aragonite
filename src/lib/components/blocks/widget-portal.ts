@@ -12,6 +12,7 @@ import {
 	getInlineWidgetEditing,
 	widgetActivates,
 	widgetOf,
+	widgetTabStop,
 	type InlineWidgetComponentProps,
 	type WidgetEntry
 } from '../../core/inline/inline-widgets';
@@ -19,7 +20,9 @@ import type { WidgetProps } from '../../schema/inline-type';
 import type { Editor } from '../../schema/plugin-unit';
 import type { Block, KeyWatch } from '../../schema/doc-view';
 import { mintWidgetShell, widgetSourceRange } from '../../core/inline/widget-shell';
-import type { ActivationClick, ClickInput } from '../../activation-click';
+import { PLAIN_CLICK, type ActivationClick, type ClickInput } from '../../activation-click';
+import { followsKey } from './marker-prefix';
+import { neverACommand } from '../../browser/composition';
 import type { Reading } from '../../schema/reading';
 import { untrack } from 'svelte';
 import { modeOf } from '../../presentation-mode';
@@ -286,8 +289,19 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): ViewWidgetPool {
 	// The editor decides the click, by the rule every followed click asks.
 	function onFollow(el: HTMLElement, follow: () => void): void {
 		el.addEventListener('click', (e) => {
-			if (!activationClick(e)) return;
+			if (!aimsAtWidget(e.target, el) || !activationClick(e)) return;
 			e.preventDefault();
+			follow();
+		});
+	}
+
+	// A focused widget follows on Enter or Space where a plain click on it would.
+	function onFollowKey(shell: HTMLElement, follow: () => void): void {
+		shell.addEventListener('keydown', (e) => {
+			if (neverACommand(e)) return;
+			if (!followsKey(e) || !aimsAtWidget(e.target, shell) || !activationClick(PLAIN_CLICK)) return;
+			e.preventDefault();
+			e.stopPropagation();
 			follow();
 		});
 	}
@@ -334,7 +348,11 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): ViewWidgetPool {
 		if (!mounted) return null;
 		ownProps.set(shell, { props: () => props, key: own.key });
 		const { follow } = own;
-		if (follow) onFollow(shell, () => follow(props.data, editor));
+		if (follow) {
+			const run = () => follow(props.data, editor);
+			onFollow(shell, run);
+			onFollowKey(shell, run);
+		}
 		return {
 			shell,
 			view: mounted as MountedPluginView<never>,
@@ -356,6 +374,16 @@ export function keyOwnWidget(shell: HTMLElement, event: KeyboardEvent): boolean 
 }
 
 const NO_ANSWERS: readonly string[] = Object.freeze([]);
+
+// A gesture is the widget's unless it lands in a control the widget holds: something past the
+// widget's own tab stop that takes focus, such as a button.
+function aimsAtWidget(target: EventTarget | null, widget: HTMLElement): boolean {
+	const stop = widgetTabStop(widget);
+	for (let el = target as Element | null; el && el !== widget; el = el.parentElement) {
+		if (el instanceof HTMLElement && el.tabIndex >= 0) return el === stop;
+	}
+	return true;
+}
 
 // The props each mounted `inline()` widget drew with, which its `key` gets too.
 const ownProps = new WeakMap<
