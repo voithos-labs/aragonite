@@ -212,4 +212,18 @@ test.describe('mermaid reference plugin', () => {
 		expect(await editor.bridge.getSource()).toBe(EDITED_SEED);
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
+
+	test('a caret the editor places on the diagram closes the focus view', async ({ page }) => {
+		await editor.clickToolbar('mermaid-focus');
+		await expect(editor.overlay).toHaveCount(1);
+
+		// A host putting back the selection it just read, which names the diagram.
+		await page.evaluate(() => {
+			const bridge = (window as any).__test;
+			return bridge.setSelection(bridge.getSelection());
+		});
+
+		await expect(editor.overlay).toHaveCount(0);
+		await expect(editor.firstInputHost).toBeFocused();
+	});
 });

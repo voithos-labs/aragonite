@@ -302,9 +302,12 @@
 		}
 	}
 
+	// The editor placing a caret on the block closes the focus view, as Escape does.
+	const outOfView: BoxFocus = { enter: closeFocusView, offset: () => null };
+
 	const ui: DiagramUi = { openEdit, openFocusView };
 	useDrawn<DiagramUi>(() => ({
-		focus: editing ? intoBox : undefined,
+		focus: focusView ? outOfView : editing ? intoBox : undefined,
 		keep: keepsPress,
 		save: () => commitEdit(false),
 		handle: ui

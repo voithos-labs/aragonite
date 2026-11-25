@@ -45,8 +45,14 @@ toolbar (Edit, Focus, Reset view) stays hidden until the block is hovered or foc
 - A change to the code that lands while the edit box is open fills the textarea again, and the
   commit on blur writes nothing that reverts it (driven at the unit level, where the live tree
   is reachable)
+- With the focus view open, a host's `setSelection` onto the diagram (the selection it just read)
+  closes the view and leaves the diagram focused whole, so the view never stays open with focus
+  outside it
 
 ## Miss-analysis
+
+A host's `setSelection` with the focus view open moved focus to the block and left the view open,
+where Escape no longer reached it: no row placed a caret from outside the view while it was open.
 
 The undo scenario above was satisfied by a test that moved focus off the block first, so undo
 from the kind's own focused block, where a keyboard commit leaves it, was never pressed. The
