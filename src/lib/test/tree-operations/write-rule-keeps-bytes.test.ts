@@ -26,10 +26,10 @@ beforeEach(() => {
 /** Block 1 of each fixture loses its first `cut` bytes; `query` is a match that holds them. */
 const KINDS: Array<{ kind: string; raw: string; cut: number; query: string; skip?: string }> = [
 	{ kind: 'fencedCode', raw: '```js\ncode\n```\n', cut: 1, query: '```js' },
-	{ kind: 'mathFence', raw: '```math\nx\n```\n', cut: 1, query: '```math' },
-	// A replace into a diagram applies only when the kind survives it.
+	// A replace into a block drawn as a picture of its source applies only when the kind survives it.
+	{ kind: 'mathFence', raw: '```math\nx\n```\n', cut: 1, query: '```math', skip: 'a replace' },
 	{ kind: 'mermaid', raw: '```mermaid\nA\n```\n', cut: 1, query: '```mermaid', skip: 'a replace' },
-	{ kind: 'mathBlock', raw: '$$\nx\n$$\n', cut: 1, query: '$$\nx' }
+	{ kind: 'mathBlock', raw: '$$\nx\n$$\n', cut: 1, query: '$$\nx', skip: 'a replace' }
 ];
 
 const sourceOf = (raw: string) => `para\n\n${raw}\nafter\n`;
