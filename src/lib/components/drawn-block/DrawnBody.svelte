@@ -63,6 +63,7 @@
 	import { bindLeafSurface } from './leaf-surface-binding.svelte';
 	import { createDrawnBox } from './drawn-box.svelte';
 	import { createContainerBlock } from '../../editor-actions/plugin/container';
+	import type { MarkerHost } from '../../schema/container-block';
 	import BlockList from '../BlockList.svelte';
 	import { createRenderCache } from './render-cache';
 	import { POINTER_GESTURE_ATTR } from '../../selection/pointer-gesture';
@@ -202,6 +203,17 @@
 		);
 	}
 
+	// What a marker's link reads: this block's plugin's editor, and the host's link click.
+	const markerHost: MarkerHost = {
+		get editor() {
+			return editorDoc.scopedEditor(pluginOfKind(node.kind));
+		},
+		follows: (click) => policies.activationClick(click),
+		get reading() {
+			return reading();
+		}
+	};
+
 	const container =
 		view.edit === 'container'
 			? createContainerBlock({
@@ -210,7 +222,9 @@
 					getPath: () => myPath,
 					getBoxEl: () => childBox ?? undefined,
 					...(view.closable && { isCollapsed: closedNow }),
-					...(view.ambientPrefix && { getAmbientPrefix: () => view.ambientPrefix!(node) })
+					...(view.ambientPrefix && {
+						getAmbientPrefix: () => view.ambientPrefix!(node, markerHost)
+					})
 				})
 			: null;
 	// Read after the container factory, which sets the children's windowing context.

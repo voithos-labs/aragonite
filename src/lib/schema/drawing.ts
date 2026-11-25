@@ -10,7 +10,8 @@ import type { Block } from './doc-view';
 import type { CodePainter } from './code-highlighter';
 import type { BlockView } from './block-view';
 import type { BlockType, Editor } from './plugin-unit';
-import type { Closable } from './container-block';
+import type { Closable, MarkerHost } from './container-block';
+import type { AmbientPrefix } from '../block-component';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export interface Drawing {
 		lineEnding: LineEnding
 	): { text: string; caret: number } | null;
 	/** The read-only marker shown ahead of a container's first child (a footnote's `[^1]: `). */
-	ambientPrefix?(node: NodeView): string;
+	ambientPrefix?(node: NodeView, host: MarkerHost): AmbientPrefix;
 	/** A container whose body folds away, as its data says. */
 	closable?: Closable<unknown>;
 }

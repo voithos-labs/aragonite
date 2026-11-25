@@ -40,7 +40,9 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		// The editor's own drawing reads no answers, so a spec with no `draw` starts no watch.
 		depends: spec.draw && spec.depends,
 		...(spec.closable && { closable: spec.closable as Closable<unknown> }),
-		...(lines.shape === 'indented' ? { ambientPrefix: (node) => ambientMarker(lines, node) } : {})
+		...(lines.shape === 'indented'
+			? { ambientPrefix: (node, host) => ambientMarker(lines, node, host) }
+			: {})
 	};
 	const strip = spec.lines as ContainerLines<D>;
 	const row = fenced?.title ? titleRowParts(fenced.title) : null;

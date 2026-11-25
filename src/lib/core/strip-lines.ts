@@ -8,6 +8,7 @@ import { lineStartsOuterBlock, type GrammarView } from '../schema/block-openers'
 import type { ChildRawChange } from '../schema/child-spans';
 import type { StripRebuild } from '../schema/strip-rebuild';
 import type { FencedReading } from '../schema/fence-shape';
+import type { Editor } from '../schema/plugin-unit';
 import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
 
 // ── Line shapes ──────────────────────────────────────────────────────────────
@@ -47,6 +48,13 @@ export interface IndentedLines<D extends object> {
 	lazy: boolean;
 	/** First-line text ahead of the child's that a lazy line's paragraph rule reads (a task box). */
 	paragraphHead?(data: D): string;
+	/** The marker's first `length` characters as a link named `label` (a footnote's `[^1]`): `follow`
+	 *  runs on the host's link click, and on Enter where reading mode makes it a tab stop. */
+	link?: {
+		length(data: D): number;
+		label(data: D): string;
+		follow(data: D, editor: Editor): void;
+	};
 }
 
 /** The writer a headed, fenced or colon shape brings along, so an app that never uses one doesn't

@@ -23,6 +23,8 @@ import {
 import type { Block } from './doc-view';
 import type { Chord } from './plugin-command';
 import type { ContainerDrawContext, Drawn } from './drawing';
+import type { Editor } from './plugin-unit';
+import type { AmbientPrefix } from '../block-component';
 
 export type { ContainerLines } from '../core/parsers/strip-container';
 
@@ -116,7 +118,43 @@ function titleRowOf(closable: Closable<object> | undefined, rowKind: () => AnyBl
 	};
 }
 
-/** The marker an indented container shows ahead of its first child's text, read-only. */
-export function ambientMarker<D extends object>(lines: IndentedLines<D>, node: NodeView): string {
-	return lines.first(getPluginMetadata<D>(node) as D);
+/** What a marker's link reads from the editor drawing it. */
+export interface MarkerHost {
+	readonly editor: Editor;
+	/** Whether a click follows a link, by the rule the host picked. */
+	follows(click: MouseEvent): boolean;
+	readonly reading: boolean;
+}
+
+/** The marker an indented container shows ahead of its first child's text, read-only; the run its
+ *  lines' `link` names is a link that follows by the host's rule. */
+export function ambientMarker<D extends object>(
+	lines: IndentedLines<D>,
+	node: NodeView,
+	host: MarkerHost
+): AmbientPrefix {
+	const data = getPluginMetadata<D>(node) as D;
+	const text = lines.first(data);
+	const { link } = lines;
+	if (!link) return text;
+	const follow = () => link.follow(data, host.editor);
+	const range = {
+		start: 0,
+		end: link.length(data),
+		className: 'marker-link',
+		role: 'link' as const,
+		label: link.label(data),
+		onClick(e: MouseEvent) {
+			if (!host.follows(e)) return;
+			// The click only follows, so the block's caret handling never sees it.
+			e.preventDefault();
+			e.stopPropagation();
+			follow();
+		}
+	};
+	// A tab stop only where the block holds no caret for it to interrupt.
+	return {
+		text,
+		interactive: [host.reading ? { ...range, focusable: true, onActivate: follow } : range]
+	};
 }
