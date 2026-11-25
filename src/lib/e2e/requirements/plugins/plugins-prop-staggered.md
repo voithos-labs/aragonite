@@ -14,7 +14,7 @@ prop on a later mount adds to what is registered. Editor 2's document is read th
 
 ## Edge cases
 
-- a document already parsed is not parsed again against a later grammar: editor 1, parsed before footnotesPlugin existed, keeps its `[^1]:` seed as the built-in `linkReferenceDefinition` and never as `footnote-def`, and its `:::callout` stays `callout`; the only invariant message is the expected `[invariant:late-opener-registration]`, because the footnote opener registered after editor 1 had read the grammar
+- a document already parsed is not parsed again against a later grammar: editor 1, parsed before footnotesPlugin existed, keeps its `[^1]:` seed as a `paragraph` and never as `footnote-def`, and its `:::callout` stays `callout`; the only invariant message is the expected `[invariant:late-opener-registration]`, because the footnote opener registered after editor 1 had read the grammar
 
 ## User interactions
 

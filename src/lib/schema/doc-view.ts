@@ -361,10 +361,11 @@ class NodeBlock {
 
 const pathOf = (state: BlockState) => state.reading.find(state.node, state);
 
-// Where its container closes its line (a summary's `</summary>`), the line ending is the
-// container's, so the block's text stops where its bytes do.
+// A block's text is its bytes, so where its container closes its line (a summary's `</summary>`)
+// the line ending is the container's and the text stops before it.
 function closedByContainer(state: BlockState): boolean {
 	const path = pathOf(state);
+	// A top-level block has no container to close its line, so it never asks the byte map.
 	if (!path || path.length < 2) return false;
 	const end = state.reading.ownEnd(path);
 	return end !== null && end === state.reading.byteOf(path, displayLength(state.node.raw));

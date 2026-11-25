@@ -53,20 +53,17 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 
 	test('the late mount parses its own seed against the just-registered grammar', () => {
 		// Editor 2 installed footnotesPlugin before parsing, so `[^1]:` resolves to a footnote
-		// definition holding its paragraph, not to the built-in reading editor 1 gives it.
+		// definition holding its paragraph, not to the paragraph editor 1 reads.
 		const note = blockOfKind(editorTwo, 'footnote-def');
 		expect(note).toBeDefined();
 		expect(note?.child0).toBe('paragraph');
-		expect(kindsOf(editorTwo)).toContain('callout');
-		expect(kindsOf(editorTwo)).not.toContain('linkReferenceDefinition');
+		expect(kindsOf(editorTwo)).toEqual(['callout', 'footnote-def']);
 	});
 
 	test('editor 1 does not re-parse against the later grammar; one expected late-opener warn', async () => {
 		// Editor 1 parsed before footnotesPlugin existed, and a parsed document never re-parses, so
-		// its `[^1]:` stays the built-in reading and never becomes a footnote definition.
-		expect(kindsOf(editorOne)).toContain('linkReferenceDefinition');
-		expect(kindsOf(editorOne)).toContain('callout');
-		expect(kindsOf(editorOne)).not.toContain('footnote-def');
+		// its `[^1]:` stays a paragraph and never becomes a footnote definition.
+		expect(kindsOf(editorOne)).toEqual(['callout', 'paragraph']);
 
 		// The fixture requires the tag and forbids the rest, so all that is left to assert is the
 		// count: a second registration would mean editor 1 re-parsed.

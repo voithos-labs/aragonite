@@ -9,7 +9,7 @@
 	const editorOnePlugins = [callout];
 	const editorTwoPlugins = [callout, footnotesPlugin()];
 
-	// Editor 1 parses these bytes under callout only, so `[^1]:` falls to a built-in reading;
+	// Editor 1 parses these bytes under callout only, so `[^1]:` reads as a paragraph;
 	// editor 2 parses them after footnotesPlugin registered, so it resolves.
 	const SEED = [':::callout Title', 'First', ':::', '', '[^1]: Note', ''].join('\n');
 </script>

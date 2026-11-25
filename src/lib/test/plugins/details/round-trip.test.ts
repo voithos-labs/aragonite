@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { getPluginMetadata } from '#lib/plugin.js';
-import { DETAILS, SUMMARY, detailsGrammar } from '#lib/test/support/details-grammar.js';
+import {
+	DETAILS,
+	SUMMARY,
+	detailsGrammar,
+	detailsList
+} from '#lib/test/support/details-grammar.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 let grammar: ReturnType<typeof detailsGrammar>;
@@ -161,5 +166,21 @@ describe('details rebuildRaw is the opener inverse', () => {
 		const first = details.raw;
 		writeContainerRaw(details, grammar);
 		expect(details.raw).toBe(first);
+	});
+});
+
+// The Insert menu and `/` list the section under its type's name, and what it inserts reads back as
+// one with an empty summary over an empty paragraph.
+describe('details insert row', () => {
+	it('inserts an empty section, named `details/details`, with the list-collapse icon', () => {
+		const list = detailsList();
+		const [row] = list.contributions.inserts;
+		expect([row.id, row.label, row.icon]).toEqual(['details/details', 'Details', 'list-collapse']);
+		const [section] = parse(row.insert as string, { grammar: list.grammar }).children;
+		expect(section.kind).toBe(DETAILS);
+		expect(section.children?.map((c) => [c.kind, c.raw])).toEqual([
+			[SUMMARY, '\n'],
+			['paragraph', '\n']
+		]);
 	});
 });
