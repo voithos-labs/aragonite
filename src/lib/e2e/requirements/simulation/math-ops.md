@@ -105,3 +105,9 @@ after every move, with a fixed seed so runs repeat.
 - the live serializer round-trips the current CST at every checkpoint
 - the nested-state audit finds no `BlockListState` out of sync after any insert,
   reveal, edit, delete, promotion, focus, whole-block delete, or undo
+
+## Miss-analysis
+
+- The diagram's two-step delete warned `derived_inert` twice once mermaid drew on the draw host:
+  the host's save-on-unmount read its own props a tick after the block was gone. No unit row
+  deletes a box with a following block in a way jsdom makes stale, so this session is the guard.

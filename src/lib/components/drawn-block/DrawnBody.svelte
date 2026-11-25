@@ -280,10 +280,10 @@
 				)
 			];
 			// Still in the live document, as windowing leaves it, and not redrawn at the drawing's ask.
-			const stays = () =>
+			const stays = (at: { path: number[]; node: NodeView }) =>
 				mountedOn.stamp?.live &&
 				generation === mountedOn.generation &&
-				nodeAt(editorDoc.doc(), myPath) === node;
+				nodeAt(editorDoc.doc(), at.path) === at.node;
 			return () => {
 				offs.forEach((off) => off());
 				unhold?.();
@@ -294,8 +294,10 @@
 				// A render reads the document as it was, so the drawing saves once the render is done, if
 				// its block stays; no engine but Chromium fires a removed field's blur.
 				if (!made.save || !mountedOn.stamp?.live) return destroyDrawing(made);
+				// Read now: once the render is done, the props belong to a destroyed component.
+				const at = { path: myPath, node };
 				void tick().then(() => {
-					if (stays()) saveOf(made);
+					if (stays(at)) saveOf(made);
 					destroyDrawing(made);
 				});
 			};
