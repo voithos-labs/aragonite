@@ -214,6 +214,8 @@ export interface EditableSurfaceDeps {
 
 	// ── Live block state (functions, never captured values) ───────────────────
 	getNode: () => NodeView;
+	/** The name its container gives it, ahead of the one its kind reads as. */
+	getLabel?: () => string | undefined;
 	getMyPath: () => number[];
 	getIndex: () => number;
 	/** Puts the caret at `at` once the next render lands, while the block still has focus. */
@@ -1058,7 +1060,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		}
 		return {
 			role: combobox ? ('combobox' as const) : ('textbox' as const),
-			'aria-label': blockAccessibleName(deps.getNode()),
+			'aria-label': deps.getLabel?.() ?? blockAccessibleName(deps.getNode()),
 			'aria-expanded': combobox ? ('true' as const) : undefined,
 			'aria-controls': combobox?.listboxId,
 			'aria-activedescendant': combobox?.activeOptionId,

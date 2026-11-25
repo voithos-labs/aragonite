@@ -9,6 +9,7 @@ import { firstDisplayLine, ownTrailingLineEnding, trimTrailingLineEnding } from 
 import { WRITES_LINES, type ColonLines } from '../core/strip-lines';
 import type { AnyBlockKind } from '../core/nodes';
 import type { BlockOpener } from './block-openers';
+import type { TitleRowLook } from '../block-component';
 import { escalatedColonCount, matchDirectiveOpener } from '../core/directive/grammar';
 
 /** What a maker's colon type reads its names and title row from (`colonLines` makes it). */
@@ -18,7 +19,7 @@ export interface ColonReading {
 	/** Its title row's kind, the opening line every `:::` container shares. */
 	readonly row: AnyBlockKind;
 	/** What a screen reader calls the title row, and a class for its text. */
-	readonly title: { readonly label: string; readonly className?: string };
+	readonly title: TitleRowLook;
 	/** Turns the editor's directive grammar on; its shared `:::` opener reads the names, so the type
 	 *  brings no opener of its own. */
 	openers(): readonly BlockOpener[];

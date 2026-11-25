@@ -11,7 +11,7 @@ import type { CodePainter } from './code-highlighter';
 import type { BlockView } from './block-view';
 import type { BlockType, Editor } from './plugin-unit';
 import type { Closable, MarkerHost } from './container-block';
-import type { AmbientPrefix } from '../block-component';
+import type { AmbientPrefix, TitleRowLook } from '../block-component';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -128,6 +128,8 @@ export interface Drawing {
 	ambientPrefix?(node: NodeView, host: MarkerHost): AmbientPrefix;
 	/** A container whose body folds away, as its data says. */
 	closable?: Closable<unknown>;
+	/** What its title row is called and classed, where several types share the row's kind. */
+	titleRow?: TitleRowLook;
 }
 
 export function drawingOf(view: BlockView): Drawing {

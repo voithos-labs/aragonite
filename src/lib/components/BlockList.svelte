@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import type { AmbientPrefix, BlockComponent } from '../block-component';
+	import type { AmbientPrefix, BlockComponent, TitleRowLook } from '../block-component';
 	import type { BlockEditActions, FocusActions } from '../action-contracts';
 	import type { NodeView } from '../core/node-views';
 	import {
@@ -27,6 +27,7 @@
 		slots,
 		parentPath = [],
 		ambientPrefixForFirst = '',
+		titleRowForFirst = undefined,
 		window: win = undefined,
 		reorderable = false
 	}: {
@@ -35,6 +36,7 @@
 		slots: RefSlots<BlockComponent>;
 		parentPath?: number[];
 		ambientPrefixForFirst?: AmbientPrefix;
+		titleRowForFirst?: TitleRowLook;
 		window?: WindowResult;
 		reorderable?: boolean;
 	} = $props();
@@ -92,6 +94,7 @@
 			id={entry.id}
 			{parentPath}
 			ambientPrefix={entry.index === 0 ? ambientFor(entry.node) : ''}
+			titleRow={entry.index === 0 ? titleRowForFirst : undefined}
 			{slots}
 			{reorderable}
 		/>

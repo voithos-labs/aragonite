@@ -225,6 +225,7 @@
 					getPath: () => myPath,
 					getBoxEl: () => childBox ?? undefined,
 					...(view.closable && { isCollapsed: closedNow }),
+					...(view.titleRow && { titleRow: view.titleRow }),
 					...(view.ambientPrefix && {
 						getAmbientPrefix: () => view.ambientPrefix!(node, markerHost)
 					})

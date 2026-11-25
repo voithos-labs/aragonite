@@ -14,7 +14,12 @@ import type { ComponentProps } from 'svelte';
 import type BlockList from '../../components/BlockList.svelte';
 import type { BlockEditActions, FocusActions, MoveFocusOptions } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
-import type { AmbientPrefix, BlockComponent, ContainerBlockComponent } from '../../block-component';
+import type {
+	AmbientPrefix,
+	BlockComponent,
+	ContainerBlockComponent,
+	TitleRowLook
+} from '../../block-component';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
 import {
@@ -81,6 +86,8 @@ export interface ContainerBlockDeps {
 	commandHooks?: () => unknown;
 	/** The marker prefix drawn before the first child's bytes, like a list item's `- `. */
 	getAmbientPrefix?: () => AmbientPrefix;
+	/** The look its title row takes, where the row's kind is shared by several container types. */
+	titleRow?: TitleRowLook;
 }
 
 /**
@@ -96,6 +103,7 @@ export interface ContainerBlockListProps {
 	window?: WindowResult;
 	reorderable?: boolean;
 	ambientPrefixForFirst?: AmbientPrefix;
+	titleRowForFirst?: TitleRowLook;
 }
 
 // Two-way: BlockList accepts everything the contract promises (contract within component),
@@ -408,7 +416,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		},
 		get ambientPrefixForFirst() {
 			return deps.getAmbientPrefix?.() ?? '';
-		}
+		},
+		titleRowForFirst: deps.titleRow
 	};
 
 	// Reading mode declines at the commit, which names the write in a dev build.

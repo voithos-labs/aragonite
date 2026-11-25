@@ -122,6 +122,13 @@ interface AmbientRangeBase {
 	onClick: (e: MouseEvent) => void;
 }
 
+/** What a container calls its title row (child 0) and a class for its text, for a row kind several
+ *  container types share. */
+export interface TitleRowLook {
+	readonly label: string;
+	readonly className?: string;
+}
+
 export type AmbientPrefix =
 	| string
 	| {
@@ -149,6 +156,8 @@ export interface BlockComponentProps {
 	myPath: number[];
 	/** Container-contributed read-only prefix rendered before the block's own raw (a footnote's `[^label]: `). */
 	ambientPrefix: AmbientPrefix;
+	/** The look its container gives it as its title row. */
+	titleRow?: TitleRowLook;
 	/** The root document, readonly by type; changing it is the commit path's business. */
 	document?: DocumentView;
 	/** The owning instance's `EditorRects`: measure, scroll into view, or scroll to a path.

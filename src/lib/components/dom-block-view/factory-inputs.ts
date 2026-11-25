@@ -5,8 +5,8 @@
 
 import type { ContainerBlockDeps } from '../../editor-actions/plugin/container';
 
-/** The DOM host itself, the view's spec, a call on its surface, or the kind's descriptor. */
-type InputSource = 'host' | 'spec' | 'surface' | 'descriptor';
+/** The DOM host itself, the view's spec, a call on its surface, the kind's descriptor, or none. */
+type InputSource = 'host' | 'spec' | 'surface' | 'descriptor' | 'none';
 
 const _containerInputs = {
 	getNode: 'host',
@@ -17,5 +17,7 @@ const _containerInputs = {
 	getFocusEl: 'surface',
 	isCollapsed: 'descriptor',
 	commandHooks: 'surface',
-	getAmbientPrefix: 'spec'
+	getAmbientPrefix: 'spec',
+	// A DOM view's row keeps the look its own kind gives it.
+	titleRow: 'none'
 } as const satisfies Record<keyof ContainerBlockDeps, InputSource>;

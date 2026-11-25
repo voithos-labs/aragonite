@@ -4,7 +4,8 @@
 		resolveBlockSurface,
 		type AmbientPrefix,
 		type BlockComponent,
-		type HostedBlockExports
+		type HostedBlockExports,
+		type TitleRowLook
 	} from '../block-component';
 	import type { NodeView } from '../core/node-views';
 	import { useBlockDecorations } from '../decorations/use-block-decorations.svelte';
@@ -38,6 +39,7 @@
 		id,
 		parentPath = [],
 		ambientPrefix = '',
+		titleRow = undefined,
 		slots,
 		reorderable = false
 	}: {
@@ -46,6 +48,7 @@
 		id: string;
 		parentPath?: number[];
 		ambientPrefix?: AmbientPrefix;
+		titleRow?: TitleRowLook;
 		slots?: RefSlots<BlockComponent>;
 		reorderable?: boolean;
 	} = $props();
@@ -183,6 +186,7 @@
 			{index}
 			{myPath}
 			{ambientPrefix}
+			{titleRow}
 			document={getDoc?.()}
 			{rects}
 			bind:this={instance}

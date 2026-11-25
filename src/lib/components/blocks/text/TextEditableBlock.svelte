@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { imeOwnsInput } from '../../../browser/composition';
 	import { getContext, onDestroy, untrack } from 'svelte';
-	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
+	import {
+		type AmbientPrefix,
+		type BlockComponent,
+		type TitleRowLook
+	} from '../../../block-component';
 	import { isTaskItemText } from '../list/task-checkbox';
 	import { defaultPrefixIndent } from '../marker-prefix';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
@@ -80,6 +84,7 @@
 		blockClass = 'paragraph-block',
 		sourceAtCaret = false,
 		ambientPrefix = '',
+		titleRow = undefined,
 		rects
 	}: {
 		node: NodeView;
@@ -89,6 +94,7 @@
 		// Shows the block's markers while the caret is in it, in a mode that hides them.
 		sourceAtCaret?: boolean;
 		ambientPrefix?: AmbientPrefix;
+		titleRow?: TitleRowLook;
 		// Accepted so the props match `BlockComponentProps`: this block reads the document
 		// from its own context, and binding here would shadow the global `document`.
 		document?: DocumentView;
@@ -208,6 +214,7 @@
 		backend: cursor,
 		landCaret: (offset, clamp) => widgetInteraction.restoreCaret(offset, clamp),
 		getNode: () => node,
+		getLabel: () => titleRow?.label,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		requestCaret: (at, { source }) => setPendingCursorOffset(at, source),
@@ -871,7 +878,7 @@
 	keeps the block focusable for arrow traversal. -->
 <div
 	bind:this={el}
-	class="text-editable-block {blockClass}"
+	class={['text-editable-block', blockClass, titleRow?.className]}
 	contenteditable={readOnly ? 'false' : 'true'}
 	data-source-at-caret={sourceAtCaret ? '' : undefined}
 	spellcheck={browserSpellcheck() ? undefined : 'false'}
