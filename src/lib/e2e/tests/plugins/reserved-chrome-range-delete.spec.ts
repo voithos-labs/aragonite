@@ -77,21 +77,40 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 4c: chrome-between; start truncates, the opening stays, end body child keeps its tail in place', async ({
+	for (const mode of ['live', 'source'] as const)
+		test(`Gate 4i, ${mode}: Shift+ArrowUp from the body's start onto the row keeps the opener`, async ({
+			page
+		}) => {
+			const source = ':::callout Title\nBody\n:::\n';
+			await editor.setPresentationMode(mode);
+			await editor.loadContent(source);
+			await editor.focusBlockAtPath([0, 1], 0);
+			await page.keyboard.press('Shift+ArrowUp');
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals(':::callout \nBody\n:::\n');
+			await editor.undo();
+			await editor.bridge.waitForSourceEquals(source);
+			await editor.focusBlockAtPath([0, 1], 0);
+			await page.keyboard.press('Shift+ArrowUp');
+			await page.keyboard.press('ControlOrMeta+x');
+			await editor.bridge.waitForSourceEquals(':::callout \nBody\n:::\n');
+			await editor.paste();
+			await editor.bridge.waitForSourceEquals(source);
+		});
+
+	test('Gate 4c: chrome-between; start truncates, the title clears, end body child keeps its tail in place', async ({
 		page
 	}) => {
 		await editor.loadContent(WALL_FIXTURE);
 		await editor.dragFromTo([0], 2, [1, 1], 2);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		// A range entering the container from outside keeps its opening line whole.
-		await editor.bridge.waitForSourceEquals('Ab\n\n:::callout Title\ndy1\n\nBody2\n:::\n\nBelow\n');
+		// A range entering the container from outside clears the title it runs past, keeping the marker.
+		await editor.bridge.waitForSourceEquals('Ab\n\n:::callout \ndy1\n\nBody2\n:::\n\nBelow\n');
 		const callout = await readCallout(page, 1);
 		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph', 'paragraph']);
-		expect(callout.childTexts).toEqual([':::callout Title', 'dy1', 'Body2']);
-		expect(await editor.bridge.getSource()).toBe(
-			'Ab\n\n:::callout Title\ndy1\n\nBody2\n:::\n\nBelow\n'
-		);
+		expect(callout.childTexts).toEqual([':::callout ', 'dy1', 'Body2']);
+		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout \ndy1\n\nBody2\n:::\n\nBelow\n');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 

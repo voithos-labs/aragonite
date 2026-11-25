@@ -48,20 +48,20 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
-		// Dropping in header cell "a" enters the table by its first row, which takes it whole, while the
-		// opening the range enters stays whole; removing it would leave the closer alone.
+		// Dropping in header cell "a" enters the table by its first row, which takes it whole; the title
+		// the range runs past clears and the marker stays, so the closer is never left alone.
 		await editor.dragFromTo([0], 2, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::callout Title\n:::');
+		await editor.bridge.waitForSourceContains(':::callout \n:::');
 
 		const callout = await readCallout(page, 1);
 		expect(callout.childKinds).toEqual(['directiveOpenerLine']);
-		expect(callout.childTexts[0]).toBe(':::callout Title');
+		expect(callout.childTexts[0]).toBe(':::callout ');
 		// The truncated start of the prose keeps its line ending, so the blank line the source had
 		// between it and the container survives.
-		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout Title\n:::\n\nBelow\n');
+		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout \n:::\n\nBelow\n');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
@@ -133,16 +133,16 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 	}) => {
 		await editor.loadContent(TBL_BOTH_FIXTURE);
 		// Outer body cell "1" (its last row) to inner header cell "c" (its first): each table goes whole,
-		// and the opening between them stays.
+		// and the marker between them stays, its title cleared.
 		await dragBetweenPoints(page, await cellCenter(page, 2), await cellCenter(page, 4));
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceEquals(':::callout Title\n:::\n\nBelow\n');
+		await editor.bridge.waitForSourceEquals(':::callout \n:::\n\nBelow\n');
 
 		const callout = await readCallout(page, 0);
 		expect(callout.childKinds).toEqual(['directiveOpenerLine']);
-		expect(callout.childTexts[0]).toBe(':::callout Title');
+		expect(callout.childTexts[0]).toBe(':::callout ');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 

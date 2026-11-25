@@ -36,7 +36,7 @@ export interface LeafEdit {
 }
 
 /** Where offset `at` of a text block's bytes sits in the source; past its last line ending is the
- *  block's end, which the map can't name (it is where the next line starts, behind its markers). */
+ *  block's end, before any marker on the line after it. */
 export function byteAt(doc: Doc, leaf: LaidBlock, at: number): number {
 	const raw = nodeAt(doc, leaf.path).raw;
 	if (at > 0 && at === raw.length && raw.endsWith('\n')) return leaf.to;

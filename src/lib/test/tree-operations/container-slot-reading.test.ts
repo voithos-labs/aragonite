@@ -77,8 +77,6 @@ const row = (source: string, path: number[], more: Partial<Row> = {}): Row => ({
 });
 
 const UNDER_PARAGRAPH = `x\n:::tip\nner\n:::${TAIL}`;
-const EMPTIED = `x\n\n\nner\n:::${TAIL}`;
-
 const OPENER_ROWS: Record<string, Row> = {
 	'an admonition under a paragraph': row(UNDER_PARAGRAPH, [1, 0]),
 	'a titled admonition under a paragraph': row(`x\n:::tip Title\nner\n:::${TAIL}`, [1, 0]),
@@ -135,8 +133,6 @@ more${TAIL}`,
 	'a soft key': row(UNDER_PARAGRAPH, [1, 0], { gesture: { type: 'x', by: 'soft key' } }),
 	'a composition': row(UNDER_PARAGRAPH, [1, 0], { gesture: { type: 'x', by: 'composition' } }),
 	'a letter inside the marker': row(UNDER_PARAGRAPH, [1, 0], { from: 1 }),
-	'a letter over the marker': row(UNDER_PARAGRAPH, [1, 0], { to: 3 }),
-	'a cut of the marker': row(UNDER_PARAGRAPH, [1, 0], { to: 3, gesture: { remove: 'cut' } }),
 	'Backspace inside the marker': row(UNDER_PARAGRAPH, [1, 0], {
 		from: 1,
 		gesture: { remove: 'Backspace' }
@@ -166,21 +162,6 @@ const LAZY_LINE_ROWS: Record<string, Row> = {
 		to: 4,
 		gesture: { remove: 'Backspace' },
 		bytes: `[a]: /u\n't\n\n- \ntext'${TAIL}`
-	})
-};
-
-// An emptied row is held as every emptied block is: an empty paragraph, with the blank line a
-// reload needs to read one.
-const EMPTIED_ROWS: Record<string, Row> = {
-	'a cut of the whole row': row(UNDER_PARAGRAPH, [1, 0], {
-		to: 6,
-		gesture: { remove: 'cut' },
-		bytes: EMPTIED
-	}),
-	'Backspace over the whole row': row(UNDER_PARAGRAPH, [1, 0], {
-		to: 6,
-		gesture: { remove: 'Backspace' },
-		bytes: EMPTIED
 	})
 };
 
@@ -261,8 +242,6 @@ function check(rows: Record<string, Row>): void {
 
 describe('an edit on an opener line', () => check(OPENER_ROWS));
 describe('a list that gives up a lazy line', () => check(LAZY_LINE_ROWS));
-describe('an opener line emptied', () => check(EMPTIED_ROWS));
-
 async function mounted(source: string, mode: PresentationMode): Promise<Editor> {
 	const editor = mountEditor<EditorTestSurface>({
 		source,

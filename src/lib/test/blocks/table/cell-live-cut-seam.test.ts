@@ -19,8 +19,9 @@ afterEach(async () => {
 
 const LIVE = { mode: () => 'live' as const };
 
+// The first six arguments: the selection a write replaced is the unwrap rule's, not this suite's.
 function committedCalls(cell: MountedCell): unknown[][] {
-	return vi.mocked(cell.blockEdit.updateBlockContent).mock.calls;
+	return vi.mocked(cell.blockEdit.updateBlockContent).mock.calls.map((call) => call.slice(0, 6));
 }
 
 // The cut from `createClipboardHandlers` awaits before committing, so the commit lands several

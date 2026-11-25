@@ -126,10 +126,25 @@ function wholeTextInside(
 	return { start, end };
 }
 
-/** The block's whole text replaced by `typed`, its markers with it, except where the position
- *  stores text and keeps its kind whatever it holds: a title row keeps its `:::name`. */
+/** The part of a drawn range a copy or a drag carries off: the range, less the `:::name` a title
+ *  row's own write keeps where the range covers its whole text in a reading that hides delimiters. */
+export function drawnSpan(
+	node: NodeView,
+	range: { start: number; end: number },
+	store: StoredAs
+): { start: number; end: number } {
+	if (!wholeTextInside(node, range, store)) return range;
+	return { start: Math.max(range.start, keptHead(node, store)), end: range.end };
+}
+
+/** Where a whole-text edit's kept bytes end: past the name where the position stores text and keeps
+ *  its kind whatever it holds (a title row's `:::name`), else at the block's first byte. */
+const keptHead = (node: NodeView, store: StoredAs) =>
+	store.surface === 'inline' ? getContentRange(node).start : 0;
+
+/** The block's whole text replaced by `typed`, its markers with it, save the head `keptHead` keeps. */
 function asWholeText(node: NodeView, typed: string, store: StoredAs): LeafRangeEdit {
-	const start = store.surface === 'inline' ? getContentRange(node).start : 0;
+	const start = keptHead(node, store);
 	const end = displayLength(node.raw);
 	const caret = start + typed.length;
 	return {

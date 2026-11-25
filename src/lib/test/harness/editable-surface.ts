@@ -74,6 +74,7 @@ export function makeSurface(
 
 	const backend = {
 		getRaw: () => asRawOffset(caret),
+		getRawSelection: () => null,
 		setRaw: (offset: RawOffset, placement: { clamp: CaretClamp }) => {
 			writer.setRaw(offset, placement);
 			const sel = window.getSelection();

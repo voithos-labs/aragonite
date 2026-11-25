@@ -13,6 +13,7 @@
 // started at the top level, crossed a details, a quote or an item on the way in, or went three deep.
 // No draw ended at a line's end with its block running on, and the law read a line past its markers,
 // so a marker the removal wrote twice there passed. Nothing read where a line break put the caret.
+// No check read a line ending, so a mixed-ending draw that left a `\r` without its `\n` passed.
 
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
@@ -30,7 +31,7 @@ import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import { leafAt, readOf } from './expected';
-import { gluedStart, movedLine, rewrittenAfter, textBelow } from './kept-lines';
+import { gluedStart, loneReturn, movedLine, rewrittenAfter, textBelow } from './kept-lines';
 import { checkHost, noTransforms, testReading } from './test-host';
 
 const TABLE = ['| a | b |', '|---|---|', '| 1 | 2 |', '| 3 | 4 |'];
@@ -220,7 +221,8 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 					const moved =
 						gluedStart(host, read, range.from, range.to, got) ??
 						movedLine(host, read, range.from, range.to, got) ??
-						rewrittenAfter(read, range.to, got);
+						rewrittenAfter(read, range.to, got) ??
+						loneReturn(source, got);
 					if (moved) fails.push(`${moved}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`);
 				}
 				// G4.351: where the start's block went whole, Delete lands on the text after the range (the
