@@ -1,6 +1,6 @@
 /**
- * The one place `> [!TYPE]` is recognized, shared with the native `githubAlert` opener.
- * Both converters ask the parser how far the blockquote runs, so CommonMark §5.1 lazy
+ * The `> [!TYPE]` recognizer for text, which the paste rewrite and the converters share; the alert
+ * type reads its head line from the same five names. Both converters ask the parser how far the blockquote runs, so CommonMark §5.1 lazy
  * continuation is handled identically. For a whole document use `convert-document.ts`
  * instead: the scanner here is not fence-safe.
  */

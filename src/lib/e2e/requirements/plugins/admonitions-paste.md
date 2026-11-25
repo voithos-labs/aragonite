@@ -28,7 +28,7 @@ The tests write the real clipboard and press `Mod+V`, then read the tree by path
 ## With the rewrite on
 
 `/test/plugins?seed=admonitions-alone` lists `admonitions({ convertAlertsOnPaste: true })` alone.
-The rewrite reads the whole paste as text, as 0.11.5's transform did.
+The rewrite converts each alert at the paste's top level as the editor reads the paste; an alert inside another block (a list item, a section) stays.
 
 Miss-analysis: the transform's rows ran it on raw text in a unit, so no row pasted with it on, and
 nothing showed which of the editor's paste routes a rewrite by block type would skip.
