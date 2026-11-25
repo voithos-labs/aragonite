@@ -347,9 +347,10 @@ class NodeBlock {
 		const state = this[STATE];
 		const path = pathOf(state);
 		if (!path) return null;
-		// Past a line ending is no character of the block's: that byte starts the next line, if any.
-		const { raw } = state.node;
-		const last = raw.endsWith('\n') ? raw.length - 1 : raw.length;
+		// Past a line ending, or past a text whose line its container closes, is no character of the
+		// block's: the bound is its text's, not its raw's.
+		const { text } = this;
+		const last = text.endsWith('\n') ? text.length - 1 : text.length;
 		return offsetOf((offset) => state.reading.byteOf(path, offset), last, at);
 	}
 
