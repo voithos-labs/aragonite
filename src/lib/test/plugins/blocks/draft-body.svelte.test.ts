@@ -115,18 +115,27 @@ describe('a body written', () => {
 		expect(after).toBe(expected);
 	});
 
+	// Miss-analysis: the one-line `$$x$$` rows were declared in the fixture and never written, so a
+	// text of lines split it into a formula and a paragraph and still answered ok.
 	it.each([
 		['@@ hi\n', 'yo', '@@ yo\n'],
-		['$$\nx\n$$\n', 'a\nb', '$$\na\nb\n$$\n']
+		['$$\nx\n$$\n', 'a\nb', '$$\na\nb\n$$\n'],
+		['$$x$$\n', 'y', '$$y$$\n'],
+		['$$x$$\n', 'a\nb', '$$\na\nb\n$$\n'],
+		['$$x$$\r\n', 'a\nb', '$$\r\na\r\nb\r\n$$\r\n'],
+		['> $$x$$\n', 'a\nb', '> $$\n> a\n> b\n> $$\n']
 	])('of %j given %j writes %j', async (source, text, expected) => {
 		const { result, after } = await written(source, text);
 		expect(result).toEqual({ ok: true });
 		expect(after).toBe(expected);
 	});
 
+	// The last two: a fence with a fixed closer and no `escape` can't hold a line spelling it.
 	it.each([
 		['@@ hi\n', 'a\nb'],
-		['%%%\n', 'x']
+		['%%%\n', 'x'],
+		['$$\nx\n$$\n', 'a\n$$\nb'],
+		['$$x$$\n', 'a\n$$\nb']
 	])('of %j given %j is refused, writing nothing', async (source, text) => {
 		const { result, after } = await written(source, text);
 		expect(result).toMatchObject({ ok: false, reason: 'illegal' });
@@ -173,46 +182,80 @@ const fenceBlock = fc
 	})
 	.map(({ marker, run, indent, body, ending, closed, last, inside }) => {
 		const fence = marker.repeat(run);
-		// A body line spelling the fence would close it; such a block is one the parser never makes.
-		const kept = body.filter(([text]) => !text.trimStart().startsWith(fence.slice(0, 3)));
+		// A body line of the fence's marker, as long or longer, would close it.
+		const closes = new RegExp(`^${marker}{${run},}[ \\t]*$`);
+		const kept = body.filter(([text]) => !closes.test(text.trimStart()));
 		const lines = [indent + fence + 'mermaid' + ending, ...kept.map(([t, e]) => indent + t + e)];
 		if (closed) lines.push(indent + fence + (last ? '' : ending));
 		const rest = inside === '- ' ? '  ' : inside;
 		return lines.map((l, i) => (i === 0 ? inside : rest) + l).join('');
 	});
 
+// A `$$` block, one-line or on fence lines; a body line spelling its closer would end it.
+const texBlock = fc
+	.record({
+		one: fc.boolean(),
+		body: fc.array(fc.tuple(line, ending), { minLength: 1, maxLength: 3 }),
+		ending,
+		inside: fc.constantFrom('', '> ', '- ')
+	})
+	.map(({ one, body, ending, inside }) => {
+		const kept = body.filter(([text]) => text !== '$$' && text !== '');
+		const lines = one
+			? [`$$${kept[0]?.[0] ?? 'x'}$$${ending}`]
+			: ['$$' + ending, ...kept.map(([t, e]) => t + e), '$$' + ending];
+		const rest = inside === '- ' ? '  ' : inside;
+		return lines.map((l, i) => (i === 0 ? inside : rest) + l).join('');
+	});
+const anyBlock = fc.oneof(fenceBlock, texBlock);
+
 describe('the law', () => {
-	it('body(b, b.body) writes nothing, for every fence', async () => {
+	// Miss-analysis: the property drew code fences alone and asked only with the body as read, which
+	// the writer answers before it writes anything, so no run reached a `$$` block or a field's text.
+	it('body(b, b.body) writes nothing, as read or as a field hands it back', async () => {
 		await fc.assert(
-			fc.asyncProperty(fenceBlock, async (source) => {
+			fc.asyncProperty(anyBlock, async (source) => {
 				const editor = mountEditor({ source, plugins: [kinds] });
 				await editor.settle();
 				const block = blockOf(editor);
-				const result = await editor.instance.edit().body(block, block.body).commit();
-				await editor.settle();
-				expect(result.ok).toBe(false);
-				expect(editor.source()).toBe(source);
+				// A field's text of a block mixing endings takes CRLF on every line, by design.
+				const mixed = source.includes('\r\n') && /(^|[^\r])\n/.test(source);
+				const field = mixed ? [] : [block.body.replace(/\r\n/g, '\n')];
+				for (const text of [block.body, ...field]) {
+					const result = await editor.instance.edit().body(block, text).commit();
+					await editor.settle();
+					expect(result.ok).toBe(false);
+					expect(editor.source()).toBe(source);
+				}
 				await editor.destroy();
 			}),
-			{ numRuns: 40 }
+			{ numRuns: 60 }
 		);
 	});
 
-	it('after body(b, t) the block reads back as its type with t as its body', async () => {
+	it('after body(b, t) the block reads back with t as its body, or writes nothing', async () => {
 		const text = fc.array(line, { maxLength: 4 }).map((lines) => lines.join('\n'));
 		await fc.assert(
-			fc.asyncProperty(fenceBlock, text, async (source, t) => {
+			fc.asyncProperty(anyBlock, text, async (source, t) => {
 				const editor = mountEditor({ source, plugins: [kinds] });
 				await editor.settle();
+				const type = blockOf(editor).type.name;
 				const ending = source.includes('\r\n') ? '\r\n' : '\n';
-				await editor.instance.edit().body(blockOf(editor), t).commit();
+				const result = await editor.instance.edit().body(blockOf(editor), t).commit();
 				await editor.settle();
-				const block = blockOf(editor);
-				expect(block.type.name).toBe('m/diagram');
-				expect(block.body).toBe(t.replace(/\n/g, ending));
+				if (!result.ok && result.reason === 'illegal') {
+					// Only a `$$` block refuses, for a line that would end it.
+					expect(type).toBe('m/tex');
+					expect(t.split('\n')).toContain('$$');
+					expect(editor.source()).toBe(source);
+				} else {
+					const block = blockOf(editor);
+					expect(block.type.name).toBe(type);
+					expect(block.body).toBe(t.replace(/\n/g, ending));
+				}
 				await editor.destroy();
 			}),
-			{ numRuns: 40 }
+			{ numRuns: 60 }
 		);
 	});
 });
