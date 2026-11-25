@@ -8,7 +8,8 @@ import type { BlockPaint, MarkAt, Paint } from '#lib/decorations/paint.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import type { DecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
-import type { MarkDecoration } from '#lib/decorations/types.js';
+import type { MarkDecoration, WidgetDecoration } from '#lib/decorations/types.js';
+import { appendView } from '#lib/test/harness/views.js';
 import { takeDevWarns } from '../support/warn-gate';
 import {
 	destroyMountedEditors,
@@ -73,6 +74,15 @@ function marksAt(m: MountedEditor<Seam>, path: number[]) {
 	const node = blockNodeAt(m.instance.__test.getDocument(), path)!;
 	return m.instance.__test.getDecorationEngine().paintOf(node, path).marks;
 }
+
+function islandsAt(m: MountedEditor<Seam>, path: number[]) {
+	const node = blockNodeAt(m.instance.__test.getDocument(), path)!;
+	return m.instance.__test.getDecorationEngine().paintOf(node, path).islands as readonly {
+		dec: WidgetDecoration;
+	}[];
+}
+
+const view = appendView();
 
 describe('when paint is asked', () => {
 	it('asks once for each rendered block, then again only for a block an edit changed', async () => {
@@ -172,6 +182,54 @@ describe('where paint lands', () => {
 		expect(marksAt(m, [1, 0, 0])).toEqual([]);
 		expect(takeDevWarns().map((w) => w.message)).toEqual([
 			"plugin 'painter' paints a mark at bytes 6..8, which isn't its block's text; it's left out"
+		]);
+	});
+
+	// Miss-analysis: no row painted a whole block, a line's end or `to`, so a byte map one byte
+	// short at a CRLF, and an `offsetAt` answering past a line ending, landed unseen.
+	it.each(
+		['a paragraph', "a quote's paragraph"].flatMap((shape) =>
+			[
+				['LF', '\n'],
+				['CRLF', '\r\n']
+			].map(([ending, eol]) => {
+				const quoted = shape !== 'a paragraph';
+				const source = (quoted ? '> foo bar\n> baz qux\n' : 'foo bar\nbaz qux\n').replaceAll(
+					'\n',
+					eol
+				);
+				return { shape, ending, source, path: quoted ? [0, 0] : [0] };
+			})
+		)
+	)(
+		'lands a mark over $shape whole under $ending and a widget at each line end, but none at `to`',
+		async ({ source, path }) => {
+			const paint = (block: Block): Paint[] => [
+				{ type: 'mark', from: block.from, to: block.to, class: 'whole' },
+				...[...block.text.matchAll(/\r?\n/g)].map((end): Paint => ({
+					type: 'widget',
+					at: block.byteAt(end.index),
+					view
+				})),
+				{ type: 'widget', at: block.to, view }
+			];
+			const { m } = await painted(source, paint);
+			const { raw } = blockNodeAt(m.instance.__test.getDocument(), path)!;
+			const lineEnds = [...raw.matchAll(/\r?\n/g)].map((end) => end.index);
+			expect(marksAt(m, path).map(({ dec }) => [dec.start, dec.end])).toEqual([[0, raw.length]]);
+			expect(islandsAt(m, path).map(({ dec }) => dec.offset)).toEqual(lineEnds);
+			expect(takeDevWarns().map((w) => w.message)).toEqual([
+				`plugin 'painter' paints a widget at byte ${source.length}, which isn't its block's text; it's left out`
+			]);
+		}
+	);
+
+	it('lands a widget at `to` of a last block no line ending closes', async () => {
+		const source = 'one\n\n> foo bar';
+		const { m } = await painted(source, (block) => [{ type: 'widget', at: block.to, view }]);
+		expect(islandsAt(m, [1, 0]).map(({ dec }) => dec.offset)).toEqual(['foo bar'.length]);
+		expect(takeDevWarns().map((w) => w.message)).toEqual([
+			"plugin 'painter' paints a widget at byte 4, which isn't its block's text; it's left out"
 		]);
 	});
 });

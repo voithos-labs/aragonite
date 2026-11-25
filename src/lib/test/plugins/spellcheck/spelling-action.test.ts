@@ -98,6 +98,30 @@ describe('what the Spelling action captures', () => {
 		expect(reads).toBe(0);
 	});
 
+	// Miss-analysis: every capture row read a word mid-line in an LF document, so a quote line's
+	// last word under CRLF, whose end the byte map read one past its `\r`, was never offered.
+	it.each([
+		['LF', '\n'],
+		['CRLF', '\r\n']
+	])(
+		"takes a quote line's last word under %s, by a caret at its end or its selection",
+		async (_ending, eol) => {
+			const source = 'intro\n\n> say teh\n> more teh\n'.replaceAll('\n', eol);
+			const quoted = (await readingEditor(source)).editor;
+			const action = spellingAction();
+			const lines = [source.indexOf(`teh${eol}`), source.lastIndexOf(`teh${eol}`)];
+			const caught = lines.flatMap((at) => [
+				action.capture!(quoted, { from: at + 3, to: at + 3 }),
+				action.capture!(quoted, { from: at, to: at + 3 })
+			]);
+			expect(caught).toEqual(lines.flatMap((at) => [0, 1].map(() => ({ from: at, to: at + 3 }))));
+			const open = `intro${eol}${eol}> say teh`;
+			const end = open.length;
+			const last = (await readingEditor(open)).editor;
+			expect(action.capture!(last, { from: end, to: end })).toEqual({ from: end - 3, to: end });
+		}
+	);
+
 	it('never takes a word inside a code span', () => {
 		expect(spellingAction().capture!(editor, { from: 30, to: 30 })).toBeNull();
 	});

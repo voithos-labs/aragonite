@@ -4,6 +4,11 @@
 // attached; a point outside the editor names no byte. The geometry is `e2e/tests/plugins/view.spec.ts`.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { definePluginUnit, type Editor } from '#lib/schema/plugin-unit.js';
+import { createEditorView } from '#lib/editor-view.js';
+import { createDocumentRead } from '#lib/editor-actions/commit/document-read.js';
+import { initDocument } from '#lib/components/editor-root/document-swap.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -131,6 +136,59 @@ describe('an overlay', () => {
 		off();
 		expect(disconnected.mock.calls.length).toBe(before + 1);
 	});
+});
+
+/** What an overlay at each byte of `source` measures: the offset of the character its rect is read
+ *  over, or `block` where it takes its block's box. */
+function overlaysAt(source: string, bytes: readonly number[]): (number | 'block')[] {
+	const { doc, resolver, signature } = initDocument(source, defaultGrammarView);
+	const of = measured(doc);
+	const read = createDocumentRead({
+		getDoc: () => doc,
+		measured: () => of,
+		typeOf: (kind) => ({ name: kind, label: kind }),
+		reading: { grammar: defaultGrammarView, resolver, resolverSignature: signature },
+		version: () => 0,
+		source: () => source
+	});
+	const seen: (number | 'block')[] = [];
+	const root = document.body.appendChild(document.createElement('div'));
+	const layer = root.appendChild(document.createElement('div'));
+	const { overlay, dispose } = createEditorView({
+		rects: {
+			rangeRects: (_path, start) => (seen.push(start), [new DOMRect()]),
+			blockRect: () => (seen.push('block'), new DOMRect()),
+			caretRect: () => null,
+			scrollTo: async () => false
+		},
+		read,
+		root: () => root,
+		layer: () => layer,
+		caretTargetAt: () => null,
+		resized: () => () => {},
+		events: { on: () => () => {} }
+	});
+	for (const at of bytes) overlay(pinned(), at);
+	dispose();
+	root.remove();
+	return seen;
+}
+
+describe('an overlay at a byte', () => {
+	// Miss-analysis: every overlay row pinned a block or a byte mid-line, so one at a nested CRLF
+	// line's end, whose `\n` the byte map put on the `\r`'s byte, measured the wrong character.
+	it.each([
+		['LF', '\n'],
+		['CRLF', '\r\n']
+	])(
+		"measures the character at its byte, a quote line's ending included, under %s",
+		(_ending, eol) => {
+			const source = 'intro\n\n> foo bar\n> baz qux\n'.replaceAll('\n', eol);
+			const ending = source.indexOf(`bar${eol}`) + 3;
+			const bytes = [ending, ending + eol.length - 1, source.length];
+			expect(overlaysAt(source, bytes)).toEqual([7, 7 + eol.length - 1, 'block']);
+		}
+	);
 });
 
 describe('posAt', () => {
