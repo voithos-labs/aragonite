@@ -143,6 +143,7 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 | --- | --- | --- | --- |
 | `waitingWrite` | every command | A command that waits writes nothing once the host loads another note | yes |
 | `actionTarget` | a command a block type places | A block's command writes the block it's handed, not the one at the caret | yes |
+| `drawnCommand` | a command a block type that draws places | It runs on a drawn block, handed what the drawing declares as its `handle`, and throws nothing | no |
 
 **A caret menu.** `of: 'menu'`, and the subject is its trigger (`/`). Menus that share a trigger are one subject.
 
@@ -168,6 +169,7 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 - `waitingWrite` runs your command over a sample, or picks your menu's first row for an empty query. Once the call waits, the host loads another note. Any write after that fails the row.
 - A call that returns no promise has no wait to check, so its row is `not-applicable`. If your command writes later, return its promise: a write the check sees after a call that returned none fails the row.
 - `actionTarget` hands your command the second of two sample blocks while the caret sits in the first. Writing the first block, or inserting at the caret, fails it. A command that only asked the screen for something (a box, a menu) reads `unchecked`.
+- `drawnCommand` draws a sample block of each type that places your command, then runs it there with the drawing's `handle`. A throw or a rejection fails it. It's how a component handing `{ shut }` to a command that reads `{ open }` gets caught, since no wrapper's types catch that. With no DOM it reads `unchecked`.
 - `rewriteLands` pastes each sample of the `from` type alone, then with a block right after it, then with one right above it too, at the top level and inside a container. An answer that leaves a fence open swallows the block after it, and fails. A whole-paste rewrite runs alone over its `sample`; a sample it keeps fails, since the row would check nothing.
 
 The `waitingWrite` failure has one fix. Open the draft before the wait: a draft refuses on its own once its note is gone, and so does a menu's `MenuPick`.

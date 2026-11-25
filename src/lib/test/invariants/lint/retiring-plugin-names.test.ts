@@ -53,7 +53,6 @@ const CALLERS: readonly string[] = [
 	'src/lib/tree-operations/paste/paste-transforms.ts',
 	'packages/admonitions/src/admonition-kind.ts',
 	'packages/admonitions/src/convert-document.ts',
-	'packages/mermaid/src/mermaid-kind.ts',
 	'src/routes/test/plugins/callout/callout-kind.ts',
 	'src/routes/test/plugins/memo/memo-kind.ts'
 ];
@@ -61,7 +60,6 @@ const CALLERS: readonly string[] = [
 /** How often each file calls a registering name today, the two definitions included. */
 const REGISTERING: Readonly<Record<string, number>> = {
 	'packages/admonitions/src/admonition-kind.ts': 2,
-	'packages/mermaid/src/mermaid-kind.ts': 2,
 	'src/lib/schema/block-commands.ts': 1,
 	'src/lib/tree-operations/paste/paste-transforms.ts': 1,
 	'src/routes/test/plugins/callout/callout-kind.ts': 1,

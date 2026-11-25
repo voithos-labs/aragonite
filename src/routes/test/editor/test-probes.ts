@@ -709,6 +709,8 @@ export function installTestProbes({
 		// A held block and an overlay can't cross page.evaluate, so the probe keeps them.
 		view: {
 			hold: (index: number): void => void (viewProbe.held = editor.doc.blocks[index] ?? null),
+			// A command run on the held block, as a toolbar's button over that block runs it.
+			run: (commandId: string): boolean => editor.run(commandId, viewProbe.held),
 			head: (): number | null => editor.selection?.head ?? null,
 			posAt: (x: number, y: number): number | null => editor.view.posAt({ x, y }),
 			caretBox: (): PlainRect | null => {

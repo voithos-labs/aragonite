@@ -1,12 +1,11 @@
 # Feature: Mermaid diagram block, render-primary reference plugin
 
-A ` ```mermaid ` fence takes a childless plugin container whose code lives in metadata. The
-component renders the diagram SVG through an injected renderer, with an edit mode the plugin
-owns, a textarea that commits through `updateOwnMetadata` as one undoable entry, pan and zoom on
-the rendered SVG once it has focus, and a focus overlay in a fixed position. The block takes
-editor-level whole-block focus (`blockFocus: 'whole-block'`), so the arrow keys stop on it and a
-Backspace or Delete next to it focuses then deletes it in two steps, covered in the sibling
-`mermaid-focus` requirements. A plain fence with any other info string has to stay the built-in
+A ` ```mermaid ` fence is the `mermaid/diagram` block type, a fenced block drawn whole
+(`edit: 'box'`). Its drawing renders the diagram SVG through an injected renderer, with an edit
+box the plugin owns (a textarea that writes the fence's body through `Draft.body` as one undoable
+entry), pan and zoom on the rendered SVG once it has focus, and a focus overlay in a fixed
+position. The block is focused whole, so the arrow keys stop on it and a Backspace or Delete next
+to it focuses then deletes it in two steps, covered in the sibling `mermaid-focus` requirements. A plain fence with any other info string has to stay the built-in
 `fencedCode`. Focus shows on the whole block as an accent border with no inner outline, and the
 toolbar (Edit, Focus, Reset view) stays hidden until the block is hovered or focused.
 
@@ -45,8 +44,19 @@ toolbar (Edit, Focus, Reset view) stays hidden until the block is hovered or foc
 - A change to the code that lands while the edit box is open fills the textarea again, and the
   commit on blur writes nothing that reverts it (driven at the unit level, where the live tree
   is reachable)
+- With the focus view open, a host's `setSelection` onto the diagram (the selection it just read)
+  closes the view and leaves the diagram focused whole, so the view never stays open with focus
+  outside it
+- With the edit box open, `getSelection()` names the diagram at the box caret's own offset, and a
+  host's `setSelection` with that read puts the box caret back there after it moved
 
 ## Miss-analysis
+
+The box ignored the offset the editor hands back on `setSelection`, so a host's read of the box
+caret never round-tripped: the round trip ran only on the harness field, which honours it.
+
+A host's `setSelection` with the focus view open moved focus to the block and left the view open,
+where Escape no longer reached it: no row placed a caret from outside the view while it was open.
 
 The undo scenario above was satisfied by a test that moved focus off the block first, so undo
 from the kind's own focused block, where a keyboard commit leaves it, was never pressed. The

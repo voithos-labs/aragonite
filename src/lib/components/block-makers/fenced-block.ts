@@ -6,6 +6,7 @@ import { renderFencedSource } from '../blocks/code/code-renderer';
 import { framedDrawing, type SourceFrame } from './framed-source';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { fenceShape } from '../../schema/fence-shape';
+import { bodyWriter } from './body-changes';
 import {
 	checkLocalName,
 	completerOf,
@@ -17,7 +18,7 @@ import {
 
 /** Makes a fenced block type; the editor finds its closer, grows a code fence's closer past a body
  *  line that would close it, and keeps every write of its bytes legal. */
-export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
+export function fencedBlock<H = unknown>(spec: FencedBlockSpec<H>): BlockType<never> {
 	checkLocalName('fencedBlock', spec.name);
 	const fences = [spec.fence].flat();
 	// A code fence's info string is the built-in code block's otherwise, so it's tried first.
@@ -35,6 +36,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		insert: spec.insert,
 		chords: spec.chords,
 		actions: spec.actions,
+		commands: spec.commands,
 		priority,
 		// The body on the descriptor too, which the range core and the empty-block hint read.
 		registration: {
@@ -45,6 +47,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		openers: shape.openers,
 		completer: completerOf(spec.complete, shape.claims),
 		bodyRange: shape.body,
+		writeBody: bodyWriter(shape.writeBody),
 		oneLine: shape.oneLine
 	});
 	return type;

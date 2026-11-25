@@ -1,8 +1,8 @@
 /**
- * The worked example of a whole-block container, using public registration only: an opaque
- * container with no children, its diagram code in typed metadata, so an
- * `updateOwnMetadata({ code })` commit is the whole edit path. Uninstalling is safe by
- * construction: without this opener the same bytes parse as plain `fencedCode`.
+ * A ```` ```mermaid ```` diagram registered through the process-wide registrars, for the suites that
+ * hold how the editor treats an opaque whole-block container kind registered that way: no child,
+ * its code in typed metadata, its bytes rebuilt from that metadata. The mermaid package's own rows
+ * are under `test/plugins/mermaid/`.
  */
 
 import {
@@ -21,7 +21,7 @@ import {
 	withLineEnding,
 	type BlockView,
 	type CstNode
-} from '@voithos-labs/aragonite/plugin';
+} from '#lib/plugin.js';
 
 export const MERMAID = 'mermaid';
 

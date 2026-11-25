@@ -8,7 +8,7 @@ import { emoji } from '@voithos-labs/aragonite-emoji';
 import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
 import { latex } from '@voithos-labs/aragonite-latex';
 import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
-import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
+import { mermaid } from '@voithos-labs/aragonite-mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
 import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer';
 import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
@@ -24,7 +24,7 @@ export const DEMO_FOOTNOTES = footnotes;
 export const DEMO_EMOJI = emoji;
 export const DEMO_HIGHLIGHT_OCCURRENCES = highlightOccurrences;
 export const DEMO_LATEX = latex({ renderer: katexRenderer });
-export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
+export const DEMO_MERMAID = mermaid({ renderer: mermaidRenderer });
 export const DEMO_HIGHLIGHT = highlight({ renderer: highlightJs() });
 export const DEMO_PARROT = parrotPlugin();
 // Opt-in for a consumer; the showcase opts in, so `/` lists the blocks there.

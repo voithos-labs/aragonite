@@ -24,7 +24,7 @@ This is where the height model comes in. Every block gets a cheap guess from its
 - A kind guesses its own height with its descriptor's `estimateHeight`, `(node, env) => px`, with the width and the text metrics (line heights, character width) in `env`. Every built-in picks a shape from `src/lib/schema/height-estimates.ts` (wrapped prose, one line, source lines, a container by its children), and a plugin that declares none gets the container shape or the prose one. A plugin with a weird height brings its own; the bundled mermaid plugin's is the whole story in one line:
 
   ```ts
-  estimateHeight: () => 320, // the skeleton's fixed height; the real one replaces it on mount
+  height: () => 320, // the block type's guess; the real one replaces it on mount
   ```
 
   A block that truly can't know its height (a KaTeX render, say) gets guessed as prose and self-corrects on first mount. The pecking order: a collapsed container is guessed at one chrome row no matter what (its body never paints), then the kind's own guess, and a real measurement beats everything.

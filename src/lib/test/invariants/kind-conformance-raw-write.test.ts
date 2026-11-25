@@ -15,7 +15,7 @@ import type { WriteRule } from '#lib/schema/block-kind-descriptor.js';
 import { runKindConformance, type KindConformanceReport } from '#lib/testing.js';
 import { checkLeafRawWrite } from '#lib/testing/kind-conformance.js';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/test/harness/registered-math.js';
-import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind, MERMAID } from '#lib/test/harness/registered-diagram.js';
 import type { AnyBlockKind } from '#lib/core/nodes.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { testView } from '#lib/test/harness/test-view.js';

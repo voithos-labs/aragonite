@@ -1,9 +1,8 @@
 # Feature: AltGr and IME input at a focused diagram creates a paragraph below
 
-The plugin's route to the whole-block editing host. The container factory wires that host, not
-the block component, so a plugin kind that declares `blockFocus: 'whole-block'` and hands the
-factory a `getFocusEl` gets AltGr and IME input for free, and a mistake in the factory shows up
-here and nowhere in the built-in suites.
+The plugin's route to the whole-block editing host. The editor wires that host for every block
+type drawn whole (`edit: 'box'`), not the drawing, so a drawing gets AltGr and IME input for free,
+and a mistake in that wiring shows up here and nowhere in the built-in suites.
 
 The diagram is the harder half of the contract: the element it declares for focus is replaced on
 every redraw, so the host lives in the block's frame instead, and its edit textarea is a declared

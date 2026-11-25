@@ -4,7 +4,7 @@
 	import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
 	import { latex } from '@voithos-labs/aragonite-latex';
 	import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
-	import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
+	import { mermaid } from '@voithos-labs/aragonite-mermaid';
 	import { toc } from '@voithos-labs/aragonite-toc';
 	import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
 	import { emoji } from '@voithos-labs/aragonite-emoji';
@@ -21,7 +21,7 @@
 		latex({ renderer: katexRenderer }),
 		// No renderer: the consumer wires no mermaid engine, so this exercises the packaged
 		// plugin's no-engine fallback from outside the repo.
-		mermaidPlugin(),
+		mermaid,
 		toc,
 		highlightOccurrences,
 		// Trigger bytes shared with the seed's `:::name` and `[[toc]]`: listed here to prove the

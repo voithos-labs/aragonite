@@ -22,6 +22,7 @@ import {
 	splitLines,
 	trailingLineEnding,
 	trimTrailingLineEnding,
+	withLineEnding,
 	type DisplayLine,
 	type LineEnding,
 	type ParsedLine
@@ -30,6 +31,7 @@ import { joinRaw, parseContainerBody, type ContainerBodyWrap } from '../core/par
 import {
 	fenceAnatomy,
 	fenceReading,
+	fenceRunLength,
 	findFenceCloser,
 	matchFenceInfo,
 	matchFenceOpen,
@@ -98,6 +100,23 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 		return start === end ? null : { start, end: start + displayLength(text.slice(start, end)) };
 	};
 
+	const writes: WriteRule = {
+		normalize(raw, ctx) {
+			if (opensInfo(raw)) return infoRule.normalize(raw, ctx);
+			const written = fixedWrite(fixed, raw, 0, ctx);
+			if (written.escaped) warnIfStillClosed(fixed, written.raw, ctx);
+			return written.raw;
+		},
+		mapOffset: (raw, offset, ctx) =>
+			opensInfo(raw)
+				? infoRule.mapOffset(raw, offset, ctx)
+				: fixedWrite(fixed, raw, offset, ctx).offset,
+		text: (raw) => {
+			const { start, end } = range(raw);
+			return raw.slice(start, end);
+		}
+	};
+
 	return {
 		range: (node: NodeView) => range(node.raw),
 		body: (node: NodeView) => bodyOf(node.raw),
@@ -108,6 +127,33 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 		},
 		multiLine: true,
 		split,
+		/** The block's bytes with `text` as its body, a fence grown past a line that would close it;
+		 *  null where one still would. An emptied body takes its last line break with it. */
+		writeBody(node: NodeView, text: string, ending: LineEnding): string | null {
+			const raw = node.raw;
+			const lines = withLineEnding(text, ending);
+			const at = bodyOf(raw);
+			const { start, end } = range(raw);
+			let written: string;
+			if (at) written = raw.slice(0, at.start) + lines + raw.slice(text === '' ? end : at.end);
+			else if (text === '') written = raw;
+			else {
+				// The line written ends as the opener's line does, before a closer or the end.
+				const head = raw.slice(0, start);
+				written = head.endsWith('\n')
+					? head + lines + ending + raw.slice(start)
+					: head + ending + lines;
+			}
+			// A one-line block given lines takes them on lines of its own, as a typed break does.
+			const shown = trimTrailingLineEnding(written);
+			const broken = text.includes('\n') ? brokenOneLine(fixed, shown) : null;
+			if (broken?.closed)
+				written = onOwnLines(shown, broken, 0).text + ownTrailingLineEnding(written);
+			const normalized = writes.normalize(written, { node, mode: 'literal', lineEnding: ending });
+			const out = opensInfo(raw) ? keptCloser(raw, normalized) : normalized;
+			const read = parts(out, false);
+			return read && trimTrailingLineEnding(out.slice(read.closerEnd)) === '' ? out : null;
+		},
 		/** The shown text in the shape the block keeps while it's edited: a one-line block a line
 		 *  break went into on lines of its own, and a closed block with no body line given one. */
 		reshape(text: string, caret: number, lineEnding: LineEnding): CaretText | null {
@@ -118,22 +164,7 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 		oneLine: fixed.some((f) => f.oneLine)
 			? (line: string) => openFixed(fixed, line)?.oneLine === true
 			: undefined,
-		writes: {
-			normalize(raw, ctx) {
-				if (opensInfo(raw)) return infoRule.normalize(raw, ctx);
-				const written = fixedWrite(fixed, raw, 0, ctx);
-				if (written.escaped) warnIfStillClosed(fixed, written.raw, ctx);
-				return written.raw;
-			},
-			mapOffset: (raw, offset, ctx) =>
-				opensInfo(raw)
-					? infoRule.mapOffset(raw, offset, ctx)
-					: fixedWrite(fixed, raw, offset, ctx).offset,
-			text: (raw) => {
-				const { start, end } = range(raw);
-				return raw.slice(start, end);
-			}
-		} satisfies WriteRule,
+		writes,
 		/** Lines a completion wrote: an opener on the first, its closer on the last, as the parser
 		 *  would read them. */
 		claims(lines: readonly string[]): boolean {
@@ -205,6 +236,18 @@ function withBodyLine(shown: ShownFence | null, lineEnding: LineEnding): CaretTe
 		text: openerLine + ending + ending + shown.closer + shown.after,
 		caret: openerLine.length + ending.length
 	};
+}
+
+// A body write grows a fence and never shortens one: a closer still as long as the grown opener
+// stays as it was written.
+function keptCloser(was: string, now: string): string {
+	const before = fenceAnatomy(was);
+	const after = fenceAnatomy(now);
+	if (!before?.closed || !after?.closed || before.marker !== after.marker) return now;
+	const closer = trimTrailingLineEnding(was.slice(before.closerStart));
+	if (fenceRunLength(closer, before.marker) < after.length) return now;
+	const end = after.closerStart + trimTrailingLineEnding(now.slice(after.closerStart)).length;
+	return now.slice(0, after.closerStart) + closer + now.slice(end);
 }
 
 /* -------------------------------------------------------------------------- */

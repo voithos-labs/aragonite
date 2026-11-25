@@ -31,8 +31,9 @@ import type { HeightMetrics } from './height-estimates';
 
 // ── Specs ────────────────────────────────────────────────────────────────────
 
-/** What every block type answers, whatever its shape; `K` is the keys its `chords` may take. */
-export interface BlockCommon<D, K extends string = BlockKey> {
+/** What every block type answers, whatever its shape; `K` is the keys its `chords` may take, `H`
+ *  the handle its drawing hands its commands. */
+export interface BlockCommon<D, K extends string = BlockKey, H = unknown> {
 	/** Lowercase letters, digits and hyphens; an editor qualifies it with the plugin's name. */
 	name: string;
 	/** What a screen reader and the block menu call it. */
@@ -60,9 +61,12 @@ export interface BlockCommon<D, K extends string = BlockKey> {
 	complete?: Completion;
 	/** Keys that act in this block type and the blocks it holds, each running its command on the
 	 *  block; a host rebinds one with `keybindings: [{ kind: thisType, … }]`. */
-	chords?: { readonly [P in K]?: Command<Block<NoInfer<D>>> };
+	chords?: { readonly [P in K]?: Command<Block<NoInfer<D>>, H> };
 	/** Rows of the block's own menu. */
-	actions?: readonly BlockAction<NoInfer<D>>[];
+	actions?: readonly BlockAction<NoInfer<D>, H>[];
+	/** Commands it answers with no key or row, which run on the block as those do: an Edit a host
+	 *  binds or runs, say. */
+	commands?: readonly Command<Block<NoInfer<D>>, H>[];
 }
 
 /** A key a leaf type takes: a chord, or a bare key the editor binds in text blocks itself. A
@@ -73,11 +77,11 @@ export type BlockKey = Chord | 'Enter' | 'Backspace' | 'Delete';
 /** A row of a block type's own menu: runs its command on the block the menu opened over. A label
  *  function reads that block each time the menu opens; one that throws, or answers no text or
  *  blank text, shows the command's `title` instead, and the editor reports it. */
-export interface BlockAction<D> {
+export interface BlockAction<D, H = unknown> {
 	label: string | ((block: Block<D>) => string);
 	icon?: Icon;
 	/** Its `when` greys the row. */
-	command: Command<Block<D>>;
+	command: Command<Block<D>, H>;
 }
 
 /** A block type's insert row, its id the block type's own name; or why it can't be inserted. */
@@ -96,17 +100,17 @@ export interface Completion {
 }
 
 /** What a block holding text answers besides, and how it draws. */
-export type LeafCommon<D> = BlockCommon<D> & {
+export type LeafCommon<D, H = unknown> = BlockCommon<D, BlockKey, H> & {
 	/** Its text reads inline Markdown; default `literal`. */
 	body?: 'markdown' | 'literal';
-} & LeafDraw<D>;
+} & LeafDraw<D, H>;
 
 /**
  * How a leaf draws. `text`: its text is always the editable view and every keystroke writes it.
  * `source`: a picture until the caret comes in, its text then, written once as it leaves. `box`: no
  * caret enters; it's focused whole. Default `text` without `draw`, `source` with it.
  */
-export type LeafDraw<D> =
+export type LeafDraw<D, H = unknown> =
 	| ({
 			edit?: 'text' | 'source';
 			/** Paints the block's text as DOM (highlight tokens through `paint`), its `textContent`
@@ -122,12 +126,18 @@ export type LeafDraw<D> =
 	  } & (
 			| { draw?: never; depends?: never }
 			| ({
-					draw(block: Block<NoInfer<D>>, ctx: TextDrawContext): Drawn<NoInfer<D>, TextDrawContext>;
+					draw(
+						block: Block<NoInfer<D>>,
+						ctx: TextDrawContext
+					): Drawn<NoInfer<D>, TextDrawContext, NoInfer<H>>;
 			  } & DrawDepends)
 	  ))
 	| ({
 			edit: 'box';
-			draw(block: Block<NoInfer<D>>, ctx: BoxDrawContext): Drawn<NoInfer<D>, BoxDrawContext>;
+			draw(
+				block: Block<NoInfer<D>>,
+				ctx: BoxDrawContext
+			): Drawn<NoInfer<D>, BoxDrawContext, NoInfer<H>>;
 	  } & DrawDepends);
 
 /** What a block type with a `draw` may add: what its drawings read of the rest of the document. */
@@ -139,7 +149,7 @@ export interface DrawDepends {
 
 /** A block that's exactly one line, matched whole by `match`; a `text` named group is the text the
  *  author writes, the rest its marker. Data read from the line comes with the writer that puts it back. */
-export type LineBlockSpec<D> = LeafCommon<D> &
+export type LineBlockSpec<D, H = unknown> = LeafCommon<D, H> &
 	(
 		| ({ match: RegExp } & LineData<D>)
 		| {
@@ -158,7 +168,9 @@ type LineData<D> =
 
 /** A block opened by one line and closed by a later one: a code fence with one of these info
  *  strings, or its own opening line and closing line. */
-export type FencedBlockSpec = LeafCommon<never> & { fence: Fence | readonly Fence[] };
+export type FencedBlockSpec<H = unknown> = LeafCommon<never, H> & {
+	fence: Fence | readonly Fence[];
+};
 
 /** One spelling of a fenced block. A body line that would close a fixed closer early is passed to
  *  `escape`, which returns a line that doesn't; without it, the block ends there. */
@@ -176,6 +188,7 @@ export type Fence =
 // ── Derived facts ────────────────────────────────────────────────────────────
 
 const UNPLACED = 1000;
+const LINE_BREAK = /[\r\n]/;
 
 /** Where a block type's opener sits: just ahead of the earliest type it names in `before`, else
  *  after every built-in. */
@@ -299,6 +312,15 @@ export function lineShape(spec: LineBlockSpec<unknown>, priority: number) {
 					return wholeLine(written) ? written + node.raw.slice(line.length) : null;
 				}
 			: undefined,
+		/** The line with `text` as its text; null for a line break, for text where the line has
+		 *  none of its own, or for a line that wouldn't read back as the type. */
+		writeBody(node: NodeView, text: string): string | null {
+			const line = trimTrailingLineEnding(node.raw);
+			const at = wholeLine(line)?.text;
+			if (!at || LINE_BREAK.test(text)) return text === '' && !at ? node.raw : null;
+			const written = line.slice(0, at[0]) + text + line.slice(at[1]);
+			return wholeLine(written) ? written + node.raw.slice(line.length) : null;
+		},
 		range: hasText
 			? (node: NodeView) => {
 					const text = trimTrailingLineEnding(node.raw);

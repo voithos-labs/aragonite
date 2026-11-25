@@ -15,11 +15,15 @@ import {
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 beforeAll(() => installLayoutStubs());
 // Each test starts with the registries reset, so the hand-registered kinds go in again.
-beforeEach(() => installPlugins([registeredMath(), mermaidPlugin()]));
+beforeEach(() => {
+	installPlugins([registeredMath()]);
+	registerMermaidKind(testView());
+});
 afterEach(destroyMountedEditors);
 
 const picture = () => ({ dom: document.createElement('div') });

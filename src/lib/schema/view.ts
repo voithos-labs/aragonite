@@ -23,16 +23,14 @@ export interface View {
 		target: Block | number,
 		options?: { readonly align?: 'nearest' | 'center' | 'start' }
 	): Promise<boolean>;
-	/** Pins `el` at the top-left of the block's box (or of a byte's character) through scrolls and
-	 *  edits, until the returned call or until the block isn't placed, as typing in it makes it. */
-	overlay(el: HTMLElement, at: Block | number): () => void;
+	/** Pins `el` at the top-left of the block's box (or a byte's character) through scrolls and edits
+	 *  until the returned call or the block isn't placed (typing in it); `gone` hears it come off. */
+	overlay(el: HTMLElement, at: Block | number, gone?: () => void): () => void;
 }
 
 /** The editor's view, with what its plugins' scoped editors need besides. */
 export interface EditorView {
 	readonly view: View;
-	/** `view.overlay`, telling `gone` once the overlay comes off, by its call or by itself. */
-	overlay(el: HTMLElement, at: Block | number, gone?: () => void): () => void;
 	/** Takes every overlay off, as the editor unmounts. */
 	dispose(): void;
 }

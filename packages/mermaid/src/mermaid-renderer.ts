@@ -1,10 +1,9 @@
 /**
- * Where the mermaid renderer is plugged in: `mermaidSlot` holds it and its cache, never mermaid
- * itself, which stays behind the `/renderer` subpath so it never lands in the main bundle.
- * `MermaidBlock` mounts with the standard block props, so it reads the renderer from here.
+ * The renderer one editor's diagrams draw through, and its cache, never mermaid itself, which stays
+ * behind the `/renderer` subpath so it never lands in the main bundle. `MermaidBlock` reads it from
+ * its component context, which the plugin's `contributes` fills once per editor.
  */
-
-import { createAsyncRendererSlot, type RenderContext } from '@voithos-labs/aragonite/plugin';
+import { createBoundedMemo } from '@voithos-labs/aragonite/plugin';
 
 /** What the editor knows at render time that the diagram text does not carry. */
 export interface MermaidRenderContext {
@@ -25,18 +24,32 @@ export interface MermaidRenderResult {
 	error?: string;
 }
 
-export const mermaidSlot = createAsyncRendererSlot<string, MermaidRenderResult>({
-	key: (code) => code,
-	missing: () => ({ error: 'renderer not configured' }),
-	failed: (_code, error) => ({ error: error instanceof Error ? error.message : String(error) })
-});
+/** One editor's renderings, each code drawn once per theme. */
+export interface MermaidRenders {
+	readonly configured: boolean;
+	render(code: string, theme: string): Promise<MermaidRenderResult>;
+}
+
+/** The Svelte context key a diagram finds its editor's `MermaidRenders` under. */
+export const DIAGRAMS = Symbol('mermaid.renders');
 
 let renderSeq = 0;
 
-/** Mermaid needs a fresh element id per render, which the slot's `(code, ctx)` call leaves out. */
-export function adaptMermaidRenderer(
-	renderer: MermaidRenderer
-): (code: string, ctx: RenderContext) => Promise<MermaidRenderResult> {
-	return (code, { theme }) =>
-		renderer(code, `aragonite-mermaid-${renderSeq++}`, { theme }).then((svg) => ({ svg }));
+export function mermaidRenders(renderer: MermaidRenderer | undefined): MermaidRenders {
+	const drawn = createBoundedMemo<string, Promise<MermaidRenderResult>>({ cap: 256 });
+	const draw = async (code: string, theme: string): Promise<MermaidRenderResult> => {
+		try {
+			// Mermaid needs a fresh element id per render.
+			return { svg: await renderer!(code, `aragonite-mermaid-${renderSeq++}`, { theme }) };
+		} catch (error) {
+			return { error: error instanceof Error ? error.message : String(error) };
+		}
+	};
+	return {
+		configured: renderer !== undefined,
+		render(code, theme) {
+			if (!renderer) return Promise.resolve({ error: 'renderer not configured' });
+			return drawn(`${theme}\0${code}`, () => draw(code, theme));
+		}
+	};
 }

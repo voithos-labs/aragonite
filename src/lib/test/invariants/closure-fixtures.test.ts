@@ -8,7 +8,7 @@ import {
 import { activateDirectives } from '#lib/components/blocks/directive/activate-directives.js';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/test/harness/registered-math.js';
-import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind, MERMAID } from '#lib/test/harness/registered-diagram.js';
 import { registerDetailsPageWide, DETAILS } from '#lib/test/harness/registered-details.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { ADMONITION } from '#packages/admonitions/src/kinds.js';

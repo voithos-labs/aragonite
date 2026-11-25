@@ -24,20 +24,23 @@ export interface SvelteBlockOptions {
 }
 
 /** What a component adds to its block's drawing, read each time the editor needs it. */
-type DrawnParts = Pick<Drawn<never>, 'focus' | 'keep' | 'caret'>;
+type DrawnParts<H = unknown> = Pick<
+	Drawn<never, DrawContext, H>,
+	'focus' | 'keep' | 'caret' | 'save' | 'handle'
+>;
 
 const DRAWN_CONTEXT = Symbol('drawn-parts');
 
-export function svelteBlock<D = never, C extends DrawContext = DrawContext>(
+export function svelteBlock<D = never, C extends DrawContext = DrawContext, H = unknown>(
 	Component: Component<SvelteBlockProps<D, C>>,
 	{ className, context }: SvelteBlockOptions = {}
-): (block: Block<D>, ctx: C) => Drawn<D, C> {
+): (block: Block<D>, ctx: C) => Drawn<D, C, H> {
 	return (block, ctx) => {
 		const dom = document.createElement('div');
 		if (className) dom.className = className;
 		// Raw: a block and its context are read whole, never deep-tracked.
 		let current = $state.raw({ block, ctx });
-		const declared = { parts: (): DrawnParts => ({}) };
+		const declared = { parts: (): DrawnParts<H> => ({}) };
 		const instance = mount(Component, {
 			target: dom,
 			props: {
@@ -71,15 +74,21 @@ export function svelteBlock<D = never, C extends DrawContext = DrawContext>(
 			},
 			get caret() {
 				return declared.parts().caret;
+			},
+			get save() {
+				return declared.parts().save;
+			},
+			get handle() {
+				return declared.parts().handle;
 			}
 		};
 	};
 }
 
 /** Called while a `svelteBlock` component initialises: `parts` says what it adds to the drawing,
- *  its block's `focus`, `keep` or `caret`. */
-export function useDrawn(parts: () => DrawnParts): void {
-	const declared = getContext<{ parts: () => DrawnParts } | undefined>(DRAWN_CONTEXT);
+ *  its block's `focus`, `keep`, `caret`, `save` or `handle`. */
+export function useDrawn<H = unknown>(parts: () => DrawnParts<H>): void {
+	const declared = getContext<{ parts: () => DrawnParts<H> } | undefined>(DRAWN_CONTEXT);
 	if (!declared) throw new Error('useDrawn runs only inside a svelteBlock component');
 	declared.parts = parts;
 }

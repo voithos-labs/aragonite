@@ -1,50 +1,47 @@
 # Recipe: a render-primary block
 
-Part of the [plugin guide](../plugin-guide.md). The block here is an opaque container with no children, so read [the container walkthrough](container-walkthrough.md) first if `rebuildRaw` and `updateOwnMetadata` are new to you.
+Part of the [plugin guide](../plugin-guide.md).
 
-Some blocks aren't text at all: a diagram, a chart, an embed, content that renders as a picture and is edited through its own UI rather than through the editor's caret. The Mermaid reference plugin is the worked example, and the shape generalizes:
-
-```
-fence claim ──▶ opaque container, NO children ──▶ component renders the diagram
-                  code lives in metadata            edit UI is plugin-owned
-                  rebuildRaw re-emits the fence     commits ride updateOwnMetadata
-```
-
-- **Claim your grammar, decline everything else.** The opener accepts exactly the fences the built-in `fencedCode` would, gated on the info string's first word, and must price **ahead** of `fencedCode` ([Opener priority](parser.md#opener-priority)). Declining returns the fence to `fencedCode`, which is also your uninstall story: without the plugin the same bytes parse as a plain code block. Pin both states with round-trip tests. Claim the fence with `matchFenceInfo('mermaid')` and read its extent with `scanFence`, which closes where the parser does, rather than writing your own fence rules.
-- **Declare the fence's write rule.** Every write to your block's bytes runs through its kind's `rawWrite`, and some never pass your component at all (a find/replace, a range delete). A fence is one byte away from swallowing the document: a body line that reads as the closer ends the block early, and a deleted opener leaves a closer that opens a fence over everything below. `rawWrite: fenceRawWrite(fenceShapeOfRaw)` is the code block's own rule, and it handles both.
-- **Code in metadata, an empty container around it.** Register the kind with `container: { contract: 'opaque', rebuildRaw }` and give nodes `children: []`. The source text and every fence byte the rebuild needs (indent, marker, info string, closer shape) go into typed plugin metadata, primitive values only, and `rebuildRaw` re-emits the exact bytes from them. Build the parsed node's `raw` by calling your own rebuild, so opener and rebuild can't disagree. If the rebuild lengthens the fence past a body line (`escalatedFenceLength`), leave the stored length alone: the editor re-reads your metadata from the new bytes through your opener.
-- **Edit mode commits through `updateOwnMetadata`.** The component swaps its body to a plugin-owned `<textarea>` seeded from metadata; commit (Ctrl+Enter, blur) writes the new code with the container factory's `updateOwnMetadata`, one undo entry, and your `rebuildRaw` re-emits the fence. Ctrl+Enter also passes `{ caret: { path: [], offset: 0 } }`, so the diagram gets focus back once the new code renders; a blur passes none, since you clicked somewhere else on purpose. Escape cancels without touching the tree. Start the textarea's key handler with `if (imeOwnsKey(e)) return;`, since someone typing Chinese or Japanese presses Enter and Escape to pick a word, and that's not a commit or a cancel. The textarea's text is a copy of the document's, and a copy can go stale, so hold it as a draft ([What your own editing surface has to do](#what-your-own-editing-surface-has-to-do)).
-- **Inject the renderer into a slot, and own its CSS.** The engine (the library that actually draws, KaTeX or mermaid) is the consumer's dependency, so take it as a plugin option (`mermaidPlugin({ renderer })`) and put it in a **renderer slot**: a module-level `createAsyncRendererSlot` (or `createRendererSlot`, for an engine that answers right away) that your setup fills and your component renders through. The slot caches each render, and it never throws at you: with no renderer set you get your `missing` output, and a throw or a rejection gets your `failed` output. For anything drawn from source text, `renderSourceFallback(source, message)` makes a decent `missing` or `failed`. Import the engine's stylesheet in the renderer module too, where no route can forget it: a KaTeX-based renderer needs `katex/dist/katex.min.css`, or every equation paints twice. And if the engine lays its output out in the page to measure it (mermaid does), hand it a container you own, fixed and clipped to nothing, and remove that once the render settles. Otherwise the host page grows by a whole diagram for as long as each render takes, and a scroll made in that window snaps back.
-- **If the engine paints its own colors, the theme is a render input.** A diagram SVG with color literals in it can't be rethemed by a stylesheet, so it has to be redrawn. The slot does most of that for you: `render` takes the theme, hands it to your renderer, and caches per theme. The part left is yours: read `getTheme()` inside the effect that renders, so a switch re-runs it. An engine styled by CSS variables can ignore the theme it's handed.
-- **Interior interactivity stays inside your DOM.** Pan/zoom, buttons, overlays: put `POINTER_GESTURE_ATTR` on the element whose drags are yours (only while the gesture is armed, if it isn't always), or the editor reads the press as the start of a selection and paints a range over your pan. `stopPropagation()` on pointerdown can't do this, since the editor's listener has already run by then. A focus view is just a fixed-position overlay in the component's own tree, so mount it in place, focus it on open, close on Escape.
-- **View-state commands reach the component through `ctx.hooks`.** See [Block commands](commands.md#block-commands).
-
-The helpers from that list, with what they hand back:
+Some blocks aren't text at all: a diagram, a chart, an embed, content that renders as a picture and is edited through its own UI rather than through the editor's caret. The bundled mermaid plugin is the worked example: a fenced block drawn whole (`edit: 'box'`), with a textarea of its own.
 
 ````ts
-const matchMermaid = matchFenceInfo('mermaid');
-matchMermaid('```mermaid'); // { marker: '`', length: 3, info: 'mermaid', indent: '', infoRaw: 'mermaid' }
-matchMermaid('  ~~~ mermaid title'); // { marker: '~', length: 3, info: 'mermaid title', indent: '  ', ... }
-matchMermaid('```js'); // null: the code block keeps it
-scanFence(ctx, fence); // { closer: 3, consumed: 4, raw: '```mermaid\n...```\n', body: '...' }
-fenceRawWrite(fenceShapeOfRaw).normalize('```mermaid\ngraph TD\n', ctx); // '```mermaid\ngraph TD\n```\n': the cut closer comes back
-
-const diagrams = createAsyncRendererSlot<string, { svg?: string; error?: string }>({
-	key: (code) => code,
-	missing: () => ({ error: 'no renderer' }),
-	failed: (_code, error) => ({ error: String(error) })
+const edit = command<Block<never>, DiagramUi>({
+	id: 'edit',
+	title: 'Edit diagram',
+	run: (_editor, _block, ui) => (ui ? ui.openEdit() : false) // undefined while scrolled away
 });
-diagrams.set((code, { theme }) => engine.render(code, theme).then((svg) => ({ svg }))); // in setup; null removes it
-await diagrams.render('graph TD', { theme: 'dark' }); // { svg: '<svg …>' }
-await diagrams.render('graph TD', { theme: 'dark' }); // the same result, and the engine isn't called again
-await diagrams.render('graph TD', { theme: 'light' }); // a miss: drawn again for the light theme
+
+const diagram = fencedBlock({
+	name: 'diagram',
+	label: 'Diagram',
+	fence: { info: 'mermaid' }, // the editor reads, writes and grows the fence
+	sample: '```mermaid\ngraph TD\n```',
+	insert: { label: 'Diagram', icon: 'workflow', insert: '```mermaid\n\n```\n' },
+	height: () => 320,
+	chords: { 'Mod+M': focusView },
+	commands: [edit], // no key, no row: a host binds or runs it
+	edit: 'box',
+	draw: svelteBlock(DiagramBlock, { context: new Map([[RENDERS, rendersFor(renderer)]]) })
+});
 ````
+
+- **Claim the fence by its info string.** `fence: { info: 'mermaid' }` takes the fences the code block would, gated on the info string's first word. The editor finds the closer, grows a fence past a body line that would close it, and keeps every write legal, a find and replace or a range delete included. Without your plugin the same bytes are a code block.
+- **Draw the picture; the editor draws nothing.** A box gets no caret. Your component shows the picture, reads `ctx.theme` where the engine paints its own colours (a theme switch redraws), and takes its engine from your options through `contributes`, so each editor has its own renderer and cache.
+- **Write the body once, as the box closes.** Seed the textarea from `block.body` (it breaks lines with a bare LF), and on close or Ctrl+Enter call `editor.edit().body(block, text).commit()`. The editor puts back the block's line endings and grows the fence. Hand `save` too: the editor calls it before an undo, a redo or a mode switch and as the block scrolls out of the window, so the text isn't lost, and a new document drops it. Hold no draft open while the box sits closed: an open draft costs every write in the document a record.
+- **Re-seed when the bytes change under you, and on every opening.** An undo or a host's write changes `block.text` while the box is open, and an undo can open it again on its own (an empty diagram); seed it again, or the next close writes text based on bytes that are gone.
+- **Give the box the editor's source look.** Add the class `md-source-surface` to your open source (the textarea), and keep only your own padding and overflow beside it. The latex and toc plugins add it to their open source the same way.
+- **Keys.** Start the textarea's key handler with `if (imeOwnsKey(e)) return;` and stop the event there, so Ctrl+Z is the textarea's own once it's typed in. Until then let undo and redo through: an undo can reopen the box with the caret inside, and the redo pressed next is the editor's. At its edges an arrow calls `ctx.leave(edge, x?)`: pass the column an up or down arrow came in with (`focus.enter`'s `x`) to keep it. A host's `setSelection` and an undo hand back an `offset` your `offset()` gave; put the caret there. Escape gives whole-block focus back with `ctx.focusWhole()`.
+- **Your commands reach the drawing through `handle`.** List an Edit with no key in `commands`, and give `useDrawn` a `handle` with what it opens. No type checks a component's handle against its commands, so `check`'s `drawnCommand` row runs each one with it.
+- **Claim a press with `keep(event)`, never `stopPropagation()`.** Your component sits inside the editor, so a press it stops never reaches the editor's drag-select or clicks, and a dev build says which drawing did it. Answer true from `keep` for the presses that are yours (a pan, your toolbar, your textarea) and the editor leaves them alone.
+- **Show whole-block focus with `ctx.focused`.** The editor's focus host sits beside your drawing, not inside it, so `:focus-within` on your root misses it.
 
 **What you give up with the textarea.** The code text isn't editor-native: no cross-block selection through it, and the caret, IME and undo inside it are the browser's. The editor's chords resume once focus leaves.
 
+The rest of this page is the `setup` plugin's way, which is going away. Its block is an opaque container with no children: read [the container walkthrough](container-walkthrough.md) first if `rebuildRaw` and `updateOwnMetadata` are new to you.
+
 ## Whole-block focus
 
-Because the container has no children, a caret can't land _inside_ it, so the kind opts into being focused as a whole: declare `blockFocus: 'whole-block'` on the kind and hand the factory a `getFocusEl` getter returning the element that **declares** the block's focus surface, meaning the one a pointer lands on. The block then behaves like one big character: arrows stop on it (the bundled mermaid diagram is the shipped reference), a caret-adjacent Backspace/Delete focuses it before a second press deletes, Enter inserts a paragraph below, undo/redo run from the block itself, and Alt+arrows reorder it. Keys inside your own editing surface never trigger a block delete. Don't skip the declaration: to the editor, any other container with no children is one an edit broke, so a dev build warns (`invariant:keeps-a-block`) on every commit that touches your block, and a paste or a reparse gives it an empty paragraph to hold.
+Because the container has no children, a caret can't land _inside_ it, so the kind opts into being focused as a whole: declare `blockFocus: 'whole-block'` on the kind and hand the factory a `getFocusEl` getter returning the element that **declares** the block's focus surface, meaning the one a pointer lands on. The block then behaves like one big character: arrows stop on it, a caret-adjacent Backspace/Delete focuses it before a second press deletes, Enter inserts a paragraph below, undo/redo run from the block itself, and Alt+arrows reorder it. Keys inside your own editing surface never trigger a block delete. Don't skip the declaration: to the editor, any other container with no children is one an edit broke, so a dev build warns (`invariant:keeps-a-block`) on every commit that touches your block, and a paste or a reparse gives it an empty paragraph to hold.
 
 Three gotchas:
 
@@ -76,6 +73,6 @@ draft.end(); // your box closed, so the editor stops tracking it
 
 `openDraft` comes from the container factory, and the draft it opens watches your block's bytes. Check `stale` before every commit, and `end()` the draft when the box closes or your block unmounts with it still open (otherwise a later mode switch calls `close` on a component that's gone). `stale` is reactive, so an effect reading it hears the write underneath while the box is open. Re-seeding is an `end()` and a fresh `openDraft`. The editor calls `close` only on a draft you haven't ended: a mode switch or an undo may still save it, a document swap never. A `close` ends the draft too, so if your box stays open after one (an undo, say), open a fresh draft for it.
 
-The editable leaf does all of this for you (both modes mirror outside changes into the source, and its reveal holds a draft of its own). A plugin-owned surface has to do it itself, and the bundled mermaid block is the worked example.
+The editable leaf does all of this for you (both modes mirror outside changes into the source, and its reveal holds a draft of its own). A plugin-owned surface has to do it itself.
 
 Want a source view with a native caret instead? That's [the editable-leaf tier](editable-content.md#the-editable-leaf), and rebuilding a render-primary block on the editable leaf (block math's shape: a `fencedBlock` with `edit: 'source'`, or `createEditableLeaf` in a Svelte component) is this recipe's upgrade path.

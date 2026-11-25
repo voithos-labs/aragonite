@@ -33,7 +33,7 @@ export const shouty = definePlugin({
 });
 ```
 
-Every position is a document byte. `block.byteAt(i)` turns an offset into `block.text` into one and `block.offsetAt(byte)` goes back. Do the mapping per character rather than adding `block.from`: in a quote, the `> ` markers between the block's lines aren't its text, so `block.from + i` drifts from the second line on.
+Every position is a document byte. `block.byteAt(i)` turns an offset into `block.text` into one and `block.offsetAt(byte)` goes back. Do the mapping per character rather than adding `block.from`: in a quote, the `> ` markers between the block's lines aren't its text, so `block.from + i` drifts from the second line on. A widget at the end of a line goes at its line break's first byte, `block.byteAt(i)` with `i` where the line's text stops: where a break closes the block, `block.to` is past it, so paint there is left out.
 
 | `type` | Fields | What it draws |
 | --- | --- | --- |
@@ -42,7 +42,7 @@ Every position is a document byte. `block.byteAt(i)` turns an offset into `block
 | `replace` | `from`, `to`, `view?`, `class?`, `data?` | A view, or an empty span with your `class`, standing in for the bytes, which stay in the document |
 | `block` | `class?`, `attrs?`, `badge?`, `data?` | Classes and attributes on the block's own element, and a badge view ahead of it |
 
-A view is a `PluginView` that gets `{ paint }`, the paint it came from, so put what it shows in `data`. `svelteView`, `reactView` and `vueView` make one from a component, the same as for any widget, and that's the only place React or Vue shows up: `paint` itself is a plain function. Widgets and replaces land only in prose. Paint that can't land (outside the block's text, on a quote's marker) is left out, with one dev warning per problem.
+A view is a `PluginView` that gets `{ paint }`, the paint it came from, so put what it shows in `data`. `svelteView`, `reactView` and `vueView` make one from a component, the same as for any widget, and that's the only place React or Vue shows up: `paint` itself is a plain function. Widgets and replaces land only in prose. Paint that can't land (outside the block's text, past its line ending, on a quote's marker) is left out, with one dev warning per problem.
 
 A block holding other blocks (a list, a quote, a table row, a list item with text in it) never reaches `paint`, since its children get asked about their own text. To class one or give it a badge, add `paintContainer(block)` beside `paint`. It's asked the same way and hands back `block` paint only. Its `text` holds every child's text and its `children` every child, so tell it apart by its type rather than reading either (a 25,000-item list has a lot of both):
 

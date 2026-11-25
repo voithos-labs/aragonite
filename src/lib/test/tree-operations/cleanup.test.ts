@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { parse } from '../../core/parser';
 import { assignIds } from '../../block-id';
 import { cascadeCleanupEmptyAncestors } from '../../tree-operations/cleanup';

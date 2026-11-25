@@ -5,10 +5,11 @@
  */
 import type { AnyBlockKind, PluginBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import type { LineEnding } from '../core/lines';
 import type { BlockOpener, GrammarView } from './block-openers';
 import type { BlockCompleter } from './block-completions';
 import type { BlockView } from './block-view';
-import type { BlockAction, BlockCommon, BlockInsert } from './block-shapes';
+import type { BlockAction, BlockCommon, BlockInsert, BlockKey } from './block-shapes';
 import { holdBlockKind, rejectBlankLabel, type BuiltinRegistration } from './block-kind-descriptor';
 import { normalizeChord, type KeyBinding } from './keybindings';
 import type { Command } from './plugin-command';
@@ -34,8 +35,12 @@ export interface BlockMaking<D = unknown> {
 	readonly oneLine?: (line: string) => boolean;
 	/** The block's bytes with `data` written into them; null where the type has no writer for it. */
 	readonly writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
-	readonly chords?: BlockCommon<unknown>['chords'];
-	readonly actions?: readonly BlockAction<D>[];
+	/** The changes that write `text` as the block's body where `at` places it; null where that
+	 *  wouldn't read back as the type. A maker brings it, so the core imports no body writer. */
+	readonly writeBody?: (node: NodeView, text: string, at: BodyPlace) => BodyChange[] | null;
+	readonly chords?: BlockCommon<unknown, BlockKey, never>['chords'];
+	readonly actions?: readonly BlockAction<D, never>[];
+	readonly commands?: readonly Command<unknown, never>[];
 	/** The rows its blocks hold that no line opens (a title row), for the kind its editor named it,
 	 *  held while the type is. */
 	rows?(kind: PluginBlockKind): readonly BlockRow[];
@@ -48,6 +53,21 @@ export interface BlockRow {
 	readonly kind: AnyBlockKind;
 	readonly registration: BuiltinRegistration;
 	readonly view: BlockView;
+}
+
+/** Where a body write lands: the document's bytes, the byte of an offset into the block's own
+ *  bytes, and the line ending the document falls back to. */
+export interface BodyPlace {
+	source: string;
+	byteAt(offset: number): number;
+	eol: LineEnding;
+}
+
+/** One change a body write makes, in document bytes. */
+export interface BodyChange {
+	from: number;
+	to: number;
+	insert: string;
 }
 
 /** One of an editor's own block types, named and ready to read. */
@@ -136,7 +156,7 @@ function withChords(
 	chords: BlockMaking['chords']
 ): BuiltinRegistration {
 	const own: KeyBinding[] = Object.entries(chords ?? {}).flatMap(([key, value]) => {
-		const command = (value as Command<unknown> | undefined)?.id as KeyBinding['command'];
+		const command = (value as Command<unknown, never> | undefined)?.id as KeyBinding['command'];
 		return command ? [{ chord: normalizeChord(key), command }] : [];
 	});
 	if (own.length === 0) return registration;

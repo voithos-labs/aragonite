@@ -33,15 +33,15 @@ export interface ReactBlockOptions {
 	wrap?: (block: ReactNode) => ReactNode;
 }
 
-export function reactBlock<D = never, C extends DrawContext = DrawContext>(
+export function reactBlock<D = never, C extends DrawContext = DrawContext, H = unknown>(
 	Component: ComponentType<BlockProps<D, C>>,
 	{ className, wrap }: ReactBlockOptions = {}
-): (block: Block<D>, ctx: C) => Drawn<D, C> {
+): (block: Block<D>, ctx: C) => Drawn<D, C, H> {
 	return (block, ctx) => {
 		const dom = document.createElement('div');
 		if (className) dom.className = className;
 		const root = createViewRoot(dom, wrap);
-		const declared: Declared = { parts: () => ({}) };
+		const declared: Declared<H> = { parts: () => ({}) };
 		const render = (next: Block<D>, nextCtx: C) =>
 			root.render(
 				<DrawnContext.Provider value={declared}>
@@ -63,15 +63,22 @@ export function reactBlock<D = never, C extends DrawContext = DrawContext>(
 			},
 			get caret() {
 				return declared.parts().caret;
+			},
+			get save() {
+				return declared.parts().save;
+			},
+			get handle() {
+				return declared.parts().handle;
 			}
 		};
 	};
 }
 
 /** Called in a `reactBlock` component: `parts` says what it adds to the drawing, its block's
- *  `focus`, `keep` or `caret`, read each time the editor needs it (a ref's element, say). */
-export function useDrawn(parts: () => DrawnParts): void {
-	const declared = useContext(DrawnContext);
+ *  `focus`, `keep`, `caret`, `save` or `handle`, read each time the editor needs it (a ref's
+ *  element, say). */
+export function useDrawn<H = unknown>(parts: () => DrawnParts<H>): void {
+	const declared = useContext(DrawnContext) as Declared<H> | null;
 	if (!declared) throw new Error('useDrawn runs only inside a reactBlock component');
 	// A layout effect runs inside the synchronous render, so the parts are there when `draw` returns.
 	useLayoutEffect(() => {
@@ -82,8 +89,11 @@ export function useDrawn(parts: () => DrawnParts): void {
 // ── Internal ────────────────────────────────────────────────────────────────
 
 type SlotName = 'source' | 'children';
-type DrawnParts = Pick<Drawn<never>, 'focus' | 'keep' | 'caret'>;
-type Declared = { parts: () => DrawnParts };
+type DrawnParts<H = unknown> = Pick<
+	Drawn<never, DrawContext, H>,
+	'focus' | 'keep' | 'caret' | 'save' | 'handle'
+>;
+type Declared<H = unknown> = { parts: () => DrawnParts<H> };
 
 // Named, never indexed: the title row's element is on the context too, and moving it would take the
 // row out of the block list's windowing and focus walk.

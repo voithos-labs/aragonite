@@ -59,6 +59,8 @@ const CARET_GESTURE_DOORS: Record<string, Door> = {
 /** Click handlers that place no caret. A new click-handling file joins this map or the one
  *  above; there is no third answer. */
 const NON_CARET_PRESS_FILES: Record<string, string> = {
+	'src/lib/components/drawn-block/stopped-press.ts':
+		'notes a press entering a drawing and names one the drawing stopped, in dev; places no caret',
 	'src/lib/components/overlays/DecorationOverlay.svelte':
 		'a press on a mark with a click handler keeps the caret, so the click decides where it lands',
 	'src/lib/debug/input-recorder.ts': 'records the press into an input recording; places no caret',

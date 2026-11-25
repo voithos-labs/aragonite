@@ -130,10 +130,6 @@ const PINNED: Record<string, Pin> = {
 	'src/lib/invariants/node-shape.ts': {
 		calls: { writeContainerRaw: 1 },
 		why: 'G1.13 writes a trial copy twice to compare the bytes, a node no commit has seen'
-	},
-	'packages/mermaid/src/mermaid-kind.ts': {
-		calls: { rebuildMermaidRaw: 1 },
-		why: 'the opener builds a new node’s bytes with its own rebuild'
 	}
 };
 

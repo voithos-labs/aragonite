@@ -81,7 +81,7 @@ describe('G4.x no plugin kind name in a core dispatch layer', () => {
 	const found = violations(dispatchSources, forbidden);
 
 	it('derived a non-trivial forbidden set including the known instance', () => {
-		expect(forbidden.size).toBeGreaterThan(2);
+		expect(forbidden.size).toBeGreaterThan(1);
 		expect(forbidden.has('githubAlert')).toBe(true);
 		expect(forbidden.has('admonition')).toBe(true);
 		// Built-in kinds are core's own vocabulary: never forbidden.

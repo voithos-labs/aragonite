@@ -7,7 +7,7 @@ import { parse } from '#lib/core/parser.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { gapEligibleAt } from '#lib/selection/gap-caret.js';

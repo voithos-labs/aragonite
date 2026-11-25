@@ -16,7 +16,6 @@ import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { listGrammar } from '#lib/schema/own-syntax.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { DEFINITION, REFERENCE } from '#lib/test/support/footnotes-grammar.js';
-import { MERMAID } from '#packages/mermaid/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
@@ -52,7 +51,7 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	details: ['details/details'],
 	emoji: [EMOJI],
 	footnotes: [DEFINITION, REFERENCE],
-	mermaid: [MERMAID],
+	mermaid: ['mermaid/diagram'],
 	// Inline math reads through the demo's plugin values, as emoji does; its block is a block type.
 	latex: [MATH],
 	// Block types, read only by an editor running their plugin, so no page-wide parse holds them;

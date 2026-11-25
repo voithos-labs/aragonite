@@ -134,9 +134,12 @@ test.describe('editor.view', () => {
 		await page.mouse.move(root.x + root.width / 2, root.y + root.height / 2);
 		await page.mouse.wheel(0, 120);
 		await editor.waitForRenderFlush();
-		const moved = await offset();
-		expect(moved!.dy).toBeCloseTo(0, 0);
-		expect(moved!.dx).toBeCloseTo(0, 0);
+		// Polled as the later reads are: Linux WebKit's threaded wheel scroll can land after two frames.
+		const pinned = async () => {
+			const at = await offset();
+			return !!at && Math.abs(at.dy) < 0.5 && Math.abs(at.dx) < 0.5;
+		};
+		await expect.poll(pinned).toBe(true);
 
 		await editor.scrollEditorTo(200_000);
 		await editor.waitForRenderFlush();

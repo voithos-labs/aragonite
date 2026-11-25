@@ -43,7 +43,7 @@ You read the mode yourself in two cases: when your component owns an edit afford
 
 ## What is live, what is point-in-time
 
-**The live reads.** The `EditorContext` getter, both factories' `getPresentationMode()` and the inline-widget prop are reactive, so a read inside a `$derived` or an effect re-runs on a switch. The bundled mermaid block does exactly that: `$derived(getPresentationMode() === 'reading')` off the container factory.
+**The live reads.** The `EditorContext` getter, both factories' `getPresentationMode()` and the inline-widget prop are reactive, so a read inside a `$derived` or an effect re-runs on a switch. A plugin value's drawing reads `ctx.mode` instead, as the bundled mermaid's does: `$derived(ctx.mode.name === 'reading')`.
 
 **The block-component DOM read is point-in-time.** `closest()` learns the mode when your code runs, but a live flip does **not** re-render a mounted block through it. A component holding only a DOM handle has to react explicitly: subscribe to `presentationModeChange` on your `EditorContext`'s `events` (from `onEditor`) and update from the handler, or re-read the attribute at each gesture.
 

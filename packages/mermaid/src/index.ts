@@ -1,4 +1,3 @@
 // Importing this pulls in no renderer; the adapter lives at the `/renderer` subpath.
-export { mermaidPlugin } from './register';
-export { MERMAID } from './mermaid-kind';
+export { mermaid, type MermaidOptions } from './mermaid-plugin';
 export type { MermaidRenderer, MermaidRenderContext } from './mermaid-renderer';

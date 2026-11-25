@@ -71,6 +71,7 @@ export function slashHarness(
 				return draft;
 			},
 			data: () => draft,
+			body: () => draft,
 			now: (at) => at,
 			async commit(options) {
 				for (const { from, to, text } of writes)

@@ -9,6 +9,9 @@ import {
 import type { MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
 import type { EditorSelection } from '../../selection/primitives';
 import { caretAt } from '#lib/test/harness/editor-selection.js';
+import { definePlugin } from '#lib/schema/plugin-install.js';
+import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
+import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 
 beforeAll(installLayoutStubs);
 
@@ -37,5 +40,44 @@ describe('the editor announces the caret it lands', () => {
 
 		expect(seen).toEqual([caretAt([1], 0)]);
 		expect(editor.instance.getSelection()).toEqual(caretAt([1], 0));
+	});
+});
+
+// Miss-analysis: every whole-block landing row ran on a container, whose column landing announces
+// itself; a drawn box's column landing waited for the browser's report.
+describe('a column landing on a box', () => {
+	const boxes = definePlugin({
+		name: 'announced-boxes',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({
+			blocks: [
+				fencedBlock({
+					name: 'box',
+					label: 'Box',
+					fence: { info: 'box' },
+					sample: '```box\nx\n```',
+					insert: { none: 'a test block type' },
+					edit: 'box',
+					draw: () => ({ dom: document.createElement('div') })
+				})
+			]
+		})
+	});
+
+	it('announces the box, without waiting for the browser', async () => {
+		const editor = mountEditor<EditorTestSurface>({
+			source: 'alpha one\n\n```box\nx\n```\n',
+			plugins: [boxes]
+		});
+		mounted = editor;
+		await editor.settle();
+		const seen: (EditorSelection | null)[] = [];
+		editor.instance.getEvents().on('selectionChange', (selection) => seen.push(selection));
+
+		// What a vertical arrow from the line above calls, once the box is mounted.
+		editor.instance.__test.getBlockComponent([1])!.focusAtColumn!(40, 'above');
+
+		expect(seen).toEqual([caretAt([1], 0)]);
 	});
 });

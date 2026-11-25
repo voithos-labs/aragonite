@@ -234,13 +234,19 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'a completion is made but nothing published runs one, the Enter handler that consults it ' +
 			'has no headless entry, and an editor running the plugin reads through a grammar the published `grammar()` keeps to itself'
 	},
-	'src/lib/test/plugins/mermaid/fence-escalation.test.ts': {
-		specifiers: ['#lib/testing/parse-convergence.js'],
-		reason: 'parse convergence lives in src/lib/testing without reaching the testing barrel'
+	'src/lib/test/plugins/mermaid/draft-cost.svelte.test.ts': {
+		specifiers: ['#lib/editor-actions/commit/change-record.js'],
+		reason: 'nothing published counts the records a write makes for the drafts held open'
 	},
 	'src/lib/test/plugins/mermaid/raw-write-rule.test.ts': {
-		specifiers: ['#lib/tree-operations/node-primitives.js'],
-		reason: 'nothing published applies a kind’s rawWrite'
+		specifiers: ['#lib/schema/block-type.js', '#lib/schema/plugin-unit.js'],
+		reason: 'nothing published applies a block type’s write rule to a write over its bytes'
+	},
+	'src/lib/test/plugins/mermaid/round-trip.property.test.ts': {
+		specifiers: ['#lib/schema/own-syntax.js', '#lib/test/invariants/arbitraries/property-seed.js'],
+		reason:
+			'an editor running the plugin reads through a grammar the published `grammar()` keeps to ' +
+			'itself; the fixed property seed is the suite’s own helper'
 	},
 	'src/lib/test/plugins/parrot/caption.test.ts': {
 		specifiers: ['#lib/schema/block-kind-descriptor.js'],

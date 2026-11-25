@@ -46,12 +46,12 @@ An opener's `priority` decides dispatch order, and **lower runs first**. `OPENER
 
 Two rules place a plugin opener on it:
 
-1. **Price _below_ a built-in whose matcher is a superset of yours.** `fencedCode` accepts every fence, ` ```mermaid ` included, so the Mermaid opener must win first: `OPENER_PRIORITIES.fencedCode - 5`. If a built-in would also match your syntax, you sit ahead of it or it claims the block.
+1. **Price _below_ a built-in whose matcher is a superset of yours.** `fencedCode` accepts every fence, ` ```mermaid ` included, so an opener for ` ```mermaid ` must win first: `OPENER_PRIORITIES.fencedCode - 5`. If a built-in would also match your syntax, you sit ahead of it or it claims the block.
 2. **Otherwise slot into a gap between built-ins.** A tag line that is only ever an `htmlBlock` prices into the gap just below: `OPENER_PRIORITIES.htmlBlock - 5`. Express the number as an offset from the built-in you reason about, never a bare literal.
 
 Ties break by kind name, never by registration order. A shared priority is a smell all the same, and the dev build warns on it. Price into a gap instead.
 
-**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor. Remove your plugin and the built-in takes the bytes back unchanged. There's no other way to override a built-in's component or descriptor.
+**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (a ` ```mermaid ` opener is exactly this), and your kind owns those bytes: its own component, its own descriptor. Remove your plugin and the built-in takes the bytes back unchanged. There's no other way to override a built-in's component or descriptor.
 
 For your pricing map: the opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
 

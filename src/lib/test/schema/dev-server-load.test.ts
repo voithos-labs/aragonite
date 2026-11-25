@@ -25,7 +25,7 @@ it(
 			import('#packages/footnotes/src/index.js').then((m) => m.footnotes),
 			import('#packages/highlight-occurrences/src/index.js').then((m) => m.highlightOccurrences),
 			import('#packages/latex/src/index.js').then((m) => m.latex),
-			import('#packages/mermaid/src/index.js').then((m) => m.mermaidPlugin()),
+			import('#packages/mermaid/src/index.js').then((m) => m.mermaid),
 			import('#packages/parrot/src/index.js').then((m) => m.parrotPlugin()),
 			import('#packages/slash-commands/src/index.js').then((m) => m.slashCommands),
 			import('#packages/toc/src/index.js').then((m) => m.toc)

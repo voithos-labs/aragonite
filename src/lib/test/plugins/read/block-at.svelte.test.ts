@@ -5,8 +5,10 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { builtin } from '#lib/components/block-makers/builtin.js';
 import { definePluginUnit, type Editor } from '#lib/schema/plugin-unit.js';
 import type { PluginsProp } from '#lib/schema/plugin-install.js';
+import type { Block, Piece } from '#lib/schema/doc-view.js';
 import { details } from '#packages/details/src/index.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { footnotes } from '#packages/footnotes/src/index.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -75,6 +77,57 @@ const TITLE_ROWS = [
 		write: ':::note New\n'
 	}
 ];
+
+const SYNTAX = [details, admonitionsPlugin(), footnotes];
+
+const ENDINGS = [
+	['LF', '\n'],
+	['CRLF', '\r\n']
+] as const;
+
+/** A paragraph inside each nested kind, the cells of a table beside them. */
+const NESTED: Record<string, string> = {
+	quote: 'intro\n\n> foo bar\n> baz qux\n',
+	'list item': '- foo bar\n  baz qux\n- next\n',
+	callout: ':::note Title\nfoo bar\nbaz qux\n:::\n',
+	alert: '> [!NOTE]\n> foo bar\n> baz qux\n',
+	details: '<details>\n<summary>T</summary>\n\nfoo bar\nbaz qux\n\n</details>\n',
+	footnote: 'x[^1]\n\n[^1]: foo bar\n    baz qux\n',
+	table: '| foo | bar |\n|---|---|\n| baz | qux |\n'
+};
+
+const NESTED_ROWS = Object.entries(NESTED).flatMap(([kind, lf]) =>
+	ENDINGS.map(([ending, eol]) => ({ kind, ending, source: lf.replaceAll('\n', eol) }))
+);
+
+/** Where `block` reads off `text`'s bytes: a character, a text piece or an offset back that
+ *  isn't the document's, or an answer past its line ending. */
+function misread(text: string, block: Block): string | null {
+	const name = `${block.type.name} ${JSON.stringify(block.text)}`;
+	let last = -1;
+	for (let i = 0; i < block.text.length; i++) {
+		const at = block.byteAt(i);
+		if (at <= last || text[at] !== block.text[i]) return `${name}: character ${i} at byte ${at}`;
+		if (block.offsetAt(at) !== i) return `${name}: byte ${at} reads as ${block.offsetAt(at)}`;
+		last = at;
+	}
+	const piece = misplacedPiece(text, block.pieces);
+	if (piece) return `${name}: ${piece}`;
+	const end = block.text.endsWith('\n') ? null : block.text.length;
+	return block.offsetAt(block.to) === end
+		? null
+		: `${name}: its end reads as ${block.offsetAt(block.to)}`;
+}
+
+function misplacedPiece(text: string, pieces: readonly Piece[]): string | null {
+	for (const piece of pieces) {
+		if (piece.kind === 'text' && text.slice(piece.from, piece.to) !== piece.text)
+			return `the text piece ${JSON.stringify(piece.text)} sits at ${piece.from}..${piece.to}`;
+		const inner = misplacedPiece(text, piece.children);
+		if (inner) return inner;
+	}
+	return null;
+}
 
 describe('Editor.blockAt', () => {
 	it('finds the deepest block at a byte, through a list, a quote and a table', async () => {
@@ -170,6 +223,71 @@ describe("a block's positions", () => {
 		expect(pieces[2].is(builtin.inlines.inlineCode)).toBe(true);
 		expect(pieces[4].children.map((p) => DOC.slice(p.from, p.to))).toEqual(['link']);
 	});
+
+	// Miss-analysis: every position row read an LF document and none read past a block's last
+	// line, so a nested `\n` on its `\r`'s byte and an answer past a line ending went unread.
+	it.each(NESTED_ROWS)(
+		'read a $kind under $ending at the bytes its text holds',
+		async ({ source }) => {
+			const { editor } = await mountedOn(source, SYNTAX);
+			const nested = [...editor.doc.walk()].filter((block) => block.parent && block.index >= 0);
+			expect(nested.length).toBeGreaterThan(0);
+			expect(nested.map((block) => misread(source, block)).filter(Boolean)).toEqual([]);
+		}
+	);
+
+	it.each(ENDINGS)(
+		'answer the end of a text only where no line ending closes it, under %s',
+		async (_ending, eol) => {
+			const source = 'one\n\n> two\n> three\n\nlast'.replaceAll('\n', eol);
+			const { editor } = await mountedOn(source);
+			const ends = [...editor.doc.walk()].map((block) => [block.text, block.offsetAt(block.to)]);
+			expect(ends).toEqual([
+				[`one${eol}`, null],
+				[`> two${eol}> three${eol}`, null],
+				[`two${eol}three${eol}`, null],
+				['last', 4]
+			]);
+			const quoted = await mountedOn(`one${eol}${eol}> two`);
+			const two = quoted.editor.blockAt(quoted.read().indexOf('two'))!;
+			expect(two.offsetAt(two.to)).toBe(3);
+		}
+	);
+
+	// Miss-analysis: the title rows were read in LF only, and the summary row only where its raw ended
+	// in `\n`; the value's row keeps its line's `\r\n`, past a text its closing tag ends.
+	it.each(ENDINGS)(
+		"end a summary row's text at its closing tag, with no offset past it, under %s",
+		async (_ending, eol) => {
+			const source = SUMMARY.replaceAll('\n', eol);
+			const { editor } = await mountedOn(source, SYNTAX);
+			const row = editor.blockAt(source.indexOf('Title'))!;
+			const tag = source.indexOf('</summary>');
+			const line = tag + '</summary>'.length + eol.length;
+			expect([row.text, row.byteAt(0), row.byteAt(5), row.to]).toEqual([
+				'Title',
+				source.indexOf('Title'),
+				tag,
+				tag
+			]);
+			expect(row.offsetAt(row.to)).toBe(5);
+			const past = Array.from({ length: line - tag }, (_, i) => tag + 1 + i);
+			expect(past.filter((at) => row.offsetAt(at) !== null)).toEqual([]);
+		}
+	);
+
+	it.each(ENDINGS)(
+		'land a draft over a text piece through its line ending, under %s',
+		async (_ending, eol) => {
+			const source = 'intro\n\n> foo bar\n> baz qux\n'.replaceAll('\n', eol);
+			const { editor, read } = await mountedOn(source);
+			const [piece] = editor.blockAt(source.indexOf('foo'))!.pieces;
+			expect(piece.text).toBe(`foo bar${eol}`);
+			const range = { from: piece.from, to: piece.to };
+			expect(await editor.edit().replace(range, `FOO BAR${eol}`).commit()).toEqual({ ok: true });
+			expect(read()).toBe(source.replace('foo bar', 'FOO BAR'));
+		}
+	);
 
 	it('parses nothing until a piece is read, and the same bytes once', async () => {
 		const editor = await editorOn(DOC);

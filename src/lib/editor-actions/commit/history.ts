@@ -139,8 +139,8 @@ export function createHistoryActions(
 		};
 	}
 
-	// An open draft commits as a step the undo then takes back. The typing batch ends, so the next
-	// keystroke snapshots the restored tree rather than joining an entry now on the other stack.
+	// An open draft or a drawing's save commits as a step this undo takes back (G1.246); the typing
+	// batch ends, so the next keystroke snapshots the restored tree, not an entry on the other stack.
 	async function beginHistorySwap(): Promise<void> {
 		const top = deps.undoManager.peekUndo();
 		deps.drafts.closeAll('undo');
