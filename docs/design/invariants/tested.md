@@ -6,28 +6,29 @@ No runtime check sees these; the test suite is the whole enforcement. Test files
 `test/invariants/`, and the arbitraries they draw random documents from live in
 `test/invariants/arbitraries/`.
 
-| ID    | What stays true                                                              | Codes |
-| ----- | ---------------------------------------------------------------------------- | ----- |
-| G2.1  | Any string parses without throwing and serializes back to itself             | P·N   |
-| G2.2  | The end-of-file edge states round-trip                                       | P·N   |
-| G2.3  | The inline parser holds against its conformance corpus                       | P     |
-| G2.4  | A rendered block's DOM text equals its ambient prefix plus its raw           | P     |
-| G2.5  | The inline tree's offsets partition the block's raw                          | P·N   |
-| G2.6  | Serialization ignores metadata and editor-level fields                       | P     |
-| G2.7  | The range coverage partitions a selection cleanly, and the overlay reads it  | P     |
-| G2.8  | Split and merge round-trip; ids, refs and children stay aligned              | P·N   |
-| G2.9  | A paste emits one `paste` op, over a range across blocks too                 | P     |
-| G2.10 | Every keydown path hands its key to the caret memory's classifier            | P·A   |
-| G2.11 | The inline scan covers every byte with known construct kinds, tiled          | P     |
-| G2.12 | A caret placement ends every editor-owned selection, unless it's an extend   | L     |
-| G2.13 | An edit leaves a tree whose serialization reparses to the same block shape   | P·N   |
-| G2.14 | A format toggle applies exactly where the active-read says it isn't applied  | N     |
-| G2.15 | A container rebuilt right after a parse writes back the bytes it read        | P·N   |
-| G2.16 | A leaf written its own bytes changes nothing, and a keystroke moves one line | P·N   |
-| G2.17 | A commit that throws leaves the document and the undo stacks as they were    | N     |
-| G2.18 | Copy, cut, paste, typing and deleting over a range keep the range-edit laws  | P·N   |
-| G2.19 | A keystroke asks the edited block's paint and measures only its marks        | N     |
-| G2.20 | A `use` that fails part way leaves the editor running the list it ran        | N     |
+| ID     | What stays true                                                              | Codes |
+| ------ | ---------------------------------------------------------------------------- | ----- |
+| G2.1   | Any string parses without throwing and serializes back to itself             | P·N   |
+| G2.2   | The end-of-file edge states round-trip                                       | P·N   |
+| G2.3   | The inline parser holds against its conformance corpus                       | P     |
+| G2.4   | A rendered block's DOM text equals its ambient prefix plus its raw           | P     |
+| G2.5   | The inline tree's offsets partition the block's raw                          | P·N   |
+| G2.6   | Serialization ignores metadata and editor-level fields                       | P     |
+| G2.7   | The range coverage partitions a selection cleanly, and the overlay reads it  | P     |
+| G2.8   | Split and merge round-trip; ids, refs and children stay aligned              | P·N   |
+| G2.9   | A paste emits one `paste` op, over a range across blocks too                 | P     |
+| G2.10  | Every keydown path hands its key to the caret memory's classifier            | P·A   |
+| G2.11  | The inline scan covers every byte with known construct kinds, tiled          | P     |
+| G2.12  | A caret placement ends every editor-owned selection, unless it's an extend   | L     |
+| G2.13  | An edit leaves a tree whose serialization reparses to the same block shape   | P·N   |
+| G2.14  | A format toggle applies exactly where the active-read says it isn't applied  | N     |
+| G2.15  | A container rebuilt right after a parse writes back the bytes it read        | P·N   |
+| G2.16  | A leaf written its own bytes changes nothing, and a keystroke moves one line | P·N   |
+| G2.17  | A commit that throws leaves the document and the undo stacks as they were    | N     |
+| G2.18  | Copy, cut, paste, typing and deleting over a range keep the range-edit laws  | P·N   |
+| G2.19  | A keystroke asks the edited block's paint and measures only its marks        | N     |
+| G2.20  | A `use` that fails part way leaves the editor running the list it ran        | N     |
+| G1.250 | Every block of a CRLF document reads at its LF twin's bytes                  | P·N   |
 
 ### The entries
 
@@ -135,3 +136,10 @@ definitions, block types, grammar, the undo stacks, each plugin attached once. E
 cleanup finds the names and the document of one list, and `error` hears each throw once the list
 is back, the failure last. A cleanup that throws fails nothing: it is reported and its plugin goes.
 `failed-use-restores.test.ts`.
+
+**G1.250 · A CRLF block reads at its LF twin's bytes.** Every block of a CRLF or mixed-ending
+document reads its bounds, each character's `byteAt`, `offsetAt` back, its pieces and its title
+where its LF twin does, carried past the endings before it (a `\r\n` takes two bytes where a `\n`
+took one). A miss is the byte map clamping a line ending (`container-offsets.ts :: pairLines`).
+Waived and pinned: an alert's empty body, whose CRLF ending sits on its `\r`.
+`crlf-twin-positions.property.test.ts`, `block-at.svelte.test.ts`.
