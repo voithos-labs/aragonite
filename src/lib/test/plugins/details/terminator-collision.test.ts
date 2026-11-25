@@ -225,8 +225,8 @@ describe('details terminator escape caret image', () => {
 		}
 	});
 
-	// The editor pairs only the written tags and a browser every spelling, so a body write escapes
-	// what the two would pair differently and keeps a pair both read alike.
+	// The editor pairs only the written tags and a browser every spelling, so a body write escapes a
+	// tag line either reading leaves unpaired and keeps the rest.
 	it.each([
 		['a pair only a browser reads', '<details class="x">\nin\n</DETAILS>\n', null],
 		['a written opener closed in another spelling', '<details>\n</DETAILS>\n', 'both'],

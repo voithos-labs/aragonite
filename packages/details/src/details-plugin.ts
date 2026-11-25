@@ -2,8 +2,8 @@
  * `<details>` sections: a `<details>` or `<details open>` line, a `<summary>` line under it, a
  * Markdown body and `</details>`, drawn as a section whose body folds away under its summary.
  * Only those spellings open and close one. A tag line a browser also reads (`</DETAILS>`,
- * `<details >`) is body text here, and the editor escapes one written into a body that a browser
- * would pair otherwise.
+ * `<details >`) is body text here, and the editor escapes one written into a body that it or a
+ * browser would leave unpaired.
  */
 
 import { builtin, container, definePlugin, fencedLines } from '@voithos-labs/aragonite/plugin';
@@ -16,7 +16,7 @@ export interface DetailsData {
 }
 
 // A tag line as a browser reads one (any case, up to three spaces in, anything after the name, GFM's
-// whitespace and not JavaScript's `\s`), which a body write escapes where it pairs otherwise.
+// whitespace and not JavaScript's `\s`), which a body write escapes where it pairs with nothing.
 const TAG_END = '(?=[ \\t\\v\\f\\r/>]|$)';
 
 /** Collapsible `<details>` sections: list `details` in an editor's plugins. */
