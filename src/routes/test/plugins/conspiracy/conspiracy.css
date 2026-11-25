@@ -1,0 +1,30 @@
+/* conspiracy.css */
+.conspiracy-block {
+	/* the corkboard, with one piece of red string */
+	position: relative;
+	border: 1px solid var(--color-ui-muted);
+	border-left: 3px solid var(--color-error);
+	border-radius: 6px;
+	padding: 8px 12px;
+}
+/* the theory: the title row carries the class `title` names */
+.conspiracy-theory {
+	font-weight: 600;
+}
+/* debunked: the string comes down and the stamp lands */
+.conspiracy-block.debunked {
+	border-left-color: var(--color-ui-muted);
+}
+.conspiracy-block.debunked::after {
+	content: 'DEBUNKED';
+	position: absolute;
+	top: 6px;
+	right: 12px;
+	transform: rotate(-12deg);
+	font: 600 0.75em monospace;
+	letter-spacing: 0.12em;
+	color: var(--color-error);
+	border: 2px solid currentColor;
+	border-radius: 3px;
+	padding: 1px 6px;
+}

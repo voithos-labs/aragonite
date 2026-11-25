@@ -3,76 +3,57 @@ import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { installPlugins } from '#lib';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
-import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
+import { grammar, type EditorPlugin } from '#lib/plugin.js';
 import { parrot, parrotPlugin } from '#packages/parrot/src/index.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import type { EditorPlugin } from '#lib/plugin.js';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { memoPlugin } from '../../../routes/test/plugins/memo/register';
 import { docStatsPlugin } from '../../../routes/test/plugins/doc-stats/doc-stats-plugin';
+import { DEMO_PLUGINS, DEMO_TAGS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
-import { allowDevWarns } from '#lib/test/support/warn-gate.js';
-
-// Each route re-installs the same plugin set into a process-wide registry; the second install
-// onward is ignored, which is the point of this ordering check.
-afterEach(() => allowDevWarns(['plugin-install']));
 
 /**
- * A plugin's setup runs once per process, so a route that installs second inherits the first
- * route's grammar, and its SSR markup can describe different kinds than the hydrating client.
+ * A `setup` plugin installs once per process, so a server that rendered `/test/plugins` first must
+ * not change how a demo route, which lists plugin values alone, reads its document for SSR.
  */
 
-// The setup plugins in the `plugins` props of `/` and `/changelog` (same names, same order) and of
-// `/test/plugins`; a plugin value installs nothing process-wide, so it can't change the order.
-const demoRouteSet = (): EditorPlugin[] => [registeredAdmonitions(), registeredFootnotes()];
-
-const harnessSet = (): EditorPlugin[] => [
-	calloutPlugin(),
-	registeredAdmonitions(),
-	memoPlugin(),
-	docStatsPlugin
-];
+// The `setup` plugins in `/test/plugins`' own list.
+const harnessSet = (): EditorPlugin[] => [calloutPlugin(), memoPlugin(), docStatsPlugin];
 
 /** `/test/plugins`' default seed. */
 const CALLOUT_SEED = ':::callout Title\nFirst\n:::\n';
 
-function kindsUnder(installOrder: EditorPlugin[][], source: string): string[] {
+/** `/`'s list, with the harness's plugins installed first or not. */
+function showcaseKinds(source: string, harnessFirst: boolean): string[] {
 	resetPluginPlatformForTests();
-	for (const set of installOrder) installPlugins(set);
-	return parse(source).children.map((block) => block.kind);
+	if (harnessFirst) installPlugins(harnessSet());
+	return grammar([...DEMO_PLUGINS, DEMO_TAGS])
+		.parse(source)
+		.blocks.map((block) => block.type.name);
 }
 
-describe('a route parses its own document the same however other routes installed first', () => {
-	// Vacuity guard: every case below compares two parses, and two fallback-prose parses
-	// compare equal just as happily as two correct ones.
-	it('resolves the harness seed to a plugin container, not fallback prose', () => {
-		expect(kindsUnder([harnessSet()], CALLOUT_SEED)).not.toEqual(['paragraph']);
-	});
-
-	it('the harness seed keeps its kind when a demo route installed first', () => {
-		expect(kindsUnder([demoRouteSet(), harnessSet()], CALLOUT_SEED)).toEqual(
-			kindsUnder([harnessSet()], CALLOUT_SEED)
-		);
+describe('a demo route reads its own document the same whatever the harness installed first', () => {
+	// Vacuity guard: the cases below compare two reads, and two empty ones agree just as well.
+	it('installs the harness seed as a plugin container, not fallback prose', () => {
+		resetPluginPlatformForTests();
+		installPlugins(harnessSet());
+		expect(parse(CALLOUT_SEED).children.map((block) => block.kind)).toEqual(['callout']);
+		expect(showcaseKinds(SHOWCASE_DOCUMENT, false)).toContain('details/details');
 	});
 
 	it('the showcase document keeps its kinds when the harness installed first', () => {
-		expect(kindsUnder([harnessSet(), demoRouteSet()], SHOWCASE_DOCUMENT)).toEqual(
-			kindsUnder([demoRouteSet()], SHOWCASE_DOCUMENT)
-		);
+		expect(showcaseKinds(SHOWCASE_DOCUMENT, true)).toEqual(showcaseKinds(SHOWCASE_DOCUMENT, false));
 	});
 
 	it('the changelog document keeps its kinds when the harness installed first', () => {
 		// The family the route seeds itself with; the picker's other families share its grammar.
 		const changelog = CHANGELOG_FAMILIES[0].document;
-		expect(kindsUnder([harnessSet(), demoRouteSet()], changelog)).toEqual(
-			kindsUnder([demoRouteSet()], changelog)
-		);
+		expect(showcaseKinds(changelog, true)).toEqual(showcaseKinds(changelog, false));
 	});
 });
 

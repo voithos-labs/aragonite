@@ -24,14 +24,18 @@ test('toc lists the document headings from the document prop', async ({ page }) 
 	expect(await getSource(page)).toContain('[[toc]]');
 });
 
-test('callout mounts as a container and round-trips an edit', async ({ page }) => {
-	await expect(page.locator('.callout-block')).toBeVisible();
-	const body = page.locator('[contenteditable="true"]', { hasText: 'Callout body' });
+test("the guide's conspiracy mounts as a box, round-trips an edit and takes its chord", async ({
+	page
+}) => {
+	await expect(page.locator('.conspiracy-block')).toBeVisible();
+	const body = page.locator('[contenteditable="true"]', { hasText: 'Conspiracy body' });
 	await body.click();
 	await body.press('End');
 	await page.keyboard.type('!');
-	await expect.poll(() => getSource(page)).toContain('Callout body!');
-	expect(await getSource(page)).toContain(':::callout Title');
+	await expect.poll(() => getSource(page)).toContain('Conspiracy body!');
+	await page.keyboard.press('ControlOrMeta+8');
+	await expect.poll(() => getSource(page)).toContain(':::debunked Birds are government drones');
+	await expect(page.locator('.conspiracy-block.debunked')).toBeVisible();
 });
 
 test('details renders its summary chrome and body', async ({ page }) => {

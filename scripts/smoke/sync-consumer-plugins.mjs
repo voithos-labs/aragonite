@@ -11,10 +11,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const SRC = join(ROOT, 'src/routes/test/plugins');
 const OUT = join(ROOT, 'examples/consumer/src/plugins');
 
-// Bundled-tier plugins ship in-package, so the consumer imports those subpaths directly. Only
-// callout stays a synced source: it is the external *authoring* validator.
+// Bundled-tier plugins ship in-package, so the consumer imports those subpaths directly. Only the
+// plugin guide's conspiracy stays a synced source: it is the external *authoring* validator.
 const MANIFEST = {
-	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte']
+	conspiracy: ['conspiracy-plugin.ts', 'conspiracy.css']
 };
 
 // Quote-agnostic on purpose: the gate must not depend on Prettier to be correct.

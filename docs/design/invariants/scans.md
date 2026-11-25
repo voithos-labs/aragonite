@@ -266,6 +266,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.389 | Every caret the editor writes says whether it arrives, steps or puts back a byte | L |
 | G4.396 | A `:::` container name is read in one file | L |
 | G4.397 | A fenced shape's lines are paired in one file | L |
+| G4.407 | The repo's pages and examples list plugin values, save the `setup` plugins held by name | L |
 
 ### The entries
 
@@ -775,3 +776,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.396 · A `:::` name is read in one file.** The names a plugin value's colon types hold reach their editor's grammar, and the names a `setup` plugin registered sit in the directive registry. `core/directive/registry.ts` reads both (`resolveDirective`, `startsContainerName`), so a title-row rule can't miss one set; no other file asks the grammar or the registry for a name. `lint/colon-names-one-read.test.ts`.
 
 **G4.397 · A fenced shape is paired in one file.** A fixed fence and a fenced container find their closing line in `schema/fence-shape.ts`, which counts depth and skips a code fence in a body there, so the reader and the escape a write runs can't disagree. No other file but the code fence's own parser looks for a code fence's closer to pair lines past it. `lint/fenced-pairing-home.test.ts`.
+
+**G4.407 · Setup plugins, held by name.** The repo's pages and examples list plugin values. The `setup` plugins left each test a published `setup` surface the old API's removal takes with it (the harness callout, memo and doc-stats, the seed-only decoration and inline fixtures, the probes that make a built-in's rebuild throw or leave a kind with no view, the Vue wrapper's proxy page), and only the pages named list them. A new one fails the scan. `lint/setup-plugins-held.test.ts`.
