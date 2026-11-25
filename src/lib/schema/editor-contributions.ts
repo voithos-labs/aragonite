@@ -5,8 +5,8 @@
  * and reached through the editor's activation, which every command lookup already takes, so no
  * route that runs or lists a command can miss a plugin's.
  *
- * A block type's keys and menu rows place their commands here too: such a command runs on a block
- * whose type places it, the one handed to it or else the nearest at the caret. The plugins' paste
+ * A block type's keys, menu rows and listed commands place them here too: such a command runs on a
+ * block whose type places it, the one handed to it or else the nearest at the caret. The plugins' paste
  * rewrites are read here, and answered for a paste or a pasted block
  * (`tree-operations/paste/paste-rewrites.ts`).
  */
@@ -386,13 +386,14 @@ function blockTypesOf(unit: InstalledPlugin) {
 	});
 }
 
-/** The commands a plugin's block types place, each with the kinds placing it. */
+/** The commands a plugin's block types place, in keys, rows or a list, each with the kinds placing it. */
 function placementsOf(unit: InstalledPlugin): Map<Command<unknown, never>, Set<string>> {
 	const placed = new Map<Command<unknown, never>, Set<string>>();
 	for (const { kind, making } of blockTypesOf(unit)) {
 		const values = [
 			...Object.values(making.chords ?? {}),
-			...(making.actions ?? []).map((action) => action.command)
+			...(making.actions ?? []).map((action) => action.command),
+			...(making.commands ?? [])
 		] as Command<unknown, never>[];
 		for (const value of values) {
 			if (!placed.has(value)) placed.set(value, new Set());

@@ -64,6 +64,9 @@ export interface BlockCommon<D, K extends string = BlockKey, H = unknown> {
 	chords?: { readonly [P in K]?: Command<Block<NoInfer<D>>, H> };
 	/** Rows of the block's own menu. */
 	actions?: readonly BlockAction<NoInfer<D>, H>[];
+	/** Commands it answers with no key or row, which run on the block as those do: an Edit a host
+	 *  binds or runs, say. */
+	commands?: readonly Command<Block<NoInfer<D>>, H>[];
 }
 
 /** A key a leaf type takes: a chord, or a bare key the editor binds in text blocks itself. A

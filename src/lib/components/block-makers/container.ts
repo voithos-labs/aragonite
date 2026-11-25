@@ -38,6 +38,7 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		insert: spec.insert,
 		chords: spec.chords,
 		actions: spec.actions,
+		commands: spec.commands,
 		priority,
 		registration: containerRegistration(spec as ContainerSpec<object>, lines),
 		view: drawnView(drawing),

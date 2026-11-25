@@ -63,6 +63,7 @@ export function lineBlock<D = never, H = unknown>(spec: LineBlockSpec<D, H>): Bl
 		insert: spec.insert,
 		chords: spec.chords,
 		actions: spec.actions,
+		commands: spec.commands,
 		priority,
 		registration: leafRegistration(spec as LineBlockSpec<unknown>, {
 			range: shape.range,

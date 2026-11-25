@@ -40,6 +40,7 @@ export interface BlockMaking<D = unknown> {
 	readonly writeBody?: (node: NodeView, text: string, ending: LineEnding) => string | null;
 	readonly chords?: BlockCommon<unknown, BlockKey, never>['chords'];
 	readonly actions?: readonly BlockAction<D, never>[];
+	readonly commands?: readonly Command<unknown, never>[];
 }
 
 /** One of an editor's own block types, named and ready to read. */

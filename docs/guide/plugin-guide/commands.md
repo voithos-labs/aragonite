@@ -2,7 +2,7 @@
 
 Part of the [plugin guide](../plugin-guide.md). The worked command, `conspiracy.setVerdict`, comes from [the container walkthrough](container-walkthrough.md#the-registration-module).
 
-**A block type's `chords` and `actions`**
+**A block type's `chords`, `actions` and `commands`**
 
 A plugin value gives its block type keys and menu rows that act on one block. Each names a `command` whose argument is the block:
 
@@ -21,6 +21,8 @@ const alert = container<AlertData>({
 ```
 
 Listing the block type is enough; the editor lists `cycle` with your commands. The key works in the alert and in any block inside it, where a key that block binds itself runs first: bound on the alert, `Mod+B` in its paragraph still bolds. A container type can't take a key the text inside edits with: `Enter`, `Backspace` and `Delete` don't compile there, and a letter, `Mod+V` or an arrow leaves its plugin out, with a message naming the key. `editor.run(cycle)` with no block runs on the nearest alert around the caret, and comes back `false` with none; over a selection across blocks, it and the key run once on each alert the selection covers, as one undo step, and the selection stays. A host moves the key with `keybindings: [{ kind: alert, chord: 'Mod+Shift+7', command: cycle }]`. `Tab` stays the page's. Where another plugin's command holds your key as its chord, the plugin listed later is left out.
+
+A command the block answers with neither a key nor a row goes in `commands: [edit]`: an Edit a host binds with `keybindings` or runs with `editor.run('diagrams/edit')`. It runs on its block like the others, and gets the drawing's `handle` too.
 
 The rows show in the right-click menu. A block picked up whole lists them above Copy. Right-click in text inside the alert and they come as one flyout named for the type, with its `icon` where it has one (a glyph's name, or `{ svg }` with your own markup), above Cut. A row is greyed where the command's `when` says no.
 

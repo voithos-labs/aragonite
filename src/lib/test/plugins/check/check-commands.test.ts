@@ -308,8 +308,12 @@ describe('waitingWrite over menus', () => {
 });
 
 describe('actionTarget', () => {
-	/** A memo type whose one block action is `run`. */
-	function acting(name: string, run: (editor: Editor, block: Block) => unknown) {
+	/** A memo type whose one block command is `run`, a menu row's, or listed with no key or row. */
+	function acting(
+		name: string,
+		run: (editor: Editor, block: Block) => unknown,
+		placed: 'actions' | 'commands' = 'actions'
+	) {
 		const shout = command<Block<never>>({ id: 'shout', title: 'Shout', run: run as never });
 		const memo = lineBlock({
 			name: 'memo',
@@ -317,7 +321,9 @@ describe('actionTarget', () => {
 			sample: '%%a memo',
 			insert: { none: 'a fixture of the check suite' },
 			match: /^%%(?<text>.*)$/,
-			actions: [{ label: 'Shout', command: shout }]
+			...(placed === 'actions'
+				? { actions: [{ label: 'Shout', command: shout }] }
+				: { commands: [shout] })
 		});
 		return pluginOf(name, () => ({ blocks: [memo] }));
 	}
@@ -329,17 +335,23 @@ describe('actionTarget', () => {
 			.replace({ from: block.to - 1, to: block.to - 1 }, '!')
 			.commit();
 
-	it('fails a block action that writes the caret’s block, not the one it is handed', async () => {
-		const caret = acting('caret', (editor) => shoutAt(editor, editor.selection?.block));
-		const row = rowOf(await reportOf(check(caret)), 'caret/shout', 'actionTarget');
-		expect(row).toMatchObject({ of: 'command', status: 'failed' });
-		expect(row?.detail).toMatch(/handed the second block, it wrote the first block/);
-	});
+	it.each(['actions', 'commands'] as const)(
+		'fails a block command placed by %s that writes the caret’s block, not the one it is handed',
+		async (placed) => {
+			const caret = acting('caret', (editor) => shoutAt(editor, editor.selection?.block), placed);
+			const row = rowOf(await reportOf(check(caret)), 'caret/shout', 'actionTarget');
+			expect(row).toMatchObject({ of: 'command', status: 'failed' });
+			expect(row?.detail).toMatch(/handed the second block, it wrote the first block/);
+		}
+	);
 
-	it('passes a block action that writes its argument', async () => {
-		const own = acting('own', (editor, block) => shoutAt(editor, block));
-		expect(rowOf(await check(own), 'own/shout', 'actionTarget')?.status).toBe('passed');
-	});
+	it.each(['actions', 'commands'] as const)(
+		'passes a block command placed by %s that writes its argument',
+		async (placed) => {
+			const own = acting('own', (editor, block) => shoutAt(editor, block), placed);
+			expect(rowOf(await check(own), 'own/shout', 'actionTarget')?.status).toBe('passed');
+		}
+	);
 
 	it('fails a block action that inserts at the caret', async () => {
 		const inserts = acting('inserts', (editor) => editor.edit().insert('more').commit());

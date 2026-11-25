@@ -35,6 +35,7 @@ export function fencedBlock<H = unknown>(spec: FencedBlockSpec<H>): BlockType<ne
 		insert: spec.insert,
 		chords: spec.chords,
 		actions: spec.actions,
+		commands: spec.commands,
 		priority,
 		// The body on the descriptor too, which the range core and the empty-block hint read.
 		registration: {

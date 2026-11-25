@@ -32,6 +32,11 @@ const placed = command<Block<never>, Tagged>({
 	title: 'Placed',
 	run: (_editor, _block, handle) => void handed.push(handle)
 });
+const listed = command<Block<never>, Tagged>({
+	id: 'listed',
+	title: 'Listed',
+	run: (_editor, _block, handle) => void handed.push(handle)
+});
 const loose = command<Block<never>>({
 	id: 'loose',
 	title: 'Loose',
@@ -56,6 +61,7 @@ const boxes = definePlugin({
 				sample: '```mine\nx\n```',
 				insert: { none: 'a test block type' },
 				actions: [{ label: 'Placed', command: placed }],
+				commands: [listed],
 				edit: 'box',
 				draw: tagged('mine')
 			}),
@@ -88,6 +94,13 @@ describe("a drawing's handle", () => {
 	it("reaches its block type's own command while the block is drawn", async () => {
 		const { editor, mine } = await mounted();
 		expect(editor.instance.run(placed, mine)).toBe(true);
+		expect(handed).toEqual([{ tag: 'mine' }]);
+	});
+
+	it("reaches a command its type lists with no key or row, and only on that type's block", async () => {
+		const { editor, mine, other } = await mounted();
+		expect(editor.instance.run(listed, mine)).toBe(true);
+		expect(editor.instance.run(listed, other)).toBe(false);
 		expect(handed).toEqual([{ tag: 'mine' }]);
 	});
 

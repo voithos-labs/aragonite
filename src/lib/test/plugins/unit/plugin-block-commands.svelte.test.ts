@@ -13,6 +13,7 @@ import {
 	type TextDrawContext
 } from '#lib/plugin.js';
 import { container } from '#lib/components/block-makers/container.js';
+import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { BlockCommon } from '#lib/schema/block-shapes.js';
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
@@ -358,6 +359,79 @@ describe("a block type's key", () => {
 		await editor.settle();
 		expect(ran).toHaveLength(runs);
 		expect(event.defaultPrevented).toBe(taken);
+	});
+});
+
+// Miss-analysis: a command reached its block's drawing only through a key or a row, so a box's Edit,
+// which has neither, could be listed nowhere that hands it a block.
+describe('a command a block type lists in `commands`, with no key or row', () => {
+	const listing = (cycle: Command<Block<AlertData>>) => ({
+		chords: undefined,
+		actions: undefined,
+		commands: [cycle]
+	});
+
+	it.each([
+		['a container', 'intro\n\n%> [!NOTE]\n%> inside\n', [1, 0], 'alerts'],
+		['a line block', 'intro\n\n@@ note\n', [1], 'memos'],
+		['a fenced block', 'intro\n\n```memo\nnote\n```\n', [1], 'fences']
+	] as const)('runs on %s holding the caret, by id', async (_, source, path, plugin) => {
+		const ran: string[] = [];
+		const listed = command<Block<never>>({
+			id: 'go',
+			title: 'Go',
+			run: (_editor, block) => void ran.push(block.type.name)
+		});
+		const common = { label: 'X', insert: { none: 'a test block type' }, commands: [listed] };
+		const types = {
+			alerts: () => makeAlerts(() => listing(listed as never)).alert,
+			memos: () =>
+				lineBlock({ ...common, name: 'memo', match: /^@@ (?<text>.*)$/, sample: '@@ x' }),
+			fences: () =>
+				fencedBlock({
+					...common,
+					name: 'fence',
+					fence: { info: 'memo' },
+					sample: '```memo\nx\n```'
+				})
+		};
+		const block = types[plugin]();
+		const owner = definePlugin({
+			name: plugin,
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ blocks: [block] })
+		});
+		const editor = mountEditor({ source, plugins: [owner] });
+		await editor.settle();
+		placeCaret(surfaceAt(editor, [...path]), 1);
+		expect(editor.instance.run(`${plugin}/go`)).toBe(true);
+		placeCaret(surfaceAt(editor, [0]), 1);
+		expect(editor.instance.run(`${plugin}/go`)).toBe(false);
+		expect(editor.instance.run(`${plugin}/go`, editor.instance.blockAt(0)!)).toBe(false);
+		expect(ran).toEqual([block.name]);
+	});
+
+	it('adds no menu row and binds no key', async () => {
+		const { editor, ran } = await mounted(DOC, makeAlerts(listing));
+		expect(editor.instance.reservedChords()).not.toContain('Mod+7');
+		await pressKeyAt(editor, [1, 0], 2, CTRL_7);
+		const surface = surfaceAt(editor, [1, 0]);
+		surface.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		await editor.settle();
+		const rows = [...document.querySelectorAll('.block-menu .md-menu-item')];
+		expect(rows.map((el) => el.textContent?.trim())).not.toContain('Alert');
+		expect(ran).toEqual([]);
+	});
+
+	it("runs from a host's key bound to it on the type", async () => {
+		const alerts = makeAlerts(listing);
+		const { editor } = await mounted(DOC, alerts, [
+			{ kind: alerts.alert, chord: 'Mod+Shift+7', command: alerts.cycle }
+		]);
+		await pressKeyAt(editor, [1, 0], 2, { key: '7', ctrlKey: true, shiftKey: true });
+		await editor.settle();
+		expect(editor.source()).toBe('intro\n\n%> [!TIP]\n%> inside\n');
 	});
 });
 
