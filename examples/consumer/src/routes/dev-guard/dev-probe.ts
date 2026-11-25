@@ -1,58 +1,29 @@
 /**
- * `:::devprobe`: a container kind that exists only to trip one DEV-mode guard through the
- * packaged editor. Its component passes an `isCollapsed` dep the descriptor never declares,
- * so `createContainerBlock` dev-warns at render. Dev-guard harness only.
+ * `:::devprobe`: a box that exists only to trip one dev-mode warning through the packaged editor.
+ * Its type declares `depends`, and its drawing hands back no `update` to hear the answers, so the
+ * editor warns as it draws the box. Dev-guard page only.
  */
 
-import {
-	activateDirectives,
-	definePlugin,
-	declarePluginKind,
-	declaredPluginKind,
-	registerBlockKind,
-	registerDirective,
-	COLON_LINES,
-	setPluginMetadata,
-	type CstNode,
-	type EditorPlugin,
-	type ParsedDirective
-} from '@voithos-labs/aragonite/plugin';
-import { svelteBlockView } from '@voithos-labs/aragonite/svelte';
-import DevProbeBlock from './DevProbeBlock.svelte';
+import { colonLines, container, definePlugin } from '@voithos-labs/aragonite/plugin';
 
-export const DEVPROBE = 'devprobe';
+const devprobe = container({
+	name: 'devprobe',
+	label: 'Dev probe',
+	lines: colonLines({ names: ['devprobe'] }),
+	sample: ':::devprobe\nbody\n:::\n',
+	insert: { none: 'a dev-guard probe' },
+	depends: () => '',
+	draw: (_block, ctx) => {
+		const dom = document.createElement('div');
+		dom.className = 'devprobe-block';
+		dom.append(ctx.children);
+		return { dom };
+	}
+});
 
-function devprobeFromDirective(parsed: ParsedDirective): CstNode {
-	const node: CstNode = {
-		kind: declaredPluginKind(DEVPROBE),
-		leadingTrivia: parsed.leadingTrivia,
-		raw: parsed.raw,
-		innerPrefix: parsed.body?.prefix ?? '',
-		children: parsed.body?.children ?? [],
-		innerSuffix: parsed.body?.suffix ?? ''
-	};
-	return node;
-}
-
-export function devProbePlugin(): EditorPlugin {
-	return definePlugin({
-		name: 'devprobe',
-		setup() {
-			activateDirectives();
-			registerBlockKind(declarePluginKind(DEVPROBE), {
-				view: svelteBlockView(DevProbeBlock),
-				mergeRole: 'container',
-				editable: true,
-				gapEdges: 'none',
-				supportsInline: false,
-				container: { lines: COLON_LINES },
-				samples: [':::devprobe\n\nbody\n\n:::\n']
-			});
-
-			registerDirective('container', DEVPROBE, {
-				kind: declaredPluginKind(DEVPROBE),
-				fromDirective: devprobeFromDirective
-			});
-		}
-	});
-}
+export const devProbePlugin = definePlugin({
+	name: 'devprobe',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({ blocks: [devprobe] })
+});

@@ -134,7 +134,7 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 			const lines = withLineEnding(text, ending);
 			const at = bodyOf(raw);
 			const { start, end } = range(raw);
-			const line = splitFixed(fixed, raw, false);
+			const line = opensInfo(raw) ? null : splitFixed(fixed, raw, false);
 			let written: string;
 			// A one-line block keeps a text with no line break on its line, and takes one with a break
 			// on lines of its own, as a typed break does; read off the block, since a splice can't tell.

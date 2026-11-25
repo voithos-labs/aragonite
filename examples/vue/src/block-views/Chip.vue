@@ -3,11 +3,10 @@
      any warning. -->
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted } from 'vue';
-import type { InlineNode } from '@voithos-labs/aragonite/plugin';
 import { BOOM } from '../../../adapter-suite/block-view-kinds';
 import { viewMounted } from '../../../adapter-suite/live-views';
 
-const props = defineProps<{ source: string; inline: InlineNode }>();
+const props = defineProps<{ source: string; from: number }>();
 // Thrown while rendering, where React's chip throws too.
 const name = computed(() => {
 	if (props.source === BOOM) throw new Error('the chip went boom');
@@ -20,6 +19,6 @@ onUnmounted(() => unmounted());
 </script>
 
 <template>
-	<span class="chip" :data-start="inline.start">{{ name }} by {{ by }}</span>
+	<span class="chip" :data-from="from">{{ name }} by {{ by }}</span>
 	<span class="chip-tail"></span>
 </template>

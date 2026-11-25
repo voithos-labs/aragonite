@@ -12,7 +12,7 @@ import { mermaid } from '@voithos-labs/aragonite-mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
 import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer';
 import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
-import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
+import { tagMarks } from '../../examples/showcase/tag-marks';
 
 // The one place the demo routes create their plugins: definitions are process-global and the
 // first install wins, so a route that wants different options passes `{ plugin, options }` rather
@@ -31,7 +31,7 @@ export const DEMO_PARROT = parrotPlugin();
 export const DEMO_SLASH_COMMANDS = slashCommands;
 // Tags as mark decorations over plain text, so a tag keeps every text gesture. Kept out of
 // `DEMO_PLUGINS`, the tour of the bundled plugins; the showcase installs it on its own.
-export const DEMO_TAGS = tagMarksPlugin();
+export const DEMO_TAGS = tagMarks;
 
 export const DEMO_PLUGINS = [
 	DEMO_ADMONITIONS,

@@ -276,8 +276,8 @@ export interface EditorInstance extends Editor {
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;
-	/** The registry for a typed-trigger list whose rows read the document, which a plugin value's
-	 *  caret menu can't do yet; any other list is a caret menu (`menu()` in a plugin value). */
+	/** The registry for a typed-trigger list the host adds itself; a plugin value lists its own as a
+	 *  caret menu (`menu()`). */
 	getInlineMenus(): InlineMenuRegistry;
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;

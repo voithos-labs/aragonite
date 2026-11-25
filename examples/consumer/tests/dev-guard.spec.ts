@@ -2,9 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // Proves the packaged editor's DEV guards reach a plugin author's own `vite dev`: they gate on
 // `import.meta.env.DEV`, true here and false under the built preview, which omits /dev-guard.
-test('collapse-probe dev-warn fires through the packaged boundary under vite dev', async ({
-	page
-}) => {
+test('a drawing dev-warn fires through the packaged boundary under vite dev', async ({ page }) => {
 	const warnings: string[] = [];
 	page.on('console', (m) => {
 		if (m.type() === 'warning') warnings.push(m.text());
@@ -18,7 +16,7 @@ test('collapse-probe dev-warn fires through the packaged boundary under vite dev
 		.poll(() =>
 			warnings.some((w) =>
 				w.includes(
-					'isCollapsed dep disagrees with the declared reservedChrome.isCollapsed probe for kind "devprobe"'
+					"block type 'devprobe/devprobe' declares depends, but its drawing has no update to hear it"
 				)
 			)
 		)

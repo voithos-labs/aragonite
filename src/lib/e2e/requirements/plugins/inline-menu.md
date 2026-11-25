@@ -11,11 +11,10 @@ The caret never leaves the document. The list takes no focus, so the author keep
 query, and an empty list holds no key at all.
 
 Seed `inline-menu` installs two menus at once: tag autocomplete over the document's own tags
-(`examples/showcase/tag-marks.ts`, synchronous, still an inline-menu source since it reads the
-document) and a document picker on `[[` whose list arrives asynchronously
-(`inline-menu/doc-link-menu-plugin.ts`), the shape a host's wikilink menu takes. The seed also
-lists the bundled slash-commands plugin, a `/` list whose pick inserts a block through
-`pick.insertBlock`. Its own cases are `slash-commands.md`; here it is the third menu sharing the
+(`examples/showcase/tag-marks.ts`, synchronous, its rows read from `editor.doc`) and a document
+picker on `[[` whose list arrives asynchronously (`inline-menu/doc-link-menu-plugin.ts`), the
+shape a host's wikilink menu takes. The seed also lists the bundled slash-commands plugin, a `/`
+list whose pick inserts a block through `pick.insertBlock`. Its own cases are `slash-commands.md`; here it is the third menu sharing the
 page. A fourth, on `@`, waits until the spec releases it; its cases are `inline-menu-held-commit.md`.
 
 ## Opening

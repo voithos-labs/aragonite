@@ -1,8 +1,8 @@
-# Feature: inline widgets and decorations drawn by the app's own framework
+# Feature: inline widgets and painted badges drawn by the app's own framework
 
 The `?block-views` page (`block-views.md`) also draws two plugin views with the app's components,
 through `reactView` or `vueView`: a chip for each `{{name}}` in the text (an inline widget), and a
-badge on each memo line giving the memo's length (a block decoration, whose length rides in its
+badge on each memo line giving the memo's length (a block paint, whose length rides in its
 `data-memo-length` attribute). Both show the framework's name, which they read from the app's
 context (React's `wrap` provider, Vue's app-level `provide` through the `app` option). The page
 keeps a count of the views mounted right now on its root element, which each view's component

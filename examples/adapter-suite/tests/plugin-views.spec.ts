@@ -4,7 +4,7 @@ import { BOOM } from '../block-view-kinds';
 import { LIVE_VIEWS_ATTR } from '../live-views';
 import type { Locator, Page } from '@playwright/test';
 
-// An inline widget and a decoration badge drawn by the app's own framework components on the
+// An inline widget and a painted badge drawn by the app's own framework components on the
 // `?block-views` page. Requirements: requirements/plugin-views.md.
 
 test.use({ anyWarning: true });
@@ -40,14 +40,15 @@ test('the widget and the badge draw with the app components and context', async 
 
 test('typing before the widget redraws the same element at its new offset', async ({ page }) => {
 	const chip = page.locator('.chip');
-	await expect(chip).toHaveAttribute('data-start', '2');
+	const from = Number(await chip.getAttribute('data-from'));
+	expect(from).toBeGreaterThan(0);
 	const connected = await stillMounted(chip);
 
 	await caretAtEnd(page, ' chip');
 	await page.keyboard.press('Home');
 	await page.keyboard.type('x');
 
-	await expect(chip).toHaveAttribute('data-start', '3');
+	await expect(chip).toHaveAttribute('data-from', String(from + 1));
 	expect(await connected()).toBe(true);
 	await expect.poll(() => mirror(page).textContent()).toContain('xa {{pebble}} chip');
 });

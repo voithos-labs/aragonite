@@ -1021,7 +1021,7 @@ _(pre-freeze / unstable)_ View-only annotations drawn over the rendered document
 
 _(pre-freeze / unstable)_ A list the editor opens under the caret while the author types after a trigger: `#` for a tag, `[[` for a link to another document. A plugin value lists one in `contributes` as `menus` (`menu`, below). The editor owns the session: it notices the typed trigger, holds the arrow keys, Enter, Tab and Escape while a list is up, anchors the list to the typed range, and writes the pick over the trigger and the query as one undo entry. The caret never leaves the document. The recipe: [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu).
 
-A menu whose rows read the document (every tag in the note, say) can't be a plugin value's yet, since a value has no document read; until it has one, that menu is an inline-menu source on a `setup` plugin's `editor.inlineMenus` (or a host's `getInlineMenus()`), the `InlineMenu*` rows below.
+A menu whose rows read the document (every tag in the note, say) reads `editor.doc` in `rows`, and `editor.selection` says where the query is. The `InlineMenu*` rows below are the older door, a source on a `setup` plugin's `editor.inlineMenus` or a host's `getInlineMenus()`.
 
 | Export | Role |
 | --- | --- |

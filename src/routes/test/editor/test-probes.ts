@@ -28,9 +28,9 @@ import {
 	registerBlockKind,
 	tryGetBlockKindDescriptor
 } from '#lib/schema/block-kind-descriptor.js';
-import { svelteBlockView } from '#lib/components/svelte-block-view.js';
+import { fencedBlock } from '#lib/plugin.js';
 import { textBlockView } from '#lib/components/blocks/text/text-block-view.js';
-import { declarePluginKind, declaredPluginKind } from '#lib/schema/plugin-kind.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { definePlugin, installPlugins, type PluginsProp } from '#lib/schema/plugin-install.js';
 import type { HarnessSource } from './harness-source.svelte';
 import {
@@ -62,26 +62,33 @@ import { isHiddenMarkerText } from '#lib/browser/painted.js';
 import { childIdDrifts } from '#lib/invariants/child-id-parity.js';
 import { isProseLeaf } from '#lib/schema/page-role.js';
 import { definitionsOf } from '#lib/core/inline/scan/definitions.js';
-import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 import { probeEditor, setProbePaint } from './paint-probe-plugin';
 
 type EditorInstance = ReturnType<typeof Editor>;
 
-// A kind whose component throws on render: a throwing stub isn't a full BlockComponent, but it
-// throws before any method is read. A route lists it for its blocks to resolve in its editor.
-export const throwProbePlugin = definePlugin({
-	name: 'throw-probe',
-	setup() {
-		registerBlockKind(declarePluginKind('throwTest'), {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			view: svelteBlockView(ThrowOnRenderBlock as never)
-		});
+// A block type whose drawing throws, so a block made one reaches BlockHost's error boundary. A
+// route lists the plugin for `makeBlockThrowOnRender` to find the type in its editor.
+const throwTest = fencedBlock({
+	name: 'throw-test',
+	label: 'Throw test',
+	fence: { info: 'throw-test' },
+	sample: '```throw-test\n```',
+	insert: { none: 'a test probe' },
+	edit: 'box',
+	draw: () => {
+		throw new Error('throw probe: its drawing fails on purpose');
 	}
 });
 
+export const throwProbePlugin = definePlugin({
+	name: 'throw-probe',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({ blocks: [throwTest] })
+});
+
+// The two `setup` plugins below stay until the setup API goes: only a setup plugin may augment a
+// built-in, and only one whose setup throws leaves a kind registered with no view.
 let orphanKind: PluginBlockKind | undefined;
 let listRebuildThrows = false;
 let listThrowProbeInstalled = false;
@@ -539,15 +546,12 @@ export function installTestProbes({
 			}
 			listRebuildThrows = on;
 		},
-		// A component that throws during render reaches BlockHost's <svelte:boundary>
-		// failed-snippet path.
+		// A drawing that throws reaches BlockHost's <svelte:boundary> failed-snippet path.
 		makeBlockThrowOnRender: (index: number): void => {
-			installPlugins([throwProbePlugin]);
-			const kind = declaredPluginKind('throwTest');
 			const doc = editor.__test.getDocument();
 			const node = doc.children[index] as CstNode | undefined;
 			if (!node) return;
-			node.kind = kind;
+			node.kind = throwTest.name as PluginBlockKind;
 			doc.children = [...doc.children];
 		},
 		// Reads SelectionState, not the `data-painted-range` attribute: the attribute lags a tick,

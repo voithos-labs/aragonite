@@ -70,8 +70,7 @@ export interface EditorContext<Options = unknown> {
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;
 	readonly rects: EditorRects;
-	/** Lists under the caret whose rows read the document (tags in the note); any other list is a
-	 *  plugin value's caret menu. */
+	/** Lists under the caret this plugin adds; a plugin value lists its own as caret menus. */
 	readonly inlineMenus: InlineMenuRegistry;
 	/** A getter, so always live: the rows this editor's insert menus offer, the same list as
 	 *  `Editor.inserts`. */

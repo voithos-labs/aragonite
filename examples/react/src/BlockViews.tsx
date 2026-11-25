@@ -1,6 +1,6 @@
 // The adapter suite's `?block-views` page (`examples/adapter-suite/requirements/block-views.md`):
 // five block types drawn by React components through `reactBlock`, and an inline widget and a
-// decoration badge through `reactView`.
+// painted badge through `reactView`.
 import {
 	createContext,
 	useContext,
@@ -18,10 +18,10 @@ import {
 	type BlockProps
 } from '@voithos-labs/aragonite-react';
 import type {
+	BlockPaint,
 	BoxDrawContext,
 	ContainerDrawContext,
-	Decoration,
-	InlineWidgetComponentProps,
+	WidgetProps,
 	TextDrawContext
 } from '@voithos-labs/aragonite/plugin';
 import {
@@ -169,19 +169,19 @@ const withName = (view: ReactNode) => (
 );
 
 // `{{boom}}` throws, so a spec can see the editor contain a framework view's throw.
-function Chip({ source, inline }: InlineWidgetComponentProps) {
+function Chip({ source, from }: WidgetProps<null>) {
 	useEffect(viewMounted, []);
 	if (source === BOOM) throw new Error('the chip went boom');
 	return (
-		<span className="chip" data-start={inline.start}>
+		<span className="chip" data-from={from}>
 			{source.slice(2, -2)} by {useContext(FrameworkName)}
 		</span>
 	);
 }
 
-function MemoLength({ decoration }: { decoration: Decoration }) {
+function MemoLength({ paint }: { paint: BlockPaint }) {
 	useEffect(viewMounted, []);
-	const length = decoration.type === 'block' ? decoration.attrs?.[MEMO_LENGTH_ATTR] : '?';
+	const length = paint.attrs?.[MEMO_LENGTH_ATTR] ?? '?';
 	return (
 		<span className="memo-length">
 			{length} by {useContext(FrameworkName)}

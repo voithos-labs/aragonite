@@ -9,7 +9,7 @@ import { edgeKey } from '../../platform-keys';
  * Requirements: e2e/requirements/plugins/inline-menu.md.
  */
 
-const TAGS = 'harness-tags';
+const TAGS = 'harness-tag-marks';
 const DOCS = 'harness-doc-link-menu';
 /** `Type here`, the plain typing target. */
 const TARGET = 2;

@@ -1,16 +1,14 @@
 <script module lang="ts">
 	import { devProbePlugin } from './dev-probe';
 
-	// Module scope so the factory runs once per process, not once per (SSR) render.
-	const plugins = [devProbePlugin()];
+	const plugins = [devProbePlugin];
 </script>
 
 <script lang="ts">
 	import { Editor } from '@voithos-labs/aragonite/svelte';
 	import '@voithos-labs/aragonite/styles/editor-theme.css';
 
-	// The prop installs before the Editor parses `source`, so the seed materializes the
-	// devprobe kind; unmaterialized, it renders nothing and the guard never fires.
+	// The editor reads `source` with its plugins, so the seed is the devprobe box from the start.
 	const SEED = ':::devprobe\nbody\n:::\n';
 </script>
 

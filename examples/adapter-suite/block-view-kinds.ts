@@ -5,24 +5,19 @@
 // memo giving its length. Each app passes its draws; the grammar here is shared.
 import {
 	container,
-	declarePluginInlineKind,
 	definePlugin,
 	fencedBlock,
+	inline,
 	lineBlock,
-	registerInlineSyntax,
-	registerInlineWidgetKind,
 	type Block,
-	type BlockType,
+	type BlockPaint,
 	type BoxDrawContext,
 	type ContainerDrawContext,
-	type Decoration,
 	type DrawContext,
-	type DecorationSource,
 	type Drawn,
-	type InlineNode,
-	type InlineWidgetComponentProps,
 	type PluginView,
-	type TextDrawContext
+	type TextDrawContext,
+	type WidgetProps
 } from '@voithos-labs/aragonite/plugin';
 
 export { BLOCK_VIEWS_SOURCE, LONG_SOURCE } from './block-views-source';
@@ -35,9 +30,9 @@ export interface BlockViews {
 	box: Draw<ContainerDrawContext>;
 	note: Draw<BoxDrawContext>;
 	dice: Draw<BoxDrawContext>;
-	chip: PluginView<InlineWidgetComponentProps>;
-	/** Shows the `data-memo-length` attribute of the decoration it's given. */
-	memoLength: PluginView<{ decoration: Decoration }>;
+	chip: PluginView<WidgetProps<null>>;
+	/** Shows the `data-memo-length` attribute of the paint it's given. */
+	memoLength: PluginView<{ paint: BlockPaint }>;
 }
 
 export const MEMO_LENGTH_ATTR = 'data-memo-length';
@@ -58,7 +53,7 @@ export function saveNote(block: Block<never>, ctx: BoxDrawContext, text: string)
 	void ctx.editor.edit().replace({ from: block.from, to: block.to }, fence).commit();
 }
 
-/** The page's plugins: its block types, then its chip and the badges on its memos. */
+/** The page's plugins: its block types, its chip and the badges on its memos. */
 export function blockViewsPlugins(views: BlockViews) {
 	const insert = { none: 'an adapter suite block' };
 	const memo = lineBlock({
@@ -71,7 +66,7 @@ export function blockViewsPlugins(views: BlockViews) {
 		edit: 'text',
 		draw: views.memo
 	});
-	const blocks = definePlugin({
+	const plugin = definePlugin({
 		name: 'block-views',
 		version: '1.0.0',
 		editor: '*',
@@ -115,56 +110,33 @@ export function blockViewsPlugins(views: BlockViews) {
 					edit: 'box',
 					draw: views.dice
 				})
-			]
-		})
-	});
-	const inline = definePlugin({
-		name: 'block-views-inline',
-		setup(ctx) {
-			registerChip(views.chip);
-			ctx.onEditor((editor) => {
-				const handle = editor.decorations.addSource(memoLengths(memo, views.memoLength));
-				return () => handle.dispose();
-			});
-		}
-	});
-	return [blocks, inline];
-}
-
-function registerChip(view: PluginView<InlineWidgetComponentProps>): void {
-	const chip = declarePluginInlineKind('chip');
-	registerInlineSyntax('{', (raw, pos, end): InlineNode | null => {
-		if (!raw.startsWith('{{', pos)) return null;
-		const close = raw.indexOf('}}', pos + 2);
-		if (close < 0 || close + 2 > end || raw.slice(pos + 2, close).includes('\n')) return null;
-		return { kind: chip, start: pos, end: close + 2, children: [] };
-	});
-	registerInlineWidgetKind(chip, {
-		isWidget: () => true,
-		view,
-		editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
-	});
-}
-
-// A badge on every top-level memo, carrying the memo's length, so an edit changes its decoration.
-function memoLengths(
-	memo: BlockType<never>,
-	view: PluginView<{ decoration: Decoration }>
-): DecorationSource {
-	return {
-		name: 'memo-length',
-		provide: (doc) =>
-			doc.children.flatMap((node, index): Decoration[] =>
-				node.kind === memo.name
+			],
+			inlines: [chip(views.chip)],
+			// A badge on every top-level memo, carrying the memo's length, so an edit changes its paint.
+			paint: (block): BlockPaint[] =>
+				block.is(memo) && block.parent === null
 					? [
 							{
 								type: 'block',
-								path: [index],
-								attrs: { [MEMO_LENGTH_ATTR]: String(node.raw.trimEnd().length) },
-								badge: { view }
+								attrs: { [MEMO_LENGTH_ATTR]: String(block.text.trimEnd().length) },
+								badge: views.memoLength
 							}
 						]
 					: []
-			)
-	};
+		})
+	});
+	return [plugin];
 }
+
+// `{{name}}` on one line, drawn whole by the app's view.
+const chip = (view: PluginView<WidgetProps<null>>) =>
+	inline<null>({
+		name: 'chip',
+		label: 'Chip',
+		prefix: '{',
+		sample: '{{pebble}}',
+		match: /\{\{[^\n]*?\}\}/,
+		read: () => null,
+		widget: { delete: 'whole', arrows: 'over', click: 'none' },
+		draw: view
+	});

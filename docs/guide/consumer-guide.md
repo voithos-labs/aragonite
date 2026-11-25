@@ -371,7 +371,7 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | `getDecorations()` | The registry for your own view-only annotations (see [Decorations](#decorations)) |
 | `openMenu(menu, query?)` | Types a caret menu's trigger (and the query) at the caret and opens it, the way a shortcut or a toolbar button does; `false`, writing nothing, in a table cell, in reading mode, or for a menu this editor doesn't list |
 | `openRows(action, range, anchor, pointer?)` | Opens a plugin's selection action rows over `range`, just under `anchor` (a rect) or at it (a point), taking no focus, for a hover card over a mark; hands back `{ isOpen, close() }`, and tells `pointer` as the pointer comes onto the menu (`true`) and leaves it (`false`) |
-| `getInlineMenus()` | The registry for a typed-trigger list whose rows read the document, which a plugin value's caret menu can't do yet (see [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
+| `getInlineMenus()` | The registry for a typed-trigger list you add from the host; a plugin lists its own as a caret menu (see [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
 | `inserts` | The blocks the insert menus offer, plugin blocks included (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `getDiagnostics()` | The bug-report tooling (see [Diagnostics](consumer-guide/shipping.md#diagnostics)) |
 | `reservedChords()` / `claimsChord(event)` | Which shortcuts this editor consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)) |

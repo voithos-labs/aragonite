@@ -32,7 +32,7 @@
 	import { highlightPlugin } from './highlight-mark/mark-plugin';
 	import { anchorPlugin } from './comment-anchor/anchor-plugin';
 	import { chipsPlugin } from './chips/chip-plugin';
-	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
+	import { tagMarks, tagMenu } from '../../../../examples/showcase/tag-marks';
 	import { docLinkMenu, docLinkMenuPlugin } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { drawnPlugin } from './drawn/drawn-plugin';
@@ -63,9 +63,6 @@
 		DEMO_TOC
 	];
 
-	// One instance across the two seeds that want it: a second call would define the same plugin
-	// name twice in the process-global registry, which warns on every page load.
-	const tagMarks = tagMarksPlugin();
 	// Seeds that run on their own plugins alone; under `asides` and `admonitions-alone` the value is
 	// the one thing that turns the directive grammar on.
 	const SEEDS_WITHOUT_BASE = ['fence-lines', 'asides', 'admonitions-alone'];
@@ -425,7 +422,7 @@
 			<button
 				data-testid="open-tag-menu"
 				onmousedown={(e) => e.preventDefault()}
-				onclick={() => editor?.getInlineMenus().open(TAG_MENU)}
+				onclick={() => editor?.openMenu(tagMenu)}
 			>
 				Insert tag
 			</button>
