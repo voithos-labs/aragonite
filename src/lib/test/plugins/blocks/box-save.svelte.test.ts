@@ -132,6 +132,22 @@ describe("a box's unwritten text", () => {
 		expect(editor.source()).toBe('Above!\n\n```box\ntyped\n```\n');
 	});
 
+	// Miss-analysis: the save a drawing gets as windowing takes its block first read the document
+	// inside the render, which still held the block, so a deletion's teardown wrote the text back.
+	it('is dropped with its block by a deletion, which stands, and by an unmount', async () => {
+		const editor = await mounted();
+		typeInBox(editor, 'typed');
+		const [above, box] = editor.instance.doc.blocks;
+		await editor.instance.edit().replace({ from: above.to, to: box.to }, '').commit();
+		await editor.settle();
+		expect(editor.source()).toBe('Above!\n');
+		const other = await mounted();
+		typeInBox(other, 'typed');
+		await other.destroy();
+		expect(other.source()).toBe('Above!\n\n```box\nfirst\n```\n');
+		expect(asked).toBe(0);
+	});
+
 	it("is left alone by a second editor's undo, mode change and load", async () => {
 		const editor = await mounted();
 		const other = mountEditor({ source: 'Other\n\n```box\nb\n```\n', plugins: [boxes] });
