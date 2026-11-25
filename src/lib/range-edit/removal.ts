@@ -83,16 +83,23 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 	return { ...removed, source: oneEmptyLine(removed.source, line) };
 }
 
-/** The removal of `[from, to)` inside one title row, where it breaks a `:::` container's opener:
- *  the container unwrapped where it stood, behind the markers of its lines. */
-function unwrappedAt(doc: Doc, from: number, to: number): Removal | null {
+/** `[start, end)` replaced by one line of `text`, where the range lies inside a `:::` opening row
+ *  and breaks it: the row unwrapped round the text, as a key's write over that selection leaves it. */
+export function unwrapping(doc: Doc, start: number, end: number, text: string): Removal | null {
+	const { from, to } = removalRange(doc, start, end);
+	return from < to ? unwrappedAt(doc, from, to, text) : null;
+}
+
+/** `[from, to)` inside one title row replaced by `text`, where that breaks a `:::` container's
+ *  opener: the container unwrapped where it stood, behind the markers of its lines. */
+function unwrappedAt(doc: Doc, from: number, to: number, text = ''): Removal | null {
 	const row = titleAt(doc, from);
 	const owner = row && row === titleAt(doc, to) ? titleOwner(doc, row) : undefined;
 	if (!row || !owner || !factsOf(doc, owner).titleRow!.nameNeverEntered) return null;
 	const raw = nodeAt(doc, row.path).raw;
 	const markerEnd = row.text!.from - row.from;
 	const [start, end] = [from - row.from, to - row.from];
-	const write = doc.host.leaf.replace(doc.tree, row.path, start, end, '', doc.mode);
+	const write = doc.host.leaf.replace(doc.tree, row.path, start, end, text, doc.mode);
 	const cut = cutOf(raw, write.bytes, start, end);
 	if (!cut || !breaksOpener(raw, write.bytes, markerEnd, cut)) return null;
 	const container = nodeAt(doc, owner.path).raw;
@@ -102,9 +109,9 @@ function unwrappedAt(doc: Doc, from: number, to: number): Removal | null {
 		doc.host.parts(doc.tree, parent, index, { raw: title }, { raw: body }, true, null)
 	);
 	const close = owner.to - ownTrailingLineEnding(container).length;
-	const text = spliced(doc, owner.from, close)(trimTrailingLineEnding(bytes));
+	const unwrapped = spliced(doc, owner.from, close)(trimTrailingLineEnding(bytes));
 	return {
-		source: doc.source.slice(0, owner.from) + text + doc.source.slice(close),
+		source: doc.source.slice(0, owner.from) + unwrapped + doc.source.slice(close),
 		caret: owner.from + caret
 	};
 }

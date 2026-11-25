@@ -36,7 +36,13 @@ import { blankedApart, byteAt, writeText, type Edit, type LeafEdit } from './lea
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { asPasted, filledApart, pasteAt, type Pasted } from './paste';
-import { entersOpening, removeLeavingBlank, removeRange, type Removal } from './removal';
+import {
+	entersOpening,
+	removeLeavingBlank,
+	removeRange,
+	unwrapping,
+	type Removal
+} from './removal';
 import { fenceBody, holdsText, lastPlaceAt, literalBody } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
@@ -170,6 +176,8 @@ function edited(
 			gesture.own === undefined && !typed
 				? (text, blocks) => host.transformPaste(text, blocks)
 				: null;
+		const unwrapped = lineOverOpener(doc, range, gesture.paste, transform);
+		if (unwrapped) return keepLastEnding(answer(unwrapped));
 		const pasted = (held: Held, inPlace?: true): Pasted => ({
 			text: gesture.paste,
 			plain: gesture.plain,
@@ -239,6 +247,19 @@ function edited(
 }
 
 const TEXT: Held = { holds: 'text' };
+
+/** One line over a selection that breaks a `:::` opening row, transformed as a paste is: it stands
+ *  where the row's syntax was, as a key's write over that selection leaves it. */
+function lineOverOpener(
+	doc: Doc,
+	{ from, to }: Range,
+	text: string,
+	transform: Pasted['transform']
+): Removal | null {
+	if (from === to || /\n/.test(text) || !unwrapping(doc, from, to, text)) return null;
+	const line = transform ? transform(text, readDoc(text, doc.host, doc.mode).tree) : text;
+	return /\n/.test(line) ? null : unwrapping(doc, from, to, line);
+}
 
 /** The removal a paste of `text` over `[from, to)` across blocks makes first: blank text leaves the
  *  place blank, as a cut does; other text goes in at once, as a typed character does (`inPlace`). */
@@ -652,7 +673,8 @@ const entersAtEnd = (doc: Doc, { from, to }: Range): boolean =>
  *  line stays; text typed elsewhere goes in at once, so the line it lands on is never left blank. */
 function removalEdit(doc: Doc, from: number, to: number, gesture: RemovalGesture): Removal {
 	if (gesture !== 'type') return removeLeavingBlank(doc, from, to);
-	if (!heldAlone(doc, from, to)) return removeRange(doc, from, to);
+	// A row held whole whose removal breaks its `:::` opener unwraps, as any range there does.
+	if (!heldAlone(doc, from, to) || unwrapping(doc, from, to, '')) return removeRange(doc, from, to);
 	const out = doc.source.slice(0, from) + doc.source.slice(to);
 	return { source: numberedOn(doc, from, to, out), caret: from };
 }
