@@ -53,6 +53,8 @@ export interface Removal extends Edit {
 	parent?: LaidBlock | null;
 	/** The caret stands past the last block of bytes that end in no line ending, in no text of it. */
 	pastEnd?: true;
+	/** An unwrapped `:::` opening row left some of its title standing. */
+	titled?: true;
 }
 
 export function removeRange(doc: Doc, start: number, end: number): Removal {
@@ -105,14 +107,20 @@ function unwrappedAt(doc: Doc, from: number, to: number, text = ''): Removal | n
 	const container = nodeAt(doc, owner.path).raw;
 	const parent = owner.path.slice(0, -1);
 	const index = owner.path.at(-1)!;
-	const { bytes, caret } = unwrappedContainer(container, raw, markerEnd, cut, (title, body) =>
-		doc.host.parts(doc.tree, parent, index, { raw: title }, { raw: body }, true, null)
+	const { bytes, caret, titled } = unwrappedContainer(
+		container,
+		raw,
+		markerEnd,
+		cut,
+		(title, body) =>
+			doc.host.parts(doc.tree, parent, index, { raw: title }, { raw: body }, true, null)
 	);
 	const close = owner.to - ownTrailingLineEnding(container).length;
 	const unwrapped = spliced(doc, owner.from, close)(trimTrailingLineEnding(bytes));
 	return {
 		source: doc.source.slice(0, owner.from) + unwrapped + doc.source.slice(close),
-		caret: owner.from + caret
+		caret: owner.from + caret,
+		...(titled && { titled: true as const })
 	};
 }
 

@@ -248,15 +248,16 @@ function edited(
 
 const TEXT: Held = { holds: 'text' };
 
-/** One line over a selection that breaks a `:::` opening row, transformed as a paste is: it stands
- *  where the row's syntax was, as a key's write over that selection leaves it. */
+/** One line over a selection that breaks a `:::` opening row and leaves no title: it stands where
+ *  the row was, as a key's write leaves it. Where title stays, removal then paste already agree. */
 function lineOverOpener(
 	doc: Doc,
 	{ from, to }: Range,
 	text: string,
 	transform: Pasted['transform']
 ): Removal | null {
-	if (from === to || /\n/.test(text) || !unwrapping(doc, from, to, text)) return null;
+	const bare = from < to && !/\n/.test(text) ? unwrapping(doc, from, to, '') : null;
+	if (!bare || bare.titled) return null;
 	const line = transform ? transform(text, readDoc(text, doc.host, doc.mode).tree) : text;
 	return /\n/.test(line) ? null : unwrapping(doc, from, to, line);
 }

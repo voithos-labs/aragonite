@@ -44,11 +44,23 @@ async function write(
 	return serialize(h.deps.doc);
 }
 
-function core(source: string, from: number, to: number, typed: string, mode: Mode = 'source') {
+function core(
+	source: string,
+	from: number,
+	to: number,
+	typed: string,
+	mode: Mode = 'source',
+	pasted = false
+) {
 	const reading = testReading();
 	const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
 	const host = noTransforms(rangeHost(reading, { source, measured: measured(tree) }));
-	const gesture = typed === '' ? ('backspace' as const) : { text: typed };
+	const gesture =
+		typed === ''
+			? ('backspace' as const)
+			: pasted
+				? { paste: typed, plain: true, holds: 'text' as const }
+				: { text: typed };
 	return editRange(source, { from, to }, gesture, mode, host).source;
 }
 
@@ -96,11 +108,12 @@ const PARITY = SHAPES.flatMap(([shape, source, marker]) => {
 describe('a selection written over an opening row', () => {
 	// Live mode reads a range through a title's whole text as that title, which is no break.
 	it.each(PARITY)(
-		'%s: the leaf write gives the core its bytes, closing line gone',
+		'%s: the leaf write gives the core its bytes, typed or pasted, closing line gone',
 		async (_, source, row, marker, start, end, typed) => {
 			const written = await write(source, row, start, end, typed);
 			expect(written).not.toMatch(/:::\r?\n?$/);
 			expect(written).toBe(core(source, start, end, typed));
+			if (typed) expect(written).toBe(core(source, start, end, typed, 'source', true));
 			const whole = end === row.trimEnd().length && end > marker;
 			if (!whole) expect(written).toBe(core(source, start, end, typed, 'live'));
 		}
@@ -133,6 +146,15 @@ describe('a selection written over an opening row', () => {
 	// Live mode writes a selection of the row whole as its title cleared, its marker kept.
 	it('the row whole written back as its marker keeps the box', async () => {
 		expect(await write(G, ':::foo Title\n', 0, 12, ':::foo ')).toBe(':::foo \nbody\n:::\n');
+	});
+
+	// Several lines keep the paste's own landing, after a removal that still takes the closing line.
+	it('several lines pasted over the row held whole strand no closing line', () => {
+		for (const mode of ['source', 'live'] as const) {
+			const pasted = core(':::tip\nbody\n:::\n', 0, 6, 'X\nY', mode, true);
+			expect(pasted).not.toMatch(/:::\n$/);
+			expect(pasted).toMatch(/^X\nY/);
+		}
 	});
 
 	it('the same bytes written with no selection, as a word delete writes them, stay literal', async () => {

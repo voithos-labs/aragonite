@@ -48,15 +48,15 @@ export function breaksOpener(
 	return !written.startsWith(row.slice(0, markerEnd));
 }
 
-/** Container `raw` unwrapped once `cut` broke its row: the inserted text and the title past the cut,
- *  a blank line where `apart` asks one, the body less its closing line; the caret after the text. */
+/** Container `raw` unwrapped once `cut` broke its row: the text and the title past the cut, a blank
+ *  line where `apart` asks one, the body less its closer; the caret after the text; any title left. */
 export function unwrappedContainer(
 	raw: string,
 	row: string,
 	markerEnd: number,
 	cut: RowCut,
 	apart: (title: string, body: string) => boolean
-): { bytes: string; caret: number } {
+): { bytes: string; caret: number; titled: boolean } {
 	const ending = ownTrailingLineEnding(row) || '\n';
 	const title = cut.inserted + trimTrailingLineEnding(row).slice(Math.max(cut.end, markerEnd));
 	const body = bodyOf(raw.slice(row.length), colonsAt(row));
@@ -67,7 +67,8 @@ export function unwrappedContainer(
 	const unended = ownTrailingLineEnding(raw) === '' && bytes !== ending;
 	return {
 		bytes: unended ? trimTrailingLineEnding(bytes) : bytes,
-		caret: head ? cut.inserted.length : 0
+		caret: head ? cut.inserted.length : 0,
+		titled: head !== ''
 	};
 }
 
