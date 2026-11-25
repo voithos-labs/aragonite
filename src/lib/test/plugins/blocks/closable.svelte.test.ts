@@ -88,6 +88,15 @@ describe('a fold written', () => {
 		});
 	});
 
+	it('closes by a host data write with the caret in the body, which goes to the title row', async () => {
+		const { m } = await mounted(AROUND(OPEN));
+		placeCaret(surfaceAt(m, [1, 1]), 2);
+		await m.instance.edit().data(m.instance.doc.blocks[1], { open: false }).commit();
+		await m.settle();
+		expect(m.source()).toBe(AROUND(FOLD_SAMPLE));
+		expect(m.instance.getSelection()?.focus.path).toEqual([1, 0]);
+	});
+
 	it('closes under a range from above ending in the body, whose end stays there', async () => {
 		const { m, ctx } = await mounted(AROUND(OPEN));
 		const range = { anchor: { path: [0], offset: 0 }, focus: { path: [1, 1], offset: 0 } };
