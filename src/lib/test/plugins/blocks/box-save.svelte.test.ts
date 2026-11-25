@@ -112,6 +112,26 @@ describe("a box's unwritten text", () => {
 		expect(editor.source()).toBe(SOURCE);
 	});
 
+	// Miss-analysis: every row ran the undo from a plain call, where a commit never waits for a
+	// render; a host's effect running it made the save wait, so the undo took the step under it.
+	it('is saved the same way by an undo a host runs from inside an effect', async () => {
+		const editor = await mounted();
+		typeInBox(editor, 'typed');
+		let ran = false;
+		const stop = $effect.root(() => {
+			$effect(() => {
+				if (ran) return;
+				ran = true;
+				editor.instance.runCommand('history.undo');
+			});
+		});
+		await editor.settle();
+		stop();
+		expect(editor.source()).toBe('Above!\n\n```box\nfirst\n```\n');
+		await run(editor, 'history.redo');
+		expect(editor.source()).toBe('Above!\n\n```box\ntyped\n```\n');
+	});
+
 	it('is saved before a redo, which then has nothing left to redo', async () => {
 		const editor = await mounted();
 		await run(editor, 'history.undo');
