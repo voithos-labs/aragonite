@@ -79,7 +79,6 @@ function misreads(lfBlock: Block, twinBlock: Block, carried: number[]): string |
 	const name = `${lfBlock.type.name} ${JSON.stringify(lfBlock.text)}`;
 	if (lfBlock.type.name !== twinBlock.type.name)
 		return `${name} reads as a ${twinBlock.type.name} in its twin`;
-	if (emptyAlertBody(twinBlock)) return null;
 	// Each LF character's index in the twin's text; a `\n` written `\r\n` takes two.
 	const at: number[] = [];
 	const lf = lfBlock.text;
@@ -158,6 +157,7 @@ function twinsMisread(source: string): string | null {
 		if (blocks.length !== lfBlocks.length)
 			return `${JSON.stringify(text)} walks ${blocks.length} blocks, its LF twin ${lfBlocks.length}`;
 		for (let k = 0; k < blocks.length; k++) {
+			if (emptyAlertBody(blocks[k])) continue;
 			const wrong = misreads(lfBlocks[k], blocks[k], carried);
 			if (wrong) return `${JSON.stringify(text)}: ${wrong}`;
 		}
@@ -179,9 +179,11 @@ describe('G1.250 every block of a CRLF document reads at its LF twin bytes', () 
 	});
 
 	it("still reads an alert's empty body with both bytes of its CRLF ending on the `\\r`", () => {
-		const body = [...read('> [!NOTE]\r\n').walk()][1];
+		const { text, carried } = twin('> [!NOTE]\n', () => true);
+		const [lfBody, body] = [read('> [!NOTE]\n'), read(text)].map((doc) => [...doc.walk()][1]);
 		expect(emptyAlertBody(body)).toBe(true);
 		expect([body.text, body.byteAt(0), body.byteAt(1)]).toEqual(['\r\n', 9, 9]);
+		expect(misreads(lfBody, body, carried)).toMatch(/offsetAt of 0 is 1, its LF twin's 0/);
 	});
 
 	it('reads every drawn document at its twins bytes', () => {

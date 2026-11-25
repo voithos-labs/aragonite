@@ -33,7 +33,7 @@ export const shouty = definePlugin({
 });
 ```
 
-Every position is a document byte. `block.byteAt(i)` turns an offset into `block.text` into one and `block.offsetAt(byte)` goes back. Do the mapping per character rather than adding `block.from`: in a quote, the `> ` markers between the block's lines aren't its text, so `block.from + i` drifts from the second line on. A widget at the end of a line goes at its line break's first byte, `block.byteAt(i)` with `i` where the line's text stops: `block.to` is past the break, so paint there is left out.
+Every position is a document byte. `block.byteAt(i)` turns an offset into `block.text` into one and `block.offsetAt(byte)` goes back. Do the mapping per character rather than adding `block.from`: in a quote, the `> ` markers between the block's lines aren't its text, so `block.from + i` drifts from the second line on. A widget at the end of a line goes at its line break's first byte, `block.byteAt(i)` with `i` where the line's text stops: where a break closes the block, `block.to` is past it, so paint there is left out.
 
 | `type` | Fields | What it draws |
 | --- | --- | --- |
