@@ -20,3 +20,11 @@ the editor's own style instead.
 - An empty fence round-trips byte for byte, with and without a closing fence
 - Reading mode shows a dimmed placeholder for an empty diagram, with no error card and no
   textarea, and the block is still a stop for the arrow keys
+- A whitespace-only diagram's box, typed into and committed with Ctrl+Enter, then Ctrl+Z: the
+  box is back showing the body as written, with the caret at the offset it was written from
+
+## Miss-analysis
+
+An undo that emptied a diagram again reopened its box on the text typed before the commit (a click
+away wrote it back), with the caret wherever the textarea put it: no row ran an undo that reopens
+a box, the one route that hands it back both its body and its offset.

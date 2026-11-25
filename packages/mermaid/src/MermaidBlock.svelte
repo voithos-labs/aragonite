@@ -176,10 +176,11 @@
 		boxText = editSeed;
 	}
 
-	// The block's bytes can change under an open box (a host's write, an undo), and the box would
-	// then write text seeded from bytes that are gone.
+	// The box seeds on each opening and again when its block's bytes change under it (a host's
+	// write, an undo), so it never writes text seeded from bytes that are gone.
 	$effect(() => {
-		if (editing && block.text !== seededFrom) seedBox();
+		if (!editing) seededFrom = null;
+		else if (block.text !== seededFrom) seedBox();
 	});
 
 	// The box follows its text: a textarea has no intrinsic content height, and the inline
@@ -237,6 +238,7 @@
 		enter(at) {
 			arrivedAt = 'x' in at ? at.x : null;
 			textareaEl?.focus({ preventScroll: true });
+			if ('offset' in at) textareaEl?.setSelectionRange(at.offset, at.offset);
 		},
 		offset: () =>
 			textareaEl && document.activeElement === textareaEl ? textareaEl.selectionStart : null

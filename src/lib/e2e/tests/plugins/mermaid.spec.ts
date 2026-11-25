@@ -226,4 +226,24 @@ test.describe('mermaid reference plugin', () => {
 		await expect(editor.overlay).toHaveCount(0);
 		await expect(editor.firstInputHost).toBeFocused();
 	});
+
+	test('a host putting back the selection it read returns the box caret to its offset', async ({
+		page
+	}) => {
+		await editor.clickToolbar('mermaid-edit');
+		await expect(editor.textarea).toBeFocused();
+		await page.keyboard.press(edgeKey('blockStart'));
+		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+		const read = await page.evaluate(() => (window as any).__test.getSelection());
+		expect(read.focus).toEqual({ path: [1], offset: 5 });
+
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
+		await page.evaluate((read) => (window as any).__test.setSelection(read), read);
+
+		await expect(editor.textarea).toBeFocused();
+		await expect
+			.poll(() => editor.textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart))
+			.toBe(5);
+	});
 });

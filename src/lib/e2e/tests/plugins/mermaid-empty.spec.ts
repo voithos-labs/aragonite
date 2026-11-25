@@ -80,6 +80,27 @@ test.describe('mermaid empty diagram', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
+	test('an undo of the box’s write reopens it with the caret at the offset it was written from', async ({
+		page
+	}) => {
+		await editor.loadContent('Above\n\n```mermaid\n      \n```\n\ntail\n');
+		await editor.textarea.click();
+		await page.keyboard.press(edgeKey('blockStart'));
+		for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('x');
+		await page.keyboard.press('ControlOrMeta+Enter');
+		await editor.bridge.waitForSourceContains('```mermaid\n  x    \n```');
+		await expect(editor.textarea).toHaveCount(0);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('```mermaid\n      \n```');
+		await expect(editor.textarea).toBeFocused();
+		await expect(editor.textarea).toHaveValue('      ');
+		await expect
+			.poll(() => editor.textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart))
+			.toBe(3);
+	});
+
 	test('reading mode shows a dimmed placeholder instead of the edit surface or an error', async () => {
 		await editor.loadContent(EMPTY_FENCE);
 		await editor.setPresentationMode('reading');

@@ -119,6 +119,30 @@ describe('an external code change under an open mermaid edit box', () => {
 		expect(mounted!.instance.canRunCommand('history.undo')).toBe(false);
 	});
 
+	// Miss-analysis: every row kept the box open across the change, so a box an undo reopened on
+	// the bytes it was last seeded from, still holding the text typed before it closed, had no row.
+	it('reopens on the body as written when an undo empties the diagram again', async () => {
+		mounted = mountEditor({
+			source: 'intro\n\n```mermaid\n```\n',
+			plugins: [mermaid],
+			scrollMode: 'host'
+		});
+		typeDraft('graph TD');
+		textarea().dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true })
+		);
+		await mounted.settle();
+		expect(mounted.instance.getSource()).toBe('intro\n\n```mermaid\ngraph TD\n```\n');
+
+		mounted.instance.runCommand('history.undo');
+		await mounted.settle();
+
+		expect(textarea().value).toBe('');
+		blurEditBox();
+		await mounted.settle();
+		expect(mounted.instance.getSource()).toBe('intro\n\n```mermaid\n```\n');
+	});
+
 	// Non-vacuity: the re-seed must fire on an external change only, never on ordinary typing.
 	it('still commits a draft that nothing changed underneath', () => {
 		const root = mountMermaid();

@@ -48,8 +48,13 @@ toolbar (Edit, Focus, Reset view) stays hidden until the block is hovered or foc
 - With the focus view open, a host's `setSelection` onto the diagram (the selection it just read)
   closes the view and leaves the diagram focused whole, so the view never stays open with focus
   outside it
+- With the edit box open, `getSelection()` names the diagram at the box caret's own offset, and a
+  host's `setSelection` with that read puts the box caret back there after it moved
 
 ## Miss-analysis
+
+The box ignored the offset the editor hands back on `setSelection`, so a host's read of the box
+caret never round-tripped: the round trip ran only on the harness field, which honours it.
 
 A host's `setSelection` with the focus view open moved focus to the block and left the view open,
 where Escape no longer reached it: no row placed a caret from outside the view while it was open.
