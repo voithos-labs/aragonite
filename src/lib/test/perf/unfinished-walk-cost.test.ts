@@ -15,7 +15,7 @@ import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { installPlugins } from '#lib';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import {
 	disablePerfInstruments,
@@ -67,7 +67,7 @@ const askedNear = (blocks: string[], index: number, written = '') =>
 	);
 
 beforeEach(() => {
-	installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
+	installPlugins([registeredMath(), registeredAdmonitions(), registeredDetails()]);
 	resetPerfInstruments();
 });
 afterEach(() => disablePerfInstruments());

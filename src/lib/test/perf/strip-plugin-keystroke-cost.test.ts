@@ -11,7 +11,7 @@ import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import {
@@ -63,7 +63,7 @@ function linesRead(source: string): number {
 }
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
+	installPlugins([registeredAdmonitions(), registeredFootnotes()]);
 	resetPerfInstruments();
 });
 afterEach(() => disablePerfInstruments());

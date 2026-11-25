@@ -9,7 +9,7 @@ import type { CstNode, Document } from '#lib/core/nodes.js';
 import { isBlankParagraph, parse } from '#lib/core/parser.js';
 import { documentLineEnding, ownTrailingLineEnding } from '#lib/core/lines.js';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
@@ -88,7 +88,7 @@ function divergenceAfter(source: string, write: Write, pick: number): string | n
 
 describe('the blank lines a write leaves read back as they stand', () => {
 	beforeEach(() => {
-		installPlugins([admonitionsPlugin(), registeredDetails()]);
+		installPlugins([registeredAdmonitions(), registeredDetails()]);
 	});
 
 	it.each(['empty', 'fill', 'erase'] as const)('%s, at any depth', (write) => {

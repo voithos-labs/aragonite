@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { checkCategoryFields } from '../../invariants/node-shape';
 import { checkMergeRoleVocabulary } from '../../invariants/registry';
 import { MERGE_ROLES, isKnownMergeRole } from '../../schema/block-kind-descriptor';
@@ -14,7 +14,7 @@ function leaf(source: string): CstNode {
 // The only kinds that legally carry a non-empty `innerPrefix` are wrapped containers, and every
 // one of them ships as a plugin.
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 });
 
 describe('checkCategoryFields (G1.5)', () => {

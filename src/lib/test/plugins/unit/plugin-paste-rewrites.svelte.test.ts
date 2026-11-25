@@ -9,7 +9,7 @@ import { builtin, definePlugin, type EditorPlugin } from '#lib/plugin.js';
 import { container } from '#lib/components/block-makers/container.js';
 import { blockRewrite, type BlockRewrite } from '#lib/schema/paste-rewrite.js';
 import { OWN_CLIPBOARD_TYPE } from '#lib/browser/clipboard.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { PluginError } from '#lib/schema/plugin-unit.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
@@ -399,7 +399,7 @@ describe('a paste rewrite is never asked', () => {
 
 	it("about blocks pasted in a callout's title, which takes them as its one line of text", async () => {
 		const doc = ':::note Title\nbody\n:::\n';
-		const { editor, read } = await mounted(again, doc, { beside: [admonitionsPlugin()] });
+		const { editor, read } = await mounted(again, doc, { beside: [registeredAdmonitions()] });
 		const title = surfaceAt(editor, [0, 0]);
 		placeCaret(title, ':::note Ti'.length);
 		await pasteOn(editor, title, CLIP);

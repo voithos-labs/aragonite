@@ -1,8 +1,8 @@
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
+import { GITHUB_ALERT } from '#lib/test/harness/registered-admonitions.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -18,7 +18,7 @@ import { writeContainerRaw } from '#lib/schema/container-writer.js';
 // Miss-analysis: no case blanked the paragraph above a quote's trailing bare `>` line.
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 });
 
 /** The chain from the document down to the container holding `path`'s block. */

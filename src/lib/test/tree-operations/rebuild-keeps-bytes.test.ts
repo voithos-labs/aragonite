@@ -4,7 +4,7 @@
 // that respelled the whole container wrote back the bytes it read and no test saw lines move.
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
@@ -237,7 +237,7 @@ describe('the space that finishes a bare `>`', () => {
 });
 
 describe('a container built from another keeps its source’s bytes', () => {
-	beforeEach(() => installPlugins([admonitionsPlugin()]));
+	beforeEach(() => installPlugins([registeredAdmonitions()]));
 
 	it('a quote exit keeps the lines it leaves', () => {
 		const quote = parse('>a\n>\n>b\n>\n>\n').children[0];

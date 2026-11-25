@@ -10,7 +10,7 @@ import { keepsKindAt, readBack, shownOf } from '#lib/core/inline/live-edit/read-
 import { fixtureReading } from '../../../harness/fixture-grammar';
 import { testView } from '../../../harness/test-view';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 
 function at(source: string, path: number[]) {
@@ -74,7 +74,7 @@ describe('whether the auto-pair’s line keeps its kind where it is stored', () 
 	// Miss-analysis (#800): the kind rows read the line alone, so none asked of a lone `$$`, which
 	// reads as a paragraph only until a `$$` line below closes it.
 	it('a line that waits on a closer below does not keep its kind', () => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 		registerMathBlock(testView());
 		const { node, store } = at('\n', [0]);
 		expect(keepsKindAt(node, '$$', store)).toBe(false);

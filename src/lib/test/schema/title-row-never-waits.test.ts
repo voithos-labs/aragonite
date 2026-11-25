@@ -4,7 +4,7 @@
 // row answered "waiting" above every block in its body and hid the opener typed under it.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import {
 	closedWaitsOf,
 	unfinishedReadings,
@@ -29,7 +29,7 @@ import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 const ROW = DIRECTIVE_OPENER_LINE as AnyBlockKind;
 const block = (raw: string, kind: AnyBlockKind = 'paragraph') => ({ raw, leadingTrivia: '', kind });
 const readings = () => unfinishedReadings(defaultGrammarView);
-const admonitions = admonitionsPlugin();
+const admonitions = registeredAdmonitions();
 
 beforeEach(() => installPlugins([admonitions]));
 

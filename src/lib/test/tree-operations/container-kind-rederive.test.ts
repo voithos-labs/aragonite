@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { setPluginMetadata } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { reclassifyContainer } from '#lib/tree-operations/index.js';
 import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
@@ -16,7 +16,7 @@ import { grammarWithout } from '#lib/test/harness/grammar-without.js';
 // editor-driven half is test/plugins/admonitions/github-alert-typed-formation.test.ts.
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 });
 
 /** Write `raw` into the container's first leaf and rebuild, as an inner edit does. */

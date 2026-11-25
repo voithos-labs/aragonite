@@ -6,7 +6,7 @@ import { installPlugins, serialize } from '#lib';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
@@ -64,7 +64,7 @@ const ROWS: { name: string; source: string; structural: Edit; plain: Edit }[] = 
 
 describe('an opaque container’s metadata follows the open last line (#640)', () => {
 	beforeEach(() => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 		registerMermaidKind(testView());
 	});
 

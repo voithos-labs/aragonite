@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
 import { parse } from '#lib/core/parser.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { serialize } from '#lib/core/serializer.js';
 import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
@@ -51,7 +51,7 @@ describe('emptying a block inside a container', () => {
 	// A body parsed after its container's opener line has a line above its first block, which
 	// stripping `innerPrefix` takes: the run still needs one, though the block sits at index 0.
 	it('keeps the line a wrapped body head still must supply its opener', async () => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 		const h = makeNestedHarness(parse('> [!NOTE]\n> one\n>\n> two\n').children, { index: 0 });
 
 		await h.bundle.blockEdit.updateBlockContent(0, '\n', 'authored', 'join-typing', 1);

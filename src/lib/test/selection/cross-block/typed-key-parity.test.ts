@@ -10,8 +10,8 @@ import {
 	type TypedInsertReads
 } from '#lib/components/blocks/editable/typed-insert.js';
 import { rangeOwnsKey } from '#lib/selection/cross-block/keydown.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { ADMONITION } from '#packages/admonitions/src/kinds.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
+import { ADMONITION } from '#lib/test/harness/registered-admonitions.js';
 import type { PluginBlockKind } from '#lib/plugin.js';
 import type { PluginCommandId } from '#lib/schema/command-id.js';
 import {
@@ -117,7 +117,7 @@ describe('a chord the keymap binds over a range', () => {
 		vi.stubGlobal('navigator', { platform: 'Win32' });
 		const editor = mountEditor({
 			source: ':::note\na1\n\nb2\n:::\n',
-			plugins: [admonitionsPlugin()],
+			plugins: [registeredAdmonitions()],
 			keybindings: [
 				{
 					kind: ADMONITION as PluginBlockKind,

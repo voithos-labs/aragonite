@@ -18,7 +18,7 @@ import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 import { serialize } from '#lib/core/serializer.js';
 import { arrivalRawStart } from '#lib/browser/offsets.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 
@@ -34,7 +34,7 @@ async function run(source: string, mode: PresentationMode, steps: Step[]): Promi
 	const editor: Editor = mountEditor({
 		source,
 		presentationMode: mode,
-		plugins: [admonitionsPlugin()]
+		plugins: [registeredAdmonitions()]
 	});
 	await editor.settle();
 	const seen: string[] = [];

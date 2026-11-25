@@ -8,7 +8,7 @@ import { installPlugins } from '#lib';
 import { parse } from '#lib/core/parser.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
@@ -101,7 +101,7 @@ describe('closing a fence a write leaves open', () => {
 // rows that close one are `written-opener-routes.test.ts`, one per write route.
 describe('an opener that backs out, with nothing below to close it', () => {
 	beforeEach(() => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 		registerDetailsPageWide();
 	});
 

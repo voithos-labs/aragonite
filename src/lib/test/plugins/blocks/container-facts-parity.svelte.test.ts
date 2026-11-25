@@ -17,12 +17,12 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 
 beforeAll(() => installLayoutStubs());
 // Each test starts with the registries reset, so the hand-registered kinds go in again.
-beforeEach(() => installPlugins([admonitionsPlugin(), registeredFootnotes()]));
+beforeEach(() => installPlugins([registeredAdmonitions(), registeredFootnotes()]));
 afterEach(destroyMountedEditors);
 
 const TWINS: { kind: string; twin: BlockType<unknown> }[] = [

@@ -18,7 +18,7 @@ import {
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { scanCompiled } from '#lib/test/harness/search-replace.js';
@@ -173,7 +173,7 @@ const ROWS: Row[] = [
 
 describe('an edit after a lengthened fence gives the bytes a reload would (#640)', () => {
 	beforeEach(() => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 		registerMermaidKind(testView());
 		registerSketchKind();
 	});

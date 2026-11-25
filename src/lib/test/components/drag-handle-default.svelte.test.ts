@@ -2,7 +2,7 @@
 // The hover drag handle is on by default, and `false` turns it off.
 // Miss-analysis: every e2e case passed `blockDragHandles` explicitly, so none asserted the default.
 import { describe, it, expect, afterEach } from 'vitest';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import {
 	installLayoutStubs,
 	mountEditor,
@@ -85,7 +85,10 @@ describe('the handle follows what a block is, not only the prop', () => {
 	});
 
 	it('renders no handle on a note card holding text', () => {
-		mounted = mountEditor({ source: '> [!NOTE]\n> body text\n', plugins: [admonitionsPlugin()] });
+		mounted = mountEditor({
+			source: '> [!NOTE]\n> body text\n',
+			plugins: [registeredAdmonitions()]
+		});
 		expect(handleCount()).toBe(0);
 	});
 

@@ -20,7 +20,7 @@ import {
 	takeReadBackBytes
 } from '#lib/invariants/reads-back.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import { makeContainerHarness, makeTopHarness } from '../harness/editor-actions';
 
@@ -146,7 +146,7 @@ describe('G1.55 runs on the keystroke and the commit, bounded by size', () => {
 	});
 
 	it('reads the new container when a commit changes the kind of the one it wrote in', async () => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 		const h = makeContainerHarness('> x\n', [0]);
 
 		await h.bundle.blockEdit.updateBlockContent(
@@ -208,7 +208,7 @@ describe('G1.55 over a run of blocks', () => {
 
 	// Miss-analysis: a window holding an opener far from its closer was read with its neighbours alone.
 	it('reads a window holding a waiting opener, or a line that may close one, to the far end', () => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 		const spans = (top: readonly NodeView[], at: number) =>
 			spliceRuns(top, [{ at, count: 1 }], defaultGrammarView).map((run) => [
 				top.indexOf(run[0]),

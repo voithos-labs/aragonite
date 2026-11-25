@@ -23,9 +23,9 @@ import {
 	type ContainerViewContext
 } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
-import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
-import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
-import AdmonitionBlock from '#packages/admonitions/src/AdmonitionBlock.svelte';
+import { registerGithubAlert } from '#lib/test/harness/registered-admonitions.js';
+import { registerAdmonitions } from '#lib/test/harness/registered-admonitions.js';
+import { AdmonitionBlock } from '#lib/test/harness/registered-admonitions.js';
 import { loggedHandle, newViewLog, type ViewLog } from './fixtures/dom-views';
 
 const SOURCE = '> [!NOTE]\n> first\n>\n> second\n\nafter\n';

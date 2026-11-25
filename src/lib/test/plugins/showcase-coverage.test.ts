@@ -12,7 +12,7 @@ import {
 	type InlineNode
 } from '#lib/core/nodes.js';
 import { computeInlineContent, grammar, isProseKind, type Piece } from '#lib/plugin.js';
-import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
+import { ADMONITION, GITHUB_ALERT } from '#lib/test/harness/registered-admonitions.js';
 import { listGrammar } from '#lib/schema/own-syntax.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { DEFINITION, REFERENCE } from '#lib/test/support/footnotes-grammar.js';

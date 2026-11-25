@@ -6,7 +6,7 @@ import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import { registeredFootnotes, FOOTNOTE_DEF_KIND } from '#lib/test/harness/registered-footnotes.js';
 import { registeredMath, MATH_BLOCK } from '#lib/test/harness/registered-math.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
 import { arbPluginGfmDoc, arbPluginInlineSource, freshOrFixedSeed } from './arbitraries';
 
@@ -27,7 +27,7 @@ beforeEach(() => {
 	installPlugins([
 		registeredFootnotes(),
 		registeredMath(),
-		admonitionsPlugin(),
+		registeredAdmonitions(),
 		registeredDetails()
 	]);
 });

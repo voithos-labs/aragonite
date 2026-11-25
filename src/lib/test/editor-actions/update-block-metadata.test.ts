@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { configureEditorEnv } from '@voithos-labs/aragonite/dev-checks';
@@ -36,7 +36,7 @@ const ALERT = '> [!NOTE]\n> body\n';
 const TIP = { alertType: 'TIP' };
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 });
 
 describe('updateBlockMetadata', () => {

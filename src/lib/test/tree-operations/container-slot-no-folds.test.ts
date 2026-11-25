@@ -7,7 +7,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
@@ -28,7 +28,7 @@ afterEach(async () => {
 });
 
 describe('a replace that dissolves a container', () => {
-	beforeEach(() => installPlugins([admonitionsPlugin()]));
+	beforeEach(() => installPlugins([registeredAdmonitions()]));
 
 	it.each([
 		{

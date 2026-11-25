@@ -23,7 +23,7 @@ import { makeContainerHarness } from '#lib/test/harness/editor-actions.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { serialize } from '#lib/core/serializer.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 
@@ -159,7 +159,7 @@ describe.each(ROWS)('text holding a backslash and a line break put in $name', ({
 });
 
 describe('a block write to a title row', () => {
-	beforeEach(() => installPlugins([admonitionsPlugin(), registeredDetails()]));
+	beforeEach(() => installPlugins([registeredAdmonitions(), registeredDetails()]));
 
 	it('replaceRaw holding a newline writes one line', async () => {
 		const h = makeContainerHarness(':::tip Title\nin\n:::\n', [0]);

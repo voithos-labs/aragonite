@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { resolveReorderUnit } from '#lib/tree-operations/reorder-unit.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 
 // A strip plugin container reorders its body children among themselves, so the resolver lands on
@@ -9,7 +9,7 @@ import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 // descriptor's `reorderChildren` capability, not a kind name.
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
+	installPlugins([registeredAdmonitions(), registeredFootnotes()]);
 });
 
 describe('resolveReorderUnit: strip plugin containers reorder within', () => {

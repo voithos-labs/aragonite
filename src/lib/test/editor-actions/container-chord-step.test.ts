@@ -3,11 +3,11 @@
 // bound none lost them, and every suite's container bound one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { defineBlockView, definePlugin } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { svelteBlockView } from '#lib/svelte.js';
-import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
+import { registerAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -51,7 +51,7 @@ const mountNote = (stops: boolean) => mountEditor({ source: NOTE, plugins: [note
 // A diagram whose source box is always open and lets every key bubble, inside an admonition.
 const DIAGRAM_IN_NOTE = ':::note\n\n```mermaid\ngraph TD\n```\n\n:::\n';
 const DIAGRAM_PLUGINS = [
-	admonitionsPlugin(),
+	registeredAdmonitions(),
 	definePlugin({
 		name: 'box-diagram',
 		setup: () =>

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
+import { GITHUB_ALERT } from '#lib/test/harness/registered-admonitions.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
@@ -19,7 +19,7 @@ import { testContainer } from '#lib/test/harness/test-kinds.js';
 let THROWING: AnyBlockKind;
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 	THROWING = testContainer('spec-throwing-rebuild', {
 		rebuildRaw: () => {
 			throw new Error('rebuildRaw exploded');

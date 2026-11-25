@@ -18,7 +18,7 @@ import {
 	freshOrFixedSeed
 } from './arbitraries';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import {
 	displayLength,
@@ -411,7 +411,7 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 	// G2.16. Miss-analysis: the property drew core kinds only, so the bundled alert and footnote
 	// respelled every body line per edit with no row to see it.
 	it('a keystroke in a bundled strip container changes only the line it types on', () => {
-		installPlugins([admonitionsPlugin(), registeredFootnotes()]);
+		installPlugins([registeredAdmonitions(), registeredFootnotes()]);
 		fc.assert(
 			fc.property(arbRespelledPluginContainerDoc, fc.nat(), fc.nat(), keystrokeMovesOneLine),
 			PARAMS

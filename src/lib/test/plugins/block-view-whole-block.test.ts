@@ -28,7 +28,7 @@ import {
 	registerMermaidKind,
 	type MermaidMetadata
 } from '#packages/mermaid/src/mermaid-kind.js';
-import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
+import { registerGithubAlert } from '#lib/test/harness/registered-admonitions.js';
 import MermaidBlock from '#packages/mermaid/src/MermaidBlock.svelte';
 
 const SOURCE = 'above\n\n```mermaid\ngraph TD\n```\n\nbelow\n';

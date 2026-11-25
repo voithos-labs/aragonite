@@ -10,7 +10,7 @@ import { registerDirective } from '#lib/core/directive/registry.js';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
 import { registerBlockCompleter } from '#lib/schema/block-completions.js';
 import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { parse } from '#lib/core/parser.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { type GrammarView } from '#lib/schema/block-openers.js';
@@ -32,7 +32,7 @@ const unlisted = definePlugin({
 });
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), unlisted]);
+	installPlugins([registeredAdmonitions(), unlisted]);
 });
 
 const NOTE = ':::note\n\nbody\n\n:::\n';

@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { parse } from '#lib/core/parser.js';
@@ -263,7 +263,7 @@ describe('a directive container that ends the document', () => {
 // Miss-analysis: the quote exit row asserted only after its second commit, so no row stopped on
 // the empty line an Enter leaves inside a last quote, where the blank check read `>` instead.
 describe('Enter at the end of a last alert line', () => {
-	beforeEach(() => installPlugins([admonitionsPlugin()]));
+	beforeEach(() => installPlugins([registeredAdmonitions()]));
 
 	it.each([
 		['LF', (text: string) => text],

@@ -10,7 +10,7 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
@@ -26,7 +26,7 @@ import { PLUGINS_SEED } from '../../../../examples/consumer/src/routes/plugins/s
 const consumerRouteSet = () => [
 	calloutPlugin(),
 	details,
-	admonitionsPlugin(),
+	registeredAdmonitions(),
 	mermaidPlugin(),
 	toc,
 	emoji,

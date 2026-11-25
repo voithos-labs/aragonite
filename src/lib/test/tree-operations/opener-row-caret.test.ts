@@ -5,11 +5,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
 import { serialize } from '#lib/core/serializer.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { makeTopHarness, containerBundleOver } from '#lib/test/harness/editor-actions.js';
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 });
 
 describe('a container name typed above a block', () => {

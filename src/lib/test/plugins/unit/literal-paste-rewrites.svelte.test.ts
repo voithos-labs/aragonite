@@ -14,7 +14,7 @@ import {
 	pasteRewrite,
 	type EditorPlugin
 } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import {
 	destroyMountedEditors,
@@ -223,7 +223,7 @@ describe('a paste at a link definition', () => {
 describe('a paste into a title row', () => {
 	it('is read by a whole-paste rewrite, as inline Markdown', async () => {
 		const { plugin, asked } = rewriting();
-		const editor = await mounted(':::note Title\nbody\n:::\n', [admonitionsPlugin(), plugin]);
+		const editor = await mounted(':::note Title\nbody\n:::\n', [registeredAdmonitions(), plugin]);
 		const title = surfaceAt(editor, [0, 0]);
 		placeCaret(title, ':::note Title'.length);
 		title.dispatchEvent(pasteEvent(' one!!'));

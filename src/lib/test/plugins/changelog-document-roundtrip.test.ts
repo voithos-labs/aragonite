@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
 import { toc } from '#packages/toc/src/index.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
@@ -22,7 +22,7 @@ import {
 const DETAILS_PLUGIN = registeredDetails();
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), DETAILS_PLUGIN, registeredFootnotes(), mermaidPlugin()]);
+	installPlugins([registeredAdmonitions(), DETAILS_PLUGIN, registeredFootnotes(), mermaidPlugin()]);
 });
 afterEach(destroyMountedEditors);
 

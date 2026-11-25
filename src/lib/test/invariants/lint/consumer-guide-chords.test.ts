@@ -25,8 +25,8 @@ import { installPluginList } from '#lib/schema/plugin-unit.js';
 import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { ADMONITION } from '#packages/admonitions/src/kinds.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
+import { ADMONITION } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails, DETAILS_SUMMARY } from '#lib/test/harness/registered-details.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
@@ -41,7 +41,7 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 // Every bundled plugin, so its kinds' keymaps and its global chords join the sweep. Third-party
 // chords stay out: the gate only sees code this repo ships.
 const BUNDLED_PLUGINS = [
-	admonitionsPlugin(),
+	registeredAdmonitions(),
 	registeredDetails(),
 	registeredFootnotes(),
 	mermaidPlugin()

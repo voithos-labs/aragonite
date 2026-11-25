@@ -3,7 +3,7 @@
 // does, so a body block the keyboard can move can be dragged too; text inside still shows none.
 // Miss-analysis: the handle tests mounted built-in containers only, never a plugin container.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import {
 	installLayoutStubs,
@@ -34,7 +34,7 @@ const CASES = [
 	{
 		name: 'an alert',
 		source: '> [!NOTE]\n> a\n>\n> ```\n> code\n> ```\n',
-		plugins: () => [admonitionsPlugin()]
+		plugins: () => [registeredAdmonitions()]
 	},
 	{
 		name: 'a footnote definition',

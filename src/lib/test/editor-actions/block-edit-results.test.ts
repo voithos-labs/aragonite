@@ -10,7 +10,7 @@ import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { serialize } from '#lib/core/serializer.js';
 import { paragraphNode } from '#lib/tree-operations/index.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { makeContainerHarness, makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -99,7 +99,7 @@ describe.each(Object.keys(LEVELS) as Level[])('every block edit at %s', (level) 
 	);
 
 	it('updateBlockMetadata resolves true when it writes, false when reading mode refuses it', async () => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 		const { source: metadataSource, write } = METADATA_WRITES[level];
 		const h = actionsAt(level, metadataSource);
 		expect(await write(h.actions)).toBe(true);
@@ -173,7 +173,7 @@ describe('completeMarker, the space that finishes a container marker', () => {
 	])(
 		'resolves false and writes nothing in %s, whose marker takes no space',
 		async (_name, source) => {
-			installPlugins([admonitionsPlugin(), registeredFootnotes()]);
+			installPlugins([registeredAdmonitions(), registeredFootnotes()]);
 			const h = makeContainerHarness(source, [0]);
 			expect(await h.bundle.blockEdit.completeMarker(0)).toBe(false);
 			expect(serialize(h.deps.doc)).toBe(source);

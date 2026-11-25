@@ -13,8 +13,8 @@ import {
 import { pressKey } from '#lib/test/harness/settle.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { ADMONITION } from '#packages/admonitions/src/kinds.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
+import { ADMONITION } from '#lib/test/harness/registered-admonitions.js';
 import { definePlugin, registerBlockCommand, type PluginBlockKind } from '#lib/plugin.js';
 import type { PluginCommandId } from '#lib/schema/command-id.js';
 import { TAG_KEY, tagLeafPlugin } from './fixtures/tag-leaf';
@@ -114,7 +114,7 @@ describe('a container command over a shown source inside it', () => {
 	it('writes the inner edit before the command rewrites the container', async () => {
 		const editor = mountEditor<EditorTestSurface>({
 			source: ':::note Heads up\n\n%% old\n\n:::\n',
-			plugins: [admonitionsPlugin(), tagLeafPlugin('reveal'), rewriteNote],
+			plugins: [registeredAdmonitions(), tagLeafPlugin('reveal'), rewriteNote],
 			keybindings: [{ chord: 'Mod+Shift+L', command: REWRITE, kind: ADMONITION as PluginBlockKind }]
 		});
 		await editor.settle();

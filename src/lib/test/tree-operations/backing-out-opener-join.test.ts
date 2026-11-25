@@ -25,7 +25,7 @@ import { judge, type Edit } from '#lib/test/exhaustive/edit-driver.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
 
 /** The top-level kinds after `text` is written over block `index` through the keystroke route. */
@@ -40,7 +40,7 @@ function typedOverSecond(source: string, text: string, index = 1): string[] {
 
 describe('a construct backed out above a join completes once a write below closes it', () => {
 	beforeEach(() => {
-		installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
+		installPlugins([registeredMath(), registeredAdmonitions(), registeredDetails()]);
 	});
 
 	it.each([
@@ -229,7 +229,7 @@ const ROUTES: [string, Route][] = [
 
 describe.each(ROUTES)('a closer written blocks below the construct it finishes, %s', (_, route) => {
 	beforeEach(() => {
-		installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
+		installPlugins([registeredMath(), registeredAdmonitions(), registeredDetails()]);
 	});
 
 	it.each([
@@ -307,7 +307,7 @@ describe.each(ROUTES)('a closer written blocks below the construct it finishes, 
 // A body below the document closes a written opener the same way, through the keystroke's own route.
 describe('an opener made by a write inside a quote', () => {
 	beforeEach(() => {
-		installPlugins([registeredMath(), admonitionsPlugin()]);
+		installPlugins([registeredMath(), registeredAdmonitions()]);
 	});
 
 	it.each([

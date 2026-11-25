@@ -5,7 +5,7 @@
 import { afterEach, beforeAll, expect, it } from 'vitest';
 import { IMAGE_ALT_FIELD, IMAGE_CROP, IMAGE_CROP_APPLY } from '#lib/a11y-strings.js';
 import { definePlugin, lineBlock } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import {
 	installLayoutStubs,
@@ -201,7 +201,7 @@ const CONTEXTS: ClaimContext[] = [
 	{
 		name: 'paragraph in a plugin container',
 		source: ':::note\n\nTip text here\n\n:::\n',
-		plugins: [admonitionsPlugin()],
+		plugins: [registeredAdmonitions()],
 		pluginChords: ['Mod+7'],
 		enter: async (editor) => {
 			const leaves = editor.target.querySelectorAll<HTMLElement>('[contenteditable]');

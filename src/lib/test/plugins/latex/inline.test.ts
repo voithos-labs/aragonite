@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { computeInlineContent } from '#lib/core/inline/index.js';
 import { listGrammar } from '#lib/schema/own-syntax.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
@@ -128,7 +128,7 @@ describe('inline math round-trip', () => {
 // A directive's prose reaches the same recognizer a top-level paragraph does, so both agree.
 describe('a directive container reaches the same recognizer', () => {
 	beforeEach(() => {
-		installPlugins([admonitionsPlugin()]);
+		installPlugins([registeredAdmonitions()]);
 	});
 
 	const PROSE = 'One part in $10^5$ here.\n';

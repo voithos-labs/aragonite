@@ -14,7 +14,7 @@ import {
 	type PluginBlockKind
 } from '#lib/plugin.js';
 import { runContainerConformance, type ContainerConformanceProfile } from '#lib/testing.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { testView } from '#lib/test/harness/test-view.js';
 import { allowDevWarns } from '#lib/test/support/warn-gate.js';
@@ -89,12 +89,12 @@ describe('the container kit writes the title row (#640)', () => {
 		['the callout', () => (registerCalloutKind(testView()), CALLOUT), ':::callout T\nbody\n:::\n'],
 		[
 			'an admonition',
-			() => (installPlugins([admonitionsPlugin()]), 'admonition'),
+			() => (installPlugins([registeredAdmonitions()]), 'admonition'),
 			':::note T\nbody\n:::\n'
 		],
 		[
 			'the generic directive',
-			() => (installPlugins([admonitionsPlugin()]), 'directiveContainer'),
+			() => (installPlugins([registeredAdmonitions()]), 'directiveContainer'),
 			':::spoiler T\nbody\n:::\n'
 		]
 	])('passes %s, whose title row feeds no metadata', async (_label, register, source) => {

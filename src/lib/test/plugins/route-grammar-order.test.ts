@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { installPlugins } from '#lib';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrot, parrotPlugin } from '#packages/parrot/src/index.js';
@@ -36,14 +36,14 @@ const stubMermaid = (): EditorPlugin => mermaidPlugin({ renderer: async () => '<
 // The setup plugins in the `plugins` props of `/` and `/changelog` (same names, same order) and of
 // `/test/plugins`; a plugin value installs nothing process-wide, so it can't change the order.
 const demoRouteSet = (): EditorPlugin[] => [
-	admonitionsPlugin(),
+	registeredAdmonitions(),
 	registeredFootnotes(),
 	stubMermaid()
 ];
 
 const harnessSet = (): EditorPlugin[] => [
 	calloutPlugin(),
-	admonitionsPlugin(),
+	registeredAdmonitions(),
 	stubMermaid(),
 	memoPlugin(),
 	docStatsPlugin

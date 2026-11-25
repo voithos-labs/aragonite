@@ -5,12 +5,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
 import { serialize } from '#lib/core/serializer.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
+	installPlugins([registeredAdmonitions(), registeredFootnotes()]);
 });
 
 describe('a keystroke in a line-prefixed container keeps the lines it did not touch', () => {

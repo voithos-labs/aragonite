@@ -2,11 +2,11 @@
 // replaced an unchanged object and re-ran everything reading it.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { adoptParsedMetadata } from '#lib/schema/container-raw.js';
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 });
 
 describe('adoptParsedMetadata', () => {

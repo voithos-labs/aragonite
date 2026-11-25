@@ -7,7 +7,7 @@
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
@@ -44,7 +44,7 @@ describe('a keystroke relands in front of the text once a container re-reads it'
 // A `:::` fence grows when a line in it needs a longer one; the caret stays where the key typed,
 // never at the outer container's first byte (G1.237).
 describe('a keystroke relands where it typed once a `:::` fence grows around it', () => {
-	beforeEach(() => installPlugins([admonitionsPlugin()]));
+	beforeEach(() => installPlugins([registeredAdmonitions()]));
 
 	const NESTED = '::::note Outer\n:::tip Inner\nin\n:::\n::::\n';
 	it.each([

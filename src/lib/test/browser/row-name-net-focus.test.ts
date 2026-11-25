@@ -12,7 +12,7 @@ import {
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { rawOffsetAt } from '#lib/browser/offsets.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -21,7 +21,7 @@ async function rowWithCaretInName() {
 	const editor = mountEditor({
 		source: ':::tip Title\nbody\n:::\n',
 		presentationMode: 'live',
-		plugins: [admonitionsPlugin()]
+		plugins: [registeredAdmonitions()]
 	});
 	await editor.settle();
 	const row = surfaceAt(editor, [0, 0]);

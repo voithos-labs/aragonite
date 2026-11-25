@@ -2,7 +2,7 @@
 // none checked that a rollback puts back metadata re-read from the bytes.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
@@ -14,7 +14,7 @@ import { testContainer } from '#lib/test/harness/test-kinds.js';
 let THROWING: AnyBlockKind;
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 	THROWING = testContainer('spec-throwing-rebuild-opaque-meta', {
 		rebuildRaw: () => {
 			throw new Error('rebuildRaw exploded');

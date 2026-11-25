@@ -11,7 +11,7 @@ import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { installPlugins } from '#lib';
 import { registeredMath } from '#lib/test/harness/registered-math.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import {
 	disablePerfInstruments,
@@ -104,7 +104,7 @@ const BODY = lines((i) => `line ${i}\n`);
 // block's own bytes, never a parse of them.
 describe('a block above that only looks unfinished costs the same one line', () => {
 	beforeEach(() => {
-		installPlugins([registeredMath(), admonitionsPlugin(), registeredDetails()]);
+		installPlugins([registeredMath(), registeredAdmonitions(), registeredDetails()]);
 	});
 
 	it.each([

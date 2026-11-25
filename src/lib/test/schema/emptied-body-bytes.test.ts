@@ -9,7 +9,7 @@ import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { makeContainerHarness } from '../harness/editor-actions';
 
@@ -42,7 +42,7 @@ const CASES: EmptiedCase[] = [
 ];
 
 function installCasePlugins(): void {
-	installPlugins([admonitionsPlugin(), registeredFootnotes()]);
+	installPlugins([registeredAdmonitions(), registeredFootnotes()]);
 }
 
 /** The tree the editor would hold after saving `doc` and opening the file again. */

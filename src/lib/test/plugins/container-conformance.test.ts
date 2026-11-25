@@ -14,8 +14,8 @@ import {
 } from '#lib/testing/container-conformance.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsPageWide, DETAILS } from '#lib/test/harness/registered-details.js';
-import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
-import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
+import { registerGithubAlert } from '#lib/test/harness/registered-admonitions.js';
+import { GITHUB_ALERT } from '#lib/test/harness/registered-admonitions.js';
 import { registerFootnoteDefinition } from '#lib/test/harness/registered-footnotes.js';
 import { FOOTNOTE_DEF_KIND } from '#lib/test/harness/registered-footnotes.js';
 import { parse } from '#lib/core/parser.js';

@@ -4,7 +4,7 @@
 // leaves it to `title`.
 // Miss-analysis: every container row was a quote or a list, and neither has a title row.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { details } from '#packages/details/src/index.js';
 import {
 	destroyMountedEditors,
@@ -18,7 +18,7 @@ afterEach(destroyMountedEditors);
 const titled = [
 	{
 		name: 'an admonition',
-		plugin: admonitionsPlugin(),
+		plugin: registeredAdmonitions(),
 		source: ':::note My *title*\nbody *text*\n:::\n',
 		title: 'My *title*'
 	},

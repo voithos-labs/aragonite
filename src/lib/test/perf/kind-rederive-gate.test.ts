@@ -4,7 +4,7 @@
 // the container-size axis: typing into a list's first item or a directive's title parses nothing.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { parse } from '#lib/core/parser.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { ensureUnsharedPath } from '#lib/tree-operations/unshare.js';
@@ -123,7 +123,7 @@ const growing = (base: string, count: number): string[] =>
 const reparses = () => perfSnapshot().containerKindReparses;
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 	registerTally('tally', false);
 	registerTally('titled-tally', true);
 });

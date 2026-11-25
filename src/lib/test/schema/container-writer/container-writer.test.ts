@@ -12,7 +12,7 @@ import { QUOTE_LINES } from '#lib/core/parsers/blockquote.js';
 import { LIST_ITEM_LINES } from '#lib/core/parsers/list.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { createEditorGrammar, defaultGrammarView } from '#lib/schema/editor-grammar.js';
@@ -32,7 +32,7 @@ const shaped: Writer = (node: CstNode, changed) =>
 	writeContainerRaw(node, defaultGrammarView, changed);
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin(), registeredDetails(), registeredFootnotes()]);
+	installPlugins([registeredAdmonitions(), registeredDetails(), registeredFootnotes()]);
 });
 
 describe('the container writer against today’s writers', () => {

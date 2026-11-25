@@ -14,7 +14,7 @@ import { arrivalRawStart } from '#lib/browser/offsets.js';
 import { getContentRange } from '#lib/core/inline/index.js';
 import type { Document } from '#lib/core/nodes.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -27,7 +27,7 @@ async function mounted(mode: 'live' | 'source') {
 	const editor = mountEditor<{ getDocument(): Document }>({
 		source: SOURCE,
 		presentationMode: mode,
-		plugins: [admonitionsPlugin()]
+		plugins: [registeredAdmonitions()]
 	});
 	await editor.settle();
 	return editor;

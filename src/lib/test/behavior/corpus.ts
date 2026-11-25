@@ -8,7 +8,7 @@ import type { EditorPlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { parse } from '#lib/core/parser.js';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registeredDetails } from '#lib/test/harness/registered-details.js';
 import { emoji } from '#packages/emoji/src/index.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
@@ -22,7 +22,7 @@ import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content'
 /** The bundled plugins that add syntax and render without a network or a canvas, so `$x$`,
  *  `:::note` and `[^1]` read the way the showcase reads them, installed page-wide. */
 export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
-	admonitionsPlugin(),
+	registeredAdmonitions(),
 	registeredDetails(),
 	registeredFootnotes(),
 	// The latex package is a plugin value, which only an editor reads; the same syntax registered

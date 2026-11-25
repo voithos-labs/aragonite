@@ -4,8 +4,8 @@
 // only each route's own reading-mode check kept a refused write from parking a caret.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
+import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
+import { GITHUB_ALERT } from '#lib/test/harness/registered-admonitions.js';
 import type { ContentWrite } from '#lib/action-contracts.js';
 import { serialize } from '#lib/core/serializer.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
@@ -14,7 +14,7 @@ import { makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
 import { takeDevWarnsOf } from '../support/warn-gate';
 
 beforeEach(() => {
-	installPlugins([admonitionsPlugin()]);
+	installPlugins([registeredAdmonitions()]);
 });
 
 function readingWrites(): number {
