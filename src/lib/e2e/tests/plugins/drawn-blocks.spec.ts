@@ -3,6 +3,7 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, activeBlockPath } from './helpers';
 import { edgeKey, extendKey } from '../../platform-keys';
 import { clickInPlace, hoverInPlace } from '../../click-in-place';
+import { engineSupports } from '../../browser-engine';
 
 /**
  * Blocks a plugin draws with `draw` (requirements/plugins/drawn-blocks.md), from
@@ -13,6 +14,7 @@ import { clickInPlace, hoverInPlace } from '../../click-in-place';
 const ABOVE = 0;
 const FIELD = 1;
 const BELOW = 2;
+const SHOWN = 3;
 // The field's first line, `first line here`, and the break after it.
 const SECOND_LINE_START = 16;
 
@@ -227,6 +229,40 @@ test.describe("the field's unwritten text", () => {
 		await expect.poll(() => source(page)).toContain(WRITTEN);
 	});
 
+	test('a switch to reading mode writes it as one step, kept on the way back', async ({ page }) => {
+		await editor.setPresentationMode('reading');
+		await expect.poll(() => source(page)).toContain(TYPED);
+		expect(await undoDepth(page)).toBe(2);
+		await editor.setPresentationMode('source');
+		expect(await source(page)).toContain(TYPED);
+		await run(page, 'history.undo');
+		await expect.poll(() => source(page)).toContain(WRITTEN);
+	});
+
+	// A host's toolbar button running the editor's undo: one that keeps focus off itself, as a
+	// toolbar does, and a plain one, whose press blurs the field first.
+	for (const keepsFocus of [true, false]) {
+		test(`an undo from a host button that ${keepsFocus ? 'keeps' : 'takes'} focus saves it into redo`, async ({
+			page
+		}) => {
+			await page.evaluate((keeps) => {
+				const button = document.createElement('button');
+				button.textContent = 'Undo';
+				button.dataset.testid = 'host-undo';
+				button.style.cssText = 'position: fixed; top: 0; right: 0; z-index: 9999;';
+				if (keeps) button.addEventListener('mousedown', (e) => e.preventDefault());
+				button.addEventListener('click', () => (window as any).__test.runCommand('history.undo'));
+				document.body.append(button);
+			}, keepsFocus);
+			await page.getByTestId('host-undo').click();
+			await expect.poll(() => source(page)).toContain(WRITTEN);
+			await expect(field(page)).toHaveValue('first line here\nsecond line here');
+			expect(await undoDepth(page)).toBe(1);
+			await run(page, 'history.redo');
+			await expect.poll(() => source(page)).toContain(TYPED);
+		});
+	}
+
 	test('a new document drops it', async ({ page }) => {
 		await editor.loadContent('Other\n');
 		await expect.poll(() => source(page)).toBe('Other\n');
@@ -235,7 +271,9 @@ test.describe("the field's unwritten text", () => {
 });
 
 test.describe('an open field scrolled out of the window', () => {
-	test('writes its text as it leaves, one undo step, as 0.11.5 does', async ({ page }) => {
+	test('writes its text as it leaves where blur fires, one undo step, as 0.11.5 does', async ({
+		page
+	}) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('drawn');
 		const filler = Array.from({ length: 400 }, (_, i) => `Paragraph ${i} lorem ipsum dolor`);
@@ -247,8 +285,16 @@ test.describe('an open field scrolled out of the window', () => {
 		await editor.scrollEditorTo(1_000_000);
 		await expect(page.locator('.drawn-field')).toHaveCount(0);
 		const source = () => page.evaluate(() => (window as any).__test.getSource() as string);
-		await expect.poll(source).toMatch(/^```field\nkept one\n```\n/);
-		expect(await page.evaluate(() => (window as any).__test.undoDepth())).toBe(1);
+		const depth = () => page.evaluate(() => (window as any).__test.undoDepth() as number);
+		if (engineSupports(page, 'blurOnRemoval')) {
+			await expect.poll(source).toMatch(/^```field\nkept one\n```\n/);
+			expect(await depth()).toBe(1);
+		} else {
+			// No blur reaches the removed field, so its text goes with it, as on 0.11.5.
+			await editor.waitForRenderFlush();
+			expect(await source()).toMatch(/^```field\none\n```\n/);
+			expect(await depth()).toBe(0);
+		}
 	});
 });
 
@@ -275,6 +321,13 @@ test.describe("the field's menu row", () => {
 		await hold(page, 0);
 		await editor.scrollEditorTo(1_000_000);
 		await expect(page.locator('.drawn-field')).toHaveCount(0);
+		expect(await run(page, 'drawn/focus-field')).toBe(false);
+		expect(await fieldFocused(page)).toBe(false);
+	});
+
+	test("declines on another drawn type's block, which doesn't place it", async ({ page }) => {
+		await new PluginsPage(page).gotoPlugins('drawn');
+		await hold(page, SHOWN);
 		expect(await run(page, 'drawn/focus-field')).toBe(false);
 		expect(await fieldFocused(page)).toBe(false);
 	});

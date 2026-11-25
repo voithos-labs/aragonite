@@ -27,13 +27,15 @@ Miss-analysis: the fixture wrote only on blur and no row ran an undo with text t
 - Text typed in the field, then a click into the line below and Ctrl+Z there: the undo takes the field's text back out (the field wrote it as it left), and a redo writes it again.
 - Text typed in the field, then Ctrl+Z in it: the field's own undo takes the typing back, and the editor's undo stack still holds the one step for the `!`.
 - Text typed in the field, then a switch to live mode: the text is written as one undo step, which the next undo takes back out.
+- Text typed in the field, then a switch to reading mode: the text is written as one undo step, and kept on the way back to source mode, where the next undo takes it back out.
+- Text typed in the field, then a host toolbar button that runs the editor's undo, one keeping focus off itself and one taking it: the bytes keep the `!`, the field shows its body as written, and a redo writes the typed text.
 - Text typed in the field, then a new document loaded: nothing of the typed text is written.
 
 ## An open field scrolled out of the window
 
 Miss-analysis: no row scrolled a box away while its field held text, so the field's blur write, made while windowing removed the block, ran inside the render and was lost (0.11.5's diagram box kept it).
 
-- Text typed in the field, then the editor scrolled to its end: the field's block leaves the window, its text is written as the field leaves, and it is one undo step.
+- Text typed in the field, then the editor scrolled to its end: the field's block leaves the window, its text is written as the field leaves, and it is one undo step. In Firefox and WebKit no blur reaches a removed field, so nothing is written and the text is lost, as on 0.11.5.
 
 ## The field's menu row (`Drawn.handle`)
 
@@ -41,6 +43,7 @@ The field type's own command `drawn/focus-field` focuses the field through the h
 
 - Run on the field's block, it focuses the field.
 - Run on the field's block once the field is scrolled out of the window, it declines and nothing takes focus.
+- Run on a block of another drawn type (the `shown` fence), which doesn't place it, it declines and the field takes no focus.
 
 ## Two boxes back to back
 
