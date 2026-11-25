@@ -15,8 +15,7 @@ Seed (`?seed=math`): `Before $x^2$ after` in block [0], and a `Next` paragraph i
 - A click at the left of the rendered formula puts the caret at the start of the content, so a
   typed character lands before the formula's first byte, inside the opening `$`. That holds where
   the leftmost glyph comes first in KaTeX's glyph text, as in `x^2`. A fraction's doesn't, so a
-  click at the left edge of `$\frac{a}{b}+c$` lands inside `\frac`, as on the last release; no row
-  pins where.
+  click at the left edge of `$\frac{a}{b}+c$` lands inside `\frac`; no row pins where.
 - A click at the right puts it at the end of the content, so a typed character lands after the
   formula's last byte, inside the closing `$`.
 - Both hold in source mode and in live mode, since showing the source is the same gesture behind

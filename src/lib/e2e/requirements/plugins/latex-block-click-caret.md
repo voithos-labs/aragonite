@@ -20,8 +20,8 @@ and the rendered form is glyphs whose position along the equation names a place 
   closing fence.
 - The offset is how far along KaTeX's glyph text that glyph sits, and a fraction or a sum with
   limits writes its glyphs out of the formula's order. So a click left of `\frac{a}{b}+c` or
-  `\sum_{i=0}^{n} i^2` can land mid-formula (inside `\frac`, after the lower limit's `i`), as on
-  the last release. No row pins where.
+  `\sum_{i=0}^{n} i^2` can land mid-formula (inside `\frac`, after the lower limit's `i`). No row
+  pins where.
 - A click in a card whose source is already open is a click in a contenteditable and behaves the
   way the browser handles it; this handler answers only for the rendered form.
 - Keyboard entry is unchanged: arriving from the block above still lands at the leading edge of
