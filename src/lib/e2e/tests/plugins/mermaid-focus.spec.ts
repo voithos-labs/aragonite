@@ -73,7 +73,7 @@ test.describe('mermaid whole-block focus', () => {
 			expect(await editor.bridge.getSource()).toBe(original); // focus only — no byte change, no undo entry
 
 			await page.keyboard.press('Backspace');
-			await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
+			await waitForDoc(page, (s) => !s.kinds.includes('mermaid/diagram'));
 			expect((await readDoc(page)).kinds).toEqual(['paragraph', 'paragraph']);
 
 			await editor.undo();
@@ -89,7 +89,7 @@ test.describe('mermaid whole-block focus', () => {
 			expect(await editor.bridge.getSource()).toBe(original);
 
 			await page.keyboard.press('Delete');
-			await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
+			await waitForDoc(page, (s) => !s.kinds.includes('mermaid/diagram'));
 		});
 
 		await test.step('clicking the diagram then Backspace deletes the block', async () => {
@@ -97,7 +97,7 @@ test.describe('mermaid whole-block focus', () => {
 			await editor.viewport.click();
 			await expect(editor.inputHost).toBeFocused();
 			await page.keyboard.press('Backspace');
-			await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
+			await waitForDoc(page, (s) => !s.kinds.includes('mermaid/diagram'));
 		});
 	});
 
@@ -160,7 +160,7 @@ test.describe('mermaid whole-block focus', () => {
 		await page.keyboard.press('Backspace');
 		// The block survives; a deleted block would unmount the textarea.
 		await expect(editor.textarea).toBeVisible();
-		expect((await readDoc(page)).kinds).toContain('mermaid');
+		expect((await readDoc(page)).kinds).toContain('mermaid/diagram');
 	});
 
 	test('a key on the focused diagram writes below it or moves it', async ({ page }) => {
@@ -171,7 +171,7 @@ test.describe('mermaid whole-block focus', () => {
 
 			await waitForDoc(page, (s) => s.rootCount === 4);
 			const doc = await readDoc(page);
-			expect(doc.kinds).toEqual(['paragraph', 'mermaid', 'paragraph', 'paragraph']);
+			expect(doc.kinds).toEqual(['paragraph', 'mermaid/diagram', 'paragraph', 'paragraph']);
 			expect(doc.texts[2]).toBe(''); // the new empty paragraph, below the diagram
 			expect(await activeBlockPath(page)).toEqual([2]);
 			expect(await roundTripStable(page)).toBe(true);
@@ -185,7 +185,7 @@ test.describe('mermaid whole-block focus', () => {
 
 			await waitForDoc(page, (s) => s.rootCount === 4);
 			const doc = await readDoc(page);
-			expect(doc.kinds).toEqual(['paragraph', 'mermaid', 'paragraph', 'paragraph']);
+			expect(doc.kinds).toEqual(['paragraph', 'mermaid/diagram', 'paragraph', 'paragraph']);
 			expect(doc.texts[2]).toBe('x');
 			expect(await activeBlockPath(page)).toEqual([2]);
 			expect(await roundTripStable(page)).toBe(true);
@@ -197,16 +197,16 @@ test.describe('mermaid whole-block focus', () => {
 			await expect(editor.inputHost).toBeFocused();
 
 			await page.keyboard.press('Alt+ArrowDown');
-			await waitForDoc(page, (s) => s.kinds[2] === 'mermaid');
+			await waitForDoc(page, (s) => s.kinds[2] === 'mermaid/diagram');
 			let doc = await readDoc(page);
-			expect(doc.kinds).toEqual(['paragraph', 'paragraph', 'mermaid']);
+			expect(doc.kinds).toEqual(['paragraph', 'paragraph', 'mermaid/diagram']);
 			expect([doc.texts[0], doc.texts[1]]).toEqual(['Above text', 'tail text']);
 			await expect(editor.inputHost).toBeFocused(); // the reorder keeps the block focused
 
 			await page.keyboard.press('Alt+ArrowUp');
-			await waitForDoc(page, (s) => s.kinds[1] === 'mermaid');
+			await waitForDoc(page, (s) => s.kinds[1] === 'mermaid/diagram');
 			doc = await readDoc(page);
-			expect(doc.kinds).toEqual(['paragraph', 'mermaid', 'paragraph']);
+			expect(doc.kinds).toEqual(['paragraph', 'mermaid/diagram', 'paragraph']);
 			expect([doc.texts[0], doc.texts[2]]).toEqual(['Above text', 'tail text']);
 		});
 	});
@@ -235,7 +235,7 @@ test.describe('mermaid whole-block focus', () => {
 			await page.keyboard.press('ControlOrMeta+x');
 			await editor.waitForClipboardWrite();
 			expect(await readClipboardLF()).toBe(MERMAID_FENCE);
-			await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
+			await waitForDoc(page, (s) => !s.kinds.includes('mermaid/diagram'));
 			await editor.undo();
 			await editor.bridge.waitForSourceEquals(original);
 		});

@@ -34,7 +34,7 @@ import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
 import { SYNTAX_PLUGINS } from '../../behavior/corpus';
 import { NAMED_ROWS, rangeOf, unmark } from '../../range-edit/named-rows';
 import { noTransforms } from '../../range-edit/test-host';
@@ -126,7 +126,7 @@ const boxes = definePlugin({
 	})
 });
 
-const PLUGINS = [...SYNTAX_PLUGINS, mermaidPlugin(), boxes];
+const PLUGINS = [...SYNTAX_PLUGINS, mermaid, boxes];
 
 async function mounted(source: string): Promise<Editor> {
 	const editor = mountEditor<EditorTestSurface>({ source, plugins: PLUGINS });

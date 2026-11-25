@@ -71,8 +71,8 @@ export interface Block<D = unknown> {
 	readonly pieces: readonly Piece[];
 	/** The document byte offset `offset` of `text` sits at; -1 where it isn't placed. */
 	byteAt(offset: number): number;
-	/** The offset into `text` document byte `at` sits at; null where `at` isn't its text (another
-	 *  block, or a container's marker between its lines). */
+	/** The offset into `text` of the character at byte `at`, or `text.length` at its end when no line
+	 *  ending closes it; null for another block, a marker between its lines or past its ending. */
 	offsetAt(at: number): number | null;
 	/** Narrows the block to `type`'s data. */
 	is<E>(type: BlockType<E>): this is Block<E>;
@@ -347,7 +347,11 @@ class NodeBlock {
 		const state = this[STATE];
 		const path = pathOf(state);
 		if (!path) return null;
-		return offsetOf((offset) => state.reading.byteOf(path, offset), state.node.raw.length, at);
+		// Past a line ending, or past a text whose line its container closes, is no character of the
+		// block's: the bound is its text's, not its raw's.
+		const { text } = this;
+		const last = text.endsWith('\n') ? text.length - 1 : text.length;
+		return offsetOf((offset) => state.reading.byteOf(path, offset), last, at);
 	}
 
 	is(other: BlockType<unknown>): boolean {
@@ -514,14 +518,14 @@ function pieceOf(
 	} as Piece;
 }
 
-// The map is monotonic, so the last offset at or before `at` is found by halving.
+// The map is monotonic, so the last offset up to `last` at or before `at` is found by halving.
 function offsetOf(
 	place: (offset: number) => number | null,
-	length: number,
+	last: number,
 	at: number
 ): number | null {
 	let lo = 0;
-	let hi = length;
+	let hi = last;
 	while (lo < hi) {
 		const mid = (lo + hi + 1) >> 1;
 		if ((place(mid) ?? Infinity) <= at) lo = mid;

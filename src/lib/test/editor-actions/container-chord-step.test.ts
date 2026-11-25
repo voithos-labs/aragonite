@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { defineBlockView, definePlugin } from '#lib/plugin.js';
 import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { registerAdmonitions } from '#lib/test/harness/registered-admonitions.js';

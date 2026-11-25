@@ -85,6 +85,8 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 			const target = deps.getTarget();
 			const edge = from === 'above' ? 'start' : 'end';
 			enter({ edge, x: target ? viewportXOf(target, asEditorX(x)) : null });
+			// Announced like the text surface's column landing: no `placeCaret` runs on this route.
+			selection.announceSelection();
 		},
 		// No text to measure, so any range over it is its whole box.
 		measurePartialRects(start, end) {

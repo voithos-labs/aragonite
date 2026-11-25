@@ -132,12 +132,11 @@ export function createEditorView(deps: {
 			const path = block && read.pathOf(block);
 			return path ? rects.scrollTo(path, { block: options?.align ?? 'nearest' }) : false;
 		},
-		overlay: (el, at) => overlay(el, at)
+		overlay
 	};
 
 	return {
 		view,
-		overlay,
 		dispose() {
 			for (const off of [...overlays.keys()]) off();
 		}

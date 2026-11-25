@@ -30,6 +30,7 @@ describe('every bundled plugin passes its own published conformance suite', () =
 			'highlight',
 			'highlight-occurrences',
 			'latex',
+			'mermaid',
 			'parrot',
 			'slash-commands',
 			'spellcheck',

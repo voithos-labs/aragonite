@@ -17,7 +17,9 @@ test.describe('decoration overlay: childless opaque container', () => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('mermaid');
 		await editor.loadContent(MERMAID_DOC);
-		await expect(page.locator("[data-block-path='[1]'][data-block-kind='mermaid']")).toHaveCount(1);
+		await expect(
+			page.locator("[data-block-path='[1]'][data-block-kind='mermaid/diagram']")
+		).toHaveCount(1);
 	});
 
 	test('a mark on the mermaid block paints one overlay inside its host', async ({ page }) => {

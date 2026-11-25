@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { roundTripStable, activeBlockPath } from './helpers';
-import { MermaidPage } from './mermaid-helpers';
+import { DIAGRAM_HOST, MermaidPage } from './mermaid-helpers';
 import { wholeBlockInput } from '../../whole-block-input';
 import { multiClickElement } from '../../multi-click';
 import { edgeKey } from '../../platform-keys';
@@ -63,7 +63,7 @@ class MermaidSeedPage extends MermaidPage {
 	/** Where whole-block focus lands on the first diagram, scoped to it: a document-wide
 	 *  locator would pass on either of the seed's two. */
 	get firstInputHost() {
-		return wholeBlockInput(this.block.first());
+		return wholeBlockInput(this.page.locator(DIAGRAM_HOST).first());
 	}
 
 	/** Toolbar buttons stay hidden until the block is hovered or focused, and a real user hovers
@@ -93,7 +93,7 @@ test.describe('mermaid reference plugin', () => {
 
 	test('seed renders both diagrams as the mermaid kind with SVG; ```js stays fencedCode', async () => {
 		await expect(editor.block).toHaveCount(3);
-		for (const i of [1, 2, 3]) expect(await editor.bridge.getBlockKind(i)).toBe('mermaid');
+		for (const i of [1, 2, 3]) expect(await editor.bridge.getBlockKind(i)).toBe('mermaid/diagram');
 		expect(await editor.bridge.getBlockKind(4)).toBe('fencedCode');
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
@@ -212,4 +212,45 @@ test.describe('mermaid reference plugin', () => {
 		expect(await editor.bridge.getSource()).toBe(EDITED_SEED);
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
+
+	test('a caret the editor places on the diagram closes the focus view', async ({ page }) => {
+		await editor.clickToolbar('mermaid-focus');
+		await expect(editor.overlay).toHaveCount(1);
+
+		// A host putting back the selection it just read, which names the diagram.
+		await page.evaluate(() => {
+			const bridge = (window as any).__test;
+			return bridge.setSelection(bridge.getSelection());
+		});
+
+		await expect(editor.overlay).toHaveCount(0);
+		await expect(editor.firstInputHost).toBeFocused();
+	});
+
+	// The box's start, a middle offset and its end; the start is the one the editor hands back as an
+	// edge rather than an offset.
+	for (const [name, at, moves] of [
+		['start', 0, ['ArrowRight', 'ArrowRight']],
+		['a middle offset', 5, ['ArrowRight', 'ArrowRight']],
+		['end', FIRST_CODE.length, ['ArrowLeft', 'ArrowLeft']]
+	] as const) {
+		test(`a host putting back the selection it read returns the box caret to its ${name}`, async ({
+			page
+		}) => {
+			await editor.clickToolbar('mermaid-edit');
+			await expect(editor.textarea).toBeFocused();
+			await page.keyboard.press(edgeKey('blockStart'));
+			for (let i = 0; i < at; i++) await page.keyboard.press('ArrowRight');
+			const read = await page.evaluate(() => (window as any).__test.getSelection());
+			expect(read.focus).toEqual({ path: [1], offset: at });
+
+			for (const key of moves) await page.keyboard.press(key);
+			await page.evaluate((read) => (window as any).__test.setSelection(read), read);
+
+			await expect(editor.textarea).toBeFocused();
+			await expect
+				.poll(() => editor.textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart))
+				.toBe(at);
+		});
+	}
 });

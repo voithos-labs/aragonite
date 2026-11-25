@@ -8,6 +8,7 @@ import type { CstNode } from '../core/nodes';
 import { cloneNode } from '../tree-operations/clone';
 import { spliceMany } from '../tree-operations/splice-many';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { blockFacts } from '../schema/block-facts';
 import { installOwnRaw, normalizeReplacementTrivia } from '../tree-operations/node-primitives';
 import { readAsOpened } from '../schema/opened-reading';
 import { legalizeWrite, type WriteTarget } from '../tree-operations/content-write';
@@ -48,10 +49,17 @@ function groupBy<K>(matches: Match[], key: (m: Match) => K): Map<K, Match[]> {
 }
 
 export function createSearchReplace(deps: EditorActionsDeps, controller: UndoController) {
-	// Reparse top-level child `topIndex` with its descendant matches substituted.
-	function buildSubtree(topIndex: number, matches: Match[], template: string): CstNode[] {
+	// Reparse top-level child `topIndex` with its descendant matches substituted; `applied` counts
+	// the matches installed, and a leaf that would lose its kind keeps its bytes.
+	function buildSubtree(
+		topIndex: number,
+		matches: Match[],
+		template: string
+	): { nodes: CstNode[]; applied: number } {
 		const child = cloneNode(deps.doc.children[topIndex]);
 		const byLeaf = groupBy(matches, (m) => m.path.slice(1).join(','));
+		const installed: number[][] = [];
+		let applied = 0;
 		for (const ranges of byLeaf.values()) {
 			const rel = ranges[0].path.slice(1);
 			const leaf = descend(child, rel);
@@ -64,17 +72,17 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				: deps.doc;
 			const index = owner ? rel[rel.length - 1] : topIndex;
 			const substituted = applyRangesToText(leaf.raw, ranges, template);
-			installOwnRaw(
-				leaf,
-				legalizeWrite(target, index, substituted, 'literal', deps.reading.grammar).text,
-				deps.reading.grammar
-			);
+			const legal = legalizeWrite(target, index, substituted, 'literal', deps.reading.grammar);
+			if (!keepsItsKind(leaf, legal.text)) continue;
+			installOwnRaw(leaf, legal.text, deps.reading.grammar);
+			installed.push(rel);
+			applied += ranges.length;
 		}
+		if (applied === 0) return { nodes: [], applied };
 		// Before the reparse from `child.raw`, a nested leaf's edit is written up into the clone's
 		// container raws by the same rebuild typing uses; a top-level leaf needs none.
 		const cloneSharing = createSharingState();
-		for (const ranges of byLeaf.values()) {
-			const rel = ranges[0].path.slice(1);
+		for (const rel of installed) {
 			if (rel.length === 0) continue;
 			const chain: CstNode[] = [];
 			for (let depth = 1; depth < rel.length; depth++)
@@ -87,7 +95,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			scope: 'fragment'
 		}).children;
 		// leadingTrivia is positional and lives off `raw`, so parsing `child.raw` alone drops it.
-		return normalizeReplacementTrivia(child, newNodes);
+		return { nodes: normalizeReplacementTrivia(child, newNodes), applied };
 	}
 
 	/** A childless container matched as a leaf is reparsed, so its metadata follows the new bytes;
@@ -99,14 +107,13 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		return !getBlockKindDescriptor(node.kind).isContainer || (node.children?.length ?? 0) === 0;
 	}
 
-	/** A substitution that breaks a container's opener line reparses as another kind (a diagram
-	 *  becoming a code block). Leaves accept that; a container's replace is declined. */
-	function keepsItsKind(before: CstNode, after: CstNode[]): boolean {
-		// Only a childless container had its own raw substituted; in one with children a child
-		// was edited, and a kind change there is the ordinary structural replace.
-		const childless = (before.children?.length ?? 0) === 0;
-		if (!childless || !getBlockKindDescriptor(before.kind).isContainer) return true;
-		return after.length === 1 && after[0].kind === before.kind;
+	/** A block drawn as a picture of its source, or a childless container, keeps its kind wherever
+	 *  it sits: a substitution that reads it back as another block (a diagram as code) is declined. */
+	function keepsItsKind(leaf: CstNode, text: string): boolean {
+		const container = getBlockKindDescriptor(leaf.kind).isContainer;
+		if (!container && blockFacts(leaf.kind).textPosition === 'always') return true;
+		const read = readAsOpened(text, { grammar: deps.reading.grammar, scope: 'fragment' }).children;
+		return read.length === 1 && read[0].kind === leaf.kind;
 	}
 
 	async function replaceSubtrees(matches: Match[], template: string): Promise<number> {
@@ -121,9 +128,9 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		await controller.undoStep({ path: docPathFrom(seed.path), offset: seed.start }, async () => {
 			for (const topIndex of indices) {
 				const group = groups.get(topIndex)!;
-				let newNodes: CstNode[];
+				let built: { nodes: CstNode[]; applied: number };
 				try {
-					newNodes = buildSubtree(topIndex, group, template);
+					built = buildSubtree(topIndex, group, template);
 				} catch (error) {
 					// buildSubtree runs the container writer, which can run plugin code outside
 					// any commit, so nothing else would report this error.
@@ -134,7 +141,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 					});
 					break;
 				}
-				if (!keepsItsKind(deps.doc.children[topIndex], newNodes)) continue;
+				if (built.applied === 0) continue;
+				const newNodes = built.nodes;
 				const wrote = await controller.commitStructural({
 					snapshot: { path: docPathFrom([topIndex]), offset: 0 },
 					mutate: (children) => {
@@ -149,7 +157,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				});
 				if (!wrote) continue;
 				newBlockCount += newNodes.length;
-				applied += group.length;
+				applied += built.applied;
 			}
 		});
 		if (applied === 0) return 0;

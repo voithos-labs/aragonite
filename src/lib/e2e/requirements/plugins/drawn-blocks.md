@@ -2,7 +2,7 @@
 
 A ` ```field ` box (`fencedBlock`, `edit: 'box'`, `routes/test/plugins/drawn`) edits its two-line
 body in a field of its own and takes the caret through `Drawn.focus`, handing it back with
-`ctx.leave`; leaving the field writes its text back through `Block.from` and `Block.to`. It leaves
+`ctx.leave`; leaving the field writes its text as the fence's body (`Draft.body`). It leaves
 Escape unhandled. The seed puts a paragraph above it and one below.
 
 ## Happy paths
@@ -18,6 +18,32 @@ Escape unhandled. The seed puts a paragraph above it and one below.
 - ArrowLeft at the start of the line below enters the field at its end; ArrowRight there leaves back to that line's start.
 - The caret at an offset inside the field, Alt+ArrowDown moves the box down a block and Ctrl+Z puts it back, with the caret at that same offset in the field.
 - After typing in the line above (which moves the box's bytes with no redraw), typing in the field and leaving it with ArrowUp writes the field's text into the fence's body, and one Ctrl+Z takes it back out.
+
+## The field's unwritten text (`Drawn.save`)
+
+Miss-analysis: the fixture wrote only on blur and no row ran an undo with text typed in it, so an undo that reached the editor lost the text. The field writes through `Draft.body` when it leaves or when the editor calls its `save`, and while it holds unwritten text it keeps Ctrl+Z, as mermaid's box does. Each row types a `!` at the end of the line above first.
+
+- Text typed in the field, then an undo the editor runs with focus still in the field (a toolbar's `runCommand('history.undo')`): the bytes keep the `!`, the field shows its body as written, and a redo writes the typed text. Leaving the field after the undo writes nothing.
+- Text typed in the field, then a click into the line below and Ctrl+Z there: the undo takes the field's text back out (the field wrote it as it left), and a redo writes it again.
+- Text typed in the field, then Ctrl+Z in it: the field's own undo takes the typing back, and the editor's undo stack still holds the one step for the `!`.
+- Text typed in the field, then a switch to live mode: the text is written as one undo step, which the next undo takes back out.
+- Text typed in the field, then a switch to reading mode: the text is written as one undo step, and kept on the way back to source mode, where the next undo takes it back out.
+- Text typed in the field, then a host toolbar button that runs the editor's undo, one keeping focus off itself and one taking it: the bytes keep the `!`, the field shows its body as written, and a redo writes the typed text.
+- Text typed in the field, then a new document loaded: nothing of the typed text is written.
+
+## An open field scrolled out of the window
+
+Miss-analysis: no row scrolled a box away while its field held text, and the one written later rode the field's blur, which Firefox and WebKit never fire on a removed element, so it held on Chromium alone (0.11.5 lost the text on those two as well).
+
+- Text typed in the field, then the editor scrolled to its end: the field's block leaves the window, the editor saves the field as it goes, and the text is written once, as one undo step, on every engine.
+
+## The field's menu row (`Drawn.controls`)
+
+The field type's own command `drawn/focus-field` focuses the field through the controls its drawing declares.
+
+- Run on the field's block, it focuses the field.
+- Run on the field's block once the field is scrolled out of the window, it declines and nothing takes focus.
+- Run on a block of another drawn type (the `shown` fence), which doesn't place it, it declines and the field takes no focus.
 
 ## Two boxes back to back
 

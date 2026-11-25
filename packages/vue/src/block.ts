@@ -35,16 +35,16 @@ export interface VueBlockOptions {
 	app?: App;
 }
 
-export function vueBlock<D = never, C extends DrawContext = DrawContext>(
+export function vueBlock<D = never, C extends DrawContext = DrawContext, H = unknown>(
 	component: Component,
 	{ className, app }: VueBlockOptions = {}
-): (block: Block<D>, ctx: C) => Drawn<D, C> {
+): (block: Block<D>, ctx: C) => Drawn<D, C, H> {
 	const context = withSlot(app);
 	return (block, ctx) => {
 		const dom = document.createElement('div');
 		if (className) dom.className = className;
 		const root = createViewRoot(dom, context);
-		const declared: Declared = { parts: () => ({}) };
+		const declared: Declared<H> = { parts: () => ({}) };
 		// A context of its own per render: its fields are getters Vue can't watch, so a computed
 		// reading `ctx.typed` would never run again on the same object.
 		const render = (next: Block<D>, nextCtx: C) =>
@@ -66,15 +66,21 @@ export function vueBlock<D = never, C extends DrawContext = DrawContext>(
 			},
 			get caret() {
 				return declared.parts().caret;
+			},
+			get save() {
+				return declared.parts().save;
+			},
+			get controls() {
+				return declared.parts().controls;
 			}
 		};
 	};
 }
 
-/** Called in a `vueBlock` component's `setup`: `parts` says what it adds to the drawing, its
- *  block's `focus`, `keep` or `caret`, read each time the editor needs it (a template ref, say). */
-export function useDrawn(parts: () => DrawnParts): void {
-	const declared = inject(DRAWN_CONTEXT, null);
+/** Called in a `vueBlock` component's `setup`: `parts` says what it adds to the drawing (`focus`,
+ *  `keep`, `caret`, `save`, `controls`), read each time the editor needs it. */
+export function useDrawn<H = unknown>(parts: () => DrawnParts<H>): void {
+	const declared = inject(DRAWN_CONTEXT, null) as Declared<H> | null;
 	if (!declared) throw new Error('useDrawn runs only inside a vueBlock component');
 	declared.parts = parts;
 }
@@ -82,8 +88,11 @@ export function useDrawn(parts: () => DrawnParts): void {
 // ── Internal ────────────────────────────────────────────────────────────────
 
 type SlotName = 'source' | 'children';
-type DrawnParts = Pick<Drawn<never>, 'focus' | 'keep' | 'caret'>;
-type Declared = { parts: () => DrawnParts };
+type DrawnParts<H = unknown> = Pick<
+	Drawn<never, DrawContext, H>,
+	'focus' | 'keep' | 'caret' | 'save' | 'controls'
+>;
+type Declared<H = unknown> = { parts: () => DrawnParts<H> };
 
 // Named, never indexed: the title row's element is on the context too, and moving it would take the
 // row out of the block list's windowing and focus walk.

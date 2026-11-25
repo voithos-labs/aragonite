@@ -2,15 +2,15 @@ import type { Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
 import { edgeKey } from '../../platform-keys';
 
-// Mermaid gestures (plugins route only) for an opaque, childless diagram with
-// `blockFocus: 'whole-block'`: arrows stop on it, a Backspace beside it focuses it before a second
-// deletes it, and Enter while focused inserts a paragraph below. Each waits and resyncs.
+// Mermaid gestures (plugins route only) for a diagram focused whole (`edit: 'box'`): arrows stop
+// on it, a Backspace beside it focuses it before a second deletes it, and Enter while focused
+// inserts a paragraph below. Each waits and resyncs.
 
 const VIEWPORT = '.mermaid-viewport';
 
-// Focusing the block as a whole lands on the hidden editing host in the block's frame, not on
-// the diagram the plugin declares, which a redraw replaces.
-const FOCUS_HOST = '.mermaid-block [data-whole-block-input]';
+// Focusing the block as a whole lands on the hidden editing host beside the drawing in the block's
+// host, not on the diagram the plugin draws, which a redraw replaces.
+const FOCUS_HOST = '[data-block-kind="mermaid/diagram"] [data-whole-block-input]';
 
 async function waitForDiagramFocused(page: Page, timeout = 5000): Promise<void> {
 	await page.waitForFunction(

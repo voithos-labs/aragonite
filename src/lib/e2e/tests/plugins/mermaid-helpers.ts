@@ -10,6 +10,8 @@ export const MERMAID_FENCE = '```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n``
 /** One valid diagram between two prose blocks, the shape every focus, reorder, delete and
  *  selection case is written against. */
 export const STANDARD_DIAGRAM_DOC = `Above text\n\n${MERMAID_FENCE}\n\ntail text\n`;
+/** The block host a diagram draws in. */
+export const DIAGRAM_HOST = '[data-block-kind="mermaid/diagram"]';
 
 // Long on purpose: the renderer is a large module the page fetches on first use.
 const RENDER_TIMEOUT = 30_000;
@@ -28,9 +30,9 @@ export class MermaidPage extends PluginsPage {
 	}
 
 	/** Where whole-block focus lands: the diagram's own element is replaced on every redraw, so
-	 *  the element that takes focus sits in the frame beside it. */
+	 *  the element that takes focus sits beside it in the block's host. */
 	get inputHost() {
-		return wholeBlockInput(this.block);
+		return wholeBlockInput(this.page.locator(DIAGRAM_HOST));
 	}
 
 	/** Open the mermaid seed and load `doc`, waiting for what the renderer produced for it. */

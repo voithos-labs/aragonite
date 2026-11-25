@@ -40,7 +40,7 @@ test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 
 		await waitForDoc(page, (s) => s.rootCount === 4);
 		const doc = await readDoc(page);
-		expect(doc.kinds).toEqual(['paragraph', 'mermaid', 'paragraph', 'paragraph']);
+		expect(doc.kinds).toEqual(['paragraph', 'mermaid/diagram', 'paragraph', 'paragraph']);
 		expect(doc.texts[2]).toBe('€');
 		expect(doc.texts[1]).toContain('graph TD');
 	});

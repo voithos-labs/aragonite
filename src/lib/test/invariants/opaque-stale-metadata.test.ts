@@ -6,7 +6,7 @@ import { getPluginMetadata, setPluginMetadata } from '#lib/plugin.js';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { registerMermaidKind, type MermaidMetadata } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind, type MermaidMetadata } from '#lib/test/harness/registered-diagram.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
 

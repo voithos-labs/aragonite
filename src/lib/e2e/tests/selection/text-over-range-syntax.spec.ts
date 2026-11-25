@@ -70,7 +70,7 @@ const ROWS: Row[] = [
 	below('an indented code block', '    code', 'indentedCode'),
 	below('a rule', '---', 'thematicBreak'),
 	below('a math block', '$$x^2$$', 'latex/block', 'latex'),
-	below('a diagram', '```mermaid\ngraph TD\n```', 'mermaid', 'mermaid'),
+	below('a diagram', '```mermaid\ngraph TD\n```', 'mermaid/diagram', 'mermaid'),
 	{
 		name: 'a code block opening a list item below',
 		source: `${TABLE}- \`\`\`js\n  body\n  \`\`\`\n`,

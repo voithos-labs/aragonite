@@ -71,7 +71,7 @@ export interface Contribution {
 	 *  A function it returns runs once, when the plugin is turned off or the editor unmounts. */
 	setup?(editor: Editor): void | (() => void);
 	/** Run by value, by `plugin/id`, or by a command's chord anywhere in the editor. */
-	commands?: readonly Command<unknown>[];
+	commands?: readonly Command<unknown, never>[];
 	/** Rows for the insert menus, listed after the built-ins as `plugin/id`. */
 	inserts?: readonly InsertRow[];
 	/** True when the plugin checks spelling itself: the browser's own checker is off on the
@@ -120,14 +120,14 @@ export interface Editor {
 	on<K extends keyof Events>(event: K, listen: (payload: Events[K]) => void): () => void;
 	/** Runs a command, by value or by id; false, with nothing written, where `can` would say no or
 	 *  the command declines. */
-	run<A>(command: Command<A>, arg: A): boolean;
+	run<A>(command: Command<A, never>, arg: A): boolean;
 	/** A block type's command with no block: run on the nearest block at the caret whose type places
 	 *  it, or on each such block a selection across blocks covers; false with none. */
-	run<D>(command: Command<Block<D>>): boolean;
-	run(command: Command | string, arg?: unknown): boolean;
-	can<A>(command: Command<A>, arg: A): boolean;
-	can<D>(command: Command<Block<D>>): boolean;
-	can(command: Command | string, arg?: unknown): boolean;
+	run<D>(command: Command<Block<D>, never>): boolean;
+	run(command: Command<unknown, never> | string, arg?: unknown): boolean;
+	can<A>(command: Command<A, never>, arg: A): boolean;
+	can<D>(command: Command<Block<D>, never>): boolean;
+	can(command: Command<unknown, never> | string, arg?: unknown): boolean;
 	/** Whether the editor acts on this key, so a host's own shortcut handler can stand back. */
 	claims(event: KeyboardEvent): boolean;
 	/** Types a caret menu's trigger and `query` at the caret and opens it there, even where a typed

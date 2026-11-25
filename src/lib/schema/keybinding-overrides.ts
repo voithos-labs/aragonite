@@ -15,7 +15,7 @@ export interface KeybindingOverride {
 	chord: string;
 	/** A command to bind (built-in or plugin id, or a plugin's command value), or `null` to disable
 	 *  the chord, which then reaches the page; a disabled undo or redo is still swallowed. */
-	command: AnyCommandId | Command<unknown> | null;
+	command: AnyCommandId | Command<unknown, never> | null;
 	/** One block kind's keymap: a built-in kind, a plugin kind's exported constant, or a block type.
 	 *  Omit for the editor-global scope. */
 	kind?: AnyBlockKind | BlockType<unknown>;

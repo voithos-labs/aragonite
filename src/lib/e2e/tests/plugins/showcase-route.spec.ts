@@ -10,7 +10,7 @@ import { SHOWCASE_MD, scanShowcase } from '../../showcase-document';
 
 const scan = scanShowcase();
 const MATH_HOST = '[data-block-kind="latex/block"]';
-const MERMAID_HOST = '[data-block-kind="mermaid"]';
+const MERMAID_HOST = '[data-block-kind="mermaid/diagram"]';
 
 /** What one pass down the document saw. A block that scrolls away is unmounted, so no single
  *  snapshot can count the whole tour, and every count here is the union over the pass. */

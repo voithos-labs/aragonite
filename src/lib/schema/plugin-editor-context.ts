@@ -86,8 +86,8 @@ export function createEditorPluginContexts(deps: {
 	activation: PluginActivation;
 	/** The instance's own entry points; the context only delegates. */
 	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
-	runCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
-	canRunCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
+	runCommand: (command: Command<unknown, never> | string, arg?: unknown) => boolean;
+	canRunCommand: (command: Command<unknown, never> | string, arg?: unknown) => boolean;
 	claims: (event: KeyboardEvent) => boolean;
 	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
 	openRows: Editor['openRows'];
@@ -182,10 +182,17 @@ export function createEditorPluginContexts(deps: {
 	function scopedView(plugin: string): View {
 		return {
 			...deps.view.view,
-			overlay(el, at) {
+			overlay(el, at, gone) {
 				const disposer = { plugin, dispose: () => {} };
 				disposers.push(disposer);
-				disposer.dispose = deps.view.overlay(el, at, () => void disposeOne(disposer));
+				disposer.dispose = deps.view.view.overlay(el, at, () => {
+					void disposeOne(disposer);
+					try {
+						gone?.();
+					} catch (cause) {
+						report({ plugin, doing: 'overlay gone', cause });
+					}
+				});
 				return () => reportThrown(disposeOne(disposer));
 			}
 		};
@@ -222,8 +229,10 @@ export function createEditorPluginContexts(deps: {
 				disposers.push(disposer);
 				return () => reportThrown(disposeOne(disposer));
 			},
-			run: (command: Command<unknown> | string, arg?: unknown) => deps.runCommand(command, arg),
-			can: (command: Command<unknown> | string, arg?: unknown) => deps.canRunCommand(command, arg),
+			run: (command: Command<unknown, never> | string, arg?: unknown) =>
+				deps.runCommand(command, arg),
+			can: (command: Command<unknown, never> | string, arg?: unknown) =>
+				deps.canRunCommand(command, arg),
 			claims: (event) => deps.claims(event),
 			openMenu: (menu, query) => deps.openMenu(menu as CaretMenu<unknown>, query),
 			openRows: (action, range, anchor, pointer) => deps.openRows(action, range, anchor, pointer),

@@ -11,7 +11,7 @@ import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { registerDetailsPageWide } from '#lib/test/harness/registered-details.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { typingOver } from '#lib/test/harness/typing.js';
 

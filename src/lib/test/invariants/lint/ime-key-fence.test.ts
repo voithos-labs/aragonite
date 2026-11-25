@@ -68,10 +68,6 @@ const UNFENCED: Record<string, { wirings: number; why: string }> = {
 	'src/lib/components/image/ImageProperties.svelte': {
 		wirings: 1,
 		why: 'the crop’s guard, which keeps every key that would write over the image off it, the IME’s too'
-	},
-	'packages/mermaid/src/MermaidBlock.svelte': {
-		wirings: 1,
-		why: 'the container factory’s handleKeydown'
 	}
 };
 

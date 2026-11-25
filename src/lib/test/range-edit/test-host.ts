@@ -3,7 +3,7 @@
 // over them and the plugin values beside them, and the host the core reads through, with what a
 // block's text shows on screen.
 
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
 import { constructContentRange, inlineDescendants, readInline } from '#lib/core/inline/index.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import type { NodeView } from '#lib/core/node-views.js';
@@ -18,12 +18,10 @@ import { rangeHost, type Mode, type PasteHost, type RangeHost } from '#lib/range
 import { normalizeBodyWrite } from '#lib/tree-operations/node-primitives.js';
 import { SYNTAX_PLUGINS, SYNTAX_PLUGIN_VALUES } from '../behavior/corpus';
 
-const PLUGINS = [...SYNTAX_PLUGINS, mermaidPlugin()];
-
 /** The reading an editor with every bundled syntax plugin reads with; call it inside a test. */
 export function testReading(): Reading {
-	installPlugins(PLUGINS);
-	const values = listGrammar(SYNTAX_PLUGIN_VALUES, ({ cause }) => {
+	installPlugins(SYNTAX_PLUGINS);
+	const values = listGrammar([...SYNTAX_PLUGIN_VALUES, mermaid], ({ cause }) => {
 		throw cause;
 	});
 	const grammar = createEditorGrammar({

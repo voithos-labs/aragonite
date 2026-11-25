@@ -4,7 +4,8 @@ import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
+import { registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { testLeaf, testContainer } from '#lib/test/harness/test-kinds.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -255,5 +256,57 @@ describe('replace: a childless opaque container reparses its own bytes', () => {
 		expect(await sr.replaceAll(matches, 'js')).toBe(0);
 		expect(deps.doc.children[0].kind).toBe('mermaid');
 		expect(serialize(deps.doc)).toBe('```mermaid\ngraph cat\n```\n');
+	});
+});
+
+describe('replace: a block drawn as a picture of its source keeps its kind', () => {
+	// Miss-analysis: the decline keyed on a childless container and read only the top-level block,
+	// so a leaf drawn as a picture (math, toc, mermaid as a box) converted, nested or not.
+	beforeEach(() => {
+		registerMathBlock(testView());
+	});
+
+	it.each([
+		['a fenced formula', '```math\nx\n```\n', 'math', 'js'],
+		['a $$ formula', '$$\nx\n$$\n', '$$', ''],
+		['a formula in a list item', '- ```math\n  x\n  ```\n', 'math', 'js'],
+		['a formula in a quote', '> ```math\n> x\n> ```\n', '```', '']
+	])('declines a replace that would turn %s into another block', async (_name, source, q, to) => {
+		const { deps, sr } = makeSearchReplace(source);
+
+		const matches = scanCompiled(deps.doc, q, { caseSensitive: true });
+		expect(matches.length).toBeGreaterThan(0);
+		expect(await sr.replaceAll(matches, to)).toBe(0);
+		expect(serialize(deps.doc)).toBe(source);
+		expect(deps.undoManager.getStacks().undo).toEqual([]);
+	});
+
+	it('lands the prose match beside a declined one in the same quote, and counts only it', async () => {
+		const source = '> prose math\n>\n> ```math\n> x\n> ```\n';
+		const { deps, sr } = makeSearchReplace(source);
+
+		const matches = scanCompiled(deps.doc, 'math', { caseSensitive: true });
+		expect(matches.map((m) => m.path)).toEqual([
+			[0, 0],
+			[0, 1]
+		]);
+		expect(await sr.replaceAll(matches, 'js')).toBe(1);
+		expect(serialize(deps.doc)).toBe('> prose js\n>\n> ```math\n> x\n> ```\n');
+		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
+	});
+
+	it('still replaces inside the formula when the block reads back as itself', async () => {
+		const { deps, sr } = makeSearchReplace('```math\nx\n```\n');
+
+		expect(await sr.replaceAll(scanCompiled(deps.doc, 'x'), 'y')).toBe(1);
+		expect(serialize(deps.doc)).toBe('```math\ny\n```\n');
+		expect(deps.doc.children[0].kind).toBe('mathFence');
+	});
+
+	it('leaves a code block free to become a formula', async () => {
+		const { deps, sr } = makeSearchReplace('```js\nx\n```\n');
+
+		expect(await sr.replaceAll(scanCompiled(deps.doc, 'js'), 'math')).toBe(1);
+		expect(deps.doc.children[0].kind).toBe('mathFence');
 	});
 });

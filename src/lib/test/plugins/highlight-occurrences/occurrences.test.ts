@@ -70,6 +70,23 @@ describe('wordAtCaret', () => {
 		expect(wordAtCaret(caretIn(table, 3))).toBe('cat');
 	});
 
+	// Miss-analysis: every caret row sat mid-word in an LF document, so a caret at a nested CRLF
+	// line's end, read past its `\r` while the byte map put the `\n` on that byte, found no word.
+	it.each([
+		['LF', '\n'],
+		['CRLF', '\r\n']
+	])("reads a quote line's last word under %s, the caret at the line's end", (_ending, eol) => {
+		const source = 'intro\n\n> foo bar\n> baz qux\n'.replaceAll('\n', eol);
+		const quoted = read(source);
+		const endOf = (word: string) => source.indexOf(word + eol) + word.length;
+		expect([endOf('bar'), endOf('qux')].map((at) => wordAtCaret(caretIn(quoted, at)))).toEqual([
+			'bar',
+			'qux'
+		]);
+		const open = `intro${eol}${eol}> foo bar`;
+		expect(wordAtCaret(caretIn(read(open), open.length))).toBe('bar');
+	});
+
 	// A fenced code block is not prose, which is what the highlight limits itself to.
 	it('reads nothing under a caret inside a code block', () => {
 		const code = read('cat one\n\n```\ncat inside code\n```\n');

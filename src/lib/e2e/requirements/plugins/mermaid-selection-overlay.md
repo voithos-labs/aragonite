@@ -1,7 +1,7 @@
-# Feature: Cross-block selection overlay over childless opaque containers
+# Feature: Cross-block selection overlay over a block drawn whole
 
-A container block with no child block hosts, such as a render-primary plugin block like mermaid,
-has no children to paint cross-block selection highlights, so the block itself has to take the
+A block drawn whole, such as the mermaid diagram, has no text to paint cross-block selection
+highlights, so the block itself has to take the
 full-block overlay when it sits strictly inside a cross-block range. It is the same whole-block
 highlight a non-text leaf such as a thematic break gets, and the same box a container with
 children takes when the range holds it whole.

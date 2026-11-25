@@ -38,6 +38,9 @@ export interface Draft {
 	/** Set a block's data, rewriting only the bytes that carry it; refused as `moved` once they
 	 *  change and as `illegal` on a built-in. A block not narrowed to a type with data takes none. */
 	data<D>(block: Block<D>, data: unknown extends D ? never : D): this;
+	/** Set a block's `body` to `text` in its own line endings, a fence grown past a line that would
+	 *  close it; refused as `moved` once the block changes, `illegal` where it takes no such body. */
+	body(block: Block<unknown>, text: string): this;
 	/** Insert Markdown as a block of its own (`insertMarkdown`'s `placement: 'below'`), as written:
 	 *  no paste rewrite reads it. */
 	insertBelow(markdown: string): this;

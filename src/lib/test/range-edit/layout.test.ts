@@ -12,7 +12,8 @@ import { reservedChromeKindOf } from '#lib/schema/reserved-chrome.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { arbLawDocument } from '../range-laws/shapes';
@@ -53,7 +54,8 @@ function sameLine(laid: string, body: string): boolean {
 }
 
 it('every block and container line reads back from the bytes', () => {
-	installPlugins([...SYNTAX_PLUGINS, mermaidPlugin()]);
+	installPlugins(SYNTAX_PLUGINS);
+	registerMermaidKind(testView());
 	const grammar = defaultGrammarView;
 	const docs = [...EXTRA, ...fc.sample(arbLawDocument, { numRuns: 150, seed: 20261106 })];
 	const misses: string[] = [];
@@ -86,7 +88,7 @@ it('every block and container line reads back from the bytes', () => {
 // Miss-analysis: every document here held text blocks without a children array; a diagram's
 // parse gives an empty one, and its bytes had no text position the byte map gave them.
 it('a block with an empty children array lays out as the byte map reads it, a block of text', () => {
-	installPlugins([mermaidPlugin()]);
+	registerMermaidKind(testView());
 	const source = 'above\n\n```mermaid\ngraph TD\n```\n';
 	const doc = readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
 	expect(blockNodeAt(doc, [1])!.children).toEqual([]);

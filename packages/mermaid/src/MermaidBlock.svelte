@@ -1,23 +1,15 @@
 <script lang="ts">
-	// Render-primary, built on the public API: `createContainerBlock` supplies the metadata
-	// commit and the keydown for kind commands, but the body renders the diagram, with no
-	// BlockList. Editing swaps in a textarea this plugin owns, whose text commits through the
-	// metadata update as one undo entry.
-	import { tick } from 'svelte';
-	import {
-		getPluginMetadata,
-		imeOwnsKey,
-		trimTrailingLineEnding,
-		normalizeLineEndings,
-		POINTER_GESTURE_ATTR,
-		type Draft,
-		type NodeView
-	} from '@voithos-labs/aragonite/plugin';
-	import { createContainerBlock } from '@voithos-labs/aragonite/svelte';
-	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
-	import { mermaidSlot, type MermaidRenderResult } from './mermaid-renderer';
+	// A diagram drawn whole (`edit: 'box'`): its picture and a toolbar, or while editing a textarea
+	// of its own. The box holds no draft: it writes the fence's body through `Draft.body` once, as
+	// it closes or when the editor asks (`save`).
+	import { getContext, tick } from 'svelte';
+	import { imeOwnsKey, type BoxDrawContext, type BoxFocus } from '@voithos-labs/aragonite/plugin';
+	import { useDrawn, type SvelteBlockProps } from '@voithos-labs/aragonite/svelte';
+	import { DIAGRAMS, type MermaidRenders, type MermaidRenderResult } from './mermaid-renderer';
+	import type { DiagramUi } from './mermaid-plugin';
 
-	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
+	let { block, ctx }: SvelteBlockProps<never, BoxDrawContext> = $props();
+	const renders = getContext<MermaidRenders>(DIAGRAMS);
 
 	let boxEl: HTMLElement | undefined = $state();
 
@@ -30,52 +22,34 @@
 		);
 	}
 
-	const {
-		containerApi,
-		updateOwnMetadata,
-		handleKeydown,
-		moveFocusOut,
-		captureScrollPosition,
-		openDraft,
-		getPresentationMode,
-		getTheme
-	} = createContainerBlock({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getBoxEl: () => boxEl,
-		getFocusEl: focusSurfaceEl,
-		// Read live per dispatch, so an undo that replaces the node still reaches the
-		// current handlers.
-		commandHooks: () => ({ openEdit, openFocusView })
+	// The body as the fence holds it; a textarea breaks its lines with a bare LF.
+	const displayCode = $derived(block.body.replace(/\r\n/g, '\n'));
+	// What a host's renderer is handed: the body's lines with their endings, the last one's included.
+	const code = $derived.by(() => {
+		const after = block.text.slice(block.text.indexOf('\n') + 1 + block.body.length);
+		const ending = after.startsWith('\r\n') ? '\r\n' : after.startsWith('\n') ? '\n' : '';
+		return block.body === '' ? '' : block.body + ending;
 	});
-
-	// The factory handles whole-block focus, delete, traversal and reorder, and provides the
-	// `measurePartialRects` the overlays are painted from: there are no child blocks here.
-	export { containerApi };
-
-	const code = $derived(getPluginMetadata<MermaidMetadata>(node)?.code ?? '');
-	const displayCode = $derived(trimTrailingLineEnding(code));
 
 	// An empty diagram has no picture to draw and mermaid rejects it, so it opens straight into
 	// the textarea; reading mode, which writes no bytes, gets a placeholder instead.
 	const isEmpty = $derived(displayCode.trim() === '');
-	const isReading = $derived(getPresentationMode() === 'reading');
+	const isReading = $derived(ctx.mode.name === 'reading');
+	// Focus anywhere in the block, its whole-block focus included, which sits beside this drawing.
+	const focused = $derived(ctx.focused);
 
 	// ── Rendering ───────────────────────────────────────────────────────────────
 
 	let rendered = $state<MermaidRenderResult | null>(null);
 	$effect(() => {
 		const current = code;
-		// Reading the theme here is what makes this effect re-run when the theme changes, and
-		// it must redraw because mermaid writes colors into the SVG.
-		const theme = getTheme();
-		if (isEmpty || !mermaidSlot.configured) return;
+		// Mermaid writes colors into the SVG, so a new theme draws again.
+		const theme = ctx.theme;
+		if (isEmpty || !renders.configured) return;
 		let stale = false;
-		void mermaidSlot.render(current, { theme }).then(async (result) => {
+		void renders.render(current, theme).then(async (result) => {
 			if (stale) return;
-			// A redraw replaces only the rendered element, so only focus inside it is handed back:
-			// the editor's hidden input and the toolbar are children of the box and survive.
+			// A redraw replaces only the rendered element, so only focus inside it is handed back.
 			const hadFocus = focusSurfaceEl()?.contains(document.activeElement) ?? false;
 			rendered = result;
 			if (hadFocus) {
@@ -91,7 +65,7 @@
 	const surfaceState = $derived(
 		isEmpty
 			? 'empty'
-			: !mermaidSlot.configured
+			: !renders.configured
 				? 'no-renderer'
 				: rendered?.error
 					? 'error'
@@ -147,12 +121,17 @@
 	const view = createPanZoom();
 	const overlayView = createPanZoom();
 
-	// Turned on by focus, so an unfocused diagram hijacks neither the page nor the editor's own
-	// drag. The markup attribute is written from this one value.
-	let gestureArmed = $state(false);
-	// The attribute that tells the editor's pointer handling a drag here is the diagram's own.
-	const viewportGesture = $derived({ [POINTER_GESTURE_ATTR]: gestureArmed ? '' : undefined });
-	const overlayGesture = { [POINTER_GESTURE_ATTR]: '' };
+	// Armed by focus, so an unfocused diagram hijacks neither the page nor the editor's own drag.
+	const gestureArmed = $derived(focused);
+
+	// The presses the editor leaves to the diagram: its controls, its box, the focus view, and the
+	// viewport's pan once focused. Nothing here stops one, which would hide it from the editor.
+	function keepsPress(e: Event): boolean {
+		if (e.type !== 'pointerdown' && e.type !== 'mousedown') return false;
+		const at = e.target instanceof Element ? e.target : null;
+		if (at?.closest('.mermaid-toolbar, .mermaid-source, .mermaid-overlay')) return true;
+		return gestureArmed && !!at?.closest('.mermaid-viewport');
+	}
 
 	function onViewportWheel(e: WheelEvent): void {
 		if (!gestureArmed || !(e.ctrlKey || e.metaKey)) return;
@@ -162,7 +141,6 @@
 	}
 
 	function onViewportPointerDown(e: PointerEvent): void {
-		e.stopPropagation();
 		if (gestureArmed) view.beginPan(e);
 	}
 
@@ -174,12 +152,8 @@
 		overlayView.zoomBy(e.deltaY);
 	}
 
-	// The viewport and the cards that show no picture answer clicks the same way, so a double
-	// click stays the way out of a broken diagram.
-	function onSurfacePointerDown(e: PointerEvent): void {
-		e.stopPropagation();
-	}
-
+	// The viewport and the cards answer clicks alike: a double click opens even a broken diagram,
+	// and the focus a click gives goes on to the block's focus host, where typed characters arrive.
 	function onSurfaceDblClick(e: MouseEvent): void {
 		e.stopPropagation();
 		openEdit();
@@ -189,106 +163,112 @@
 
 	let editRequested = $state(false);
 	let textareaEl = $state<HTMLTextAreaElement | undefined>();
-	let draft = $state('');
+	let boxText = $state('');
 	let editSeed = '';
-	// The box's text belongs to the document it was seeded from: a `source` swap drops it.
-	let session: Draft | null = null;
+	// Typed in since it was seeded, so its own undo has something to take back.
+	let typedIn = false;
+	// The block's bytes the box was seeded from: a write to them under an open box re-seeds it.
+	let seededFrom: string | null = null;
 
 	const editing = $derived(editRequested || (isEmpty && !isReading));
 
-	function seedDraft(): void {
+	function seedBox(): void {
+		seededFrom = block.text;
 		editSeed = displayCode;
-		draft = editSeed;
-		session?.end();
-		session = openDraft({
-			close: (cause) => {
-				if (cause !== 'document-swap') commitEdit(false);
-			}
-		});
+		boxText = editSeed;
+		typedIn = false;
 	}
 
-	function endSession(): void {
-		session?.end();
-		session = null;
-	}
-
-	// The block's bytes can change under an open box (a host undo, a structural replace), and the
-	// blur commit would then write a draft seeded from bytes that are gone.
+	// The box seeds on each opening and again when its block's bytes change under it (a host's
+	// write, an undo), so it never writes text seeded from bytes that are gone.
 	$effect(() => {
-		if (!editing) return endSession();
-		if (!session || session.stale) seedDraft();
+		if (!editing) seededFrom = null;
+		else if (block.text !== seededFrom) seedBox();
 	});
-	// Unregistered only: the blur of a box a swap tore down still reads the dropped session.
-	$effect(() => () => session?.end());
 
 	// The box follows its text: a textarea has no intrinsic content height, and the inline
 	// height a native resize handle writes dies with the element on every exit from edit mode.
 	$effect(() => {
-		void draft;
+		void boxText;
 		const el = textareaEl;
 		if (!el) return;
 		el.style.height = 'auto';
 		el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
 	});
 
+	// An empty diagram keeps its box open, so the caret stays in the box.
 	function refocusBlock(): void {
-		void tick().then(() => focusSurfaceEl()?.focus({ preventScroll: true }));
+		void tick().then(() =>
+			editing ? textareaEl?.focus({ preventScroll: true }) : ctx.focusWhole()
+		);
 	}
 
 	function openEdit(): void {
 		// Reading mode writes no bytes, and a code edit would; the button is CSS-hidden
 		// there too, so this closes the command path.
 		if (isReading) return;
-		if (!editing) seedDraft();
-		// Captured before the swap: the card reaches its fitted height only after mounting, and
-		// a scroll container at the document's end clamps against the short layout in between.
-		const restoreScroll = captureScrollPosition();
+		if (!editing) seedBox();
+		arrivedAt = null;
+		// Read before the swap: the card reaches its fitted height only after mounting, and a
+		// scroll container at the document's end clamps against the short layout in between.
+		const restoreScroll = ctx.keepScroll();
 		editRequested = true;
 		void restoreScroll().then(() => textareaEl?.focus({ preventScroll: true }));
 	}
 
 	function cancelEdit(): void {
 		editRequested = false;
-		// An empty diagram keeps its edit view, so the abandoned draft goes with the request
+		// An empty diagram keeps its edit view, so the abandoned text goes with the request
 		// that made it rather than surviving in a box that never closed.
-		seedDraft();
+		seedBox();
 		refocusBlock();
 	}
 
+	// Only a keyboard commit puts the caret back on the block; a blur commit must not yank focus
+	// back from wherever the user clicked.
 	function commitEdit(refocus: boolean): void {
 		if (!editing) return;
-		const value = draft;
-		const writable = !session?.stale;
+		const text = boxText;
 		editRequested = false;
-		if (!writable) return;
-		// The textarea value is LF-normalized, so the seed must be compared the same way:
-		// an untouched CRLF block must not rewrite its bytes on blur.
-		if (value === normalizeLineEndings(editSeed)) return;
-		const lineEnding = getPluginMetadata<MermaidMetadata>(node)?.openerLineEnding ?? '\n';
-		// Only a keyboard commit puts the caret back on the block; a blur commit must not yank
-		// focus back from wherever the user clicked.
-		updateOwnMetadata(
-			{ code: joinMermaidBody(value, lineEnding) },
-			refocus ? { caret: { path: [], offset: 0 } } : undefined
-		);
+		if (text === editSeed) return;
+		void ctx.editor.edit().body(block, text).commit();
+		if (refocus) refocusBlock();
 	}
 
-	// Logical lines, not visual: the box carries no editor caret geometry, so the newlines
-	// around a collapsed caret decide the first and last line, and a wrapped row does not.
-	function atEditBoxEdge(key: string): boolean {
+	// The column an up or down arrow brought the caret in with, handed on as it leaves the same way.
+	let arrivedAt: number | null = null;
+	const intoBox: BoxFocus = {
+		enter(at) {
+			arrivedAt = 'x' in at ? at.x : null;
+			textareaEl?.focus({ preventScroll: true });
+			if ('offset' in at) textareaEl?.setSelectionRange(at.offset, at.offset);
+		},
+		offset: () =>
+			textareaEl && document.activeElement === textareaEl ? textareaEl.selectionStart : null
+	};
+
+	// Logical lines, not visual: the newlines around a collapsed caret decide the first and last
+	// line, and a wrapped row does not.
+	function leaveAt(key: string): void | false {
 		const el = textareaEl;
 		if (!el || el.selectionStart !== el.selectionEnd) return false;
 		const at = el.selectionStart;
-		if (key === 'ArrowUp') return !el.value.slice(0, at).includes('\n');
-		if (key === 'ArrowDown') return !el.value.slice(at).includes('\n');
-		if (key === 'ArrowLeft') return at === 0;
-		if (key === 'ArrowRight') return at === el.value.length;
-		return false;
+		const column = arrivedAt ?? undefined;
+		if (key === 'ArrowUp' && !el.value.slice(0, at).includes('\n')) ctx.leave('start', column);
+		else if (key === 'ArrowDown' && !el.value.slice(at).includes('\n')) ctx.leave('end', column);
+		else if (key === 'ArrowLeft' && at === 0) ctx.leave('start');
+		else if (key === 'ArrowRight' && at === el.value.length) ctx.leave('end');
+		else return false;
 	}
 
+	// Undo and redo, which the box hands the editor until it is typed in: an undo that reopened an
+	// empty diagram's box leaves the caret inside, and the redo pressed next is the editor's.
+	const handsOnHistory = (e: KeyboardEvent) =>
+		!typedIn && (e.ctrlKey || e.metaKey) && !e.altKey && /^[zy]$/i.test(e.key);
+
 	function onTextareaKeydown(e: KeyboardEvent): void {
-		// The textarea owns its keys while editing, native undo included; no chord may
-		// bubble to the container keymap mid-edit.
+		if (!imeOwnsKey(e) && handsOnHistory(e)) return;
+		// The textarea owns every other key, its own undo once typed in; no other chord bubbles out.
 		e.stopPropagation();
 		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -297,13 +277,12 @@
 		} else if (e.key === 'Escape') {
 			e.preventDefault();
 			cancelEdit();
-		} else if (atEditBoxEdge(e.key) && moveFocusOut(e)) {
-			// Focus leaves the box, so `focusout` commits the text: leaving by arrow key takes
-			// the same path as a blur.
+		} else if (!(e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) && leaveAt(e.key) !== false) {
+			// Focus leaves the box, so `focusout` writes the text: an arrow out is a blur.
 			e.preventDefault();
 		} else if (e.key === 'Tab') {
 			// Escape is the exit, so Tab indents in place. execCommand inserts through the
-			// input event, keeping the `draft` binding and native undo whole.
+			// input event, keeping the `boxText` binding and native undo whole.
 			e.preventDefault();
 			document.execCommand('insertText', false, '\t');
 		}
@@ -333,38 +312,37 @@
 			closeFocusView();
 		}
 	}
+
+	// The editor placing a caret on the block closes the focus view, as Escape does.
+	const outOfView: BoxFocus = { enter: closeFocusView, offset: () => null };
+
+	const ui: DiagramUi = { openEdit, openFocusView };
+	useDrawn<DiagramUi>(() => ({
+		focus: focusView ? outOfView : editing ? intoBox : undefined,
+		keep: keepsPress,
+		save: () => commitEdit(false),
+		controls: ui
+	}));
 </script>
 
+<!-- The press handlers inside pan, or leave focus where it is; the buttons are the controls. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-	class="mermaid-block"
-	bind:this={boxEl}
-	onkeydown={handleKeydown}
-	onfocusin={() => (gestureArmed = true)}
-	onfocusout={(e) => (gestureArmed = boxEl?.contains(e.relatedTarget as Node | null) ?? false)}
->
+<div class="mermaid-block" bind:this={boxEl} data-diagram-focused={focused ? '' : undefined}>
 	{#if editing}
 		<textarea
 			bind:this={textareaEl}
-			bind:value={draft}
+			bind:value={boxText}
 			class="mermaid-source md-source-surface"
 			data-testid="mermaid-source"
 			spellcheck="false"
 			aria-label="Mermaid source"
 			onkeydown={onTextareaKeydown}
-			onfocusout={() => commitEdit(false)}
-			onpointerdown={(e) => e.stopPropagation()}></textarea>
+			oninput={() => (typedIn = true)}
+			onfocusout={() => commitEdit(false)}></textarea>
 	{:else}
-		<!-- A press here skips the block's own press handling and leaves focus where it was; Edit and
-		     Focus move it themselves. -->
-		<div
-			class="mermaid-toolbar"
-			data-corner-control
-			onpointerdown={(e) => {
-				e.stopPropagation();
-				e.preventDefault();
-			}}
-		>
+		<!-- A press here is the diagram's (`keepsPress`) and leaves focus where it was; Edit and Focus
+		     move it themselves. -->
+		<div class="mermaid-toolbar" data-corner-control onpointerdown={(e) => e.preventDefault()}>
 			<button type="button" data-testid="mermaid-edit" onclick={openEdit}>Edit</button>
 			<button type="button" data-testid="mermaid-focus" onclick={openFocusView}>Focus</button>
 			<button type="button" data-testid="mermaid-reset" onclick={() => view.reset()}>
@@ -375,12 +353,12 @@
 			<!-- Focusable for a click, out of the tab order: the block's editing host is its stop. -->
 			<div
 				class="mermaid-viewport"
-				{...viewportGesture}
 				tabindex="-1"
 				role="img"
 				aria-label="Mermaid diagram"
 				onwheel={onViewportWheel}
 				onpointerdown={onViewportPointerDown}
+				onfocus={() => ctx.focusWhole()}
 				onpointermove={(e) => view.movePan(e)}
 				onpointerup={(e) => view.endPan(e)}
 				ondblclick={onSurfaceDblClick}
@@ -399,7 +377,7 @@
 					tabindex="-1"
 					role="group"
 					aria-label={surfaceLabel}
-					onpointerdown={onSurfacePointerDown}
+					onfocus={() => ctx.focusWhole()}
 					ondblclick={onSurfaceDblClick}
 				>
 					{#if surfaceState === 'empty'}
@@ -429,13 +407,7 @@
 			aria-label="Diagram focus view"
 			onkeydown={onOverlayKeydown}
 		>
-			<div
-				class="mermaid-overlay-bar"
-				onpointerdown={(e) => {
-					e.stopPropagation();
-					e.preventDefault();
-				}}
-			>
+			<div class="mermaid-overlay-bar" onpointerdown={(e) => e.preventDefault()}>
 				<button type="button" onclick={() => overlayView.reset()}>Reset view</button>
 				<button type="button" data-testid="mermaid-overlay-close" onclick={closeFocusView}>
 					Close
@@ -443,12 +415,8 @@
 			</div>
 			<div
 				class="mermaid-overlay-viewport"
-				{...overlayGesture}
 				onwheel={onOverlayWheel}
-				onpointerdown={(e) => {
-					e.stopPropagation();
-					overlayView.beginPan(e);
-				}}
+				onpointerdown={(e) => overlayView.beginPan(e)}
 				onpointermove={(e) => overlayView.movePan(e)}
 				onpointerup={(e) => overlayView.endPan(e)}
 			>
@@ -477,9 +445,9 @@
 			background-color 0.12s ease;
 	}
 
-	/* Matches CodeBlock's border shift: one treatment on the block root, no inner
-	   outline, and any descendant focus counts. */
-	.mermaid-block:focus-within {
+	/* Matches CodeBlock's border shift: one treatment on the block root, no inner outline, and
+	   focus anywhere in the block counts, its whole-block focus beside the drawing included. */
+	.mermaid-block[data-diagram-focused] {
 		border-color: var(--color-accent);
 		background: var(--color-bg-secondary);
 	}
@@ -504,7 +472,7 @@
 	}
 
 	.mermaid-block:hover .mermaid-toolbar,
-	.mermaid-block:focus-within .mermaid-toolbar {
+	.mermaid-block[data-diagram-focused] .mermaid-toolbar {
 		opacity: 1;
 		pointer-events: auto;
 	}
@@ -539,14 +507,13 @@
 		user-select: none;
 	}
 
-	/* No inner outline: the block-level :focus-within border shift is the only cue. */
+	/* No inner outline: the block-level border shift is the only cue. */
 	.mermaid-surface {
 		outline: none;
 	}
 
-	/* Only a focused block pans, so only then does the viewport show the grab cursor.
-	   `:focus-within`, because whole-block focus goes to the editor's hidden input beside it. */
-	.mermaid-block:focus-within .mermaid-viewport {
+	/* Only a focused block pans, so only then does the viewport show the grab cursor. */
+	.mermaid-block[data-diagram-focused] .mermaid-viewport {
 		cursor: grab;
 	}
 

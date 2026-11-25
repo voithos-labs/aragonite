@@ -35,7 +35,7 @@ vi.mock('#lib/selection/range-clipboard.js', async (importOriginal) => {
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { checkCopyIsRawByteSlice } from '#lib/testing/kind-conformance.js';
 import { defaultCheckContext } from '#lib/testing/check-context.js';
-import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind, MERMAID } from '#lib/test/harness/registered-diagram.js';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { testView } from '#lib/test/harness/test-view.js';
 

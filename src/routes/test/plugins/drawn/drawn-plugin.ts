@@ -1,12 +1,14 @@
 /**
  * Block types drawn with `draw`, for the e2e suite that drives the draw host in a real browser: a
- * ```` ```field ```` box editing its body in a field of its own, saved as it leaves, a
+ * ```` ```field ```` box editing its body in a field of its own, saved as it leaves or when the
+ * editor asks, whose menu row focuses it through its controls, a
  * ```` ```shown ```` fence drawn as a preview, a `%>`
  * container drawn as a box, an `@@ ` memo with a badge before its text and a `[[badge]]` box drawn
  * whole. The aside and the badge count their draws on `window.__drawnLog`. Dev and e2e harness only.
  */
 
 import {
+	command,
 	container,
 	definePlugin,
 	displayLines,
@@ -15,6 +17,7 @@ import {
 	type Block,
 	type BoxDrawContext,
 	type ContainerDrawContext,
+	type Drawn,
 	type TextDrawContext
 } from '#lib/plugin.js';
 
@@ -23,6 +26,17 @@ export interface FieldCaret {
 	offset: number;
 	x: number;
 }
+
+/** What the field box hands its type's commands. */
+export interface FieldControls {
+	open(): void;
+}
+
+const focusField = command<Block<never>, FieldControls>({
+	id: 'focus-field',
+	title: 'Edit the field',
+	run: (_editor, _block, field) => (field ? field.open() : false)
+});
 
 export const drawnPlugin = definePlugin({
 	name: 'drawn',
@@ -37,6 +51,7 @@ export const drawnPlugin = definePlugin({
 				fence: { info: 'field' },
 				sample: '```field\nfirst line here\nsecond line here\n```',
 				insert: { none: 'a test block type' },
+				actions: [{ label: 'Edit the field', command: focusField }],
 				edit: 'box',
 				draw: drawField
 			}),
@@ -128,21 +143,29 @@ function count(what: keyof DrawnLog, name: string): void {
 	log[what][name] = (log[what][name] ?? 0) + 1;
 }
 
-// A monospace field, so a column and an x convert by one character width. Leaving it writes its
-// text back as the fence's body, at the block's bytes as they are then. It leaves Escape unhandled.
-function drawField(block: Block<never>, ctx: BoxDrawContext) {
+// A monospace field, so a column and an x convert by one character width. Leaving it, or the editor
+// asking, writes its body; while that's unwritten Ctrl+Z is its own. It leaves Escape unhandled.
+function drawField(
+	block: Block<never>,
+	ctx: BoxDrawContext
+): Drawn<never, BoxDrawContext, FieldControls> {
 	const dom = document.createElement('div');
 	dom.className = 'drawn-field';
 	const field = document.createElement('textarea');
 	field.rows = 2;
-	const bodyOf = (of: Block<never>) => of.body.replace(/\n$/, '');
+	// A textarea breaks its lines with a bare LF.
+	const bodyOf = (of: Block<never>) => of.body.replace(/\r\n/g, '\n');
 	let current = block;
-	field.value = bodyOf(block);
-	field.addEventListener('blur', () => {
-		if (field.value === bodyOf(current)) return;
-		const fence = '```field\n' + field.value + '\n```\n';
-		void ctx.editor.edit().replace({ from: current.from, to: current.to }, fence).commit();
-	});
+	// The body the field last showed or wrote, so bytes changed under it (an undo) show.
+	let shown = bodyOf(block);
+	field.value = shown;
+	const unwritten = () => field.value !== shown;
+	const save = () => {
+		if (!unwritten()) return;
+		shown = field.value;
+		void ctx.editor.edit().body(current, field.value).commit();
+	};
+	field.addEventListener('blur', save);
 	field.style.cssText = 'font: 16px monospace; padding: 0; border: 0; width: 24ch; resize: none;';
 	dom.append(field);
 
@@ -185,8 +208,13 @@ function drawField(block: Block<never>, ctx: BoxDrawContext) {
 		dom,
 		update(next: Block<never>) {
 			current = next;
-			if (!focused()) field.value = bodyOf(next);
+			if (bodyOf(next) === shown) return;
+			shown = bodyOf(next);
+			field.value = shown;
 		},
+		save,
+		controls: { open: () => place(field.selectionStart) },
+		keep: (e: Event) => e instanceof KeyboardEvent && unwritten() && isHistoryChord(e),
 		focus: {
 			enter(at: { edge: 'start' | 'end'; x: number | null } | { offset: number }) {
 				if ('offset' in at) return place(at.offset);
@@ -204,3 +232,6 @@ function drawField(block: Block<never>, ctx: BoxDrawContext) {
 		}
 	};
 }
+
+const isHistoryChord = (e: KeyboardEvent) =>
+	(e.ctrlKey || e.metaKey) && !e.altKey && ['z', 'y'].includes(e.key.toLowerCase());

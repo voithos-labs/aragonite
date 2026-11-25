@@ -1,22 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { isBuiltinBlockKind } from '#lib/core/nodes.js';
-import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
-import {
-	augmentBlockKind,
-	getAllRegisteredKinds,
-	getBlockKindDescriptor,
-	openerRecords
-} from '#lib/schema/block-kind-descriptor.js';
+import { augmentBlockKind, getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import { runKindConformance } from '#lib/testing.js';
 import { KIND_CELL_CONTRACTS } from '#lib/testing/cell-contracts.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { ADMONITION, GITHUB_ALERT } from '#lib/test/harness/registered-admonitions.js';
-import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerAdmonitions, GITHUB_ALERT } from '#lib/test/harness/registered-admonitions.js';
+import { registerMermaidKind, MERMAID } from '#lib/test/harness/registered-diagram.js';
 import { testView } from '#lib/test/harness/test-view.js';
-import type { BlockView } from '#lib/schema/block-view.js';
 import type { UnfinishedReading } from '#lib/schema/block-openers.js';
 import { OPENER_PRIORITIES } from '#lib/schema/opener-priorities.js';
 import {
@@ -276,11 +268,6 @@ describe('kind conformance: a kind no line closes says what its wait crosses', (
 // ── Bundled plugins: the shipped kinds enroll too ────────────────────────────
 // The workspace's plugin packages are the bundled set, so a plugin directory added or
 // dropped outside this table fails the check below at once.
-const BUNDLED_INSTALLS: { dir: string; kind: string; install: (view: BlockView) => void }[] = [
-	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
-	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind }
-];
-
 const NO_BLOCK_KIND_DIRS = new Set([
 	'highlight',
 	'highlight-occurrences',
@@ -290,72 +277,26 @@ const NO_BLOCK_KIND_DIRS = new Set([
 ]);
 // Plugins whose blocks are block types, which only an editor running them parses: the kit reads
 // the page's grammar, so it doesn't reach them yet.
-const BLOCK_TYPE_DIRS = new Set(['details', 'footnotes', 'latex', 'parrot', 'toc']);
+const BLOCK_TYPE_DIRS = new Set([
+	'admonitions',
+	'details',
+	'footnotes',
+	'latex',
+	'mermaid',
+	'parrot',
+	'toc'
+]);
 
 describe('kind conformance: bundled plugin kinds enroll', () => {
-	// Every kind the registrar registers, not only the headline one: title kinds with no
-	// fixture and directive-fallback kinds run their fixture-free cells too.
-	it.each(BUNDLED_INSTALLS)(
-		'$kind registrar: every registered kind executes its headless cells',
-		async ({ kind, install }) => {
-			install(testView());
-			const registered = getAllRegisteredKinds().filter((k) => !isBuiltinBlockKind(k));
-			expect(registered).toContain(declaredPluginKind(kind));
-			for (const k of registered) {
-				const report = await runKindConformance(k);
-				expect(new Set(report.cells.map((c) => c.cell))).toEqual(
-					new Set(Object.keys(KIND_CELL_CONTRACTS))
-				);
-			}
-			const report = await runKindConformance(declaredPluginKind(kind));
-			for (const cell of ['roundTrip', 'mergeBackspace', 'undo', 'clipboard']) {
-				expect(statusOf(report, cell), cell).toBe('asserted');
-			}
-		}
-	);
-
-	// Checked both ways at the directory level, so neither an unenrolled new plugin nor a
-	// stale entry for a deleted one survives.
-	it('every plugin directory on disk is enrolled or a declared exception', () => {
+	// Checked both ways at the directory level, so neither an unaccounted new plugin nor a stale
+	// entry for a deleted one survives.
+	it('every plugin directory on disk is a declared exception', () => {
 		const dirs = bundledPluginDirs();
-		const enrolled = new Set(BUNDLED_INSTALLS.map((b) => b.dir));
 		const excepted = new Set([...NO_BLOCK_KIND_DIRS, ...BLOCK_TYPE_DIRS]);
-		const unaccounted = dirs.filter((d) => !enrolled.has(d) && !excepted.has(d));
-		expect(unaccounted, 'plugin dirs neither enrolled nor declared exceptions').toEqual([]);
-		const stale = [...enrolled, ...excepted].filter((d) => !dirs.includes(d));
-		expect(stale, 'enrolled/exception entries with no plugin directory').toEqual([]);
-	});
-
-	// The same check per kind, for a directory's second fixtured kind. The directive-fallback
-	// kinds `registerAdmonitions` adds are core, run by the registrar sweep above.
-	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT];
-	it('sweeps exactly the bundled fixtured kinds', () => {
-		for (const { install } of BUNDLED_INSTALLS) install(testView());
-		const directiveFallback = new Set<string>([DIRECTIVE_CONTAINER, DIRECTIVE_LEAF]);
-		const registeredBundled = getAllRegisteredKinds()
-			.filter((k) => !isBuiltinBlockKind(k))
-			.filter((k) => getBlockKindDescriptor(k).samples?.[0] !== undefined)
-			.filter((k) => !directiveFallback.has(k));
-		expect(new Set(registeredBundled)).toEqual(
-			new Set([...BUNDLED_INSTALLS.map((b) => b.kind), ...CO_REGISTERED_FIXTURED])
-		);
-	});
-
-	// A shared opener priority shows only once the colliding plugins install together and a
-	// parse runs, so every isolated suite misses it; installing the whole bundle catches it.
-	it('the co-installed bundle declares distinct opener priorities', () => {
-		for (const { install } of BUNDLED_INSTALLS) install(testView());
-		const kindsByPriority = new Map<number, string[]>();
-		for (const { key: kind, value } of openerRecords()) {
-			const { priority } = value;
-			const kinds = kindsByPriority.get(priority) ?? [];
-			kinds.push(kind);
-			kindsByPriority.set(priority, kinds);
-		}
-		const ties = [...kindsByPriority.entries()]
-			.filter(([, kinds]) => kinds.length > 1)
-			.map(([priority, kinds]) => `${priority}: ${kinds.sort().join(', ')}`);
-		expect(ties, `openers sharing a priority`).toEqual([]);
+		const unaccounted = dirs.filter((d) => !excepted.has(d));
+		expect(unaccounted, 'plugin dirs that are no declared exception').toEqual([]);
+		const stale = [...excepted].filter((d) => !dirs.includes(d));
+		expect(stale, 'exception entries with no plugin directory').toEqual([]);
 	});
 });
 

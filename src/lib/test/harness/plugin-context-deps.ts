@@ -58,8 +58,14 @@ export const pluginContextDeps = (
 		md: string,
 		options?: InsertMarkdownOptions
 	) => Promise<boolean>,
-	runCommand: (() => false) as (command: Command<unknown> | string, arg?: unknown) => boolean,
-	canRunCommand: (() => false) as (command: Command<unknown> | string, arg?: unknown) => boolean,
+	runCommand: (() => false) as (
+		command: Command<unknown, never> | string,
+		arg?: unknown
+	) => boolean,
+	canRunCommand: (() => false) as (
+		command: Command<unknown, never> | string,
+		arg?: unknown
+	) => boolean,
 	claims: (() => false) as (event: KeyboardEvent) => boolean,
 	openMenu: () => false,
 	openRows: () => ({ isOpen: false, close() {} }),
@@ -70,7 +76,6 @@ export const pluginContextDeps = (
 	select: async () => false,
 	view: {
 		view: INERT_VIEW,
-		overlay: () => () => {},
 		dispose: () => {}
 	},
 	pluginEvents: (): PluginEventReads => ({

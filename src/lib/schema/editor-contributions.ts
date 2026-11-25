@@ -5,8 +5,8 @@
  * and reached through the editor's activation, which every command lookup already takes, so no
  * route that runs or lists a command can miss a plugin's.
  *
- * A block type's keys and menu rows place their commands here too: such a command runs on a block
- * whose type places it, the one handed to it or else the nearest at the caret. The plugins' paste
+ * A block type's keys, menu rows and listed commands place them here too: such a command runs on a
+ * block whose type places it, the one handed to it or else the nearest at the caret. The plugins' paste
  * rewrites are read here, and answered for a paste or a pasted block
  * (`tree-operations/paste/paste-rewrites.ts`).
  */
@@ -76,7 +76,7 @@ export interface PlacingBlocks<B = Block> {
 }
 
 export interface EditorContributions {
-	command(command: Command<unknown> | string): ContributedCommand | undefined;
+	command(command: Command<unknown, never> | string): ContributedCommand | undefined;
 	atChord(chord: string): ContributedCommand | undefined;
 	/** The command `id` where block type `kind` places it. */
 	placedAt(id: string, kind: string): ContributedCommand | undefined;
@@ -110,10 +110,10 @@ export interface EditorContributions {
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
 	can(command: ContributedCommand, arg: unknown): boolean;
-	/** `run` for a key that landed in `block`: over a selection across blocks, on each placing
-	 *  block it covers instead. */
-	runAtKey(command: ContributedCommand, block: Block | undefined): boolean;
-	canAtKey(command: ContributedCommand, block: Block | undefined): boolean;
+	/** `run` on the block `arg` is, else for a key that landed in `block`: over a selection across
+	 *  blocks, on each placing block it covers instead. */
+	runAtKey(command: ContributedCommand, block: Block | undefined, arg: unknown): boolean;
+	canAtKey(command: ContributedCommand, block: Block | undefined, arg: unknown): boolean;
 	/** Reads a freshly installed list, leaving out and reporting each plugin whose contribution is
 	 *  unusable or claims what one listed before it holds; returns the plugins kept. */
 	read(units: readonly InstalledPlugin[]): InstalledPlugin[];
@@ -137,10 +137,12 @@ export function createEditorContributions(deps: {
 	 *  blocks each covered block's outermost such block, with the step their runs share. */
 	blocksAround(kinds: ReadonlySet<string>): PlacingBlocks;
 	blockOf(node: NodeView, path: readonly number[]): Block;
+	/** What `block`'s drawing hands its type's commands; undefined while it isn't drawn. */
+	controlsOf(block: Block): unknown;
 	pastedReader: EditorContributions['pastedReader'];
 }): EditorContributions {
 	let commands: ContributedCommand[] = [];
-	let byValue = new Map<Command<unknown>, ContributedCommand>();
+	let byValue = new Map<Command<unknown, never>, ContributedCommand>();
 	let byId = new Map<string, ContributedCommand>();
 	let byChord = new Map<string, ContributedCommand>();
 	let actionsByKind = new Map<string, readonly ContributedBlockAction[]>();
@@ -201,7 +203,7 @@ export function createEditorContributions(deps: {
 				blockTypesOf(unit).map(({ kind, making }) => [
 					kind,
 					(making.actions ?? []).map(({ label, icon, command }) => {
-						const entry = byValue.get(command as Command<unknown>)!;
+						const entry = byValue.get(command as Command<unknown, never>)!;
 						return { label: (block: Block) => labelOf(entry, label, block), icon, command: entry };
 					})
 				])
@@ -247,8 +249,10 @@ export function createEditorContributions(deps: {
 		return { blocks: entry.placedBy.has(kind) ? [arg] : [] };
 	}
 
-	/** A key's block, unless the selection runs across blocks, which decides the blocks itself. */
-	function keyed(entry: ContributedCommand, block: Block | undefined): unknown {
+	/** A block handed in; else a key's block, unless the selection runs across blocks, which decides
+	 *  the blocks itself. */
+	function keyed(entry: ContributedCommand, block: Block | undefined, arg: unknown): unknown {
+		if (kindOfBlock(arg) !== undefined) return arg;
 		return deps.blocksAround(entry.placedBy).step ? undefined : block;
 	}
 
@@ -275,8 +279,12 @@ export function createEditorContributions(deps: {
 
 	function runOne(entry: ContributedCommand, arg: unknown): boolean {
 		const editor = deps.editorFor(entry.plugin)!;
+		// Only a command the block's own type places reads its drawing, whose controls' type it shares.
+		const kind = kindOfBlock(arg);
+		const controls =
+			kind !== undefined && entry.placedBy.has(kind) ? deps.controlsOf(arg as Block) : undefined;
 		return guarded(entry, true, () => {
-			const answer = entry.spec.run(editor, arg);
+			const answer = entry.spec.run(editor, arg, controls);
 			if (isThenable(answer)) {
 				answer.then(undefined, (cause: unknown) =>
 					deps.report({ plugin: entry.plugin, doing: `run ${entry.id}`, cause })
@@ -364,8 +372,8 @@ export function createEditorContributions(deps: {
 		},
 		run,
 		can,
-		runAtKey: (entry, block) => run(entry, keyed(entry, block)),
-		canAtKey: (entry, block) => can(entry, keyed(entry, block)),
+		runAtKey: (entry, block, arg) => run(entry, keyed(entry, block, arg)),
+		canAtKey: (entry, block, arg) => can(entry, keyed(entry, block, arg)),
 		read
 	};
 }
@@ -380,14 +388,15 @@ function blockTypesOf(unit: InstalledPlugin) {
 	});
 }
 
-/** The commands a plugin's block types place, each with the kinds placing it. */
-function placementsOf(unit: InstalledPlugin): Map<Command<unknown>, Set<string>> {
-	const placed = new Map<Command<unknown>, Set<string>>();
+/** The commands a plugin's block types place, in keys, rows or a list, each with the kinds placing it. */
+function placementsOf(unit: InstalledPlugin): Map<Command<unknown, never>, Set<string>> {
+	const placed = new Map<Command<unknown, never>, Set<string>>();
 	for (const { kind, making } of blockTypesOf(unit)) {
 		const values = [
 			...Object.values(making.chords ?? {}),
-			...(making.actions ?? []).map((action) => action.command)
-		] as Command<unknown>[];
+			...(making.actions ?? []).map((action) => action.command),
+			...(making.commands ?? [])
+		] as Command<unknown, never>[];
 		for (const value of values) {
 			if (!placed.has(value)) placed.set(value, new Set());
 			placed.get(value)!.add(kind);
@@ -398,7 +407,7 @@ function placementsOf(unit: InstalledPlugin): Map<Command<unknown>, Set<string>>
 
 /** A plugin's commands: those it lists, those only its block types place, then its marks' toggles,
  *  whose chords bind, rebind and are claimed as a listed command's are. */
-function commandsOf(unit: InstalledPlugin): Command<unknown>[] {
+function commandsOf(unit: InstalledPlugin): Command<unknown, never>[] {
 	const listed = unit.contribution.commands ?? [];
 	const toggles = togglesOf(unit.contribution.inlines);
 	return [...new Set([...listed, ...placementsOf(unit).keys()]), ...toggles];
@@ -486,7 +495,7 @@ function containerDataProblem(unit: InstalledPlugin): string | null {
 
 function entryOf(
 	plugin: string,
-	value: Command<unknown>,
+	value: Command<unknown, never>,
 	placedBy: ReadonlySet<string> = new Set()
 ): ContributedCommand {
 	const spec = commandSpec(value)!;

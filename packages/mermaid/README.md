@@ -24,16 +24,16 @@ Btw, the plugin's version should match the editor's version.
 ## Use it
 
 ```ts
-import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
+import { mermaid } from '@voithos-labs/aragonite-mermaid';
 import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer';
 
-const plugins = [mermaidPlugin({ renderer: mermaidRenderer })];
+const plugins = [mermaid({ renderer: mermaidRenderer })];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. A few things worth knowing:
+Hand `plugins` to the editor. Each editor keeps its own renderings, so two editors can draw diagrams with two engines. A few things worth knowing:
 
 - On React, Vue or plain JS, the diagrams bring a stylesheet of their own: import `@voithos-labs/aragonite-mermaid/style.css` beside the editor's.
-- Double-click a diagram (or click Edit) to open its source. `Ctrl+Enter` (`Cmd+Enter` on a Mac) or clicking away saves it, and `Escape` drops the change.
+- Double-click a diagram (or click Edit) to open its source. `Ctrl+Enter` (`Cmd+Enter` on a Mac) or clicking away saves it, and `Escape` drops the change. A host can open it too, with `editor.run('mermaid/edit')` or a key bound to that command.
 - With the diagram focused, drag to pan and Ctrl+scroll (Cmd+scroll on a Mac) to zoom, and Reset puts it back. `Ctrl+M` (`Cmd+M` on a Mac) or the Focus button opens a bigger view where plain scrolling zooms; `Escape` closes it.
 - Diagrams use the mermaid theme named like the editor's `theme` (`dark`, `forest`, `neutral`), or mermaid's default when there isn't one.
 - Rather draw with something else? `renderer` is any function from `(code, id, { theme })` to a promise of SVG markup.

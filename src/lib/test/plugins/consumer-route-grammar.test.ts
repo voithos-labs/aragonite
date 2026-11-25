@@ -16,7 +16,7 @@ import { emoji } from '#packages/emoji/src/index.js';
 import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
 import { latex } from '#packages/latex/src/index.js';
 import { grammar } from '#lib/plugin.js';
-import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { mermaid } from '#packages/mermaid/src/index.js';
 import { toc } from '#packages/toc/src/index.js';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { PLUGINS_SEED } from '../../../../examples/consumer/src/routes/plugins/seed';
@@ -27,7 +27,7 @@ const consumerRouteSet = () => [
 	calloutPlugin(),
 	details,
 	registeredAdmonitions(),
-	mermaidPlugin(),
+	mermaid,
 	toc,
 	emoji,
 	registeredFootnotes()
@@ -54,7 +54,7 @@ describe('the consumer example route parses its seed as the kinds its suite asse
 			// A plugin value's block, which only the route's editor reads (below).
 			'paragraph',
 			'admonition',
-			'mermaid',
+			'mermaid/diagram',
 			'directiveContainer',
 			'paragraph',
 			'paragraph',

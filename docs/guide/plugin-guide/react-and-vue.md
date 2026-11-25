@@ -136,7 +136,7 @@ function Label({ block, ctx, Slot }: BlockProps<never, TextDrawContext>) {
 }
 ```
 
-`useDrawn` takes a function, and the editor calls it each time it needs an answer, so `shown.current` is there by the time anyone clicks. It answers three things, the same three a plain `draw` hands back beside its `dom`: `caret` (where a click on your picture of the text lands), `focus` ([below](#a-block-you-draw-whole)), and `keep`, for events the editor should leave to your component (a drag that pans a diagram).
+`useDrawn` takes a function, and the editor calls it each time it needs an answer, so `shown.current` is there by the time anyone clicks. It answers what a plain `draw` hands back beside its `dom`: `caret` (where a click on your picture of the text lands), `focus` ([below](#a-block-you-draw-whole)), `keep`, for events the editor should leave to your component (a drag that pans a diagram), `save` ([below](#a-block-with-its-own-editing-surface)) and `controls`, what your block type's own commands are handed.
 
 ## A block that holds blocks
 
@@ -175,23 +175,26 @@ Some blocks don't want the editor's text at all. The bundled diagram block shows
 A note shown as text until a double click opens a textarea, kept in a ` ```note ` fence:
 
 ````tsx
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { fencedBlock, type BoxDrawContext } from '@voithos-labs/aragonite/plugin';
 
 function Note({ block, ctx }: BlockProps<never, BoxDrawContext>) {
 	const [editing, setEditing] = useState(false);
-	const save = (text: string) => {
-		const fence = '```note\n' + text + '\n```\n';
-		void ctx.editor.edit().replace({ from: block.from, to: block.to }, fence).commit();
+	const field = useRef<HTMLTextAreaElement | null>(null);
+	const save = () => {
+		const text = field.current?.value;
+		if (text !== undefined && text !== block.body) void ctx.editor.edit().body(block, text).commit();
 	};
+	useDrawn(() => ({ save }));
 	if (editing) {
 		return (
 			<textarea
+				ref={field}
 				autoFocus
-				defaultValue={block.body.replace(/\n$/, '')}
-				onBlur={(e) => {
+				defaultValue={block.body}
+				onBlur={() => {
+					save();
 					setEditing(false);
-					if (e.currentTarget.value + '\n' !== block.body) save(e.currentTarget.value);
 				}}
 			/>
 		);
@@ -212,7 +215,8 @@ export const note = fencedBlock({
 
 Arrow down onto the note and it's focused whole, double-click and you're typing in the textarea, click away and the text goes back into the fence as one undo step. A few things make it behave:
 
-- **Write with `block.from` and `block.to`.** They're read when you ask, so they're right even after an edit above moved the note, which a value you saved at render time wouldn't be.
+- **Write with `edit().body(block, text)`.** It ends each line as the block's lines end, grows the fence when a line of yours would close it, and keeps a quote's markers. `block` is read when the write lands, so it's right even after an edit above moved the note.
+- **Hand `save` to `useDrawn`.** An undo, a redo, a mode change and the block scrolling out of the window each call it first, so text still in the textarea lands as an undo step instead of vanishing. Commit inside it, before it returns.
 - **DOM focus goes to a hidden editing host**, not to your `<pre>`. The editor puts it in the block's element, next to what you render, since that's where AltGr and IME input arrive. So style focus with `:focus-within`.
 - **Keys in your textarea are the textarea's.** The editor's chords still reach it (Ctrl+Z, say) unless your component's `keep` takes them. To leave by arrow key on the first or last line, call `ctx.leave('start')` or `ctx.leave('end')` and `preventDefault`. Escape hands the note back to the editor focused whole, and from there Enter opens a paragraph below it, which is the only way to get one between two boxes back to back. If you use Escape yourself (to drop the edit, say), call `preventDefault`, or the box takes whole focus too; `ctx.focusWhole()` gets you there from your own code.
 

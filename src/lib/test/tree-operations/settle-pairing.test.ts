@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { typingOver } from '#lib/test/harness/typing.js';
 import { makeReorderHarness } from '#lib/test/editor-actions/reorder-harness.js';

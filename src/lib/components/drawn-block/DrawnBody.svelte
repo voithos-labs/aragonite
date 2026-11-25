@@ -31,17 +31,19 @@
 </script>
 
 <script lang="ts">
-	import { getAllContexts, getContext, mount, unmount, untrack } from 'svelte';
+	import { getAllContexts, getContext, mount, tick, unmount, untrack } from 'svelte';
 	import { on } from 'svelte/events';
 	import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import { makeBlock, DETACHED_READING, type KeyWatch } from '../../schema/doc-view';
 	import { getPluginMetadata } from '../../core/nodes';
+	import { nodeAt } from '../../tree-operations/node-primitives';
 	import { modeOf } from '../../presentation-mode';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
 		CARET_AT,
+		CONTROLS_AT,
 		type BoxDrawContext,
 		type ContainerDrawContext,
 		type Drawn,
@@ -70,6 +72,7 @@
 	import BlockList from '../BlockList.svelte';
 	import { createRenderCache } from './render-cache';
 	import { POINTER_GESTURE_ATTR } from '../../selection/pointer-gesture';
+	import { watchStoppedPresses } from './stopped-press';
 
 	let {
 		drawing,
@@ -324,6 +327,11 @@
 			target = el;
 			const host = el.parentElement as (HTMLElement & { [CARET_AT]?: unknown }) | null;
 			if (host) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
+			// On the block's own element, which each drawing gets anew; read per call, as a
+			// framework component declares its parts once it has rendered.
+			(el as HTMLElement & { [CONTROLS_AT]?: unknown })[CONTROLS_AT] = () => made.controls;
+			const unhold = services?.drafts.holdSave(() => saveOf(made));
+			const mountedOn = { stamp: services?.stamps.current(), generation };
 			seen = watched();
 			if (text) assertInvariant('dom-view-content', () => checkDomViewContent(el, source, painted));
 			const offs = [
@@ -332,19 +340,30 @@
 				on(el, 'focusout', (e) => (focusedWithin = el.contains(e.relatedTarget as Node))),
 				...['pointerdown', 'mousedown'].map((type) =>
 					on(el, type, (e) => keepPress(made, e), { capture: true })
-				)
+				),
+				...(devChecksOn ? watchStoppedPresses(el, () => node.kind) : [])
 			];
+			// Still in the live document, as windowing leaves it, and not redrawn at the drawing's ask.
+			const stays = (at: { path: number[]; node: NodeView }) =>
+				mountedOn.stamp?.live &&
+				generation === mountedOn.generation &&
+				nodeAt(editorDoc.doc(), at.path) === at.node;
 			return () => {
 				offs.forEach((off) => off());
+				unhold?.();
 				drawn = null;
 				target = null;
 				if (list) void unmount(list);
 				made.dom.remove();
-				try {
-					made.destroy?.();
-				} catch (error) {
-					report(error);
-				}
+				// A render reads the document as it was, so the drawing saves once the render is done, if
+				// its block stays; no engine but Chromium fires a removed field's blur.
+				if (!made.save || !mountedOn.stamp?.live) return destroyDrawing(made);
+				// Read now: once the render is done, the props belong to a destroyed component.
+				const at = { path: myPath, node };
+				void tick().then(() => {
+					if (stays(at)) saveOf(made);
+					destroyDrawing(made);
+				});
 			};
 		});
 	}
@@ -360,6 +379,23 @@
 				? caret(viewportPointAt(x, y))
 				: (caretOffsetAtPoint(caret, x, y) ?? 0);
 		return at === null ? null : getContentRange(node).start + at;
+	}
+
+	function destroyDrawing(made: Drawn<unknown>): void {
+		try {
+			made.destroy?.();
+		} catch (error) {
+			report(error);
+		}
+	}
+
+	// A throw is the plugin's, reported, and the undo or mode change still goes on.
+	function saveOf(made: Drawn<unknown>): void {
+		try {
+			made.save?.();
+		} catch (error) {
+			report(error);
+		}
 	}
 
 	// A press the drawing keeps reads as its own gesture to the editor's handlers, which run before

@@ -162,6 +162,7 @@
 	} from '../schema/plugin-install';
 	import { createEditorActivation } from '../schema/plugin-activation';
 	import { createEditorContributions, type PlacingBlocks } from '../schema/editor-contributions';
+	import { drawnControlsOf } from '../schema/drawing';
 	import type { Command } from '../schema/plugin-command';
 	import type { CaretMenu } from '../schema/caret-menu';
 	import {
@@ -286,6 +287,10 @@
 		report: reportPluginError,
 		blocksAround: (kinds) => placingBlocks(kinds),
 		blockOf: (node, path) => documentRead.blockOf(node, path),
+		controlsOf: (block) => {
+			const path = documentRead.pathOf(block);
+			return path ? drawnControlsOf(getBlockBoxByPath([...path])) : undefined;
+		},
 		pastedReader: (clip) => {
 			const of = measured(clip);
 			return createDocumentRead({
@@ -1795,15 +1800,15 @@
 	}
 
 	// A command value runs by the id this editor gave it; one this editor doesn't run, nowhere.
-	const commandIdOf = (command: Command<unknown> | string) =>
+	const commandIdOf = (command: Command<unknown, never> | string) =>
 		typeof command === 'string' ? command : contributions.command(command)?.id;
 
-	export function run(command: Command<unknown> | string, arg?: unknown): boolean {
+	export function run(command: Command<unknown, never> | string, arg?: unknown): boolean {
 		const id = commandIdOf(command);
 		return id !== undefined && runCommand(id, arg);
 	}
 
-	export function can(command: Command<unknown> | string, arg?: unknown): boolean {
+	export function can(command: Command<unknown, never> | string, arg?: unknown): boolean {
 		const id = commandIdOf(command);
 		return (
 			id !== undefined &&

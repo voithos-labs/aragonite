@@ -69,6 +69,7 @@ export function listGrammar(
 		// With no editor there's no caret to find a block at.
 		blocksAround: () => ({ blocks: [] }),
 		blockOf: options.blockOf ?? noEditor,
+		controlsOf: () => undefined,
 		pastedReader: options.pastedReader ?? (() => ({ doc: noEditor, blockOf: noEditor }))
 	});
 	const units = contributions.read(installPluginList(plugins, report));

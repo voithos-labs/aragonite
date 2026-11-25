@@ -38,7 +38,7 @@ test.describe('mermaid empty diagram', () => {
 		await page.keyboard.press('Enter');
 		await page.keyboard.type('```mermaid');
 
-		expect(await editor.bridge.getBlockKind(1)).toBe('mermaid');
+		expect(await editor.bridge.getBlockKind(1)).toBe('mermaid/diagram');
 		await expect(editor.textarea).toBeFocused();
 		await expect(editor.error).toHaveCount(0);
 
@@ -78,6 +78,42 @@ test.describe('mermaid empty diagram', () => {
 		await expect(editor.textarea).toHaveCount(1);
 		await expect(editor.error).toHaveCount(0);
 		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('an undo of the box’s write reopens it with the caret at the offset it was written from', async ({
+		page
+	}) => {
+		await editor.loadContent('Above\n\n```mermaid\n      \n```\n\ntail\n');
+		await editor.textarea.click();
+		await page.keyboard.press(edgeKey('blockStart'));
+		for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('x');
+		await page.keyboard.press('ControlOrMeta+Enter');
+		await editor.bridge.waitForSourceContains('```mermaid\n  x    \n```');
+		await expect(editor.textarea).toHaveCount(0);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('```mermaid\n      \n```');
+		await expect(editor.textarea).toBeFocused();
+		await expect(editor.textarea).toHaveValue('      ');
+		await expect
+			.poll(() => editor.textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart))
+			.toBe(3);
+	});
+
+	test('a redo pressed in the box an undo reopened writes the text back', async ({ page }) => {
+		await editor.loadContent(EMPTY_FENCE);
+		await editor.textarea.click();
+		await page.keyboard.type('graph TD');
+		await editor.getBlock(2).click();
+		await editor.bridge.waitForSourceContains('```mermaid\ngraph TD\n```');
+
+		await editor.undo();
+		await expect(editor.textarea).toBeFocused();
+		await editor.bridge.waitForSourceEquals(EMPTY_FENCE);
+		await page.keyboard.press('ControlOrMeta+Shift+z');
+
+		await editor.bridge.waitForSourceContains('```mermaid\ngraph TD\n```');
 	});
 
 	test('reading mode shows a dimmed placeholder instead of the edit surface or an error', async () => {
