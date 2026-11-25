@@ -5,7 +5,13 @@
 // through a raw rewrite of its own, so nothing held what a value listed alone reads, or the cycle
 // through `edit().data`.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPluginMetadata, type Block, type CstNode } from '#lib/plugin.js';
+import {
+	getPluginMetadata,
+	type Block,
+	type CstNode,
+	type PluginBlockKind,
+	type PluginCommandId
+} from '#lib/plugin.js';
 import { admonitions } from '#packages/admonitions/src/index.js';
 import { ADMONITION } from '#lib/test/support/admonitions-grammar.js';
 import {
@@ -72,6 +78,27 @@ describe('the cycle', () => {
 		await pressKey(surfaceAt(m, [0, 1]), UNDO);
 		await m.settle();
 		expect(m.source()).toBe('::::tip Pro tip {.a}\nA titled tip.\n::::\n');
+	});
+
+	it('a host’s key for the previous kind cycles back, the first name wrapping to the last', async () => {
+		const m = mountEditor<Seam>({
+			source: ':::note T\nx\n:::\n',
+			plugins: [admonitions],
+			keybindings: [
+				{
+					kind: ADMONITION as PluginBlockKind,
+					chord: 'Mod+Alt+7',
+					command: 'admonitions/previous-kind' as PluginCommandId
+				}
+			]
+		});
+		await m.settle();
+		await pressKeyAt(m, [0, 1], 0, { key: '7', ctrlKey: true, altKey: true });
+		await m.settle();
+		expect(m.source()).toBe(':::caution T\nx\n:::\n');
+		expect(m.instance.run('admonitions/previous-kind', m.instance.doc.blocks[0])).toBe(true);
+		await m.settle();
+		expect(m.source()).toBe(':::warning T\nx\n:::\n');
 	});
 
 	it('Mod+7 on the title row cycles too, and the last name wraps to the first', async () => {

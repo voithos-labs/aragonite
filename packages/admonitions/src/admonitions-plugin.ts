@@ -30,19 +30,24 @@ export interface AdmonitionsOptions {
 	convertAlertsOnPaste?: boolean;
 }
 
-// The box's next name, the last wrapping round to the first, as one undo step.
-const nextKind = command<Block<AdmonitionData>>({
-	id: 'next-kind',
-	title: 'Next kind',
-	run(editor, block) {
-		const at = ADMONITION_KINDS.indexOf(coerceAdmonitionName(block.data.name));
-		const name = ADMONITION_KINDS[(at + 1) % ADMONITION_KINDS.length];
-		void editor
-			.edit()
-			.data(block, { ...block.data, name })
-			.commit();
-	}
-});
+const cycle = (id: string, title: string, step: number) =>
+	command<Block<AdmonitionData>>({
+		id,
+		title,
+		run(editor, block) {
+			const count = ADMONITION_KINDS.length;
+			const at = ADMONITION_KINDS.indexOf(coerceAdmonitionName(block.data.name));
+			const name = ADMONITION_KINDS[(at + step + count) % count];
+			void editor
+				.edit()
+				.data(block, { ...block.data, name })
+				.commit();
+		}
+	});
+
+// Each step is one undo step, the last name wrapping round to the first.
+const nextKind = cycle('next-kind', 'Next kind', 1);
+const previousKind = cycle('previous-kind', 'Previous kind', -1);
 
 const admonition = container<AdmonitionData>({
 	name: 'admonition',
@@ -50,6 +55,8 @@ const admonition = container<AdmonitionData>({
 	role: 'prose',
 	lines: colonLines({ names: ADMONITION_KINDS }),
 	chords: { 'Mod+7': nextKind },
+	// No key of its own, as on 0.11.5: a host binds `admonitions/previous-kind` or runs it.
+	commands: [previousKind],
 	sample: ':::note Heads up\n\nbody\n\n:::\n',
 	insert: {
 		label: 'Note',
