@@ -6,7 +6,7 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { copiedText } from '#lib/test/harness/copied-text.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { deleteRange } from '../harness/range-delete';

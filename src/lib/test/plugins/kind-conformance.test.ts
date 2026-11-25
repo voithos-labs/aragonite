@@ -17,7 +17,7 @@ import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-def
 import { FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
-import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind, MERMAID } from '#lib/test/harness/registered-diagram.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockView } from '#lib/schema/block-view.js';
 import type { UnfinishedReading } from '#lib/schema/block-openers.js';

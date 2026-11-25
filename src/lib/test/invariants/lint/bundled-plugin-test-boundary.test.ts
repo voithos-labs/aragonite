@@ -250,6 +250,10 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'a completion is made but nothing published runs one, the Enter handler that consults it ' +
 			'has no headless entry, and an editor running the plugin reads through a grammar the published `grammar()` keeps to itself'
 	},
+	'src/lib/test/plugins/mermaid/draft-cost.svelte.test.ts': {
+		specifiers: ['#lib/editor-actions/commit/change-record.js'],
+		reason: 'nothing published counts the records a write makes for the drafts held open'
+	},
 	'src/lib/test/plugins/mermaid/fence-escalation.test.ts': {
 		specifiers: ['#lib/testing/parse-convergence.js'],
 		reason: 'parse convergence lives in src/lib/testing without reaching the testing barrel'

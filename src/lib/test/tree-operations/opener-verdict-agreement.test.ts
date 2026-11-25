@@ -4,7 +4,7 @@ import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.j
 import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor,

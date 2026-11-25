@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { installReorderDrag } from '#lib/editor-actions/reorder-drag.js';
 import { parse } from '#lib/core/parser.js';

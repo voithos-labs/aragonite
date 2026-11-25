@@ -7,7 +7,7 @@ import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
 import { testView } from '#lib/test/harness/test-view.js';

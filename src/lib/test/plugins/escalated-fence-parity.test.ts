@@ -19,7 +19,7 @@ import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { scanCompiled } from '#lib/test/harness/search-replace.js';
 import { testView } from '#lib/test/harness/test-view.js';

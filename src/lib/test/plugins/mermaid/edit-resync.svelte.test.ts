@@ -87,6 +87,38 @@ describe('an external code change under an open mermaid edit box', () => {
 		expect(mounted!.instance.getSource()).not.toContain('A --> C');
 	});
 
+	// Miss-analysis: every row changed the diagram's code, so a write to the fence alone, which 0.11.5
+	// also re-seeded on, had no row.
+	it('discards a pre-change draft when a write changes only its fence', async () => {
+		const root = mountMermaid();
+		openEdit(root);
+		typeDraft('graph TD\n\tA --> C');
+		const opener = mounted!.instance.getSource().indexOf('```mermaid');
+		const closer = opener + '```mermaid\n'.length + CODE.length;
+		const fence = mounted!.instance
+			.edit()
+			.replace({ from: opener, to: opener + 3 }, '~~~')
+			.replace({ from: closer, to: closer + 3 }, '~~~');
+		expect(await fence.commit()).toEqual({ ok: true });
+		flushSync();
+
+		blurEditBox();
+		await mounted!.settle();
+
+		expect(mounted!.instance.getSource()).toBe(SOURCE.replaceAll('```', '~~~'));
+	});
+
+	it('writes nothing once another document replaces the one it opened on', async () => {
+		const root = mountMermaid();
+		openEdit(root);
+		typeDraft('graph TD\n\tA --> C');
+		mounted!.props.source = 'Other doc\n';
+		await mounted!.settle();
+
+		expect(mounted!.instance.getSource()).toBe('Other doc\n');
+		expect(mounted!.instance.canRunCommand('history.undo')).toBe(false);
+	});
+
 	// Non-vacuity: the re-seed must fire on an external change only, never on ordinary typing.
 	it('still commits a draft that nothing changed underneath', () => {
 		const root = mountMermaid();

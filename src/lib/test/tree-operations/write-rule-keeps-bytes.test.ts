@@ -12,7 +12,7 @@ import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-w
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { registerMathBlock } from '#lib/test/harness/registered-math.js';
-import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
