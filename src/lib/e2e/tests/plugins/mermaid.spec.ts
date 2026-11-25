@@ -227,23 +227,30 @@ test.describe('mermaid reference plugin', () => {
 		await expect(editor.firstInputHost).toBeFocused();
 	});
 
-	test('a host putting back the selection it read returns the box caret to its offset', async ({
-		page
-	}) => {
-		await editor.clickToolbar('mermaid-edit');
-		await expect(editor.textarea).toBeFocused();
-		await page.keyboard.press(edgeKey('blockStart'));
-		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
-		const read = await page.evaluate(() => (window as any).__test.getSelection());
-		expect(read.focus).toEqual({ path: [1], offset: 5 });
+	// The box's start, a middle offset and its end; the start is the one the editor hands back as an
+	// edge rather than an offset.
+	for (const [name, at, moves] of [
+		['start', 0, ['ArrowRight', 'ArrowRight']],
+		['a middle offset', 5, ['ArrowRight', 'ArrowRight']],
+		['end', FIRST_CODE.length, ['ArrowLeft', 'ArrowLeft']]
+	] as const) {
+		test(`a host putting back the selection it read returns the box caret to its ${name}`, async ({
+			page
+		}) => {
+			await editor.clickToolbar('mermaid-edit');
+			await expect(editor.textarea).toBeFocused();
+			await page.keyboard.press(edgeKey('blockStart'));
+			for (let i = 0; i < at; i++) await page.keyboard.press('ArrowRight');
+			const read = await page.evaluate(() => (window as any).__test.getSelection());
+			expect(read.focus).toEqual({ path: [1], offset: at });
 
-		await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('ArrowRight');
-		await page.evaluate((read) => (window as any).__test.setSelection(read), read);
+			for (const key of moves) await page.keyboard.press(key);
+			await page.evaluate((read) => (window as any).__test.setSelection(read), read);
 
-		await expect(editor.textarea).toBeFocused();
-		await expect
-			.poll(() => editor.textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart))
-			.toBe(5);
-	});
+			await expect(editor.textarea).toBeFocused();
+			await expect
+				.poll(() => editor.textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart))
+				.toBe(at);
+		});
+	}
 });
