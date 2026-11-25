@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A container on fenced lines, read and written by the editors that run its plugin: the opening and
-// closing lines pair by depth past a code fence, an opener reads only as it's written, a body line
+// closing lines pair by depth past a code fence, each reads only as it's written, a body line
 // that would open or close it is escaped, and the editor writes every line from the data and title.
 // Miss-analysis: the one fenced container was a package's own opener and escape, so no row read a
 // fenced shape the editor reads for itself.
@@ -66,14 +66,14 @@ describe('a fenced container read', () => {
 			]
 		],
 		[
-			'an indented closer, which closes it',
+			'an indented closer, which is body text',
 			'[fold]\ntitle: T\n\nbody\n [/fold]\nmore\n[/fold]\n',
-			[{ row: 'T\n', data: { open: false }, body: ['paragraph'] }, 'paragraph']
+			[{ row: 'T\n', data: { open: false }, body: ['paragraph'] }]
 		],
 		[
-			'an opener in another spelling, which counts toward the depth',
+			'an opener in another spelling, which is body text',
 			'[fold]\ntitle: T\n\n[FOLD]\nx\n[/fold]\n[/fold]\n',
-			[{ row: 'T\n', data: { open: false }, body: ['paragraph'] }]
+			[{ row: 'T\n', data: { open: false }, body: ['paragraph'] }, 'paragraph']
 		],
 		[
 			'an opener in another spelling, which opens nothing',

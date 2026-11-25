@@ -7,8 +7,8 @@ import { firstLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '
 import { READS_LINES, WRITES_LINES, type FencedLines } from '../core/strip-lines';
 import { fencedReading, type FencedSpec } from './fence-shape';
 
-/** A container opened by a line read into data (`<details open>`), titled by the line under it
- *  where `title` names one, and closed by a line of its own; the editor writes every line. */
+/** A container's own lines around its body: only the lines `write` and `close.write` spell open
+ *  and close it, and `escape` takes an unpaired body line `open` or `close.match` reads. */
 export function fencedLines<D extends object>(spec: FencedSpec<D>): FencedLines<D> {
 	return {
 		shape: 'fenced',

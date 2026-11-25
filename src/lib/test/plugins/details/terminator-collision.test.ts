@@ -225,6 +225,18 @@ describe('details terminator escape caret image', () => {
 		}
 	});
 
+	// The editor pairs only the written tags and a browser every spelling, so a body write escapes
+	// what the two would pair differently and keeps a pair both read alike.
+	it.each([
+		['a pair only a browser reads', '<details class="x">\nin\n</DETAILS>\n', null],
+		['a written opener closed in another spelling', '<details>\n</DETAILS>\n', 'both'],
+		['another spelling closed by the written closer', '<details class="x">\n</details>\n', 'both']
+	])('normalize, %s', (_name, raw, escaped) => {
+		const normalize = getBlockKindDescriptor(declaredPluginKind(DETAILS)).bodyWrite!.normalize;
+		const both = raw.replaceAll('\n<', '\n&lt;').replace(/^</, '&lt;');
+		expect(normalize(raw, bodyCtx())).toBe(escaped ? both : raw);
+	});
+
 	// `</details` with no `>` is already a type-6 line that swallows what follows in a browser;
 	// escaping from that keystroke on also keeps the kind from passing through htmlBlock.
 	it('escapes from the first keystroke the spec would pass through, never oscillating', async () => {

@@ -1,7 +1,7 @@
 /**
  * A container type on fenced lines no built-in writes: `[fold]` or `[fold open]`, a `title:` line,
- * the body, `[/fold]`. Its opening and closing lines read wide (any case, an indent, a trailing
- * attribute) and write one spelling, and it closes as `<details>` does.
+ * the body, `[/fold]`. One spelling opens and closes it, and its matchers read wider (any case, an
+ * indent, a trailing attribute) for the body lines a write escapes, as `<details>` does.
  */
 import { container, definePlugin, fencedLines } from '#lib/plugin.js';
 

@@ -1,8 +1,9 @@
 /**
  * `<details>` sections: a `<details>` or `<details open>` line, a `<summary>` line under it, a
  * Markdown body and `</details>`, drawn as a section whose body folds away under its summary.
- * Only that spelling opens one; a tag line a browser would also read (`</DETAILS>`, `<details >`)
- * still pairs inside a body, and the editor escapes one typed there that pairs with nothing.
+ * Only those spellings open and close one. A tag line a browser also reads (`</DETAILS>`,
+ * `<details >`) is body text here, and the editor escapes one written into a body that a browser
+ * would pair otherwise.
  */
 
 import { builtin, container, definePlugin, fencedLines } from '@voithos-labs/aragonite/plugin';
@@ -14,8 +15,8 @@ export interface DetailsData {
 	open: boolean;
 }
 
-// A tag line as CommonMark's HTML blocks read one: any case, up to three spaces in, then anything
-// after the name. GFM's whitespace, not JavaScript's `\s`.
+// A tag line as a browser reads one (any case, up to three spaces in, anything after the name, GFM's
+// whitespace and not JavaScript's `\s`), which a body write escapes where it pairs otherwise.
 const TAG_END = '(?=[ \\t\\v\\f\\r/>]|$)';
 
 /** Collapsible `<details>` sections: list `details` in an editor's plugins. */

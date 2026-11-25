@@ -586,8 +586,8 @@ export interface FencedReading<D extends object> {
 	opener(kind: PluginBlockKind, priority: number, interrupts: boolean): BlockOpener;
 	/** Lines a completion wrote: the opening line first, the line closing it last. */
 	claims(lines: readonly string[]): boolean;
-	/** A write into the body, with each line that would open or close a section and pairs with none
-	 *  in it passed through `escape`. */
+	/** A write into the body, with each line that pairs with nothing, as `write` spells a section or
+	 *  as `open` and `close.match` read one, passed through `escape`. */
 	readonly bodyWrite: WriteRule;
 	/** The closing line written for `data`. */
 	closer(data: D): string;
@@ -604,14 +604,24 @@ export function fencedReading<D extends object>(spec: FencedSpec<D>): FencedRead
 	const titleOf = spec.title ? titleReader(spec.title.match) : null;
 	const escape = spec.escape ?? ((line: string) => line);
 
-	// Any spelling `open` reads counts toward the depth; only `write`'s opens a section.
 	const opening = (text: string): D | null => {
 		const match = openAt(text);
 		const data = match && spec.data(match);
 		return data && spec.write(data) === text ? data : null;
 	};
-	const roleOf = (text: string): ShapeLine =>
-		openAt(text) ? 'open' : closeAt(text) ? 'close' : null;
+	// Only `write`'s spellings open and close a section; a body write also pairs every line
+	// `open` and `close.match` read, as a browser does, and escapes what pairs with nothing.
+	const written: Pairing = {
+		opens: (text) => {
+			const data = opening(text);
+			return data && spec.close.write(data);
+		},
+		closes: (text, closer) => text === closer
+	};
+	const matched: Pairing = {
+		opens: (text) => (openAt(text) ? '' : null),
+		closes: (text) => closeAt(text) !== null
+	};
 
 	/** How lines read from `from`: the data, the title, where the body starts and the line closing it
 	 *  (-1 while none does, or while the title line is still to come). */
@@ -621,19 +631,23 @@ export function fencedReading<D extends object>(spec: FencedSpec<D>): FencedRead
 		const closer = spec.close.write(data);
 		const read = (title: string, body: number, closing: number) =>
 			({ data, title, body, closing, closer }) as const;
-		if (!titleOf) return read('', from + 1, pairedClosing(lines, from + 1, end, roleOf));
+		const closingFrom = (body: number) => pairedClosing(lines, body, end, closer, written);
+		if (!titleOf) return read('', from + 1, closingFrom(from + 1));
 		const row = lines[from + 1];
 		// The title line is still to come while the opening line stands alone.
 		if (row === undefined || (row.text === '' && from + 2 === end)) return read('', from + 1, -1);
 		const title = titleOf(row.text);
 		if (title === null) return null;
-		return read(title.text, from + 2, pairedClosing(lines, from + 2, end, roleOf));
+		return read(title.text, from + 2, closingFrom(from + 2));
 	};
 	const readRaw = (raw: string) => readLines(displayLines(raw));
 
-	const strayLines = (raw: string, caret: number) => {
+	// A body line stands under the section `ctx` writes into, so its closer closes that section.
+	const strays = (lines: readonly { text: string }[], ctx: WriteContext) =>
+		strayLines(lines, spec.close.write((ctx.node.metadata ?? {}) as D), [written, matched]);
+	const escapeStrays = (raw: string, caret: number, ctx: WriteContext) => {
 		const lines = splitLines(raw);
-		const stray = unpairedLines(lines, roleOf);
+		const stray = strays(lines, ctx);
 		return escapeLines(lines, (index) => stray.has(index), escape, caret);
 	};
 
@@ -671,19 +685,25 @@ export function fencedReading<D extends object>(spec: FencedSpec<D>): FencedRead
 		},
 		bodyWrite: {
 			normalize(raw, ctx) {
-				const written = strayLines(raw, 0);
-				if (devChecksOn && written.escaped) warnIfStillStray(written.text, roleOf, ctx);
-				return written.text;
+				const out = escapeStrays(raw, 0, ctx);
+				if (devChecksOn && out.escaped && strays(splitLines(out.text), ctx).size > 0) {
+					warnEscapeLeft(ctx, 'that opens or closes it');
+				}
+				return out.text;
 			},
-			mapOffset: (raw, offset) => strayLines(raw, offset).caret
+			mapOffset: (raw, offset, ctx) => escapeStrays(raw, offset, ctx).caret
 		},
 		closer: (data) => spec.close.write(data),
 		titleColumn: (line) => titleOf?.(line)?.start ?? null
 	};
 }
 
-/** What a body line is to a fenced shape: one that opens a section, one that closes one, or text. */
-type ShapeLine = 'open' | 'close' | null;
+/** How body lines pair: a line opens a section, which then waits on the closer `opens` returns, or
+ *  closes the innermost open one, which waits on `closer`. */
+interface Pairing {
+	opens(text: string): string | null;
+	closes(text: string, closer: string): boolean;
+}
 
 /** The title a line holds and where it starts, read whole by `match`, its `text` group the title;
  *  null for a line that isn't the title line. */
@@ -706,14 +726,13 @@ function titleReader(match: RegExp): (line: string) => { text: string; start: nu
 const titleRow = (container: PluginBlockKind, title: string): CstNode =>
 	makeBlockNode({ kind: titleRowKind(container), leadingTrivia: '', raw: `${title}\n` });
 
-/** Each line of `[from, end)` with its role, in order, until `visit` returns true; a code fence's
- *  lines are skipped whole, since a closing line inside one is code. */
+/** Each line of `[from, end)` in order, until `visit` returns true; a code fence's lines are
+ *  skipped whole, since a closing line inside one is code. */
 function visitShapeLines(
 	lines: readonly { text: string }[],
 	from: number,
 	end: number,
-	roleOf: (text: string) => ShapeLine,
-	visit: (index: number, role: ShapeLine) => boolean | void
+	visit: (index: number, text: string) => boolean | void
 ): void {
 	for (let i = from; i < end; i++) {
 		const fence = matchFenceOpen(lines[i].text);
@@ -722,49 +741,61 @@ function visitShapeLines(
 			i = closer === -1 ? end : closer;
 			continue;
 		}
-		if (visit(i, roleOf(lines[i].text))) return;
+		if (visit(i, lines[i].text)) return;
 	}
 }
 
-/** The line closing a section whose body starts at `from`, or -1; depth-counted, so a nested
- *  section's closing line doesn't end the outer one. */
+/** The line closing a section whose body starts at `from` and which waits on `closer`, or -1; a
+ *  nested section's closing line doesn't end the outer one. */
 function pairedClosing(
 	lines: readonly { text: string }[],
 	from: number,
 	end: number,
-	roleOf: (text: string) => ShapeLine
+	closer: string,
+	pairing: Pairing
 ): number {
-	let depth = 1;
+	const waiting = [closer];
 	let closing = -1;
-	visitShapeLines(lines, from, end, roleOf, (i, role) => {
-		if (role === 'open') depth++;
-		else if (role === 'close' && --depth === 0) closing = i;
+	visitShapeLines(lines, from, end, (i, text) => {
+		const opens = pairing.opens(text);
+		if (opens !== null) waiting.push(opens);
+		else if (pairing.closes(text, waiting.at(-1)!)) waiting.pop();
+		if (waiting.length === 0) closing = i;
 		return closing !== -1;
 	});
 	return closing;
 }
 
-/** The lines that open or close a section and pair with none: a closing line with no opening one
- *  above it, and each opening line nothing closes. */
-function unpairedLines(
+/** The lines under a section waiting on `closer` that pair with nothing by any of `pairings`, each
+ *  read again without those found, until every pairing agrees on what is left. */
+function strayLines(
 	lines: readonly { text: string }[],
-	roleOf: (text: string) => ShapeLine
+	closer: string,
+	pairings: readonly Pairing[]
 ): Set<number> {
-	const open: number[] = [];
 	const stray = new Set<number>();
-	visitShapeLines(lines, 0, lines.length, roleOf, (i, role) => {
-		if (role === 'open') open.push(i);
-		else if (role === 'close' && open.pop() === undefined) stray.add(i);
-	});
-	for (const i of open) stray.add(i);
-	return stray;
+	for (;;) {
+		const found = pairings.flatMap((pairing) => unpairedLines(lines, closer, pairing, stray));
+		if (found.length === 0) return stray;
+		for (const i of found) stray.add(i);
+	}
 }
 
-function warnIfStillStray(
-	text: string,
-	roleOf: (text: string) => ShapeLine,
-	ctx: WriteContext
-): void {
-	if (unpairedLines(splitLines(text), roleOf).size > 0)
-		warnEscapeLeft(ctx, 'that opens or closes it');
+/** The lines `pairing` leaves unpaired, `skip` read as text: a line closing the outer section, and
+ *  each opening line nothing closes. */
+function unpairedLines(
+	lines: readonly { text: string }[],
+	closer: string,
+	pairing: Pairing,
+	skip: ReadonlySet<number>
+): number[] {
+	const open: [number, string][] = [];
+	const stray: number[] = [];
+	visitShapeLines(lines, 0, lines.length, (i, text) => {
+		if (skip.has(i)) return;
+		const opens = pairing.opens(text);
+		if (opens !== null) open.push([i, opens]);
+		else if (pairing.closes(text, open.at(-1)?.[1] ?? closer) && !open.pop()) stray.push(i);
+	});
+	return [...stray, ...open.map(([i]) => i)];
 }
