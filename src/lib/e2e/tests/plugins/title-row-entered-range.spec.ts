@@ -171,6 +171,24 @@ test.describe('The shapes a range clears a title on', () => {
 			});
 });
 
+test.describe('A range from the body up into the title', () => {
+	const UP = ':::tip Title\nbody\n:::\n\nend\n';
+	for (const mode of MODES)
+		test(`(${mode}) a cut pasted elsewhere carries only the title part it took`, async ({
+			page
+		}) => {
+			const editor = await open(page, mode, UP);
+			await editor.dragFromTo([0, 1], 2, [0, 0], 9);
+			await editor.waitForCrossBlock(true);
+			await page.keyboard.press('ControlOrMeta+x');
+			await editor.bridge.waitForSourceEquals(':::tip Ti\ndy\n:::\n\nend\n');
+			await editor.focusBlockAtPath([1], 3);
+			await page.keyboard.press('Enter');
+			await editor.paste();
+			await editor.bridge.waitForSourceEquals(':::tip Ti\ndy\n:::\n\nend\n\n:::tip tle\nbo\n:::\n');
+		});
+});
+
 test.describe('What stays as it was', () => {
 	for (const mode of MODES) {
 		test(`(${mode}) an untitled row keeps its name`, async ({ page }) => {

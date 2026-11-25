@@ -25,8 +25,8 @@ import { openingOf } from './markers';
 
 export function copyOf(doc: Doc, from: number, to: number): string {
 	const live = doc.mode === 'live';
-	// A title row copies its own text, or, when the range leaves it, the container it titles
-	// entered from there.
+	// A title row copies its own text, or, when the range leaves it, the container it titles holding
+	// the part of the title the range covers.
 	const startRow = titleAt(doc, from);
 	const endRow = titleAt(doc, to);
 	if (startRow && startRow === endRow) {
@@ -44,7 +44,7 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 	for (const container of containersAt(doc, from, 'start')) {
 		if (container.path.length <= depth) continue;
 		if (startRow && parentOf(doc, startRow) === container)
-			opening += doc.source.slice(container.from, from);
+			opening += doc.source.slice(container.from, Math.min(from, startRow.text!.from));
 		else if (factsOf(doc, container).lines === 'rows')
 			opening += tableHead(doc, shared, container, from);
 		else if (container.from < from) opening += openingOf(doc, container, from);

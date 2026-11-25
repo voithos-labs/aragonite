@@ -24,6 +24,7 @@ Miss-analysis: the rows that ran a range past a title row pinned the title kept,
 
 - A cut, then Ctrl+V where it left the caret: the document back, byte for byte
 - A cut, then a paste on a new line under the box: a second box holding the title, the first box keeping only its marker, so the title is moved, never doubled
+- A range from the body up into the middle of the title (a backward drag), cut, then pasted on a new line under the box: the pasted box holds only the part of the title the cut took
 - Undo gives the title back; redo clears it again
 
 ## Controls

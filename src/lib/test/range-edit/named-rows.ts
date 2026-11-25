@@ -1146,16 +1146,16 @@ export const NAMED_ROWS: NamedRow[] = [
 	},
 	// Miss-analysis: law 10 leaves a range into or out of a title row to these rows, and none held one.
 	{
-		name: 'C13 a copy from a title row out carries its container from the opening line',
+		name: 'C13 a copy from a title row out carries its container with the title part it covers',
 		source: ':::note Ti⟦tle\n\nbody\n:::\n\nbe⟧low\n',
 		gesture: 'copy',
-		expect: { clipboard: ':::note Title\n\nbody\n:::\n\nbe' }
+		expect: { clipboard: ':::note tle\n\nbody\n:::\n\nbe' }
 	},
 	{
 		name: 'C13 a copy from an inner title row out past its outer container opens both',
 		source: '::::note Outer\n\nO1\n\n:::note In⟦ner\n\nI1\n:::\n\nO2\n::::\n\nbe⟧low\n',
 		gesture: 'copy',
-		expect: { clipboard: '::::note Outer\n:::note Inner\n\nI1\n:::\n\nO2\n::::\n\nbe' }
+		expect: { clipboard: '::::note Outer\n:::note ner\n\nI1\n:::\n\nO2\n::::\n\nbe' }
 	},
 	{
 		name: 'C13 a copy ending inside a summary closes the summary, then its section',
@@ -1170,7 +1170,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: ':::note Ti⟦tle\na⟧\n:::\n',
 		mode: 'live',
 		gesture: 'cut',
-		expect: { source: ':::note Ti\n\n:::\n', clipboard: ':::note Title\na\n:::' }
+		expect: { source: ':::note Ti\n\n:::\n', clipboard: ':::note tle\na\n:::' }
 	},
 	{
 		name: 'L10 a live copy leaving a code block’s text carries the text the range holds',
@@ -1224,7 +1224,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'cut',
 		expect: {
 			source: '<details open>\n<summary>O</summary>\n</details>\nAA\n',
-			clipboard: '<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAA'
+			clipboard: '<details open>\n<summary>OOO</summary>\n\nPPPP\n\n</details>\n\nAA'
 		},
 		then: {
 			gesture: 'paste back with own',
@@ -1246,7 +1246,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L12 a cut from a callout title row out pastes back exact with its entry',
 		source: ':::note Ti⟦tle\nbody\n:::\n\nAA⟧AA\n',
 		gesture: 'cut',
-		expect: { source: ':::note Ti\n:::\nAA\n', clipboard: ':::note Title\nbody\n:::\n\nAA' },
+		expect: { source: ':::note Ti\n:::\nAA\n', clipboard: ':::note tle\nbody\n:::\n\nAA' },
 		then: {
 			gesture: 'paste back with own',
 			expect: backToStart(':::note Title\nbody\n:::\n\nAAAA\n')
