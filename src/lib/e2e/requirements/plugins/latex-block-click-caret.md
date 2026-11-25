@@ -8,18 +8,20 @@ and the rendered form is glyphs whose position along the equation names a place 
 ## Happy paths
 
 - A click at the left of the rendered equation puts the caret at the start of the body, so a
-  typed character lands before the formula's first byte, inside the fence.
+  typed character lands before the formula's first byte, inside the fence. That holds where the
+  leftmost glyph comes first in KaTeX's glyph text, as in `x^2` (the exceptions are below).
 - A click at the right of the rendered equation puts it at the end of the body, so a typed
   character lands after the formula's last byte, inside the fence.
 
 ## Edge cases
 
-- A click in the card beside the equation itself clamps into the glyph box and takes the nearest
-  glyph, so left of the equation is the start of the body rather than the far side of the
+- A click in the card beside the equation moves onto the box its glyphs paint in and takes the
+  nearest glyph, so left of `x^2` is the start of the body rather than the far side of the
   closing fence.
-- The same holds for a centred fraction or sum with limits, whose first glyph in the markup isn't
-  its first byte: a click left of `\frac{a}{b}+c` or `\sum_{i=0}^{n} i^2` types at the body's
-  start, and a click right of either at its end.
+- The offset is how far along KaTeX's glyph text that glyph sits, and a fraction or a sum with
+  limits writes its glyphs out of the formula's order. So a click left of `\frac{a}{b}+c` or
+  `\sum_{i=0}^{n} i^2` can land mid-formula (inside `\frac`, after the lower limit's `i`). No row
+  pins where.
 - A click in a card whose source is already open is a click in a contenteditable and behaves the
   way the browser handles it; this handler answers only for the rendered form.
 - Keyboard entry is unchanged: arriving from the block above still lands at the leading edge of
@@ -30,5 +32,3 @@ and the rendered form is glyphs whose position along the equation names a place 
 - A display equation's box spans the whole card, so the right-edge click landed far past the ink,
   where Linux Firefox answers from KaTeX's empty spacing spans and put the caret before the `2`.
   The suite ran on Windows alone, whose Firefox answers with the nearest letter there.
-- The click beside the ink was asked of `x^2` alone, whose first glyph is its first byte, so a
-  clamp that moved the click onto a fraction's numerator, mid-formula, passed every row.

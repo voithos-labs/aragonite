@@ -7,25 +7,26 @@ import { edgeKey } from '../../platform-keys';
  * A fenced block's fence lines (requirements/plugins/fence-lines.md): the built-in code block and a
  * plugin's `%%%` block take clicks and arrows on the same lines, in source and live mode. Seed
  * `fence-lines`: `before`, a code block, `between`, the `%%%` block, `after`. Each landing is
- * `[path]@offset`; a click is named by its row (a quarter of the text's height) and side.
+ * `[path]@offset`; a click is named by the painted line it aims at, counted from 1, and its side.
  */
 
 const BLOCKS = { 'code block': 1, '%%% block': 3 } as const;
 
-// Live mode hides the fence lines, so a click above the body lands on its first line.
+// Live mode hides the fence lines, so every click lands on the body. The `%%%` text has no padding.
 // prettier-ignore
 const LANDS: Record<'source' | 'live', Record<keyof typeof BLOCKS, string[]>> = {
 	source: {
 		'code block': [
-			'0.125L [1]@0', '0.125R [1]@5', '0.375L [1]@6', '0.375R [1]@16',
-			'0.625L [1]@17', '0.625R [1]@28', '0.875L [1]@29', '0.875R [1]@32',
+			'1L [1]@0', '1R [1]@5', '2L [1]@6', '2R [1]@16',
+			'3L [1]@17', '3R [1]@28', '4L [1]@29', '4R [1]@32',
+			'topL [1]@0', 'topR [1]@5', 'bottomL [1]@29', 'bottomR [1]@32',
 			'down [1]@6', 'down [1]@17', 'down [1]@29', 'down [2]@0',
 			'up [1]@17', 'up [1]@6', 'up [1]@0', 'up [0]@0', 'up [0]@0',
 			'end [0]@6', 'start [0]@0'
 		],
 		'%%% block': [
-			'0.125L [3]@1', '0.125R [3]@3', '0.375L [3]@5', '0.375R [3]@14',
-			'0.625L [3]@16', '0.625R [3]@26', '0.875L [3]@28', '0.875R [3]@30',
+			'1L [3]@0', '1R [3]@3', '2L [3]@4', '2R [3]@14',
+			'3L [3]@15', '3R [3]@26', '4L [3]@27', '4R [3]@30',
 			'down [3]@0', 'down [3]@4', 'down [3]@15', 'down [3]@27',
 			'up [3]@27', 'up [3]@15', 'up [3]@4', 'up [3]@0', 'up [2]@0',
 			'end [2]@7', 'start [2]@0'
@@ -33,15 +34,14 @@ const LANDS: Record<'source' | 'live', Record<keyof typeof BLOCKS, string[]>> = 
 	},
 	live: {
 		'code block': [
-			'0.125L [1]@6', '0.125R [1]@16', '0.375L [1]@6', '0.375R [1]@16',
-			'0.625L [1]@17', '0.625R [1]@28', '0.875L [1]@17', '0.875R [1]@28',
+			'1L [1]@6', '1R [1]@16', '2L [1]@17', '2R [1]@28',
+			'topL [1]@6', 'topR [1]@16', 'bottomL [1]@17', 'bottomR [1]@28',
 			'down [1]@6', 'down [1]@17', 'down [2]@0', 'down [3]@4',
 			'up [1]@17', 'up [1]@6', 'up [0]@0', 'up [0]@0', 'up [0]@0',
 			'end [0]@6', 'start [0]@0'
 		],
 		'%%% block': [
-			'0.125L [3]@5', '0.125R [3]@14', '0.375L [3]@5', '0.375R [3]@14',
-			'0.625L [3]@16', '0.625R [3]@26', '0.875L [3]@16', '0.875R [3]@26',
+			'1L [3]@4', '1R [3]@14', '2L [3]@15', '2R [3]@26',
 			'down [3]@4', 'down [3]@15', 'down [4]@0', 'down [5]@8',
 			'up [3]@15', 'up [3]@4', 'up [2]@0', 'up [1]@17', 'up [1]@6',
 			'end [1]@16', 'start [1]@6'
@@ -57,18 +57,57 @@ async function caret(page: Page): Promise<string | null> {
 	});
 }
 
-/** Clicks across the block's text box, a column each side, a row per quarter of its height. */
+/** The lines the text paints, top first, and the middle of its top and bottom padding (null under
+ *  2px), read off the text's own boxes so no font's line height moves an aim onto a neighbour. */
+async function layout(page: Page, path: number) {
+	return page.evaluate((p) => {
+		const text = document.querySelector<HTMLElement>(
+			`[data-block-path="[${p}]"] [contenteditable="true"]`
+		)!;
+		const range = document.createRange();
+		range.selectNodeContents(text);
+		const lines: { top: number; bottom: number; left: number; right: number }[] = [];
+		for (const box of range.getClientRects()) {
+			if (box.height === 0) continue;
+			const middle = (box.top + box.bottom) / 2;
+			const line = lines.find((l) => middle > l.top && middle < l.bottom);
+			if (line) {
+				line.left = Math.min(line.left, box.left);
+				line.right = Math.max(line.right, box.right);
+			} else lines.push({ top: box.top, bottom: box.bottom, left: box.left, right: box.right });
+		}
+		const frame = text.getBoundingClientRect();
+		const style = getComputedStyle(text);
+		const padTop = parseFloat(style.paddingTop);
+		const padBottom = parseFloat(style.paddingBottom);
+		const borderBottom = parseFloat(style.borderBottomWidth);
+		return {
+			lines: lines
+				.sort((a, b) => a.top - b.top)
+				.map((l) => ({ y: (l.top + l.bottom) / 2, left: l.left, right: l.right })),
+			top: padTop < 2 ? null : frame.top + text.clientTop + padTop / 2,
+			bottom: padBottom < 2 ? null : frame.bottom - borderBottom - padBottom / 2
+		};
+	}, path);
+}
+
+/** A click on each painted line, a pixel inside its first glyph and its last; then in the padding
+ *  above the first line and below the last, level with those glyphs. */
 async function clicks(page: Page, path: number): Promise<string[]> {
-	const text = page.locator(`[data-block-path="[${path}]"] [contenteditable="true"]`).first();
-	const box = (await text.boundingBox())!;
+	const { lines, top, bottom } = await layout(page, path);
+	const aims = [
+		...lines.map((line, i) => ({ ...line, name: `${i + 1}` })),
+		...(top === null ? [] : [{ ...lines[0], y: top, name: 'top' }]),
+		...(bottom === null ? [] : [{ ...lines[lines.length - 1], y: bottom, name: 'bottom' }])
+	];
 	const landed: string[] = [];
-	for (const row of [0.125, 0.375, 0.625, 0.875]) {
+	for (const aim of aims) {
 		for (const [side, x] of [
-			['L', box.x + 12],
-			['R', box.x + box.width - 8]
+			['L', aim.left + 1],
+			['R', aim.right - 1]
 		] as const) {
-			await page.mouse.click(x, box.y + box.height * row);
-			landed.push(`${row}${side} ${await caret(page)}`);
+			await page.mouse.click(x, aim.y);
+			landed.push(`${aim.name}${side} ${await caret(page)}`);
 		}
 	}
 	return landed;
