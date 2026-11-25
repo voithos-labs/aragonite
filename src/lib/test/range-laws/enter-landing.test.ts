@@ -58,8 +58,8 @@ const ROWS: Row[] = [
 		source:
 			'***\n\nbody\n\n:::note\n<details open>\n<summary>Sum</summary>\n\ninner\nmore\n\n</details>\n:::\n',
 		select: range([0], [2, 1, 1], 2),
-		entered: ':::note\n<details open>\n<summary>Sum</summary>\n\n\nxner\nmore\n\n</details>\n:::\n',
-		shifted: ':::note\n<details open>\n<summary>Sum</summary>\n\\\nxner\nmore\n\n</details>\n:::\n'
+		entered: ':::note\n<details open>\n<summary></summary>\n\n\nxner\nmore\n\n</details>\n:::\n',
+		shifted: ':::note\n<details open>\n<summary></summary>\n\\\nxner\nmore\n\n</details>\n:::\n'
 	},
 	{
 		name: 'a tip entered from a note',
@@ -80,8 +80,8 @@ const ROWS: Row[] = [
 		source:
 			'***\n\nbody\n\n<details open>\n<summary>Sum</summary>\n\n- inner\n  more\n\n</details>\n',
 		select: range([0], [2, 1, 0, 0], 5),
-		entered: '<details open>\n<summary>Sum</summary>\n\n  \nxmore\n\n</details>\n',
-		shifted: '<details open>\n<summary>Sum</summary>\n  \\\nxmore\n\n</details>\n'
+		entered: '<details open>\n<summary></summary>\n\n  \nxmore\n\n</details>\n',
+		shifted: '<details open>\n<summary></summary>\n  \\\nxmore\n\n</details>\n'
 	},
 	{
 		name: 'an item’s first line taken from inside a note',

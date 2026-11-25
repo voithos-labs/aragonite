@@ -15,7 +15,7 @@ import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
 import { unfinishedReadings, type GrammarView } from '../schema/block-openers';
 import { blockFacts } from '../schema/block-facts';
 import { firstLine, followBytes, lastLine } from '../schema/container-raw';
-import { reservedChromeKindOf, rowMarker } from '../schema/reserved-chrome';
+import { reservedChromeKindOf, rowIsOpenerLine, rowMarker } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkFoldKeepsLines, foldedBytes } from '../invariants/fold-keeps-lines';
@@ -25,6 +25,9 @@ import { fixUpWrite, mergeJoinsAt, rereadWaitAt, type TrackedPosition } from './
 import { waitsInto } from './container-window';
 import { installReading, settledCaretPosition } from './content-write';
 import { settleSublistSeparator } from './list/sublist-separator';
+import { breaksOpener, cutOf, unwrappedContainer } from './broken-openers';
+import { blankLineBelongs } from './fix-up/joins';
+import { editorHost } from './fix-up/editor-host';
 
 /**
  * One container position a rebuild gave a new kind. `previous` is what a rollback restores: a
@@ -62,6 +65,8 @@ export interface AncestrySeamFold {
 export interface ChainWriteHint {
 	path: number[];
 	leafPreviousRaw: string;
+	/** The selection the write replaced, in the leaf's bytes before it, where it replaced one. */
+	selection?: { start: number; end: number };
 }
 
 /**
@@ -119,6 +124,11 @@ export function rebuildUnsharedChain(
 				? childRawChange(node, child, childPreviousRaw, hint?.path[i + 1])
 				: undefined;
 		const rereads = rebuildOwnedContainer(node, grammar, changed)?.rereads ?? false;
+		const unwrapped =
+			folds && hint?.selection && i === chain.length - 2
+				? brokenOpener(root, chain, i, rawBefore, hint, grammar)
+				: null;
+		if (unwrapped) node.raw = unwrapped.bytes;
 		if (hint) childPreviousRaw = i === chain.length - 1 ? hint.leafPreviousRaw : rawBefore;
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
@@ -149,7 +159,7 @@ export function rebuildUnsharedChain(
 				reclassified.push({ siblings, index, previous: node, replacement });
 				rekinded = replacement.kind !== node.kind;
 			} else if (reading.outcome === 'diverged' && reading.blocks.length > 0) {
-				const spill = { index, node, rawBefore, blocks: reading.blocks };
+				const spill = { index, node, rawBefore, blocks: reading.blocks, shift: unwrapped?.shift };
 				// A list of blocks takes them as it takes a typed write's; an item or a row is no block.
 				if (
 					folds &&
@@ -204,6 +214,8 @@ interface Spill {
 	node: CstNode;
 	rawBefore: string;
 	blocks: CstNode[];
+	/** How far the caret moves from the leaf's own offset, which the relanding adds to the landing. */
+	shift?: number;
 }
 
 /**
@@ -245,7 +257,8 @@ function writeSpill(
 	const { change } = settled;
 	const stands =
 		change.op === 'replace' && change.at === index && body.children[index].kind === node.kind;
-	fold.push(change, settledCaretPosition(settled, index, 0, body.children), stands);
+	const landing = settledCaretPosition(settled, index, 0, body.children);
+	fold.push(change, { ...landing, offset: landing.offset + (spill.shift ?? 0) }, stands);
 	return true;
 }
 
@@ -293,6 +306,41 @@ function childRawChange(
 	if (!siblings) return undefined;
 	const index = childIndexOf(siblings, child, guess);
 	return index < 0 ? undefined : { index, previousRaw };
+}
+
+/** Container `chain[i]`'s bytes unwrapped where the selection the write replaced on its opening
+ *  row, `chain[i + 1]`, broke it (`broken-openers.ts`); null where the row still opens. */
+function brokenOpener(
+	root: NodeParent | CstNode,
+	chain: CstNode[],
+	i: number,
+	rawBefore: string,
+	hint: ChainWriteHint,
+	grammar: GrammarView
+): { bytes: string; shift: number } | null {
+	const [node, row] = [chain[i], chain[i + 1]];
+	const owner = i === 0 ? null : chain[i - 1];
+	const siblings = (owner ?? root).children;
+	const index = siblings ? childIndexOf(siblings, node, hint.path[i]) : -1;
+	const { selection, leafPreviousRaw: before } = hint;
+	if (!selection || index < 0 || !rowIsOpenerLine(node.kind) || node.children?.[0] !== row)
+		return null;
+	const markerEnd = rowMarker(node, { ...row, raw: before }).length;
+	const cut = cutOf(before, row.raw, selection.start, selection.end);
+	if (!cut || !breaksOpener(before, row.raw, markerEnd, cut)) return null;
+	const host = editorHost(grammar);
+	const body = slotBody(root, owner);
+	const slot = { owner: body.owner, index, lineEnding: body.lineEnding };
+	const first = (text: string) => {
+		const block = host.readInSlot(slot.owner, index, text).children[0];
+		return block && { ...block, leadingTrivia: '' };
+	};
+	const { bytes, caret } = unwrappedContainer(rawBefore, before, markerEnd, cut, (title, body) => {
+		const [upper, lower] = [first(title), first(body)];
+		return !!upper && !!lower && blankLineBelongs(host, slot, upper, lower, 'placed', false);
+	});
+	// The leaf's caret stood after the inserted text, at its byte in the row.
+	return { bytes, shift: caret - (cut.start + cut.inserted.length) };
 }
 
 /** Whether the write changed only the title on the container's title row, which no metadata comes

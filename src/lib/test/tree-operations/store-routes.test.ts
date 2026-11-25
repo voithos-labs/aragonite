@@ -701,15 +701,23 @@ const FAMILIES: Family[] = [
 			{
 				shape: 'the kept head of a to-do',
 				run: () => backspaceRange(`- [ ] # y**z**\n\n${CALLOUT}`, [[0, 0, 0], 5], [[1, 1], 2]),
-				want: `- [ ] # y\n\n:::callout T\ndy\n:::\n`
+				want: `- [ ] # y\n\n:::callout \ndy\n:::\n`
 			}
 		]
 	},
 	{
 		// Deleting `x` empties the bold, so its runs go; in a to-do or a cell `# y` then reads as text.
 		name: 'the range-edit core’s in-block writes',
-		stores: { 'range-edit/host.ts': 10 },
+		stores: { 'range-edit/host.ts': 11 },
 		rows: [
+			{
+				// A title row's store keeps its `:::name` out of a live range over its whole text.
+				shape: 'the part of a title row a copy takes',
+				run: () =>
+					copyRange(':::tip Title\nbody\n:::\n', { from: 0, to: 12 }, 'live', rangeHost(LIVE))
+						.clipboard,
+				want: 'Title'
+			},
 			{
 				shape: 'a to-do',
 				run: () =>
@@ -804,6 +812,13 @@ const FAMILIES: Family[] = [
 						{ start: 3, end: 8 }
 					),
 				want: '# y'
+			},
+			{
+				// A live range over a title row's whole text carries the title, as its cut takes.
+				shape: 'a title row held whole',
+				run: () =>
+					dragText({ source: ':::tip Title\nbody\n:::\n', leaf: [0, 0] }, { start: 0, end: 12 }),
+				want: 'Title'
 			}
 		]
 	},

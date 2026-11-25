@@ -85,7 +85,8 @@ function counted(host: RangeHost, current: DocumentView) {
 			cut: (doc, path, ...rest) => (handed(doc, path), leaf.cut(doc, path, ...rest)),
 			broken: (doc, path, ...rest) => (handed(doc, path), leaf.broken(doc, path, ...rest)),
 			typed: (doc, path, ...rest) => (handed(doc, path), leaf.typed(doc, path, ...rest)),
-			carried: (doc, path, ...rest) => (handed(doc, path), leaf.carried(doc, path, ...rest))
+			carried: (doc, path, ...rest) => (handed(doc, path), leaf.carried(doc, path, ...rest)),
+			drawn: (doc, path, ...rest) => (handed(doc, path), leaf.drawn(doc, path, ...rest))
 		}
 	};
 	return { work, host: counting };

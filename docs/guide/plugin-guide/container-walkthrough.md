@@ -144,7 +144,7 @@ node.children[0].raw; // ':::conspiracy Birds are government drones\n'
 getPluginMetadata<ConspiracyMetadata>(node); // { name: 'conspiracy' }
 ```
 
-Child 0 is the whole opener line, `:::conspiracy` included, kind `directiveOpenerLine`. Every `:::` container gets one, built by the grammar, which is why the factory doesn't. It's a line you type in like any other, with a few manners: a selection that runs onto it from the blocks around clears only the theory, nothing merges into it, and a paste with the caret on the name lands in the theory. So the box doesn't lose its name by accident. Renaming it on purpose (the verdict command, or someone typing over the name) reads the container again under the new name. If your view wants just the theory, `rowContentRange` says where it sits on the line:
+Child 0 is the whole opener line, `:::conspiracy` included, kind `directiveOpenerLine`. Every `:::` container gets one, built by the grammar, which is why the factory doesn't. It's a line you type in like any other, with a few manners: a selection that runs onto it from the blocks around clears only the theory, nothing merges into it, and a paste with the caret on the name lands in the theory. So the box doesn't lose its name by accident. Losing it on purpose works too: select the colons (or `:::conspiracy ` whole) and delete, and the box unwraps, its closing line gone and the theory and the body left as plain blocks. Renaming it on purpose (the verdict command, or someone typing over the name) reads the container again under the new name. If your view wants just the theory, `rowContentRange` says where it sits on the line:
 
 ```ts
 const { start, end } = rowContentRange(node);

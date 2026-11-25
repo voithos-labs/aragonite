@@ -1,0 +1,56 @@
+// @vitest-environment jsdom
+// Miss-analysis: the container rows started a range in a `:::` row, whose own write keeps its
+// marker, or above a `<details>`, never at the first byte of a `<details>`, whose opening no write holds.
+import { describe, expect, it } from 'vitest';
+import { removalOf } from '#lib/range-edit/edit-range.js';
+import type { Mode } from '#lib/range-edit/host.js';
+import { checkHost } from './test-host';
+
+const D = '<details open>\n<summary>D</summary>\n\nx\n</details>\n';
+const QD = '> <details open>\n> <summary>D</summary>\n>\n> x\n> </details>\n';
+const LD = '- <details open>\n  <summary>D</summary>\n\n  x\n  </details>\n';
+
+describe("a range from a container's first byte into its body keeps the opening", () => {
+	for (const mode of ['live', 'source'] as Mode[]) {
+		it.each([
+			['a details', D, D.indexOf('x') + 1, '<details open>\n<summary></summary>\n\n</details>\n'],
+			[
+				'a details in a quote',
+				QD,
+				QD.indexOf('x') + 1,
+				'> <details open>\n> <summary></summary>\n> \n> </details>\n'
+			],
+			[
+				'a details in a list item',
+				LD,
+				LD.indexOf('x') + 1,
+				'- <details open>\n  <summary></summary>\n  \n  </details>\n'
+			]
+		])(`%s, ${mode}`, (_, source, to, left) => {
+			expect(removalOf(source, { from: 0, to }, 'backspace', mode, checkHost()).source).toBe(left);
+		});
+
+		// No route draws it today; the core still keeps the opening and clears the summary it covers.
+		it(`a range from a details' first byte to its summary's end, ${mode}`, () => {
+			const left = removalOf(
+				D,
+				{ from: 0, to: D.indexOf('D<') + 1 },
+				'backspace',
+				mode,
+				checkHost()
+			);
+			expect(left.source).toBe('<details open>\n<summary></summary>\n\nx\n</details>\n');
+		});
+
+		// Controls on a `:::` row: live mode's row whole is its title (`title-row-drawn.test.ts`), and
+		// a range that breaks the row unwraps the box (`opener-unwrap.test.ts`).
+		const row = mode === 'live' ? ':::tip \nbody\n:::\n' : 'body\n';
+		it.each([
+			['the marker alone', ':::tip Title\nbody\n:::\n', 0, 7, 'Title\n\nbody\n'],
+			['the row whole', ':::tip Title\nbody\n:::\n', 0, 12, row],
+			['the row and the body', ':::tip Title\nbody\n:::\n', 0, 17, ':::tip \n\n:::\n']
+		])(`a callout, %s, ${mode}`, (_, source, from, to, left) => {
+			expect(removalOf(source, { from, to }, 'backspace', mode, checkHost()).source).toBe(left);
+		});
+	}
+});

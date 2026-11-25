@@ -68,7 +68,7 @@ export interface DocumentByteMap {
 	/** The byte offset `offset` of the block at `path` sits at, a leaf or a container. */
 	byteOf(path: readonly number[], offset: number): number | null;
 	/** Where the bytes of the block at `path` before `offset` end. Bytes ending on a line ending end
-	 *  past it, behind a title's closing tag too, where `byteOf` answers past the next line's marker. */
+	 *  past it, behind a title's closing tag too, and never past the next line's marker. */
 	endOf(path: readonly number[], offset: number): number | null;
 	/** Where the block at `path` ends with no byte of its container behind it: past its line ending,
 	 *  or at its text's end where its container closes the line, as a summary's tag does. */
@@ -128,7 +128,8 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 	const endOf = (path: readonly number[], offset: number): number | null => {
 		const node = nodeAt(path);
 		if (!node || !node.raw.endsWith('\n', offset)) return node ? byteOf(path, offset) : null;
-		// The map puts a line ending where its line's text ends, before a title's closing tag.
+		// A title row's line ending maps where its text ends, before the closing tag; the next `\n`
+		// is past both.
 		const at = byteOf(path, offset - 1);
 		if (at === null) return null;
 		const base = starts.rawStart(path[0]);
@@ -518,9 +519,17 @@ function pairLines(
 				const line = raw[Math.max(below - 1, 0)];
 				return line ? line.start + line.text.length : 0;
 			}
-			const column = Math.min(bodyOffset - bodyLines[b].start, bodyLines[b].text.length);
-			const at = Math.min(Math.max(paired[r]!.at + column, 0), raw[r].text.length);
-			return raw[r].start + at;
+			const { start, end, text } = bodyLines[b];
+			const line = raw[r];
+			const column = Math.min(bodyOffset - start, end - start);
+			if (column > text.length) {
+				// A line ending maps byte for byte onto the raw line's (a CRLF's `\n` is its second byte),
+				// and the offset past it sits past the raw line.
+				if (column === end - start) return line.end;
+				const textEnd = line.start + line.text.length;
+				return Math.min(textEnd + column - text.length, Math.max(line.end - 1, textEnd));
+			}
+			return line.start + Math.min(Math.max(paired[r]!.at + column, 0), line.text.length);
 		}
 	};
 }

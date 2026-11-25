@@ -5,7 +5,7 @@
 // range starts on stays too, emptied, wherever its block does. Where no text joins across the range,
 // the lines after its end line stay byte for byte, each keeping its own markers once.
 
-import { inTitleRow, leafAt, mixedEndings, readOf, type Read } from './expected';
+import { inTitleRow, leafAt, readOf, type Read } from './expected';
 import type { CheckHost } from './test-host';
 
 interface KeptLine {
@@ -57,8 +57,6 @@ export function gluedStart(
 	const { source } = read;
 	const oneLine = !source.slice(from, to).includes('\n');
 	if (oneLine || !leafAt(read, from) || inTitleRow(read, from, host)) return null;
-	// Mixed endings leave a lone `\r` on an emptied line, a defect of its own.
-	if (mixedEndings(source)) return null;
 	const whole = read.blocks.some(
 		(b) => b.from === from && host.facts(b.type).joins !== 'text' && to >= (b.text?.to ?? b.to - 1)
 	);
@@ -84,6 +82,12 @@ export function rewrittenAfter(read: Read, to: number, got: string): string | nu
 	const at = got.length - after.length;
 	if (after === '' || (got.endsWith(after) && (at === 0 || got[at - 1] === '\n'))) return null;
 	return `rewrote the line ${JSON.stringify(/^[^\r\n]*/.exec(after)![0])} after the range`;
+}
+
+/** A `\r` that `got` holds without its `\n` and `source` didn't, as a report line; null otherwise. */
+export function loneReturn(source: string, got: string): string | null {
+	const lone = (bytes: string) => bytes.match(/\r(?!\n)/g)?.length ?? 0;
+	return lone(got) > lone(source) ? 'left a `\\r` without its `\\n`' : null;
 }
 
 /** Where the text of the block the range ends in goes on below the range's end line, past that
