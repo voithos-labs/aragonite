@@ -665,7 +665,9 @@ export function fencedReading<D extends object>(spec: FencedSpec<D>): FencedRead
 					depth: ctx.depth + 1,
 					grammar: ctx.grammar
 				});
-				const row = titleOf ? [titleRow(kind, read.title)] : [];
+				const row = titleOf
+					? [titleRow(kind, read.title, ctx.lines[read.body - 1].lineEnding)]
+					: [];
 				const node = makeBlockNode({
 					kind,
 					leadingTrivia: ctx.leadingTrivia,
@@ -721,10 +723,14 @@ function titleReader(match: RegExp): (line: string) => { text: string; start: nu
 	};
 }
 
-/** The title row of a `container` holding `title`: one line, ended with a line feed whatever the
- *  document's ending. */
-const titleRow = (container: PluginBlockKind, title: string): CstNode =>
-	makeBlockNode({ kind: titleRowKind(container), leadingTrivia: '', raw: `${title}\n` });
+/** The title row of a `container` holding `title`: one line, ended as its title line is, so its
+ *  text is that line's bytes. */
+const titleRow = (container: PluginBlockKind, title: string, ending: string): CstNode =>
+	makeBlockNode({
+		kind: titleRowKind(container),
+		leadingTrivia: '',
+		raw: title + (ending || '\n')
+	});
 
 /** Each line of `[from, end)` in order, until `visit` returns true; a code fence's lines are
  *  skipped whole, since a closing line inside one is code. */

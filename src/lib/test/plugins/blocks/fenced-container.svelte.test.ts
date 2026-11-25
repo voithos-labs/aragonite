@@ -92,7 +92,7 @@ describe('a fenced container read', () => {
 		[
 			'CRLF lines',
 			'[fold]\r\ntitle: T\r\n\r\nbody\r\n\r\n[/fold]\r\n',
-			[{ row: 'T\n', data: { open: false }, body: ['paragraph'] }]
+			[{ row: 'T\r\n', data: { open: false }, body: ['paragraph'] }]
 		],
 		[
 			'a last closer with no line ending',
