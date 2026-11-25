@@ -1,6 +1,6 @@
 /**
  * `svelteBlock`: a block type's `draw` from a Svelte component, which places the editor's elements
- * with `<Slot of="source" />` (or `children`, `title`) and adds to what it draws with `useDrawn`.
+ * with `<Slot of="source" />` (or `children`) and adds to what it draws with `useDrawn`.
  * It renders synchronously, so a slot is in place by the time `draw` returns.
  */
 import { flushSync, getContext, mount, unmount, type Component } from 'svelte';

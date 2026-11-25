@@ -1,6 +1,6 @@
 /**
  * `vueBlock`: a block type's `draw` from a Vue component, which places the editor's elements with
- * `<Slot of="source" />` (or `children`, `title`) and adds to what it draws with `useDrawn`. It
+ * `<Slot of="source" />` (or `children`) and adds to what it draws with `useDrawn`. It
  * patches synchronously, so a slot is in place by the time `draw` returns.
  */
 
@@ -81,9 +81,16 @@ export function useDrawn(parts: () => DrawnParts): void {
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-type SlotName = 'source' | 'children' | 'title';
+type SlotName = 'source' | 'children';
 type DrawnParts = Pick<Drawn<never>, 'focus' | 'keep' | 'caret'>;
 type Declared = { parts: () => DrawnParts };
+
+// Named, never indexed: the title row's element is on the context too, and moving it would take the
+// row out of the block list's windowing and focus walk.
+const slotted = (ctx: DrawContext, of: SlotName): HTMLElement | null =>
+	of === 'source' || of === 'children'
+		? ((ctx as unknown as Partial<Record<SlotName, HTMLElement>>)[of] ?? null)
+		: null;
 
 const SLOT_CONTEXT: InjectionKey<() => DrawContext> = Symbol('vue-block-slot');
 const DRAWN_CONTEXT: InjectionKey<Declared> = Symbol('vue-block-drawn');
@@ -106,7 +113,7 @@ const Slot = defineComponent({
 		const ctx = inject(SLOT_CONTEXT, null);
 		if (!ctx) throw new Error('<Slot> renders only inside a vueBlock component');
 		return () => {
-			const element = (ctx() as unknown as Partial<Record<SlotName, HTMLElement | null>>)[props.of];
+			const element = slotted(ctx(), props.of);
 			if (!element) return null;
 			return h('div', {
 				style: 'display: contents',

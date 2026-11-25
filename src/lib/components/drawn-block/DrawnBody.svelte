@@ -65,6 +65,8 @@
 	import { createContainerBlock } from '../../editor-actions/plugin/container';
 	import type { MarkerHost } from '../../schema/container-block';
 	import { followsKey } from '../blocks/marker-prefix';
+	import { reservedChromeKindOf } from '../../schema/reserved-chrome';
+	import { blockContentElAt } from '../../caret/block-el-lookup';
 	import BlockList from '../BlockList.svelte';
 	import { createRenderCache } from './render-cache';
 	import { POINTER_GESTURE_ATTR } from '../../selection/pointer-gesture';
@@ -272,7 +274,11 @@
 		keepScroll,
 		follows: (event) => ('key' in event ? followsKey(event) : policies.activationClick(event)),
 		children: childBox!,
-		title: null,
+		get title() {
+			return container && reservedChromeKindOf(node.kind) !== undefined
+				? blockContentElAt(childBox!, [...myPath, 0])
+				: null;
+		},
 		get closed() {
 			return closedNow();
 		},

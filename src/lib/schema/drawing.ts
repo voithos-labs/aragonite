@@ -46,9 +46,11 @@ export interface TextDrawContext extends DrawContext {
 }
 
 /** The context of a block holding blocks: `children` is the editor's element for them, to place in
- *  your drawing (the editor fills it), a title row first among them; `title` is null. */
+ *  your drawing (the editor fills it), a title row first among them. */
 export interface ContainerDrawContext extends DrawContext {
 	readonly children: HTMLElement;
+	/** The title row's own element, to point at or place a control beside; it stays among the
+	 *  children, so never move it. Null with no title row, or while the row is out of the window. */
 	readonly title: HTMLElement | null;
 	/** Its body is folded away: as its data says, or in reading mode as the reader left it. */
 	readonly closed: boolean;
