@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 // A typed letter and the caret move the browser reports after it place no document byte, so neither
 // reads a whole list of blocks, whatever container the caret sits in and whatever actions are listed.
-// A plugin that asks where the selection is does place one, and in a quote, a list or a table that
-// pairs one child's lines with the container's, however many siblings the child has.
+// The same holds in a container a plugin draws, whose drawing reads its block on every key in its
+// body. A plugin that asks where the selection is does place one, and in a quote, a list or a table
+// that pairs one child's lines with the container's, however many siblings the child has.
 // Miss-analysis: the keystroke cost rows drove the commit alone, never the `selectionchange` that
 // follows it, where the selection toolbar read the caret's byte through the container around it.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -25,6 +26,8 @@ import {
 	typeInto,
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import { cellAt } from '../blocks/table/mount-table';
 
 beforeAll(installLayoutStubs);
@@ -96,6 +99,34 @@ describe('G4.339 a typed letter and its caret move read no whole list through th
 			expect(await listReadsTyping(m, surface(m))).toBe(0);
 		});
 	}
+});
+
+// Each after forty paragraphs, so a byte placed at the top level measures the whole list.
+const ABOVE = 'p\n\n'.repeat(40);
+const BODY = lines('', '\n');
+const DRAWN: { name: string; source: string; path: number[] }[] = [
+	{ name: 'a titled box', source: `${ABOVE}:::note Heads up\n${BODY}:::\n`, path: [40, 6] },
+	{
+		name: 'a box in a quote',
+		source: `${ABOVE}> :::note Heads up\n${QUOTE}> :::\n`,
+		path: [40, 0, 6]
+	},
+	{ name: 'an alert', source: `${ABOVE}> [!NOTE]\n${QUOTE}`, path: [40, 5] },
+	{
+		name: 'an open section',
+		source: `${ABOVE}<details open>\n<summary>Sum</summary>\n\n${BODY}\n</details>\n`,
+		path: [40, 6]
+	}
+];
+
+// Miss-analysis: the rows above typed only in built-in containers, never in one a plugin draws,
+// where the admonition's drawing read its title's bytes on every key in its body.
+describe('G4.339 a typed letter in the body of a container a plugin draws reads no whole list', () => {
+	it.each(DRAWN)('in $name', async ({ source, path }) => {
+		const m = mountEditor({ source, plugins: [admonitions, details] });
+		await m.settle();
+		expect(await listReadsTyping(m, surfaceAt(m, path))).toBe(0);
+	});
 });
 
 describe('the selection toolbar asks the actions about each range the browser reports', () => {
