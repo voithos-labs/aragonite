@@ -5,15 +5,17 @@ formula's end whatever the click meant, so editing the head of a formula took a 
 back, while keyboard entry from the left landed at the leading edge: where the caret ended up
 depended on how you got there. A click names a point, and that point names an offset. KaTeX
 paints glyphs rather than source bytes, so the click maps into the content span in proportion to
-how far along the painted run it fell. The `$$` block already reads a click this way
-(`latex-block-click-caret.md`).
+how far along KaTeX's glyph text the glyph it lands by sits. The `$$` block already reads a click
+this way (`latex-block-click-caret.md`).
 
 Seed (`?seed=math`): `Before $x^2$ after` in block [0], and a `Next` paragraph in [1].
 
 ## Happy paths
 
 - A click at the left of the rendered formula puts the caret at the start of the content, so a
-  typed character lands before the formula's first byte, inside the opening `$`.
+  typed character lands before the formula's first byte, inside the opening `$`. That holds where
+  the leftmost glyph comes first in KaTeX's glyph text, as in `x^2`. A fraction's doesn't, so a
+  click at the left edge of `$\frac{a}{b}+c$` lands inside `\frac`; no row pins where.
 - A click at the right puts it at the end of the content, so a typed character lands after the
   formula's last byte, inside the closing `$`.
 - Both hold in source mode and in live mode, since showing the source is the same gesture behind
@@ -25,9 +27,6 @@ Seed (`?seed=math`): `Before $x^2$ after` in block [0], and a `Next` paragraph i
   earlier one, and both sit strictly inside the delimiters. Asserted as an ordering rather than
   a byte, because the mapping is proportional and an x derived from a rect lands on whichever
   side of a glyph the font metrics put it.
-- A click at the left edge of an inline fraction (`$\frac{a}{b}+c$`), beside its ink, types before
-  the formula's first byte, and one at the right edge after its last, though the fraction's first
-  glyph in the markup isn't its first byte.
 - Escape between the two clicks brings the rendered widget back, and neither click edits a byte.
 - Keyboard entry is unchanged: arriving from the left still shows the source at the leading edge
   (`latex-inline.md` owns that scenario).

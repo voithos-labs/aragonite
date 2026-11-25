@@ -4,9 +4,9 @@ The editor draws a fenced block's fence lines: dimmed markers that the marker-hi
 
 ## Happy paths
 
-- A code block in source mode: a click on a fence line or a body line, and ArrowDown from the line above or ArrowUp from the line below, land on the line aimed at.
-- The `%%%` block in source mode: the same clicks and arrows land as on the code block, line for line.
-- A code block in live mode: its fence lines hide, so a click above the body lands on its first line and the arrows step from the body to the paragraphs around it.
+- A code block in source mode: a click at either end of a fence line or a body line, or in the padding above or below them, and ArrowDown from the line above or ArrowUp from the line below, land on the line aimed at.
+- The `%%%` block in source mode: the same clicks and arrows land as on the code block, line for line. Its text has no padding, so it takes no padding clicks.
+- A code block in live mode: its fence lines hide, so every click lands on a body line (the first for a click above the body, the last for one below) and the arrows step from the body to the paragraphs around it.
 - The `%%%` block in live mode: the same as the code block.
 
 ## Typed into a plugin's type

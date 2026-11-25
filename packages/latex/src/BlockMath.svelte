@@ -162,9 +162,8 @@
 		gap: 6px;
 	}
 
-	/* The equation's cards keep a code block's distance from their neighbours (editor.css);
-	   padding, not margin, because block heights are measured from the host's box. The fence
-	   lines read at the formula's own weight, through the editor's marker token. */
+	/* A code block's distance from its neighbours, as padding: block heights are measured from
+	   the host's box. The marker token keeps the fence lines at the formula's own weight. */
 	.math-block {
 		padding-block: 6px;
 		--syntax-marker-dim: 1;

@@ -12,8 +12,8 @@ import { bareImports } from './verify-prebuilt.mjs';
 import { verifyTypes } from './verify-types.mjs';
 
 // Gzipped bytes of each package's prebuilt JS, a little above what it measured. Measured:
-// admonitions 4,173, details 3,794, emoji 16,297, footnotes 4,110, highlight 5,485, highlight-occurrences 1,520,
-// latex 7,210, mermaid 6,718, parrot 4,162, slash-commands 1,913, spellcheck 4,502, toc 2,632.
+// admonitions 3,689, details 3,416, emoji 16,261, footnotes 3,844, highlight 5,485, highlight-occurrences 1,257,
+// latex 4,503, mermaid 6,336, parrot 3,102, slash-commands 1,725, spellcheck 4,499, toc 2,152.
 /** @type {Record<string, number>} */
 const BUDGET = {
 	admonitions: 4_650,
@@ -21,13 +21,13 @@ const BUDGET = {
 	emoji: 16_500,
 	footnotes: 4_450,
 	highlight: 5_800,
-	'highlight-occurrences': 1_700,
-	latex: 7_900,
+	'highlight-occurrences': 1_500,
+	latex: 5_000,
 	mermaid: 7_050,
 	parrot: 4_450,
 	'slash-commands': 2_100,
 	spellcheck: 4_650,
-	toc: 2_950
+	toc: 2_500
 };
 
 // A chunk a package loads only when first needed, and its own budget, out of the eager count above.
