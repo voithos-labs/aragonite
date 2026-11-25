@@ -129,12 +129,12 @@ function jumpToFirstCitation(label: string, editor: Editor): void {
 	void jump(editor, (doc) => firstCitationEnd(doc, label));
 }
 
-// `reveal` opens a closed section on the way, which moves the bytes after it, so the landing is
-// read again once it has.
+// `reveal` opens a closed section on the way, which moves the bytes below, so the landing is read
+// again. Reading mode opens none, and its reveal would keep the block focus left behind mounted.
 async function jump(editor: Editor, landing: (doc: Doc) => number | null): Promise<void> {
 	const at = landing(editor.doc);
 	if (at === null) return;
-	await editor.view.reveal(at);
+	if (editor.mode.editable) await editor.view.reveal(at);
 	const moved = landing(editor.doc);
 	if (moved !== null) await editor.select(moved);
 }

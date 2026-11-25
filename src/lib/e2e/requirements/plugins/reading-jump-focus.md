@@ -50,5 +50,8 @@ target. Each scenario below runs once with Tab and once with Shift+Tab, on all t
   across every jump route.
 - Every jump row landed on a widget or a prose block, so the table's own caret report, which named
   the focused cell's start with no caret in it, had nothing to fail.
+- A footnote jump that revealed its target before landing left the block it jumped from reachable
+  by Tab; only the table-cell row has no tab stop nearer than that block, and the jump's own
+  specs, run alone, never press Tab after it.
 - No row typed after leaving reading mode, so a switch out that put the caret back where it was
   before reading, offscreen, or nowhere at all, read as fine.
