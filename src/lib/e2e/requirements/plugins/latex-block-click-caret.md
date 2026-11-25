@@ -8,15 +8,20 @@ and the rendered form is glyphs whose position along the equation names a place 
 ## Happy paths
 
 - A click at the left of the rendered equation puts the caret at the start of the body, so a
-  typed character lands before the formula's first byte, inside the fence.
+  typed character lands before the formula's first byte, inside the fence. That holds where the
+  leftmost glyph comes first in KaTeX's glyph text, as in `x^2` (the exceptions are below).
 - A click at the right of the rendered equation puts it at the end of the body, so a typed
   character lands after the formula's last byte, inside the fence.
 
 ## Edge cases
 
-- A click in the card beside the equation itself clamps into the glyph box and takes the nearest
-  glyph, so left of the equation is the start of the body rather than the far side of the
+- A click in the card beside the equation moves onto the box its glyphs paint in and takes the
+  nearest glyph, so left of `x^2` is the start of the body rather than the far side of the
   closing fence.
+- The offset is how far along KaTeX's glyph text that glyph sits, and a fraction or a sum with
+  limits writes its glyphs out of the formula's order. So a click left of `\frac{a}{b}+c` or
+  `\sum_{i=0}^{n} i^2` can land mid-formula (inside `\frac`, after the lower limit's `i`), as on
+  the last release. No row pins where.
 - A click in a card whose source is already open is a click in a contenteditable and behaves the
   way the browser handles it; this handler answers only for the rendered form.
 - Keyboard entry is unchanged: arriving from the block above still lands at the leading edge of
