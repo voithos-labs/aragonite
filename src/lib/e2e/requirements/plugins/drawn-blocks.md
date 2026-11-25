@@ -33,9 +33,9 @@ Miss-analysis: the fixture wrote only on blur and no row ran an undo with text t
 
 ## An open field scrolled out of the window
 
-Miss-analysis: no row scrolled a box away while its field held text, so the field's blur write, made while windowing removed the block, ran inside the render and was lost (0.11.5's diagram box kept it).
+Miss-analysis: no row scrolled a box away while its field held text, and the one written later rode the field's blur, which Firefox and WebKit never fire on a removed element, so it held on Chromium alone (0.11.5 lost the text on those two as well).
 
-- Text typed in the field, then the editor scrolled to its end: the field's block leaves the window, its text is written as the field leaves, and it is one undo step. In Firefox and WebKit no blur reaches a removed field, so nothing is written and the text is lost, as on 0.11.5.
+- Text typed in the field, then the editor scrolled to its end: the field's block leaves the window, the editor saves the field as it goes, and the text is written once, as one undo step, on every engine.
 
 ## The field's menu row (`Drawn.handle`)
 

@@ -28,13 +28,12 @@ export type EngineCapability =
 	| 'inertBackspace'
 	| 'syntheticTargetRanges'
 	| 'nativeWordSelect'
-	| 'modifierDrop'
-	| 'blurOnRemoval';
+	| 'modifierDrop';
 
 /** Firefox over BiDi and Playwright's WebKit each lack a few gestures; `SKIP_REASONS` says which
  *  and why. */
 export function engineSupports(page: Page, capability: EngineCapability): boolean {
-	if (capability === 'cdp' || capability === 'blurOnRemoval') return isChromium(page);
+	if (capability === 'cdp') return isChromium(page);
 	if (capability === 'modifierDrop') return !(isWebKit(page) && isWindows);
 	if (capability === 'inertBackspace' || capability === 'syntheticTargetRanges') {
 		return !isWebKit(page);
@@ -57,8 +56,7 @@ const SKIP_REASONS: Record<EngineCapability, string> = {
 	nativeWordSelect:
 		"Firefox over BiDi fires no native double click, so the browser selects no word in text the editor doesn't select itself",
 	modifierDrop:
-		"Playwright's WebKit on Windows drops a held Ctrl or Alt from dragover and drop (dragstart keeps it); Linux and macOS WebKit carry it",
-	blurOnRemoval: 'Firefox and WebKit fire no blur on a focused element the page removes'
+		"Playwright's WebKit on Windows drops a held Ctrl or Alt from dragover and drop (dragstart keeps it); Linux and macOS WebKit carry it"
 };
 
 /** Skip the running test on an engine that lacks `capability`. */

@@ -320,7 +320,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				answered = none && !illegal;
 				if (answered) return refused('empty', 'nothing was written to it');
 				try {
-					// A commit made inside a render (a field's blur as windowing removes its block)
+					// A commit made inside a render (a drawing saved as windowing removes its block)
 					// lands once that render is done, as a write from inside one corrupts it.
 					if ($effect.tracking()) await tick();
 					answered = true;

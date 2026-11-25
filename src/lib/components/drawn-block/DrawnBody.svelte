@@ -37,6 +37,7 @@
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import { makeBlock, DETACHED_READING, type KeyWatch } from '../../schema/doc-view';
+	import { nodeAt } from '../../tree-operations/node-primitives';
 	import { modeOf } from '../../presentation-mode';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
@@ -267,6 +268,7 @@
 			// framework component declares its parts once it has rendered.
 			(el as HTMLElement & { [HANDLE_AT]?: unknown })[HANDLE_AT] = () => made.handle;
 			const unhold = services?.drafts.holdSave(() => saveOf(made));
+			const mountedOn = { stamp: services?.stamps.current(), generation };
 			seen = watched();
 			if (text) assertInvariant('dom-view-content', () => checkDomViewContent(el, source, painted));
 			const offs = [
@@ -278,6 +280,10 @@
 				)
 			];
 			return () => {
+				// Windowing takes a block that stays in the document, and no engine but Chromium fires a
+				// removed field's blur; a load, a deletion or a redraw the drawing asked for saves nothing.
+				const stays = mountedOn.stamp?.live && generation === mountedOn.generation;
+				if (stays && nodeAt(editorDoc.doc(), myPath) === node) saveOf(made);
 				offs.forEach((off) => off());
 				unhold?.();
 				drawn = null;
