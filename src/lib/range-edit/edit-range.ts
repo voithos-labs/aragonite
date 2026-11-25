@@ -267,6 +267,11 @@ function lineOverOpener(
 function pasteRemoval(doc: Doc, from: number, to: number, text: string): Removal & PlaceKept {
 	const alone = heldAlone(doc, from, to);
 	const blank = text !== '' && isBlankText(text);
+	// Several lines whose first leaves a `:::` row held whole no opener unwrap it first; one line
+	// took `lineOverOpener` already.
+	const firstEnd = text.search(/\r?\n/);
+	if (alone && firstEnd >= 0 && unwrapping(doc, from, to, text.slice(0, firstEnd)))
+		return removeRange(doc, from, to);
 	const removed =
 		alone && blank
 			? blankedOut(doc, alone, to)
@@ -674,8 +679,7 @@ const entersAtEnd = (doc: Doc, { from, to }: Range): boolean =>
  *  line stays; text typed elsewhere goes in at once, so the line it lands on is never left blank. */
 function removalEdit(doc: Doc, from: number, to: number, gesture: RemovalGesture): Removal {
 	if (gesture !== 'type') return removeLeavingBlank(doc, from, to);
-	// A row held whole whose removal breaks its `:::` opener unwraps, as any range there does.
-	if (!heldAlone(doc, from, to) || unwrapping(doc, from, to, '')) return removeRange(doc, from, to);
+	if (!heldAlone(doc, from, to)) return removeRange(doc, from, to);
 	const out = doc.source.slice(0, from) + doc.source.slice(to);
 	return { source: numberedOn(doc, from, to, out), caret: from };
 }

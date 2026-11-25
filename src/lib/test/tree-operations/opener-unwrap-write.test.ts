@@ -148,6 +148,23 @@ describe('a selection written over an opening row', () => {
 		expect(await write(G, ':::foo Title\n', 0, 12, ':::foo ')).toBe(':::foo \nbody\n:::\n');
 	});
 
+	// Text that opens with the whole marker again breaks nothing, so no unwrap joins it to the body.
+	it.each([
+		['typed', false],
+		['pasted', true]
+	] as const)('a marker %s over the row held whole keeps the opener', async (_, pasted) => {
+		expect(await write(G, ':::foo Title\n', 0, 12, ':::foo New')).toBe(':::foo New\nbody\n:::\n');
+		expect(core(G, 0, 12, ':::foo New', 'source', pasted)).toMatch(
+			/^:::foo New\n(:::\n)?body\n:::\n$/
+		);
+	});
+
+	// Over a title that stays, a paste lands as it does after the removal alone.
+	it.each(['---', '# h', '> q'])('%s pasted over the marker lands as after the removal', (text) => {
+		const removed = core(G, 0, 7, '');
+		expect(core(G, 0, 7, text, 'source', true)).toBe(core(removed, 0, 0, text, 'source', true));
+	});
+
 	// Several lines keep the paste's own landing, after a removal that still takes the closing line.
 	it('several lines pasted over the row held whole strand no closing line', () => {
 		for (const mode of ['source', 'live'] as const) {
