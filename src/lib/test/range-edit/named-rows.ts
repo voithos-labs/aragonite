@@ -1677,14 +1677,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L4 a block a range takes whole inside a container it enters goes with its line',
 		source: 'Ab⟦ove\n\n:::note Title\n| a | b |\n| --- | --- |\n| 1 | 2 |⟧\n:::\n\nBelow\n',
 		gesture: 'delete',
-		expect: { source: 'Ab\n\n:::note Title\n:::\n\nBelow\n' }
+		expect: { source: 'Ab\n\n:::note \n:::\n\nBelow\n' }
 	},
 	{
 		name: 'L4 a table taken whole, then one taken whole inside a container, keep only its opening',
 		source:
 			'⟦| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::note Title\n| c | d |\n| --- | --- |\n| 3 | 4 |⟧\n:::\n\nBelow\n',
 		gesture: 'delete',
-		expect: { source: ':::note Title\n:::\n\nBelow\n' }
+		expect: { source: ':::note \n:::\n\nBelow\n' }
 	},
 
 	// ── An emptied paragraph between blank lines keeps one empty line (owner question 1) ──

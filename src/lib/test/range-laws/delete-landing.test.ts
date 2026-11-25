@@ -70,7 +70,7 @@ const ROWS: Row[] = [
 		name: 'into a titled tip’s body',
 		source: `${NOTE}:::tip Title\ninner\n:::\n\n# h\n`,
 		select: to([1, 1], 2),
-		typed: ':::note\n:::\n\n:::tip Title\nxner\n:::\n\n# h\n'
+		typed: ':::note\n:::\n\n:::tip \nxner\n:::\n\n# h\n'
 	},
 	{
 		name: 'into a tip’s title',
@@ -112,7 +112,7 @@ const ROWS: Row[] = [
 		name: 'into an open details’ body',
 		source: `${NOTE}<details open>\n<summary>Sum</summary>\n\ninner\n\n</details>\n\n# h\n`,
 		select: to([1, 1], 2),
-		typed: ':::note\n:::\n\n<details open>\n<summary>Sum</summary>\nxner\n\n</details>\n\n# h\n'
+		typed: ':::note\n:::\n\n<details open>\n<summary></summary>\nxner\n\n</details>\n\n# h\n'
 	},
 	{
 		name: 'under a nested item’s first line, from inside the note',

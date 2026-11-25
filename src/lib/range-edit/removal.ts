@@ -568,8 +568,8 @@ function withClosers(doc: Doc, from: number, to: number, joined: string, at: num
 	return kept ? joined.slice(0, at) + kept + joined.slice(at) : joined;
 }
 
-/** The openings of the fenced blocks the range enters from outside, kept with the blank lines
- *  before them so no closing line is left alone, and where the end's line starts; null for none. */
+/** The openings the range enters from outside, less the titles it runs past, with the blank lines
+ *  before them so no closing line stands alone, and where the end's line starts; null for none. */
 function enteredOpening(
 	doc: Doc,
 	from: number,
@@ -596,7 +596,12 @@ function enteredOpening(
 		// What the range takes between two openings goes; each opening stays.
 		const first = Math.max(opened, lineStart(block.from));
 		opened = Math.max(first, Math.min(openingEnd(doc, block), endLine));
-		kept += source.slice(first, opened);
+		// A title the range runs past is text it covers, so it goes and the row's marker stays.
+		const title = titleRowOf(doc, block)?.text;
+		const cleared = title && title.from >= first && title.to < opened;
+		kept += cleared
+			? source.slice(first, title.from) + source.slice(title.to, opened)
+			: source.slice(first, opened);
 	}
 	return { kept, endLine };
 }
