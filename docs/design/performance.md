@@ -36,11 +36,9 @@ A container's `raw` (its verbatim source bytes, children included) holds its ful
 
 ### 3. A live whole-document derivation
 
-A reader keyed on the editor's **content version** (the counter that ticks whenever the document's bytes change) walks the CST, not the mounted set, so windowing can't bound it. The bundled footnote reference is the only reader today, and it's the reader that pays: with no `[^label]` widget mounted the cost is zero. O(document shape) rather than O(viewport). Measured, not gated.
+A drawing built from the rest of the document (a footnote's number, a table of contents) reads it through `depends`: one answer per top-level block, asked again only of the blocks a write replaced (`plugin-contract.md` § Block views). A key asks one block however long the document is. What still grows with the document is the reader's own pass over the answers when one changes: footnote numbering reads every top-level block's answer, O(top-level count) short strings, once per change, and nothing at all while no `[^label]` widget is mounted. Measured, not gated.
 
 The `rung-bracket-dense-footnotes` report rows type into a bracket-dense document with reference widgets in the viewport, at 100KB and 1MB, beside the same bytes on the plain editor route, where no inline handler is installed. Windowing mounts the same number of widgets at both sizes, so whatever grows between the two sizes comes from the document, not from the widgets.
-
-The reader keeps it this small by memoizing each top-level subtree's references against that subtree's `raw`, which is a sound witness because the `raw` of a container holds everything under it. So a keystroke re-parses the edited subtree and re-reads two fields per sibling (`raw`, `kind`): O(top-level count + edited subtree) instead of an inline parse per prose leaf.
 
 ### 4. A join under a large block
 

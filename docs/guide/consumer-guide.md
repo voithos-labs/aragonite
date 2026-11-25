@@ -831,7 +831,7 @@ Each one releases with the editor and asks for exactly its version, so bump them
 import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
 import { details } from '@voithos-labs/aragonite-details';
 import { toc } from '@voithos-labs/aragonite-toc';
-import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
+import { footnotes } from '@voithos-labs/aragonite-footnotes';
 import { emoji } from '@voithos-labs/aragonite-emoji';
 import { highlight } from '@voithos-labs/aragonite-highlight';
 import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurrences';
@@ -847,7 +847,7 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 | `admonitionsPlugin()` | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes |
 | `details` | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; an opening tag spelled any other way stays a plain HTML block |
 | `toc` or `toc({ maxDepth? })` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
-| `footnotesPlugin()` | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order |
+| `footnotes` | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order |
 | `emoji` | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph, with the literal `:name:` still in the source |
 | `highlight({ renderer? })` | Fenced code highlights in its language: 24 common ones, eight with the page and each other one the first time a fence names it, or every highlight.js grammar if you opt in (**Code highlighting**, below). The code block's picker offers the ones it highlights. Without a renderer, code stays plain, which is also what an editor without this plugin shows |
 | `highlightOccurrences` | Every occurrence of the word under the caret, the one you're on included, is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change. The plugin picks no color: style `.decoration-overlay.hl-occurrence` to see it |
@@ -871,7 +871,7 @@ const plugins = [toc({ maxDepth: 3 })];
 
 Two editors in one process can list different depths this way. At runtime anything that isn't a level from 1 to 6 lists every level.
 
-**Footnotes.** A reference jumps to its definition on the click a link follows: a plain click in reading mode, Ctrl/Cmd+click while editing, or a plain click in live mode too if you set `linkClick: 'plain'`. Any other plain click opens the reference's source to edit. The definition's own `[^label]` marker is the way back, on the same gesture, and it lands the caret right after the first citation. In reading mode both are links a keyboard reaches with Tab and follows with Enter, and the way back focuses that first citation, so Tab carries on from it; the editing modes give them no tab stop.
+**Footnotes.** A reference jumps to its definition on the click a link follows: a plain click in reading mode, Ctrl/Cmd+click while editing, or a plain click in live mode too if you set `linkClick: 'plain'`. Any other plain click opens the reference's source to edit. The definition's own `[^label]` marker is the way back, on the same gesture, and it lands the caret right after the first citation. In reading mode both are links a keyboard reaches with Tab and follows with Enter or Space, and the way back focuses that first citation, so Tab carries on from it; the editing modes give them no tab stop.
 
 **Slash commands.** Type `/` at the start of a line or after a space and a list opens under the caret: every block the right-click "Insert block" menu offers (your plugins' blocks included), then Heading 1 to 3. Typing narrows it by label or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it and leaves what you typed. On an empty line the block replaces the line. On a line with text, the `/query` goes and the block lands below it, except a heading row, which turns the line itself into a heading. It never opens in a table cell. Two built-in rows take a word after a space: `/code js` opens a fence tagged `js`, and `/table 3x4` makes three columns by four rows. A plugin's block can take one too, if its insert entry declares [`withArgument`](plugin-api.md#insert-catalogue). `Mod+/` types the `/` for you, and `run('slash-commands/open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
 
