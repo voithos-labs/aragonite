@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { installPlugins } from '#lib';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
-import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
-import { registeredFootnotes, FOOTNOTE_DEF_KIND } from '#lib/test/harness/registered-footnotes.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
+import { details } from '#packages/details/src/index.js';
+import { footnotes } from '#packages/footnotes/src/index.js';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
 /**
@@ -15,26 +16,35 @@ import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md
  * page load installs all the bundled plugins.
  */
 
+const KINDS = [
+	'footnotes/definition',
+	'details/details',
+	'admonitions/admonition',
+	'admonitions/alert'
+];
+
+let grammar: GrammarView;
 beforeEach(() => {
-	installPlugins([registeredAdmonitions(), registeredDetails(), registeredFootnotes()]);
+	grammar = syntaxGrammar([admonitions, details, footnotes]);
 });
 
 describe('showcase document', () => {
 	// Without this the round trip below would pass with every install having silently failed:
 	// the plain grammar round-trips most of these bytes as prose.
 	it('installed the plugin grammar the document is written against', () => {
-		for (const kind of [FOOTNOTE_DEF_KIND, DETAILS, 'admonition', 'githubAlert']) {
+		for (const kind of KINDS) {
 			expect(isBlockKindRegistered(kind), `plugin kind not registered: ${kind}`).toBe(true);
 		}
 	});
 
 	it('round-trips byte-for-byte under the showcase plugin set', () => {
-		expect(serialize(parse(SHOWCASE_DOCUMENT))).toBe(SHOWCASE_DOCUMENT);
+		expect(serialize(parse(SHOWCASE_DOCUMENT, { grammar }))).toBe(SHOWCASE_DOCUMENT);
 	});
 
 	it('resolves the plugin constructs to plugin kinds, not fallback prose', () => {
-		const kinds = new Set<string>(parse(SHOWCASE_DOCUMENT).children.map((block) => block.kind));
-		for (const kind of [DETAILS, 'admonition', 'githubAlert', FOOTNOTE_DEF_KIND]) {
+		const doc = parse(SHOWCASE_DOCUMENT, { grammar });
+		const kinds = new Set<string>(doc.children.map((block) => block.kind));
+		for (const kind of KINDS) {
 			expect(kinds.has(kind), `showcase construct fell back to prose: ${kind}`).toBe(true);
 		}
 	});

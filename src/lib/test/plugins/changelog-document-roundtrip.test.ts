@@ -6,11 +6,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { installPlugins } from '#lib';
-import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
+import { details } from '#packages/details/src/index.js';
+import { footnotes } from '#packages/footnotes/src/index.js';
 import { toc } from '#packages/toc/src/index.js';
-import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 import {
 	destroyMountedEditors,
@@ -18,10 +19,9 @@ import {
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 
-const DETAILS_PLUGIN = registeredDetails();
-
+let grammar: GrammarView;
 beforeEach(() => {
-	installPlugins([registeredAdmonitions(), DETAILS_PLUGIN, registeredFootnotes()]);
+	grammar = syntaxGrammar([admonitions, details, footnotes]);
 });
 afterEach(destroyMountedEditors);
 
@@ -48,18 +48,18 @@ describe('changelog documents', () => {
 
 	it('round-trips every family byte-for-byte under the changelog plugin set', () => {
 		for (const { id, document } of CHANGELOG_FAMILIES) {
-			expect(serialize(parse(document)), id).toBe(document);
+			expect(serialize(parse(document, { grammar })), id).toBe(document);
 		}
 	});
 
 	it('resolves the prelude to a collapsed details holding the outline', async () => {
-		const [outline] = parse(CHANGELOG_FAMILIES[0].document).children;
-		expect(outline.kind).toBe(DETAILS);
+		const [outline] = parse(CHANGELOG_FAMILIES[0].document, { grammar }).children;
+		expect(outline.kind).toBe('details/details');
 		expect(outline.raw.startsWith('<details>\n')).toBe(true);
 		// Child 0 is the summary; in an editor running the outline, the `[[toc]]` reads as its block
 		// inside the container rather than falling back to prose.
 		installLayoutStubs();
-		const m = mountEditor({ source: PRELUDE, plugins: [DETAILS_PLUGIN, toc({ maxDepth: 3 })] });
+		const m = mountEditor({ source: PRELUDE, plugins: [details, toc({ maxDepth: 3 })] });
 		await m.settle();
 		expect(m.instance.getBlockKindAt([0, 1])).toBe('toc/toc');
 	});

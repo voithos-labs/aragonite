@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The bundled syntax plugins the page-wide suites read with: each construct reads as its plugin
-// value's kind through the shared grammar and through a mounted editor listing them, never as the
-// prose or generic box a grammar without them reads.
+// value's kind through the shared grammar, the range checks' reading and a mounted editor listing
+// them, never as the prose or generic box a grammar without them reads.
 // Miss-analysis: the suites installed harness copies registered page-wide, so nothing held them to
 // the values that ship, and a suite reading without the grammar stayed green on prose.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -15,6 +15,7 @@ import {
 	installLayoutStubs
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { mountCase } from '#lib/test/range-laws/gestures.js';
+import { testReading } from '../range-edit/test-host';
 import { syntaxGrammar } from '../support/syntax-grammar';
 
 beforeAll(installLayoutStubs);
@@ -53,6 +54,13 @@ function kindsIn(nodes: readonly CstNode[], grammar: GrammarView): string[] {
 describe('the bundled syntax plugins', () => {
 	it('read as their values’ kinds through the shared grammar', () => {
 		const grammar = syntaxGrammar();
+		expect(kindsIn(parse(SOURCE, { grammar }).children, grammar)).toEqual(
+			expect.arrayContaining(KINDS)
+		);
+	});
+
+	it('read as their values’ kinds through the range checks’ reading', () => {
+		const { grammar } = testReading();
 		expect(kindsIn(parse(SOURCE, { grammar }).children, grammar)).toEqual(
 			expect.arrayContaining(KINDS)
 		);

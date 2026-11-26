@@ -24,13 +24,10 @@ import { createEditorContributions } from '#lib/schema/editor-contributions.js';
 import { installPluginList } from '#lib/schema/plugin-unit.js';
 import { installBlockTypes } from '#lib/schema/block-type.js';
 import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
-import { installPlugins } from '#lib';
-import { declaredPluginKind } from '#lib/plugin.js';
-import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { ADMONITION } from '#lib/test/harness/registered-admonitions.js';
-import { registeredDetails, DETAILS_SUMMARY } from '#lib/test/harness/registered-details.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
-import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
+import { footnotes } from '#packages/footnotes/src/index.js';
 import { latex } from '#packages/latex/src/index.js';
 import { mermaid } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
@@ -39,14 +36,8 @@ import { toc } from '#packages/toc/src/index.js';
 import { readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
-// Every bundled plugin, so its kinds' keymaps and its global chords join the sweep. Third-party
-// chords stay out: the gate only sees code this repo ships.
-const BUNDLED_PLUGINS = [registeredAdmonitions(), registeredDetails(), registeredFootnotes()];
-// Installed as the file loads too, so the row tables below can name the bundled kinds.
-installPlugins(BUNDLED_PLUGINS);
-
-// The bundled plugin values, read the way one editor reads its list, so their commands' chords
-// resolve beside the installed plugins' keymaps.
+// Every bundled plugin, read as one editor reads its list, so its chords and keymaps join the sweep;
+// third-party chords stay out, since the gate only sees code this repo ships.
 const contributions = createEditorContributions({
 	editorFor: () => undefined,
 	blocksAround: () => ({ blocks: [] }),
@@ -62,7 +53,7 @@ const contributions = createEditorContributions({
 	}
 });
 const VALUES = installPluginList(
-	[slashCommands, parrotPlugin(), latex, toc, emoji, mermaid],
+	[admonitions, details, footnotes, slashCommands, parrotPlugin(), latex, toc, emoji, mermaid],
 	({ cause }) => {
 		throw cause;
 	}
@@ -72,7 +63,6 @@ const BUNDLED: PluginActivation = { isActive: everyInstalledPlugin.isActive, con
 // The values' block types lent to the page, as an editor running them lends them, so their keys
 // join the sweep.
 beforeEach(() => {
-	installPlugins(BUNDLED_PLUGINS);
 	installBlockTypes(
 		VALUES,
 		({ cause }) => {
@@ -222,15 +212,15 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		commands: ['slash-commands/open' as CommandId]
 	},
 	'Cycle the admonition kind': {
-		kind: declaredPluginKind(ADMONITION),
-		commands: ['admonition.cycleKind' as CommandId]
+		kind: 'admonitions/admonition' as AnyBlockKind,
+		commands: ['admonitions/next-kind' as CommandId]
 	},
 	'Move from the title into the body': {
-		kind: declaredPluginKind('directiveOpenerLine'),
+		kind: 'directiveOpenerLine' as AnyBlockKind,
 		commands: ['chrome.descendToBody']
 	},
 	'Move from the summary into the body': {
-		kind: DETAILS_SUMMARY as AnyBlockKind,
+		kind: 'details/details.title' as AnyBlockKind,
 		commands: ['chrome.descendToBody']
 	},
 	"Open the diagram's focus view": {
@@ -639,7 +629,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 
 	// Miss-analysis: claims were keyed by chord and command alone; no case had two kinds share one.
 	it('matches a bound claim to a row for its own kind, not a sibling kind running the same command', () => {
-		const summary = DETAILS_SUMMARY as AnyBlockKind;
+		const summary = 'details/details.title' as AnyBlockKind;
 		const summaryEnter = {
 			chord: 'Enter',
 			owner: summary,

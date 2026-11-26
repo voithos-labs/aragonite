@@ -127,10 +127,11 @@ describe('a parsed quote and table keep their child spans', () => {
 
 describe('a quote inside a plugin block keeps its child spans', () => {
 	it('in a details body', () => {
-		expectSpansHold(
-			'<details>\n<summary>t</summary>\n\n> a\n>\n> b\n\n</details>\n',
-			syntaxGrammar()
-		);
+		const source = '<details>\n<summary>t</summary>\n\n> a\n>\n> b\n\n</details>\n';
+		const grammar = syntaxGrammar();
+		// Read as an HTML block, the quote stands at the top level and the row asks nothing.
+		expect(parse(source, { grammar }).children[0].kind).toBe('details/details');
+		expectSpansHold(source, grammar);
 	});
 });
 

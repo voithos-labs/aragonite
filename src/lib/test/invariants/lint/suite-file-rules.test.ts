@@ -540,9 +540,7 @@ const RULES: FileRule[] = [
 		matches: (file) => loadTimeRegistration(file.code),
 		allowed: {
 			'src/lib/test/plugin-platform-reset.test.ts':
-				'registers at load and in `beforeAll` on purpose, to pin that the unit setup wipes both',
-			'src/lib/test/invariants/lint/consumer-guide-chords.test.ts':
-				'installs at load too, so its row tables can name the bundled kinds; each test installs again'
+				'registers at load and in `beforeAll` on purpose, to pin that the unit setup wipes both'
 		},
 		reason:
 			'the unit setup resets the plugin platform before every test, so a registration made at load (a file’s or a describe’s own statements) or in `beforeAll` is gone before the first test runs, and a suite built on it passes on the bare grammar: register in `beforeEach` or in the test',
