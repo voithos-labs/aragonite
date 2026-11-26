@@ -9,11 +9,14 @@
  * harness's `window.__test` bridge. A row whose bridge call, plugin or edit a build lacks reports
  * "not on this ref" for that build instead of failing.
  *
+ * The rows labelled "main-thread ms" read Chromium's main-thread counters around each key instead:
+ * the in-page timer ends on a frame, so a key's cost under a frame reads the same on every build.
+ *
  * Nothing reads the whole document between an undo and the next timed key: the editor serializes
  * once per content version, and a read there would hand the key a serialization already made.
  */
 
-import { test, type Page } from '@playwright/test';
+import { test, type Browser, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { EditorPage } from '../editor-page';
@@ -62,7 +65,23 @@ const ROWS = {
 	'fence-letter': { label: 'a letter typed at the end of a 60-line code fence, live mode' },
 	'footnote-letter': {
 		label: 'a letter typed in prose dense with footnote references and [[wiki]] links'
-	}
+	},
+	calibrate: { label: "main-thread ms: the probe's own script and layout, the runner's speed" },
+	'plain-letter': { label: 'main-thread ms: a letter typed in a paragraph (the control)' },
+	'box-letter': { label: 'main-thread ms: a letter typed in a :::note body' },
+	'alert-letter': { label: 'main-thread ms: a letter typed in a > [!NOTE] body' },
+	'details-letter': { label: 'main-thread ms: a letter typed in an open <details> body' },
+	'notes-plain-letter': {
+		label: 'main-thread ms: a letter typed in a paragraph, footnotes listed'
+	},
+	'notes-ref-letter': {
+		label: 'main-thread ms: a letter typed in a paragraph citing a footnote, footnotes listed'
+	},
+	'move-paragraph': { label: 'main-thread ms: ArrowRight in a paragraph, occurrences marked' },
+	'move-box': { label: 'main-thread ms: ArrowRight in a :::note body, occurrences marked' },
+	'move-item': { label: 'main-thread ms: ArrowRight in a list item, occurrences marked' },
+	'mount-plain': { label: 'the first mount of 392k blocks citing footnotes, footnotes not listed' },
+	'mount-footnotes': { label: 'the first mount of 392k blocks citing footnotes, footnotes listed' }
 } as const;
 
 type RowId = keyof typeof ROWS;
@@ -92,6 +111,31 @@ function write(id: RowId, result: object): void {
 function report(id: RowId, samples: number[], change: Change): void {
 	const p50Ms = percentileMs(samples, 50);
 	write(id, { samples, p50Ms, p95Ms: percentileMs(samples, 95), change });
+}
+
+/** A row read on the main thread: `samples` are each key's main-thread ms, `frames` the in-page
+ *  timer's, and `parts` the medians of the script, style and layout shares. */
+function reportWork(id: RowId, work: Work[], frames: number[], change: Change): void {
+	const task = work.map((w) => w.taskMs);
+	const median = (part: keyof Work) =>
+		percentileMs(
+			work.map((w) => w[part]),
+			50
+		);
+	write(id, {
+		samples: task,
+		p50Ms: percentileMs(task, 50),
+		p95Ms: percentileMs(task, 95),
+		change,
+		frames: { samples: frames, p50Ms: percentileMs(frames, 50), p95Ms: percentileMs(frames, 95) },
+		parts: {
+			scriptMs: median('scriptMs'),
+			styleMs: median('styleMs'),
+			layoutMs: median('layoutMs'),
+			layoutsMax: Math.max(0, ...work.map((w) => w.layouts))
+		},
+		work
+	});
 }
 
 /** Records the row as one this build cannot run, and ends the test there. */
@@ -157,7 +201,31 @@ function installInPage(): void {
 			window.addEventListener('keydown', onKey, true);
 		});
 	};
-	w.__ab = { snapshot, arm };
+	// A caret move changes no bytes: its timer ends on the frame after the selection's focus moves.
+	const armMove = (key: string, deadline: number) => {
+		const focus = () => JSON.stringify(w.__test.getSelection()?.focus ?? null);
+		const base = focus();
+		w.__ab.timed = new Promise<Timed>((done) => {
+			const unheard = setTimeout(() => done({ unheard: true }), deadline);
+			const onKey = (e: KeyboardEvent) => {
+				if (e.key.toLowerCase() !== key) return;
+				clearTimeout(unheard);
+				window.removeEventListener('keydown', onKey, true);
+				const start = performance.now();
+				const poll = () =>
+					requestAnimationFrame(() => {
+						if (focus() !== base) {
+							const change = { blocks: 0, bytes: 0 };
+							requestAnimationFrame(() => done({ ms: performance.now() - start, change }));
+						} else if (performance.now() - start > deadline) done({ unchanged: true });
+						else poll();
+					});
+				poll();
+			};
+			window.addEventListener('keydown', onKey, true);
+		});
+	};
+	w.__ab = { snapshot, arm, armMove };
 }
 
 const snapshot = (page: Page, watch: Watch): Promise<Snapshot> =>
@@ -216,21 +284,50 @@ async function load(
 	return editor;
 }
 
-/** Times `press` from the keydown of `key` to the frame after `watch` first changes. */
+/** Times `press` from the keydown of `key` to the frame after `watch` first changes, and with a
+ *  `meter`, the main-thread time from just before the key to that frame. */
 async function timedKey(
 	page: Page,
 	key: string,
 	watch: Watch,
 	press: () => Promise<void>,
-	deadline: number
-): Promise<Timed> {
+	deadline: number,
+	meter?: Meter
+): Promise<Timed & { work?: Work }> {
 	const base = await snapshot(page, watch);
 	await page.evaluate(
 		({ key, watch, base, deadline }) => (window as any).__ab.arm(key, watch, base, deadline),
 		{ key, watch, base, deadline }
 	);
+	return measured(page, press, meter);
+}
+
+/** `timedKey` for a caret move: to the frame after the selection's focus moves. */
+async function timedMove(
+	page: Page,
+	key: string,
+	press: () => Promise<void>,
+	deadline: number,
+	meter: Meter
+): Promise<Timed & { work?: Work }> {
+	await page.evaluate(({ key, deadline }) => (window as any).__ab.armMove(key, deadline), {
+		key,
+		deadline
+	});
+	return measured(page, press, meter);
+}
+
+/** Presses the armed key and waits for its timer, reading `meter` either side when given. */
+async function measured(
+	page: Page,
+	press: () => Promise<void>,
+	meter?: Meter
+): Promise<Timed & { work?: Work }> {
+	const before = meter && (await meter());
 	await press();
-	return page.evaluate(() => (window as any).__ab.timed as Promise<Timed>);
+	const timed = await page.evaluate(() => (window as any).__ab.timed as Promise<Timed>);
+	if (!before || !('ms' in timed)) return timed;
+	return { ...timed, work: workBetween(before, await meter!()) };
 }
 
 /** Undoes until `watch` reads `loaded` again; a paste may take two steps on some builds. */
@@ -258,6 +355,54 @@ async function expectRestored(page: Page): Promise<void> {
 	});
 	if (diff !== null) throw new Error(`the undos left ${diff}`);
 }
+
+/* ---- Main-thread time ---- */
+
+/** The page's main-thread time over a span, in ms: all of it, and its script, style and layout. */
+interface Work {
+	taskMs: number;
+	scriptMs: number;
+	styleMs: number;
+	layoutMs: number;
+	/** The layouts and style recalculations run over the span, counted rather than timed. */
+	layouts: number;
+	styles: number;
+}
+
+type Meter = () => Promise<Work>;
+
+const COUNTERS: Record<'taskMs' | 'scriptMs' | 'styleMs' | 'layoutMs', string> = {
+	taskMs: 'TaskDuration',
+	scriptMs: 'ScriptDuration',
+	styleMs: 'RecalcStyleDuration',
+	layoutMs: 'LayoutDuration'
+};
+const COUNTS: Record<'layouts' | 'styles', string> = {
+	layouts: 'LayoutCount',
+	styles: 'RecalcStyleCount'
+};
+
+/** Reads Chromium's running main-thread totals for `page`; a span costs the difference. */
+async function workMeter(page: Page): Promise<Meter> {
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('Performance.enable');
+	return async () => {
+		const { metrics } = await cdp.send('Performance.getMetrics');
+		const value = (name: string) => metrics.find((m) => m.name === name)?.value ?? 0;
+		const times = Object.entries(COUNTERS).map(([part, name]) => [part, value(name) * 1000]);
+		const counts = Object.entries(COUNTS).map(([part, name]) => [part, value(name)]);
+		return Object.fromEntries([...times, ...counts]) as Work;
+	};
+}
+
+const workBetween = (from: Work, to: Work): Work => ({
+	taskMs: to.taskMs - from.taskMs,
+	scriptMs: to.scriptMs - from.scriptMs,
+	styleMs: to.styleMs - from.styleMs,
+	layoutMs: to.layoutMs - from.layoutMs,
+	layouts: to.layouts - from.layouts,
+	styles: to.styles - from.styles
+});
 
 /* ---- Sampling ---- */
 
@@ -306,26 +451,36 @@ async function editRow(editor: EditorPage, id: RowId, row: EditRow): Promise<voi
 	report(id, samples, change);
 }
 
-/** `keys` letters typed in a row after one unmeasured letter, each timed to the watched block
- *  growing; the source is then checked for exactly those letters and nothing else. */
-async function letterRow(editor: EditorPage, id: RowId, watch: Watch, keys: number): Promise<void> {
+/** `keys` letters typed after one unmeasured letter, each timed to the watched block growing (and
+ *  on the main thread, given a `meter`); the source must then hold exactly those letters. */
+async function letterRow(
+	editor: EditorPage,
+	id: RowId,
+	watch: Watch,
+	keys: number,
+	meter?: Meter
+): Promise<void> {
 	const page = editor.page;
 	const samples: number[] = [];
+	const work: Work[] = [];
 	let change: Change = { blocks: 0, bytes: 0 };
 	for (let i = -1; i < keys; i++) {
 		const deadline = i < 0 ? FIRST_DEADLINE_MS : DEADLINE_MS;
-		const timed = await timedKey(page, 'x', watch, () => page.keyboard.press('x'), deadline);
+		const press = () => page.keyboard.press('x');
+		const timed = await timedKey(page, 'x', watch, press, deadline, meter);
 		if ('unheard' in timed) throw new Error('no x keydown reached the page');
 		if ('unchanged' in timed) {
 			if (i < 0) absent(id, 'a typed letter changed nothing');
 			throw new Error('a typed letter left the watched block as it was');
 		}
 		if (i >= 0) samples.push(timed.ms);
+		if (i >= 0 && timed.work) work.push(timed.work);
 		change = timed.change;
 	}
 	const wrong = await insertedOnly(page, 'x'.repeat(keys + 1));
 	if (wrong !== null) throw new Error(`the letters left ${wrong}`);
-	report(id, samples, change);
+	if (meter) reportWork(id, work, samples, change);
+	else report(id, samples, change);
 }
 
 /** What is wrong with the source if it isn't the loaded one with `text` inserted in one place. */
@@ -840,5 +995,312 @@ test.describe('perf a/b: at an item end in a 1 MB list', () => {
 
 	test('ordered-paste-ending', async ({ page }) => {
 		await listRow(page, 'ordered-paste-ending', orderedList(), { key: 'v', clip: 'x\n' });
+	});
+});
+
+/* ---- The runner's speed ---- */
+
+const CALIBRATIONS = 40;
+
+/** A fixed workload the probe brings, the same on every build: strings, objects and a regex, then
+ *  300 paragraphs laid out. Returns a number so nothing is optimized away. Runs in the page. */
+function calibrationInPage(): number {
+	const parts = Array.from({ length: 20_000 }, (_, i) => ({ i, word: `word${i % 97}` }));
+	const text = parts.map((part) => part.word).join(' ');
+	let sum = text.split(' ').length;
+	for (const match of text.matchAll(/w(or)d(\d+)/g)) sum += match[2].length;
+	const host = document.createElement('div');
+	for (const part of parts.slice(0, 300)) {
+		const paragraph = document.createElement('p');
+		paragraph.textContent = part.word;
+		host.append(paragraph);
+	}
+	document.body.append(host);
+	sum += host.offsetHeight;
+	host.remove();
+	return sum;
+}
+
+// The runner swings between speeds from one round to the next, the same for every row in a round;
+// each round's rows divide by this one to cancel it, since it costs the same on every build.
+test.describe('perf a/b, main thread: the runner', () => {
+	test('calibrate', async ({ page }) => {
+		await gotoReady(page, '/test/plugins');
+		const meter = await workMeter(page);
+		const work: Work[] = [];
+		for (let i = -1; i < CALIBRATIONS; i++) {
+			const before = await meter();
+			await page.evaluate(calibrationInPage);
+			if (i >= 0) work.push(workBetween(before, await meter()));
+		}
+		reportWork('calibrate', work, [], { blocks: 0, bytes: 0 });
+	});
+});
+
+/* ---- A document of plugin blocks ---- */
+
+const PLUGIN_DOCUMENT_BYTES = 200_000;
+const MOVES = 40;
+const PROSE = [
+	'alpha',
+	'bravo',
+	'charlie',
+	'delta',
+	'echo',
+	'foxtrot',
+	'golf',
+	'hotel',
+	'india',
+	'juliet',
+	'kilo',
+	'lima',
+	'mike',
+	'november',
+	'oscar',
+	'papa'
+];
+
+/** A long note in sections of a heading, a paragraph, a box, an alert, an open details, a list and
+ *  a paragraph citing a footnote defined under it; each body opens on the word its rows find. */
+function pluginDocument(bytes: number): string {
+	let n = 0;
+	const words = (count: number) =>
+		Array.from({ length: count }, () => PROSE[(n = (n * 5 + 3) % PROSE.length)]).join(' ');
+	const sections: string[] = [];
+	for (let size = 0, i = 0; size < bytes; i++) {
+		const section = [
+			`## Section ${i} ${words(3)}`,
+			`plainbody ${words(36)}.`,
+			`:::note\nboxbody ${words(30)}.\n:::`,
+			`> [!NOTE]\n> alertbody ${words(30)}.`,
+			`<details open>\n<summary>Summary ${words(3)}</summary>\n\ndetailsbody ${words(30)}.\n\n</details>`,
+			`- itembody ${words(30)}.\n- ${words(8)}.`,
+			`notebody ${words(5)}[^n${i}] ${words(30)}.`,
+			`[^n${i}]: ${words(12)}.`
+		].join('\n\n');
+		sections.push(section);
+		size += section.length + 2;
+	}
+	return sections.join('\n\n') + '\n';
+}
+
+interface Leaf {
+	path: number[];
+	/** Its raw bytes less the line ending they end with. */
+	length: number;
+	/** The kind of the top-level block it sits in. */
+	top: string;
+}
+
+/** The first paragraph at or after the document's middle whose bytes hold `marker`. */
+function findLeaf(page: Page, marker: string): Promise<Leaf | null> {
+	return page.evaluate((marker) => {
+		const children = (window as any).__test.getDocument().children;
+		const find = (node: any, path: number[]): [number[], any] | null => {
+			if (node.kind === 'paragraph' && node.raw.includes(marker)) return [path, node];
+			for (const [i, child] of (node.children ?? []).entries()) {
+				const found = find(child, [...path, i]);
+				if (found) return found;
+			}
+			return null;
+		};
+		for (let i = Math.floor(children.length / 2); i < children.length; i++) {
+			const found = find(children[i], [i]);
+			if (!found) continue;
+			const [path, node] = found;
+			return { path, length: node.raw.replace(/\r?\n$/, '').length, top: children[i].kind };
+		}
+		return null;
+	}, marker);
+}
+
+/** Loads the plugin document on `route` and finds the paragraph `marker` opens; a `nested` one
+ *  must sit inside a block other than a quote, or no plugin took its construct on this build. */
+async function loadLeaf(
+	page: Page,
+	id: RowId,
+	route: '/test/plugins' | `/test/plugins?${string}`,
+	marker: string,
+	nested: boolean
+): Promise<{ editor: EditorPage; leaf: Leaf }> {
+	const source = pluginDocument(PLUGIN_DOCUMENT_BYTES);
+	const editor = await load(page, id, source, () => gotoReady(page, route));
+	const leaf = await findLeaf(page, marker);
+	if (leaf === null) throw new Error(`no paragraph past the middle holds ${marker}`);
+	if (nested && (leaf.path.length < 2 || leaf.top === 'blockquote'))
+		absent(id, `${marker} sits in a ${leaf.top} at ${leaf.path.join('.')}, no plugin's block`);
+	await bringIntoView(page, leaf.path[0], leaf.path[0]);
+	return { editor, leaf };
+}
+
+/** `TYPED_KEYS` letters mid-paragraph in the paragraph `marker` opens, read on the main thread. */
+async function pluginLetterRow(
+	page: Page,
+	id: RowId,
+	marker: string,
+	{ nested = false, seed = '' } = {}
+): Promise<void> {
+	const route = seed === '' ? '/test/plugins' : (`/test/plugins?seed=${seed}` as const);
+	const { editor, leaf } = await loadLeaf(page, id, route, marker, nested);
+	if (seed === 'footnotes' && (await page.locator('sup.footnote-ref').count()) === 0)
+		absent(id, `no footnote reference was drawn on ${route}`);
+	await editor.focusBlockAtPath(leaf.path, Math.floor(leaf.length / 2));
+	await letterRow(editor, id, { path: leaf.path }, TYPED_KEYS, await workMeter(page));
+}
+
+test.describe('perf a/b, main thread: a letter typed in a document of plugin blocks', () => {
+	test('plain-letter', async ({ page }) => {
+		await pluginLetterRow(page, 'plain-letter', 'plainbody');
+	});
+
+	test('box-letter', async ({ page }) => {
+		await pluginLetterRow(page, 'box-letter', 'boxbody', { nested: true });
+	});
+
+	test('alert-letter', async ({ page }) => {
+		await pluginLetterRow(page, 'alert-letter', 'alertbody', { nested: true });
+	});
+
+	test('details-letter', async ({ page }) => {
+		await pluginLetterRow(page, 'details-letter', 'detailsbody', { nested: true });
+	});
+
+	test('notes-plain-letter', async ({ page }) => {
+		await pluginLetterRow(page, 'notes-plain-letter', 'plainbody', { seed: 'footnotes' });
+	});
+
+	test('notes-ref-letter', async ({ page }) => {
+		await pluginLetterRow(page, 'notes-ref-letter', 'notebody', { seed: 'footnotes' });
+	});
+});
+
+/** `MOVES` presses of ArrowRight from the start of the paragraph `marker` opens, with the word
+ *  under the caret marked wherever it repeats; the caret must end `MOVES` + 1 characters in. */
+async function moveRow(page: Page, id: RowId, marker: string, nested = false): Promise<void> {
+	const route = '/test/plugins?seed=hloccur';
+	const { editor, leaf } = await loadLeaf(page, id, route, marker, nested);
+	if (leaf.length <= MOVES + 1) throw new Error(`${marker}'s paragraph is ${leaf.length} long`);
+	// Inside the word after the marker, which the document repeats, so marks must be drawn.
+	await editor.focusBlockAtPath(leaf.path, marker.length + 2);
+	const marked = await page
+		.waitForFunction(() => document.querySelector('.hl-occurrence') !== null, null, {
+			timeout: 5000
+		})
+		.then(
+			() => true,
+			() => false
+		);
+	if (!marked) absent(id, `no occurrence was marked on ${route}`);
+	await editor.focusBlockAtPath(leaf.path, 0);
+	await editor.waitForRenderFlush();
+	const meter = await workMeter(page);
+	const press = () => page.keyboard.press('ArrowRight');
+	const samples: number[] = [];
+	const work: Work[] = [];
+	for (let i = -1; i < MOVES; i++) {
+		const deadline = i < 0 ? FIRST_DEADLINE_MS : DEADLINE_MS;
+		const timed = await timedMove(page, 'arrowright', press, deadline, meter);
+		if ('unheard' in timed) throw new Error('no ArrowRight keydown reached the page');
+		if ('unchanged' in timed) {
+			if (i < 0) absent(id, 'ArrowRight left the caret where it was');
+			throw new Error('ArrowRight left the caret where it was');
+		}
+		if (i >= 0) samples.push(timed.ms);
+		if (i >= 0 && timed.work) work.push(timed.work);
+	}
+	const moved = await page.evaluate((path) => {
+		const focus = (window as any).__test.getSelection()?.focus;
+		return focus?.path.join('.') === path.join('.') ? (focus.offset as number) : -1;
+	}, leaf.path);
+	if (moved !== MOVES + 1) throw new Error(`the caret ended at ${moved}, not ${MOVES + 1}`);
+	reportWork(id, work, samples, { blocks: 0, bytes: moved });
+}
+
+test.describe('perf a/b, main thread: ArrowRight with occurrences marked', () => {
+	test('move-paragraph', async ({ page }) => {
+		await moveRow(page, 'move-paragraph', 'plainbody');
+	});
+
+	test('move-box', async ({ page }) => {
+		await moveRow(page, 'move-box', 'boxbody', true);
+	});
+
+	test('move-item', async ({ page }) => {
+		await moveRow(page, 'move-item', 'itembody', true);
+	});
+});
+
+/* ---- The first mount ---- */
+
+const MOUNT_BLOCKS = 392_000;
+const MOUNT_SAMPLES = 3;
+const MOUNT_DEADLINE_MS = 300_000;
+
+/** Loads `blocks` short paragraphs, a few citing footnotes, and resolves to the ms to the frame after
+ *  block 0 shows (with `notes`, its first reference numbered 1), or null past `deadline`. */
+async function mountInPage(args: {
+	blocks: number;
+	notes: boolean;
+	deadline: number;
+}): Promise<number | null> {
+	const parts = ['Body has a note[^a] and another[^b] here.'];
+	for (let i = 1; i < args.blocks - 2; i++)
+		parts.push(i % 1000 === 0 ? `Filler ${i} cites[^r${i % 50}].` : `Filler paragraph ${i}.`);
+	parts.push('[^a]: First note.', '[^b]: Second note.');
+	const source = parts.join('\n\n') + '\n';
+	const first = () => document.querySelector("[data-block-path='[0]']");
+	const shown = args.notes
+		? () => first()?.querySelector('.footnote-ref')?.textContent?.trim() === '1'
+		: () => first()?.textContent?.includes('Body has') === true;
+	const start = performance.now();
+	void (window as any).__test.setSource(source);
+	while (!shown()) {
+		if (performance.now() - start > args.deadline) return null;
+		await new Promise((resolve) => setTimeout(resolve, 0));
+	}
+	await new Promise((resolve) => requestAnimationFrame(resolve));
+	return performance.now() - start;
+}
+
+/** The first mount timed on a fresh page each sample, since a load into an editor that has shown a
+ *  document before is no first mount; `samples` are wall ms and `work` the main thread's share. */
+async function mountRow(browser: Browser, id: RowId, seed: string, notes: boolean): Promise<void> {
+	const samples: number[] = [];
+	const work: Work[] = [];
+	const { baseURL, viewport } = test.info().project.use;
+	for (let i = -1; i < MOUNT_SAMPLES; i++) {
+		const context = await browser.newContext({ baseURL, viewport });
+		try {
+			const page = await context.newPage();
+			await gotoReady(page, `/test/plugins?seed=${seed}`);
+			await new EditorPage(page).waitForRenderFlush();
+			const meter = await workMeter(page);
+			const before = await meter();
+			const args = { blocks: MOUNT_BLOCKS, notes, deadline: MOUNT_DEADLINE_MS };
+			const ms = await page.evaluate(mountInPage, args);
+			if (ms === null) {
+				const missing = notes ? 'no reference in block 0 was numbered 1' : 'block 0 never showed';
+				if (i < 0) absent(id, missing);
+				throw new Error(missing);
+			}
+			const spent = workBetween(before, await meter());
+			if (i >= 0) samples.push(ms);
+			if (i >= 0) work.push(spent);
+		} finally {
+			await context.close();
+		}
+	}
+	const p50Ms = percentileMs(samples, 50);
+	const change = { blocks: MOUNT_BLOCKS, bytes: 0 };
+	write(id, { samples, p50Ms, p95Ms: percentileMs(samples, 95), change, work });
+}
+
+test.describe('perf a/b, main thread: the first mount of 392k blocks citing footnotes', () => {
+	test('mount-plain', async ({ browser }) => {
+		await mountRow(browser, 'mount-plain', 'callout', false);
+	});
+
+	test('mount-footnotes', async ({ browser }) => {
+		await mountRow(browser, 'mount-footnotes', 'footnotes-ref', true);
 	});
 });
