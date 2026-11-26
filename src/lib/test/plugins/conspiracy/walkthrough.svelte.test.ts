@@ -45,8 +45,9 @@ describe('the walkthrough', () => {
 		expect(read(`${DIR}/${file}`)).toBe(fenceStartingWith(marker));
 	});
 
-	it('passes check', async () => {
-		await expect(check(conspiracyPlugin)).resolves.toBeDefined();
+	it('passes check, which throws on a failed row or a dev warning', async () => {
+		const report = await check(conspiracyPlugin);
+		expect(report.rows.filter((row) => row.status === 'passed').length).toBeGreaterThan(10);
 	});
 
 	it('reads its seed as the page shows', () => {

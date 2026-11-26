@@ -383,7 +383,8 @@
 
 	function destroyDrawing(made: Drawn<unknown>): void {
 		try {
-			made.destroy?.();
+			// A framework's unmount (React's block) hands back a promise, whose rejection is reported too.
+			void Promise.resolve(made.destroy?.()).catch(report);
 		} catch (error) {
 			report(error);
 		}

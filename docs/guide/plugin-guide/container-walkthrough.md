@@ -73,7 +73,7 @@ export const conspiracyPlugin = definePlugin({
 
 What each part does:
 
-- **`colonLines({ names })`** is the `:::` shape. The editor reads the opening line, the closing `:::` and the body between them, and writes all three back on every edit, a colon run growing past a body line that would close the box. Listing the plugin turns the `:::` grammar on in that editor.
+- **`colonLines({ names })`** is the `:::` shape. The editor reads the opening line, the closing `:::` and the body between them, and writes all three back on every edit, a colon run growing past a body line that would close the box. Listing the plugin also turns on the rest of the `:::` grammar: boxes no plugin claims, `::leaf` lines and `:text[]`.
 - **The data is `{ name }`**, read off the opening line. Whatever follows the name is the box's title row, and `title` gives that row a screen-reader label and a class.
 - **The chords** write the verdict with `edit().data(block, { name })`: the name alone, as one undo step, and the box is read again under its new name. A name the block type doesn't hold is refused.
 - **`draw`** builds the box and places `ctx.children`, where the editor has already mounted the body's blocks. It hands back `update`, which runs whenever the block's bytes change.

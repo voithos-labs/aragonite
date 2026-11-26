@@ -504,9 +504,9 @@ Empties every registry a plugin writes into, so each case re-installs from nothi
 ```ts
 import { installPlugins } from '@voithos-labs/aragonite';
 import { resetPluginPlatformForTests } from '@voithos-labs/aragonite/testing';
-import { conspiracyPlugin } from './conspiracy-plugin';
+import { conspiracySetupPlugin } from './conspiracy-setup';
 
-const conspiracy = conspiracyPlugin(); // one unit instance for the whole file
+const conspiracy = conspiracySetupPlugin(); // one unit instance for the whole file
 
 beforeEach(() => {
 	resetPluginPlatformForTests(); // empty the registries
@@ -821,10 +821,10 @@ The suite is your units plus those profiles. A profile names its kind as a strin
 
 ```ts
 import { runPluginConformance, type PluginConformanceSuite } from '@voithos-labs/aragonite/testing';
-import { conspiracyPlugin } from './conspiracy-plugin';
+import { conspiracySetupPlugin } from './conspiracy-setup';
 
 const suite: PluginConformanceSuite = {
-	plugins: [conspiracyPlugin()],
+	plugins: [conspiracySetupPlugin()],
 	containers: { conspiracy: conspiracyProfile } // the profile from the container checkup above
 	// inline: [{ trigger: '!', prefix: '![[', kind: 'embed', ... }] for an inline kind
 };

@@ -7,23 +7,24 @@ import path from 'node:path';
 import { collectFiles, sourceFile, walkCode } from './scan-source';
 import { ignoredPaths, isIgnoredBy } from '../../../../../scripts/docs/doc-corpus.mjs';
 
-/** The files that define a `setup` plugin. */
-const HELD: readonly string[] = [
+/** The files that define a `setup` plugin, and how many each defines. */
+const HELD: Readonly<Record<string, number>> = {
 	// Only a setup plugin may augment a built-in, and only one whose setup throws leaves a kind
 	// registered with no view: the list-throw and orphan probes.
-	'src/routes/test/editor/test-probes.ts',
-	'src/routes/test/plugins/block-badge/block-badge-plugin.ts',
-	'src/routes/test/plugins/callout/register.ts',
-	'src/routes/test/plugins/chips/chip-plugin.ts',
-	'src/routes/test/plugins/doc-stats/doc-stats-plugin.ts',
-	'src/routes/test/plugins/fold/fold-plugin.ts',
-	'src/routes/test/plugins/ghost-text/ghost-text-plugin.ts',
-	'src/routes/test/plugins/memo/register.ts',
-	'src/routes/test/plugins/sim-island/sim-island-plugin.ts',
-	'src/routes/test/plugins/sim-mark/sim-mark-plugin.ts',
-	'src/routes/test/plugins/tags/tag-plugin.ts',
-	'examples/vue/src/SharedPlugin.vue'
-];
+	'src/routes/test/editor/test-probes.ts': 2,
+	'src/routes/test/plugins/block-badge/block-badge-plugin.ts': 1,
+	'src/routes/test/plugins/callout/register.ts': 1,
+	'src/routes/test/plugins/chips/chip-plugin.ts': 1,
+	'src/routes/test/plugins/doc-stats/doc-stats-plugin.ts': 1,
+	'src/routes/test/plugins/fold/fold-plugin.ts': 1,
+	'src/routes/test/plugins/ghost-text/ghost-text-plugin.ts': 1,
+	'src/routes/test/plugins/memo/register.ts': 1,
+	'src/routes/test/plugins/sim-island/sim-island-plugin.ts': 1,
+	'src/routes/test/plugins/sim-mark/sim-mark-plugin.ts': 1,
+	'src/routes/test/plugins/tags/tag-plugin.ts': 1,
+	'examples/vue/src/SharedPlugin.vue': 1
+};
+const HELD_FILES = Object.keys(HELD);
 
 /** The pages that list one of the held plugins defined in another file. */
 const PAGES: readonly string[] = [
@@ -61,7 +62,7 @@ export function setupPluginCount(code: string): number {
 }
 
 const HELD_MODULE = new RegExp(
-	`from\\s+['"][^'"]*(?:${HELD.filter((file) => file.startsWith('src/routes/test/plugins/'))
+	`from\\s+['"][^'"]*(?:${HELD_FILES.filter((file) => file.startsWith('src/routes/test/plugins/'))
 		.map((file) => file.replace(/^src\/routes\/test\/plugins\//, '').replace(/\.ts$/, ''))
 		.join('|')})['"]`
 );
@@ -69,20 +70,22 @@ const HELD_MODULE = new RegExp(
 describe('G4.407 the setup plugins left are the held ones', () => {
 	const files = sources();
 
-	it('are defined only in the files listed', () => {
-		const defining = files.filter((file) => setupPluginCount(file.code) > 0).map((f) => f.relPath);
+	// Miss-analysis (G4.369's): a list of files alone let a second one into a listed file.
+	it('are defined only in the files listed, no more often than listed', () => {
+		const defined = Object.fromEntries(
+			files
+				.map((file) => [file.relPath, setupPluginCount(file.code)] as const)
+				.filter(([, count]) => count > 0)
+		);
 		expect(
-			{
-				added: defining.filter((p) => !HELD.includes(p)),
-				gone: HELD.filter((p) => !defining.includes(p))
-			},
+			defined,
 			'a page or example lists a plugin value (`definePlugin({ contributes })`); a file that no longer defines a setup plugin leaves HELD'
-		).toEqual({ added: [], gone: [] });
+		).toEqual(HELD);
 	});
 
 	it('are listed only on the pages named', () => {
 		const listing = files
-			.filter((file) => !HELD.includes(file.relPath) && HELD_MODULE.test(file.code))
+			.filter((file) => !(file.relPath in HELD) && HELD_MODULE.test(file.code))
 			.map((file) => file.relPath);
 		expect(listing.sort()).toEqual([...PAGES].sort());
 	});

@@ -219,6 +219,30 @@ describe('a drawing', () => {
 		expect(blockHostAt(editor, NOTE).querySelector('.badge')).toBeNull();
 	});
 
+	// Miss-analysis: the DOM view watched a framework unmount's promise, and its row went with that
+	// view; React's block hands back exactly such a promise.
+	it('whose destroy returns a rejected promise is reported, not left unhandled', async () => {
+		const editor = mountEditor({
+			source: SOURCE,
+			plugins: [
+				notes({
+					edit: 'text',
+					draw: (block, ctx) => ({
+						...badged()(block, ctx),
+						destroy: (() => Promise.reject(new Error('unmount exploded'))) as () => void
+					})
+				})
+			]
+		});
+		await editor.settle();
+		const errors: { origin: string }[] = [];
+		editor.instance.getEvents().on('error', (report) => errors.push(report));
+		typeInto(surfaceAt(editor, NOTE), 'plain now');
+		await editor.settle();
+		await Promise.resolve();
+		expect(errors).toEqual([expect.objectContaining({ origin: 'render' })]);
+	});
+
 	it('is destroyed when its block goes', async () => {
 		const log: string[] = [];
 		const editor = mountEditor({
