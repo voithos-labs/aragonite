@@ -1,6 +1,6 @@
 # Block commands
 
-Part of the [plugin guide](../plugin-guide.md). The worked command, `conspiracy.setVerdict`, comes from [the container walkthrough](container-walkthrough.md#the-registration-module).
+Part of the [plugin guide](../plugin-guide.md). The worked commands, the conspiracy's `allege` and `debunk` chords, come from [the container walkthrough](container-walkthrough.md#the-plugin).
 
 **A block type's `chords`, `actions` and `commands`**
 
@@ -46,7 +46,7 @@ const setKind = Object.fromEntries(
 
 **`registerBlockCommand(kind, name, handler, options?)`**
 
-A `setup` plugin's way, for a kind it registers: it creates a `(kind, name)` command and returns its id, which a keymap binding then targets; the walkthrough's `conspiracy.setVerdict` is the worked example. The optional `options` say what the command does over a selection (**Over a selection**, below). The name is dot-separated words that each start with a lowercase letter (`conspiracy.setVerdict`), and it can't be a built-in command's id. Your plugin may reuse one name across several of its own kinds (one `conspiracy.setVerdict` on every kind it ships), as long as the registrations run inside its `setup`. A name already taken by a **different** plugin is rejected, and so is a reuse from outside any plugin's setup.
+A `setup` plugin's way, for a kind it registers: it creates a `(kind, name)` command and returns its id, which a keymap binding then targets. The optional `options` say what the command does over a selection (**Over a selection**, below). The name is dot-separated words that each start with a lowercase letter (`conspiracy.setVerdict`), and it can't be a built-in command's id. Your plugin may reuse one name across several of its own kinds (one `conspiracy.setVerdict` on every kind it ships), as long as the registrations run inside its `setup`. A name already taken by a **different** plugin is rejected, and so is a reuse from outside any plugin's setup.
 
 ```ts
 const setVerdict = registerBlockCommand(conspiracy, 'conspiracy.setVerdict', (ctx) => {
@@ -80,7 +80,7 @@ So bind commands to your own plugin kinds. A command bound on a built-in kind (p
 
 A host's `editor.runCommand(id)` doesn't reach a **block** command either: it finds no handler and a dev build warns. Bind a chord, or expose an API of your own, for a block affordance a host must invoke without a keystroke. A **global** command (below) is different: `editor.runCommand('wordCount.log')` runs it and `canRunCommand` answers `true` for it.
 
-**View state rides `ctx.hooks`.** A view-state command (open an editor, open a focus overlay) has to reach the mounted component, so hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter (a DOM view calls `ctx.container.setCommandHooks({ openEdit, openFocusView })`) and the handler gets it back as `ctx.hooks`. It's read at dispatch, so an undo that replaces the node still hits the current handlers. `hooks` is typed `unknown`: cast it to your own type in the handler, and decline when it's `undefined`, which means no instance of the kind is mounted. A plugin value's block type does this with its drawing's `handle`, typed, which its own commands get as `run`'s third argument ([`command`](../plugin-api.md#command)).
+**View state rides `ctx.hooks`.** A view-state command (open an editor, open a focus overlay) has to reach the mounted component, so hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter and the handler gets it back as `ctx.hooks`. It's read at dispatch, so an undo that replaces the node still hits the current handlers. `hooks` is typed `unknown`: cast it to your own type in the handler, and decline when it's `undefined`, which means no instance of the kind is mounted. A plugin value's block type does this with its drawing's `controls`, typed, which its own commands get as `run`'s third argument ([`command`](../plugin-api.md#command)).
 
 A handler that throws doesn't take the editor down: the gesture does nothing and an `error` event of origin `command` fires, naming the kind, the command id, and the plugin that registered the command. That's also the plugin whose `EditorContext` the handler gets as `ctx.editor`, even when the kind belongs to someone else.
 

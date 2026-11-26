@@ -353,98 +353,13 @@ A declared title line already decides what Backspace does at its start, so its `
 
 | Export | Role |
 | --- | --- |
-| [`defineBlockView`](#defineblockview) | Make a container's view that draws into an element the editor makes for the block, no framework needed |
-| [`BlockViewSpec`](#blockviewspec), `ContainerViewSpec` | What `defineBlockView` takes: a container's view, the one shape there is |
-| [`BlockViewContext`](#blockviewcontext) | What `mount` gets |
-| [`ContainerSurface`](#containersurface) | A container's `ctx.container`: where the child blocks mount, plus the container helpers |
-| [`BlockViewHandle`](#blockviewhandle) | What `mount` returns |
-| `CommandHooksSurface` | `setCommandHooks(hooks)`, on the container surface: what a block command running on this block gets as `ctx.hooks` (open your own editor, say). The last value set wins ([commands](plugin-guide/commands.md)) |
-| `AmbientPrefix`, `AmbientInteractiveRange` | What `ambientPrefix` returns: the marker's text, or `{ text, interactive }` with ranges of it clickable, each with its class, click handler, role and an optional tab stop ([the container walkthrough](plugin-guide/container-walkthrough.md)) |
+| `AmbientPrefix`, `AmbientInteractiveRange` | What `createContainerBlock`'s `getAmbientPrefix` returns: the marker's text, or `{ text, interactive }` with ranges of it clickable, each with its class, click handler, role and an optional tab stop |
 | `svelteBlockView` | _(from `/svelte`)_ Make a view from your Svelte component, plus an optional per-node extra-props hook; a component that forgot to publish its surface fails the typecheck here |
 | `textBlockView` | The editor's own plain text block as a view, with an optional `blockClass` on its element: for a kind that's just editable text |
-| `BlockView` | What draws a kind, the registration's `view`. You can't look inside one: `defineBlockView`, `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included |
+| `BlockView` | What draws a kind, the registration's `view`. You can't look inside one: `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included |
 | `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a factory leaf's single `blockApi` export, a container's single `containerApi` export, or a hand-built leaf's own members |
 | [`BlockComponentProps`](#blockcomponentprops) | The props every block component receives |
 | `PreparedPaste` | What a block's `preparePaste` answers: the raw range of its own bytes a paste replaces, or `draft` to take the text into a source it shows and hasn't written yet |
-
-#### `defineBlockView`
-
-```ts
-function defineBlockView(spec: BlockViewSpec): BlockView;
-```
-
-Makes a container's view that draws into an element the editor makes for the block, no framework needed. Its `surface` is `'container'`: the editor builds the child blocks, and you hand it the box they go in with `ctx.container.mountChildren(box)`. `registerBlockKind` refuses it on a kind with no container group. A block with text, or a box drawn whole, is a block type with a `draw` instead ([The editable leaf](plugin-guide/editable-content.md#the-editable-leaf)).
-
-```ts
-const panelView = defineBlockView({
-	surface: 'container',
-	mount(target, ctx) {
-		target.className = 'panel';
-		ctx.container.mountChildren(target);
-		return {};
-	}
-});
-```
-
-#### `BlockViewSpec`
-
-```ts
-type BlockViewSpec = ContainerViewSpec;
-```
-
-What `defineBlockView` takes (`BlockSurface` is the surface's name):
-
-- `surface: 'container'`.
-- `mount(target, ctx)`, which fills `target`. Add your classes and children to it, but don't wrap a second box inside, since the editor measures `target` as the block.
-- `ambientPrefix(state, editor)` (optional), the read-only marker drawn before its first child's text (a footnote definition's `[^label]: `), read live.
-
-#### `BlockViewContext`
-
-```ts
-interface BlockViewContext {
-	state(): BlockViewState;
-	readonly editor: EditorContext;
-}
-```
-
-What `mount` gets, as a `ContainerViewContext`:
-
-- `state()`, which reads a `BlockViewState` when you call it: the node, its path, the presentation mode and the theme name.
-- `editor`, your plugin's `EditorContext` in the editor drawing the block. It's always there, since a view only mounts inside an editor.
-- `container`, the container surface.
-
-#### `ContainerSurface`
-
-```ts
-interface ContainerSurface extends CommandHooksSurface {
-	mountChildren(box: HTMLElement): void;
-	attachFocus(el: HTMLElement | null): void;
-	// plus the container helpers below
-}
-```
-
-A container's `ctx.container`. `mountChildren(box)` mounts the child blocks into `box`. Alongside it:
-
-- the container helpers `updateOwnMetadata`, `moveFocusOut`, `captureScrollPosition` and `openDraft`, the same ones `createContainerBlock` hands a Svelte container;
-- `setCommandHooks(hooks)`.
-
-A kind declaring `blockFocus: 'whole-block'` mounts no children and calls `attachFocus(el)` instead, with the element the block takes focus on (its edit box included). Any other kind that calls it throws ([React and Vue](plugin-guide/react-and-vue.md#a-block-with-its-own-editing-surface)).
-
-#### `BlockViewHandle`
-
-```ts
-interface BlockViewHandle {
-	update?(state: BlockViewState): boolean | void;
-	destroy?(): void | Promise<void>;
-}
-```
-
-What `mount` returns.
-
-- `update(state)` runs when the block's bytes, path, mode or theme change. Inside a container that's every keystroke in a child, so keep it cheap. Return `false` and the view is destroyed and mounted again from scratch.
-- `destroy()` runs when the block leaves the screen.
-
-A throw in `mount` or `update` shows the block's source with a notice, like a broken Svelte block. One in `destroy`, or a rejection of a promise `destroy` returns, is reported on the `error` event.
 
 #### `reactBlock`, `vueBlock`, `svelteBlock`, `useDrawn`
 
@@ -597,7 +512,7 @@ container: { lines: COLON_LINES }
 
 ### Container authoring
 
-_(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the border, the title line, an icon if you like. The factory hides everything else (child-list state, ancestor wiring, the mounting of only what's visible), so your component only has to supply the chrome. Worked end to end in [the walkthrough](plugin-guide/container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end).
+_(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the border, the title line, an icon if you like. The factory hides everything else (child-list state, ancestor wiring, the mounting of only what's visible), so your component only has to supply the chrome. A plugin value's container draws the same chrome from its `draw` ([the walkthrough](plugin-guide/container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end)).
 
 | Export | Role |
 | --- | --- |
@@ -637,8 +552,6 @@ What the factory returns:
 - the commit (`updateOwnMetadata`), which can also say where the caret goes after it;
 - the focus-exit (`moveFocusOut`), mode, theme, options, scroll-hold (`captureScrollPosition`) and draft (`openDraft`) entries;
 - `getEditor`, for this editor's `EditorContext`.
-
-The component that spreads all of it: [The component](plugin-guide/container-walkthrough.md#the-component).
 
 #### `DraftSpec`, `DraftCloseCause`
 

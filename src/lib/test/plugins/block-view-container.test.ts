@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-// A container drawn by a DOM view holds editable children like the same container drawn by a
-// Svelte component: each row runs over the GitHub alert's `AdmonitionBlock` and a DOM alert.
-// Miss-analysis: new surface; the rows the scratch probe proved, kept so the two forms can't drift.
+// A container drawn by a Svelte component (`svelteBlockView`) holds editable children: each row
+// runs over the harness GitHub alert's `AdmonitionBlock`. A block type's own drawing places its
+// children through `ctx.children` (`plugins/blocks/container-block.svelte.test.ts`).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { flushSync } from 'svelte';
 import {
 	blockHostAt,
 	destroyMountedEditors,
@@ -16,17 +15,11 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import {
-	defineBlockView,
-	definePlugin,
-	type BlockView,
-	type ContainerViewContext
-} from '#lib/plugin.js';
+import { definePlugin, type BlockView } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { registerGithubAlert } from '#lib/test/harness/registered-admonitions.js';
 import { registerAdmonitions } from '#lib/test/harness/registered-admonitions.js';
 import { AdmonitionBlock } from '#lib/test/harness/registered-admonitions.js';
-import { loggedHandle, newViewLog, type ViewLog } from './fixtures/dom-views';
 
 const SOURCE = '> [!NOTE]\n> first\n>\n> second\n\nafter\n';
 
@@ -36,37 +29,14 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-/** The alert's box and badge drawn by hand; `mountChildren` decides when the children arrive. */
-function domAlert(
-	log: ViewLog = newViewLog(),
-	mountChildren = (target: HTMLElement, ctx: ContainerViewContext) =>
-		ctx.container.mountChildren(target)
-): BlockView {
-	return defineBlockView({
-		surface: 'container',
-		mount(target, ctx) {
-			target.className = 'admonition';
-			const badge = document.createElement('div');
-			badge.className = 'admonition-title';
-			badge.contentEditable = 'false';
-			target.append(badge);
-			mountChildren(target, ctx);
-			return loggedHandle(log, target);
-		}
-	});
-}
-
-const FORMS: { form: string; view: () => BlockView }[] = [
-	{ form: 'a Svelte component', view: () => svelteBlockView(AdmonitionBlock) },
-	{ form: 'a DOM view', view: () => domAlert() }
-];
+const view = (): BlockView => svelteBlockView(AdmonitionBlock);
 
 function mountAlert(view: BlockView): MountedEditor<BlockLookup> {
 	const plugin = definePlugin({ name: 'view-alert', setup: () => registerGithubAlert(view) });
 	return mountEditor<BlockLookup>({ source: SOURCE, plugins: [plugin] });
 }
 
-describe.each(FORMS)('a container drawn by $form', ({ view }) => {
+describe('a container drawn by a Svelte component', () => {
 	it('mounts its children inside its box as editable blocks', async () => {
 		const editor = mountAlert(view());
 		await editor.settle();
@@ -110,7 +80,7 @@ describe.each(FORMS)('a container drawn by $form', ({ view }) => {
 	});
 });
 
-describe.each(FORMS)('a directive container drawn by $form', ({ view }) => {
+describe('a directive container drawn by a Svelte component', () => {
 	it('resolves a chord pressed in a child against the kind’s keymap', async () => {
 		const plugin = definePlugin({
 			name: 'view-admonition',
@@ -120,59 +90,5 @@ describe.each(FORMS)('a directive container drawn by $form', ({ view }) => {
 		await editor.settle();
 		await pressKeyAt(editor, [0, 1], 2, { key: '7', ctrlKey: true });
 		expect(editor.source()).toBe(':::tip\nbody\n:::\n');
-	});
-});
-
-describe('a DOM container view', () => {
-	// The children read the editor's contexts through `mount`'s `context`; from an event handler
-	// there is no component around the call to inherit them from.
-	it('mounts its children from a click after mount, and they edit', async () => {
-		const editor = mountAlert(
-			domAlert(newViewLog(), (target, ctx) =>
-				target.addEventListener('click', () => ctx.container.mountChildren(target), { once: true })
-			)
-		);
-		await editor.settle();
-		expect(blockHostAt(editor, [0]).querySelector('[data-block-path="[0,0]"]')).toBeNull();
-		blockHostAt(editor, [0]).querySelector<HTMLElement>('.admonition')!.click();
-		flushSync();
-		await editor.settle();
-		typeInto(surfaceAt(editor, [0, 0]), 'firstX');
-		await editor.settle();
-		expect(editor.source()).toBe(SOURCE.replace('first', 'firstX'));
-	});
-
-	// A container's raw changes with each edit inside it, so its view pays one update per key.
-	it('gets one update per keystroke in a child', async () => {
-		const log = newViewLog();
-		const editor = mountAlert(domAlert(log));
-		await editor.settle();
-		typeInto(surfaceAt(editor, [0, 0]), 'firstX');
-		await editor.settle();
-		typeInto(surfaceAt(editor, [0, 0]), 'firstXY');
-		await editor.settle();
-		expect(log.raws).toEqual([
-			'> [!NOTE]\n> firstX\n>\n> second\n',
-			'> [!NOTE]\n> firstXY\n>\n> second\n'
-		]);
-		expect(log.mounts).toHaveLength(1);
-	});
-
-	// A Vue `<BlockChildren>` calls its ref again on every re-render, with the box it already gave.
-	it('keeps its children when handed the box they are already in', async () => {
-		const editor = mountAlert(
-			defineBlockView({
-				surface: 'container',
-				mount(target, ctx) {
-					ctx.container.mountChildren(target);
-					return { update: () => ctx.container.mountChildren(target) };
-				}
-			})
-		);
-		await editor.settle();
-		const child = surfaceAt(editor, [0, 0]);
-		typeInto(child, 'firstX');
-		await editor.settle();
-		expect(surfaceAt(editor, [0, 0])).toBe(child);
 	});
 });

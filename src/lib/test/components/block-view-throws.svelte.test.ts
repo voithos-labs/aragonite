@@ -1,22 +1,20 @@
 // @vitest-environment jsdom
-// A DOM view that throws degrades exactly as a Svelte block component does: BlockHost's boundary
-// shows the block's bytes, the error event names its path, and a foreign-runtime throw is named.
-// Miss-analysis: new surface; a view's throws run in an attachment and an effect, not a render.
+// A Svelte block component that throws degrades in place: BlockHost's boundary shows the block's
+// bytes, the error event names its path, and a foreign-runtime throw is named. A block type's
+// drawing has the same rows in `plugins/blocks/draw-host.svelte.test.ts`.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '#lib/core/parser.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { createEditorEvents } from '#lib/editor-events.js';
 import { svelteBlockView } from '#lib/components/svelte-block-view.js';
-import { defineBlockView, type BlockView } from '#lib/plugin.js';
+import type { BlockView } from '#lib/plugin.js';
 import { headless } from '#lib/testing.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import type { PluginBlockKind } from '#lib/core/nodes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { mountBlockHost, type MountedHost } from './mount-host';
 import ThrowingAtMountBlock from './fixtures/ThrowingAtMountBlock.svelte';
 import ThrowingOnChangeBlock from './fixtures/ThrowingOnChangeBlock.svelte';
-import { THROWN_MESSAGE } from './fixtures/thrown-message';
 
 beforeAll(headless);
 
@@ -31,63 +29,11 @@ interface ErrorReport {
 	context?: { path?: number[] };
 }
 
-const throwing = (raw: string, word: string) => {
-	if (raw.includes(word)) throw new TypeError(THROWN_MESSAGE);
-};
-
-interface Form {
-	form: string;
-	atMount: () => BlockView;
-	onChange: () => BlockView;
-	/** The kind the view draws, and how its text reads as that kind. */
-	kind: (view: BlockView) => PluginBlockKind;
-	raw: (text: string) => string;
-}
-
 const leaf = (view: BlockView) => testLeaf('throwing-view', { view });
-// A DOM view draws a container, so its block is a quote read as one.
-const quote = (view: BlockView) =>
-	testLeaf('throwing-quote', {
-		view,
-		mergeRole: 'container',
-		container: { contract: 'opaque', rebuildRaw: () => {} }
-	});
 
-const FORMS: Form[] = [
-	{
-		form: 'a Svelte component',
-		atMount: () => svelteBlockView(ThrowingAtMountBlock),
-		onChange: () => svelteBlockView(ThrowingOnChangeBlock),
-		kind: leaf,
-		raw: (text) => text
-	},
-	{
-		form: 'a DOM view',
-		kind: quote,
-		raw: (text) => `> ${text}`,
-		atMount: () =>
-			defineBlockView({
-				surface: 'container',
-				mount(target, ctx) {
-					throwing(ctx.state().node.raw, 'boom');
-					target.textContent = ctx.state().node.raw;
-					return {};
-				}
-			}),
-		onChange: () =>
-			defineBlockView({
-				surface: 'container',
-				mount(target, ctx) {
-					target.textContent = ctx.state().node.raw;
-					return { update: (state) => throwing(state.node.raw, 'bang') };
-				}
-			})
-	}
-];
-
-function mountHost(view: BlockView, raw: string, kind: Form['kind'] = leaf) {
+function mountHost(view: BlockView, raw: string) {
 	const doc = parse(raw);
-	doc.children[0].kind = kind(view);
+	doc.children[0].kind = leaf(view);
 	const node: CstNode = $state(doc.children[0]);
 	doc.children[0] = node;
 	const events = createEditorEvents();
@@ -107,46 +53,17 @@ function expectFailedBlock(host: MountedHost, errors: ErrorReport[], raw: string
 	expect(takeDevWarns().map((w) => w.tag)).toEqual(['foreign-runtime']);
 }
 
-describe.each(FORMS)('a block drawn by $form', ({ atMount, onChange, kind, raw }) => {
+describe('a block drawn by a Svelte component', () => {
 	it('shows the failed-block notice, reports and names the cause when it throws mounting', () => {
-		const { host, errors } = mountHost(atMount(), raw('boom text\n'), kind);
-		expectFailedBlock(host, errors, raw('boom text\n'));
+		const { host, errors } = mountHost(svelteBlockView(ThrowingAtMountBlock), 'boom text\n');
+		expectFailedBlock(host, errors, 'boom text\n');
 	});
 
 	it('does the same when it throws on a change to its bytes', () => {
-		const { host, node, errors } = mountHost(onChange(), raw('calm text\n'), kind);
+		const { host, node, errors } = mountHost(svelteBlockView(ThrowingOnChangeBlock), 'calm text\n');
 		expect(host.el.querySelector('[data-failed-block]')).toBeNull();
-		node.raw = raw('bang text\n');
+		node.raw = 'bang text\n';
 		flushSync();
-		expectFailedBlock(host, errors, raw('bang text\n'));
-	});
-});
-
-// Miss-analysis: only a synchronous throw from `destroy` had a row, and a framework's unmount
-// rejects a promise instead, which went unhandled.
-describe.each([
-	[
-		'throws',
-		() => {
-			throw new Error('destroy exploded');
-		}
-	],
-	['returns a rejected promise', () => Promise.reject(new Error('unmount exploded'))]
-])('a DOM view whose destroy %s', (_name, destroy) => {
-	it('is reported, and the block still tears down', async () => {
-		const view = defineBlockView({
-			surface: 'container',
-			mount(target) {
-				target.textContent = 'drawn';
-				return { destroy };
-			}
-		});
-		const { host, errors } = mountHost(view, '> text\n', quote);
-		const el = host.el;
-		await host.dispose();
-		await Promise.resolve();
-		mounted = null;
-		expect(errors).toEqual([expect.objectContaining({ origin: 'render' })]);
-		expect(el.isConnected).toBe(false);
+		expectFailedBlock(host, errors, 'bang text\n');
 	});
 });

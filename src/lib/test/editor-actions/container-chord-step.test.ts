@@ -2,9 +2,8 @@
 // Miss-analysis: a container's chords ran only from its own keydown handler, so a container that
 // bound none lost them, and every suite's container bound one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defineBlockView, definePlugin } from '#lib/plugin.js';
+import { definePlugin, fencedBlock } from '#lib/plugin.js';
 import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { registerAdmonitions } from '#lib/test/harness/registered-admonitions.js';
@@ -48,25 +47,34 @@ function notePlugin(stops: boolean) {
 
 const mountNote = (stops: boolean) => mountEditor({ source: NOTE, plugins: [notePlugin(stops)] });
 
-// A diagram whose source box is always open and lets every key bubble, inside an admonition.
+// A diagram focused whole whose source box is always open and lets every key bubble, inside an
+// admonition.
 const DIAGRAM_IN_NOTE = ':::note\n\n```mermaid\ngraph TD\n```\n\n:::\n';
 const DIAGRAM_PLUGINS = [
 	registeredAdmonitions(),
 	definePlugin({
 		name: 'box-diagram',
-		setup: () =>
-			registerMermaidKind(
-				defineBlockView({
-					surface: 'container',
-					mount(target, ctx) {
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({
+			blocks: [
+				fencedBlock({
+					name: 'diagram',
+					label: 'Diagram',
+					fence: { info: 'mermaid' },
+					sample: '```mermaid\ngraph TD\n```',
+					insert: { none: 'a test block type' },
+					edit: 'box',
+					draw: () => {
+						const dom = document.createElement('div');
 						const box = document.createElement('textarea');
 						box.className = 'diagram-source';
-						target.append(box);
-						ctx.container.attachFocus(box);
-						return {};
+						dom.append(box);
+						return { dom };
 					}
 				})
-			)
+			]
+		})
 	})
 ];
 

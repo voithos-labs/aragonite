@@ -411,14 +411,14 @@ One exception: a check that stops a plugin corrupting a document can't wait for 
 
 Two shapes draw everything a plugin puts on screen. (Not to be confused with the read-only node types in [Views](#views-what-you-read-what-you-own), below; same word, different job.)
 
-- **A block type draws through its `draw`**, the function its maker takes. It gets the block and the editor's own elements to place (the text as `ctx.source`, child blocks as `ctx.children`) and hands back the DOM it built, no framework involved. `svelteBlock` (from `@voithos-labs/aragonite/svelte`), `reactBlock` and `vueBlock` (from `@voithos-labs/aragonite-react` and `-vue`) make a `draw` from your own components ([React and Vue blocks](plugin-guide/react-and-vue.md)). A kind you register with `registerBlockKind` draws through a `BlockView` instead: `defineBlockView` with `surface: 'container'` for child blocks, `svelteBlockView(YourComponent)`, or `textBlockView()`, the editor's own plain text block ([Block views](plugin-api.md#block-views)).
+- **A block type draws through its `draw`**, the function its maker takes. It gets the block and the editor's own elements to place (the text as `ctx.source`, child blocks as `ctx.children`) and hands back the DOM it built, no framework involved. `svelteBlock` (from `@voithos-labs/aragonite/svelte`), `reactBlock` and `vueBlock` (from `@voithos-labs/aragonite-react` and `-vue`) make a `draw` from your own components ([React and Vue blocks](plugin-guide/react-and-vue.md)). A kind you register with `registerBlockKind` draws through a `BlockView` instead: `svelteBlockView(YourComponent)`, or `textBlockView()`, the editor's own plain text block ([Block views](plugin-api.md#block-views)).
 - **Everything else draws through a `PluginView`**: an inline widget, a decoration's widget or badge, and an inline menu row. It's a plain function, `(target, props) => ({ update?, destroy? })`, that fills an element the editor made for it ([Rendering it as a widget](plugin-guide/inline-kinds.md#rendering-it-as-a-widget) walks one through). Already writing Svelte? `svelteView(Component)`, also from `/svelte`, turns a component into one for any of those slots.
 
 Which apps can run your plugin follows from that. An app whose bundler compiles Svelte (a Svelte app, say) compiles the editor from source, along with your components. An app whose bundler doesn't (most React, Vue and plain JavaScript apps) runs a prebuilt copy with its own Svelte compiled in, and a Svelte component of yours can't run on that copy's Svelte. So:
 
 | Your plugin draws with | It runs in |
 | --- | --- |
-| Plain DOM (a block type's `draw`, `defineBlockView` blocks, widgets, decorations, menu rows), or nothing at all (syntax, commands, paste transforms) | Every app |
+| Plain DOM (a block type's `draw`, widgets, decorations, menu rows), or nothing at all (syntax, commands, paste transforms) | Every app |
 | React or Vue components, through `reactBlock` or `vueBlock` | Every app with that framework installed |
 | Any Svelte component | An app whose bundler compiles Svelte (a Svelte app, say) |
 
@@ -496,4 +496,3 @@ What each mistake does in each build:
 | An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind | Silent round-trip break |
 | An opener throws | Propagates uncaught (parse runs at init and on every edit) | Same; uncaught |
 | A register call outside a plugin's setup | Throws, naming `definePlugin` | Runs, unchecked and unsupported |
-| `attachFocus` on a kind not focused whole | Throws, naming `blockFocus: 'whole-block'`; from a view's `mount` or `update` (a framework's ref included) that's the failed-block fallback plus an `error` event | Same |

@@ -41,10 +41,6 @@ const UNFENCED: Record<string, { wirings: number; why: string }> = {
 		wirings: 1,
 		why: 'the container factory’s handleKeydown (`editor-actions/plugin/container.ts`)'
 	},
-	'src/lib/components/dom-block-view/DomBlockView.svelte': {
-		wirings: 1,
-		why: 'the container factory’s handleKeydown'
-	},
 	'src/lib/components/drawn-block/DrawnBody.svelte': {
 		wirings: 1,
 		why: 'the container factory’s handleKeydown'

@@ -1,6 +1,6 @@
 # Presentation modes
 
-Part of the [plugin guide](../plugin-guide.md). The reads below come off the `EditorContext` from [One process, many editors](per-editor.md) and the two block factories, [`createContainerBlock`](container-walkthrough.md#the-component) and [`createEditableLeaf`](editable-content.md#the-editable-leaf).
+Part of the [plugin guide](../plugin-guide.md). The reads below come off the `EditorContext` from [One process, many editors](per-editor.md) and the two block factories, [`createContainerBlock`](../plugin-api.md#container-authoring) and [`createEditableLeaf`](editable-content.md#the-editable-leaf).
 
 **The contract: every plugin tier can learn the editor's current presentation mode and render for it.** The editor isn't permanently the marker-always source view (a **marker** is the syntax itself, the `**` around bold or the `#` before a heading, which the editor shows dimmed). A consumer can flip the editor into any of five modes, and a plugin that assumes source mode renders wrong the day its host flips the prop. What each mode looks like to a user is the [consumer guide's table](../consumer-guide.md#presentation-modes); this section is what each asks of a plugin.
 

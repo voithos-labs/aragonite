@@ -38,7 +38,7 @@ import {
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
 import { clipboardGesture, pasteGesture, placeRange, type Editor } from '../../range-laws/gestures';
-import { markerLeafPlugin } from '../fixtures/dom-views';
+import { markerLeafPlugin } from '../fixtures/marker-leaf';
 import PlainLeafBlock from '../fixtures/PlainLeafBlock.svelte';
 
 const SOURCE = 'intro\n\n@@ abcd\n\noutro\n';

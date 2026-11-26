@@ -18,7 +18,7 @@ import type { StripRebuild } from './strip-rebuild';
 import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightMetrics } from './height-estimates';
 import { closesOwnLine, rejectIncoherentPairs } from './registration-pairs';
-import { blockViewForm, isBlockView, type BlockView } from './block-view';
+import { isBlockView, type BlockView } from './block-view';
 import type { PluginActivation } from './plugin-activation';
 import type { RegistryRecord } from './plugin-registry';
 import type { BlockOpener } from './block-openers';
@@ -461,8 +461,7 @@ export type BuiltinRegistration = (WholeBlockRegistration | CaretBlockRegistrati
  * the kind. `isContainer` is derived (`container !== undefined`), never declared.
  */
 export type BlockKindRegistration = BuiltinRegistration & {
-	/** What draws the kind: `defineBlockView(spec)`, `textBlockView()`, or `svelteBlockView(Component)`
-	 *  from `/svelte`. */
+	/** What draws the kind: `textBlockView()`, or `svelteBlockView(Component)` from `/svelte`. */
 	view: BlockView;
 };
 
@@ -508,22 +507,12 @@ export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindReg
 	const { view, ...fields } = registration;
 	if (!isBlockView(view)) {
 		throw new TypeError(
-			`registerBlockKind: "${kind}" needs a \`view\`, such as \`defineBlockView(spec)\` or ` +
-				'`textBlockView()` from `@voithos-labs/aragonite/plugin`, or `svelteBlockView(Component)` ' +
+			`registerBlockKind: "${kind}" needs a \`view\`, such as \`textBlockView()\` from ` +
+				'`@voithos-labs/aragonite/plugin`, or `svelteBlockView(Component)` ' +
 				'from `@voithos-labs/aragonite/svelte`'
 		);
 	}
-	rejectSurfaceMismatch(kind, view, fields.container !== undefined);
 	storeKind('registerBlockKind', kind, fields, view);
-}
-
-/** A DOM view builds child blocks, so only a kind declaring a container group takes one. */
-function rejectSurfaceMismatch(kind: AnyBlockKind, view: BlockView, isContainer: boolean): void {
-	if (blockViewForm(view) !== 'dom' || isContainer) return;
-	throw new TypeError(
-		`registerBlockKind: "${kind}" has no container group, but \`defineBlockView\` draws a ` +
-			'container kind: draw it with `textBlockView()` or `svelteBlockView(Component)`'
-	);
 }
 
 /** `registerBlockKind` for a built-in, whose view `attachBuiltinViews` adds from the component

@@ -3,7 +3,7 @@
 import type { Component } from 'svelte';
 import type { HostedBlockExports } from '../block-component';
 import type { NodeView } from '../core/node-views';
-import { blockViewForm, domViewSpec, viewHost, type BlockView } from '../schema/block-view';
+import { blockViewForm, viewHost, type BlockView } from '../schema/block-view';
 import type { SvelteBlockEntry } from './svelte-block-view';
 import { drawingOf } from '../schema/drawing';
 
@@ -17,10 +17,6 @@ export function blockViewEntry(view: BlockView): HostedBlockEntry {
 	const form = blockViewForm(view);
 	if (form === 'svelte') return view as unknown as SvelteBlockEntry;
 	const component = viewHost(view) as HostedBlockEntry['component'];
-	if (form === 'drawn') {
-		const drawing = drawingOf(view);
-		return { component, extraProps: () => ({ drawing }) };
-	}
-	const spec = domViewSpec(view);
-	return { component, extraProps: () => ({ spec }) };
+	const drawing = drawingOf(view);
+	return { component, extraProps: () => ({ drawing }) };
 }

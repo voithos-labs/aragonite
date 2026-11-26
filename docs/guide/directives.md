@@ -138,7 +138,7 @@ You don't build the first line. The grammar takes `:::note Heads up` verbatim an
   node.children[0].raw.slice(start, end); // 'Heads up'
   ```
 
-- **Styling it.** The line draws as `.directive-opener-line` inside `[data-block-kind='directiveOpenerLine']`. Put a `>` between your box, its `.block-list` and that row, the way [the walkthrough's CSS](plugin-guide/container-walkthrough.md#the-component) does, or a box nested in yours picks up the style too.
+- **Styling it.** The line draws as `.directive-opener-line` inside `[data-block-kind='directiveOpenerLine']`. A plugin value's `colonLines({ title: { className } })` puts a class of its own on its rows, the way [the walkthrough's CSS](plugin-guide/container-walkthrough.md#the-drawing) styles the theory.
 - **Renaming the box.** The name lives on that line too, so a command that switches `:::note` to `:::tip` rewrites the line: `ctx.replaceRaw(withDirectiveName(ctx.node.raw, 'tip'))`. That's one undo entry, and the container is read again under its new name, metadata and all. Same thing when someone types over the name by hand. One exception: text typed at the end of a bare `:::note` starts its title (`:::note x`), unless the longer name starts another one your editor holds (a `notes` of yours, say). To lengthen a name, select it and type the new one.
 
 ### When is `fromDirective` required?

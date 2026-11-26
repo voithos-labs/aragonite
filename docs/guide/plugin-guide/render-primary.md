@@ -51,7 +51,7 @@ Three gotchas:
 
 Supply a focus element for **every steady state** (error, loading, and static fallbacks included), so a broken render stays keyboard-reachable. If the getter returns null anyway, the editor degrades to focusing your chrome box and warns in dev.
 
-Not drawing it in Svelte? A `defineBlockView({ surface: 'container' })` view gets all of this from the kind's `blockFocus` alone. It never calls `mountChildren`, and instead of a getter it calls `ctx.container.attachFocus(el)` each time it shows a new focus element (the rendered diagram, the edit box), so the same rule holds: one for every state. [React and Vue](react-and-vue.md#a-block-with-its-own-editing-surface) shows one, drawn by a component.
+Not drawing it in Svelte? A block type made with `edit: 'box'` gets all of this from its maker: the editor focuses the box whole in every state it shows, and a surface of your own takes the caret through the drawing's `focus`. [React and Vue](react-and-vue.md#a-block-with-its-own-editing-surface) shows one, drawn by a component.
 
 ## What your own editing surface has to do
 

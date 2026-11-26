@@ -10,6 +10,7 @@ import type { BoxDrawContext, TextDrawContext } from '#lib/schema/drawing.js';
 import { POINTER_GESTURE_ATTR } from '#lib/selection/pointer-gesture.js';
 import { VIEW_TEXT_ATTR } from '#lib/caret/block-content-selector.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { THROWN_MESSAGE } from '../../components/fixtures/thrown-message';
 import { pressKey } from '#lib/test/harness/settle.js';
 import {
 	StubDataTransfer,
@@ -145,6 +146,77 @@ describe('a drawing', () => {
 		await editor.settle();
 		const host = blockHostAt(editor, NOTE);
 		expect(host.querySelector('[data-failed-block] pre')?.textContent).toBe('%%note abcd\n');
+	});
+
+	// Miss-analysis: the DOM view's throw rows went with that view, and the drawing had a row only
+	// for a throw as it draws, none naming a second runtime or for a throw on a change.
+	it('that throws as a second Svelte runtime does is named so in the notice', async () => {
+		const editor = mountEditor({
+			source: SOURCE,
+			plugins: [
+				notes({
+					draw: () => {
+						throw new TypeError(THROWN_MESSAGE);
+					}
+				})
+			]
+		});
+		await editor.settle();
+		const notice = blockHostAt(editor, NOTE).querySelector('[data-failed-block]');
+		expect(notice?.textContent).toContain('a different Svelte runtime');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['foreign-runtime']);
+	});
+
+	it('that throws on a change to its bytes shows them with a notice, reported with its path', async () => {
+		const editor = mountEditor({
+			source: SOURCE,
+			plugins: [
+				notes({
+					edit: 'text',
+					draw: (block, ctx) => ({
+						dom: badged()(block, ctx).dom,
+						update: (block) => {
+							if (block.text.includes('bang')) throw new Error('bang');
+						}
+					})
+				})
+			]
+		});
+		await editor.settle();
+		const errors: { origin: string; context?: unknown }[] = [];
+		editor.instance.getEvents().on('error', (report) => errors.push(report));
+		typeInto(surfaceAt(editor, NOTE), '%%note bang');
+		await editor.settle();
+		expect(blockHostAt(editor, NOTE).querySelector('[data-failed-block] pre')?.textContent).toBe(
+			'%%note bang\n'
+		);
+		expect(errors).toEqual([
+			expect.objectContaining({ origin: 'render', context: { path: NOTE } })
+		]);
+	});
+
+	it('whose destroy throws is reported, and its block still goes', async () => {
+		const editor = mountEditor({
+			source: SOURCE,
+			plugins: [
+				notes({
+					edit: 'text',
+					draw: (block, ctx) => ({
+						...badged()(block, ctx),
+						destroy: () => {
+							throw new Error('destroy exploded');
+						}
+					})
+				})
+			]
+		});
+		await editor.settle();
+		const errors: { origin: string }[] = [];
+		editor.instance.getEvents().on('error', (report) => errors.push(report));
+		typeInto(surfaceAt(editor, NOTE), 'plain now');
+		await editor.settle();
+		expect(errors).toEqual([expect.objectContaining({ origin: 'render' })]);
+		expect(blockHostAt(editor, NOTE).querySelector('.badge')).toBeNull();
 	});
 
 	it('is destroyed when its block goes', async () => {
@@ -413,6 +485,30 @@ describe('a box (edit: box)', () => {
 		await pressKey(document.activeElement as HTMLElement, { key: 'z', ctrlKey: true });
 		await editor.settle();
 		expect(editor.source()).toBe(SOURCE);
+	});
+
+	// Miss-analysis: the DOM view's whole-focus rows went with that view, and no box typed a letter
+	// while focused whole or undid its own deletion.
+	it('puts a letter typed while focused whole in a paragraph below, and undoes its deletion', async () => {
+		const editor = mountEditor({ source: SOURCE, plugins: [fieldAndButton()] });
+		await editor.settle();
+		blockHostAt(editor, NOTE).querySelector('textarea')!.focus();
+		blockHostAt(editor, NOTE).querySelector('button')!.click();
+		await editor.settle();
+		document.activeElement!.dispatchEvent(
+			new InputEvent('beforeinput', { inputType: 'insertText', data: '€', cancelable: true })
+		);
+		await editor.settle();
+		expect(editor.source()).toBe(SOURCE.replace('abcd\n\noutro', 'abcd\n\n€\n\noutro'));
+
+		blockHostAt(editor, NOTE).querySelector('button')!.click();
+		await editor.settle();
+		await pressKey(document.activeElement as HTMLElement, { key: 'Backspace' });
+		await editor.settle();
+		expect(editor.source()).not.toContain('%%note');
+		await pressKey(document.activeElement as HTMLElement, { key: 'z', ctrlKey: true });
+		await editor.settle();
+		expect(editor.source()).toContain('%%note abcd');
 	});
 
 	it('takes whole focus back through ctx.focusWhole', async () => {

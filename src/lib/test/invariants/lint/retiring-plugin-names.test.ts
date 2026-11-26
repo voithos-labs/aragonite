@@ -39,7 +39,6 @@ const CALLERS: readonly string[] = [
 	'src/lib/editor-actions/list-overrides.ts',
 	'src/lib/plugin.ts',
 	'src/lib/schema/block-commands.ts',
-	'src/lib/schema/block-view.ts',
 	'src/lib/schema/command-id.ts',
 	'src/lib/schema/commands.ts',
 	'src/lib/schema/inline-construct-policy.ts',

@@ -215,7 +215,6 @@ describeManifests(
 				...Object.fromEntries(
 					CONTAINER_SEAM_MODULES.map((relPath) => [relPath, 'builds the editable element itself'])
 				),
-				[SOURCE.domBlockView]: 'publishes the factory’s containerApi whole, through viewRef',
 				[SOURCE.drawnBody]: 'publishes the factory’s containerApi whole, through viewRef'
 			},
 			reason:

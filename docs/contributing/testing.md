@@ -10,7 +10,7 @@ Unit tests run under Vitest and live in `src/lib/test/`, apart from the e2e suit
 
 ## Where a unit test goes
 
-A test's path mirrors its source's, with a leading `components/` dropped: `src/lib/components/blocks/code/` is tested in `src/lib/test/blocks/code/`. A few holdouts keep theirs in `src/lib/test/components/`, mainly the files directly in `src/lib/components/`, its `menu/` folder and its `dom-block-view/` folder. Mirror the depth too, so a test that imports a nested module directly sits at that nested path. When a module moves, its test moves with it. The exceptions:
+A test's path mirrors its source's, with a leading `components/` dropped: `src/lib/components/blocks/code/` is tested in `src/lib/test/blocks/code/`. A few holdouts keep theirs in `src/lib/test/components/`, mainly the files directly in `src/lib/components/` and its `menu/` folder. Mirror the depth too, so a test that imports a nested module directly sits at that nested path. When a module moves, its test moves with it. The exceptions:
 
 - Tests that cut across the editor root's services sit at the root of `src/lib/test/`.
 - `src/lib/test/invariants/` holds the invariant catalog's tests, the shared generators (`arbitraries/`) and the source scans (`lint/`).
