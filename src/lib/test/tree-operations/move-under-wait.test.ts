@@ -5,6 +5,7 @@
 // blocks up takes a pair that reads fine alone.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
 import { harnessOver, opened, reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
 
@@ -51,6 +52,6 @@ describe('a move under a definition whose title has started', () => {
 
 		const bytes = serialize(h.deps.doc);
 		expect(bytes).toBe(`${after.join('\n')}\n`);
-		expect(reloadDivergence(h.deps.doc, bytes)).toBeNull();
+		expect(reloadDivergence(h.deps.doc, bytes, defaultGrammarView)).toBeNull();
 	});
 });

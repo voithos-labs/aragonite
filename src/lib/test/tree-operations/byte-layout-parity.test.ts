@@ -4,14 +4,12 @@
 
 import { it, expect } from 'vitest';
 import fc from 'fast-check';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { displayLength } from '#lib/core/lines.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { byteOfLeaf, leafAtByte } from '#lib/tree-operations/container-offsets.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { arbLawDocument } from '../range-laws/shapes';
 import { bytePositions } from '../range-laws/positions';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
@@ -35,8 +33,7 @@ const EXTRA = [
 const docs = () => [...EXTRA, ...fc.sample(arbLawDocument, { numRuns: 120, seed: 20261105 })];
 
 it('every leaf offset the parser places is the byte the map gives it, and back', () => {
-	installPlugins(SYNTAX_PLUGINS);
-	const grammar = defaultGrammarView;
+	const grammar = syntaxGrammar();
 	const misses: string[] = [];
 	for (const source of docs()) {
 		const doc = readAsOpened(source, { grammar, scope: 'document' });
@@ -65,10 +62,10 @@ it('every leaf offset the parser places is the byte the map gives it, and back',
 });
 
 it('every leaf, blank ones too, sits at a byte in document order that names it back', () => {
-	installPlugins(SYNTAX_PLUGINS);
+	const grammar = syntaxGrammar();
 	const misses: string[] = [];
 	for (const source of docs()) {
-		const doc = readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
+		const doc = readAsOpened(source, { grammar, scope: 'document' });
 		let previous = 0;
 		for (const path of leafPaths(doc)) {
 			const leaf = blockNodeAt(doc, path)!;

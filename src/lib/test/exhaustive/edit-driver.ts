@@ -3,6 +3,7 @@
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -124,14 +125,18 @@ export function leafAt(nodes: readonly CstNode[], path: number[]): CstNode {
 export const opened = (source: string) =>
 	readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
 
-/** Where the tree differs from the editor opening its bytes. Emptied, the document keeps one
- *  empty paragraph, which no reading of no bytes builds, so the caller skips that case. */
-export function reloadDivergence(doc: Document, edited: string): string | null {
-	const shape = describeShapeDivergence(doc, opened(edited));
+/** Where the tree differs from the editor opening its bytes with `grammar`. Emptied, the document
+ *  keeps one empty paragraph, which no reading of no bytes builds, so the caller skips that case. */
+export function reloadDivergence(
+	doc: Document,
+	edited: string,
+	grammar: GrammarView
+): string | null {
+	const shape = describeShapeDivergence(doc, readAsOpened(edited, { grammar, scope: 'document' }));
 	if (shape) return shape;
 	// The blank-line check reads with the plain parser, so it runs only where opening the bytes
 	// gave no container an empty paragraph.
-	return describeConvergence(doc) === null ? describeRunDivergence(doc) : null;
+	return describeConvergence(doc, grammar) === null ? describeRunDivergence(doc, grammar) : null;
 }
 
 /** What went wrong with `edit` at `offset` of the leaf at `path`, dev checks included, or null. */
@@ -150,7 +155,8 @@ async function editFailure(source: string, path: number[], offset: number, edit:
 		if (!applied) return null;
 		const edited = serialize(h.deps.doc);
 		if (edited === source) return 'landed, but the bytes are the input';
-		const diverged = edited === '' ? null : reloadDivergence(h.deps.doc, edited);
+		const diverged =
+			edited === '' ? null : reloadDivergence(h.deps.doc, edited, defaultGrammarView);
 		if (diverged) return `${JSON.stringify(edited)} differs from a reload: ${diverged}`;
 		const history = createHistoryActions(h.deps, h.controller);
 		await history.requestUndo();

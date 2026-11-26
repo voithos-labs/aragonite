@@ -6,15 +6,18 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '#lib/core/parser.js';
-import { unfinishedReadings, type UnclosedInGrammar } from '#lib/schema/block-openers.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
+import {
+	unfinishedReadings,
+	type GrammarView,
+	type UnclosedInGrammar
+} from '#lib/schema/block-openers.js';
 import { SYNTAX_PLUGINS } from '../../behavior/corpus';
+import { syntaxGrammar } from '../../support/syntax-grammar';
 import { freshOrFixedSeed } from '../../invariants/arbitraries/property-seed';
 
 /** The one reading the built-in grammar holds that no line closes. */
-const definitionReading = (): UnclosedInGrammar =>
-	unfinishedReadings(defaultGrammarView).find(
+const definitionReading = (grammar: GrammarView): UnclosedInGrammar =>
+	unfinishedReadings(grammar).find(
 		(reading): reading is UnclosedInGrammar => reading.closer === null
 	)!;
 
@@ -84,8 +87,7 @@ describe.each([
 	['every bundled syntax plugin', SYNTAX_PLUGINS]
 ] as const)('a link definition’s reading under %s', (_name, plugins) => {
 	it('once final on some lines, stays final with more under them', () => {
-		installPlugins([...plugins]);
-		const { notFinal } = definitionReading();
+		const { notFinal } = definitionReading(syntaxGrammar(plugins));
 		fc.assert(
 			fc.property(
 				fc.array(fc.constantFrom(...PARTS), { minLength: 1, maxLength: 7 }),
@@ -104,8 +106,7 @@ describe.each([
 	});
 
 	it('is final on any lines a blank line cuts', () => {
-		installPlugins([...plugins]);
-		const { notFinal } = definitionReading();
+		const { notFinal } = definitionReading(syntaxGrammar(plugins));
 		const arbLines = fc.array(fc.constantFrom(...PARTS), { minLength: 1, maxLength: 4 });
 		fc.assert(
 			fc.property(arbLines, arbLines, arbEol, (above, below, eol) => {
@@ -116,9 +117,9 @@ describe.each([
 	});
 
 	it.each(UNDER_A_TITLE)('crosses `%s` exactly when a title runs on across it', (line) => {
-		installPlugins([...plugins]);
-		const blocks = parse(`[a]: /u\n"t\n${line}\nend"\n`).children;
+		const grammar = syntaxGrammar(plugins);
+		const blocks = parse(`[a]: /u\n"t\n${line}\nend"\n`, { grammar }).children;
 		const oneDefinition = blocks.length === 1 && blocks[0].kind === 'linkReferenceDefinition';
-		expect(definitionReading().crosses!(line)).toBe(oneDefinition);
+		expect(definitionReading(grammar).crosses!(line)).toBe(oneDefinition);
 	});
 });

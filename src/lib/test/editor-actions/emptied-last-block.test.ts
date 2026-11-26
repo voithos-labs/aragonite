@@ -54,7 +54,9 @@ async function press(editor: Editor, gesture: Gesture | Step | 'x'): Promise<str
 	await editor.settle();
 	// An empty document holds one empty block, which a parse of no bytes doesn't.
 	if (editor.source() !== '')
-		expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+		expect(
+			describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+		).toBeNull();
 	return editor.source();
 }
 

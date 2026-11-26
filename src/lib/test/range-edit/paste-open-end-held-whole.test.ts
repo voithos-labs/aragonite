@@ -42,7 +42,9 @@ async function pasted(marked: string, clip: string) {
 	await pasteGesture(editor, { 'text/plain': clip }, 'key');
 	await editor.settle();
 	const after = editor.source();
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);

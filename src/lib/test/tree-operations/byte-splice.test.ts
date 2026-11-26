@@ -2,19 +2,18 @@
 // gives: anywhere in the document, for every syntax the bundled plugins add, whatever a change
 // merges into or swallows, one change or several; and the blocks no change reached keep their ids.
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { serialize } from '#lib/core/serializer.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
 import { spliceReading } from '#lib/tree-operations/byte-splice.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { changesBetween, type ByteChange } from '#lib/tree-operations/byte-changes.js';
 import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { arbLawDocument } from '../range-laws/shapes';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import {
@@ -22,15 +21,19 @@ import {
 	arbWaitingDefinitionEdit
 } from '../invariants/arbitraries/waiting-definition';
 
+let grammar: GrammarView;
+beforeEach(() => {
+	grammar = syntaxGrammar();
+});
+
 // The editor opens an empty file as one empty paragraph.
-const open = (source: string): Document => initDocument(source, defaultGrammarView).doc;
+const open = (source: string): Document => initDocument(source, grammar).doc;
 
 const applied = (source: string, changes: readonly ByteChange[]) =>
 	changes.reduceRight((text, c) => text.slice(0, c.from) + c.insert + text.slice(c.to), source);
 
 /** `source` opened, then spliced by `changes`; the document and the blocks it held before. */
 function splice(source: string, changes: (before: string) => ByteChange[]) {
-	installPlugins(SYNTAX_PLUGINS);
 	const doc = open(source);
 	assignChildIdsDeep({
 		kind: 'document',
@@ -41,7 +44,7 @@ function splice(source: string, changes: (before: string) => ByteChange[]) {
 	const kept = [...doc.children];
 	const before = serialize(doc);
 	const made = changes(before);
-	const reading = spliceReading(measured(doc), before, made, defaultGrammarView);
+	const reading = spliceReading(measured(doc), before, made, grammar);
 	for (const window of [...(reading?.windows ?? [])].reverse()) {
 		doc.children.splice(window.at, window.count, ...window.blocks);
 	}
@@ -53,7 +56,7 @@ function divergence(source: string, changes: (before: string) => ByteChange[]): 
 	const { doc, after } = splice(source, changes);
 	const bytes = serialize(doc);
 	if (bytes !== after) return `bytes ${JSON.stringify(bytes)}, not ${JSON.stringify(after)}`;
-	return after === '' ? null : reloadDivergence(doc, after);
+	return after === '' ? null : reloadDivergence(doc, after, grammar);
 }
 
 const to = (after: string) => (before: string) => changesBetween(before, after);

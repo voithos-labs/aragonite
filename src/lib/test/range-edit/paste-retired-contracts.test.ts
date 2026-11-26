@@ -88,6 +88,11 @@ for (const mode of ['source', 'live'] as PresentationMode[])
 			expect(await placeRange(editor, { anchor: point(from), focus: point(to) })).toBe(true);
 			await pasteGesture(editor, { 'text/plain': clip }, 'key');
 			expect(editor.source()).toBe(after);
-			expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+			expect(
+				describeConvergence(
+					editor.instance.__test.getDocument(),
+					editor.instance.__test.getGrammar()
+				)
+			).toBeNull();
 			expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
 		});

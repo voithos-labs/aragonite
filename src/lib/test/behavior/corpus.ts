@@ -4,38 +4,24 @@
 
 import { createHash } from 'node:crypto';
 import type { CstNode } from '#lib/core/nodes.js';
-import type { EditorPlugin } from '#lib/plugin.js';
-import { svelteBlockView } from '#lib/svelte.js';
-import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { parse } from '#lib/core/parser.js';
-import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { registeredDetails } from '#lib/test/harness/registered-details.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { admonitions } from '#packages/admonitions/src/index.js';
+import { details } from '#packages/details/src/index.js';
 import { emoji } from '#packages/emoji/src/index.js';
-import { registeredFootnotes } from '#lib/test/harness/registered-footnotes.js';
-import { registeredMath } from '#lib/test/harness/registered-math.js';
-import RevealLeafBlock from '../blocks/fixtures/RevealLeafBlock.svelte';
+import { footnotes } from '#packages/footnotes/src/index.js';
+import { latex } from '#packages/latex/src/index.js';
 import { toc } from '#packages/toc/src/index.js';
 import { MULTI_SEEDS } from '#lib/e2e/simulation/multi-seeds.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 
-/** The bundled plugins that add syntax and render without a network or a canvas, so `$x$`,
- *  `:::note` and `[^1]` read the way the showcase reads them, installed page-wide. */
-export const SYNTAX_PLUGINS: readonly EditorPlugin[] = [
-	registeredAdmonitions(),
-	registeredDetails(),
-	registeredFootnotes(),
-	// The latex package is a plugin value, which only an editor reads; the same syntax registered
-	// page-wide, its blocks drawn as a picture that opens its source, as a math block is.
-	registeredMath(svelteBlockView(RevealLeafBlock))
-];
+/** The bundled plugins that add syntax and render without a network or a canvas; a suite reading
+ *  without an editor takes their grammar from `syntaxGrammar` (`../support/syntax-grammar`). */
+export const SYNTAX_PLUGINS = [admonitions, details, footnotes, latex];
 
-/** The bundled plugin values that add syntax, which an editor installs for itself: `[[toc]]` and
- *  `:smile:`. */
-export const SYNTAX_PLUGIN_VALUES = [toc, emoji];
-
-/** Both, as an editor's `plugins` lists them. */
-export const EDITOR_SYNTAX_PLUGINS: PluginsProp = [...SYNTAX_PLUGINS, ...SYNTAX_PLUGIN_VALUES];
+/** With `[[toc]]` and `:smile:` beside them, as the mounted range checks list them. */
+export const EDITOR_SYNTAX_PLUGINS = [...SYNTAX_PLUGINS, toc, emoji];
 
 /** One document per block kind, container and inline construct, short enough that every offset
  *  times every key stays cheap. Ids name rows, so renaming one renames its rows. */
@@ -178,8 +164,11 @@ export const LONG_DOCUMENTS: readonly LongDocument[] = [
 
 /** Each distinct pair of adjacent top-level blocks as a document, since jsdom mounts only a window
  *  of a long one. Named by a hash of its bytes, so an edit elsewhere renames no pair. */
-export function blockPairs(doc: LongDocument): { id: string; source: string }[] {
-	const blocks: CstNode[] = parse(doc.source).children;
+export function blockPairs(
+	doc: LongDocument,
+	grammar: GrammarView
+): { id: string; source: string }[] {
+	const blocks: CstNode[] = parse(doc.source, { grammar }).children;
 	const pairs = new Map<string, string>();
 	blocks.slice(1).forEach((second, i) => {
 		const source = blocks[i].raw + second.leadingTrivia + second.raw;

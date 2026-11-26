@@ -42,7 +42,9 @@ async function typedAfter(marked: string, mode: PresentationMode, clip: string) 
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	return editor.source();
 }
 

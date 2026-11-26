@@ -41,11 +41,15 @@ async function pasted(marked: string, mode: PresentationMode, clip: string) {
 	expect(await placeRange(editor, { anchor: point, focus: point })).toBe(true);
 	await pasteGesture(editor, { 'text/plain': clip }, 'key');
 	const left = editor.source();
-	expect(blocksOf(parse(left).children)).toEqual(blocksIn(editor));
+	expect(blocksOf(parse(left, { grammar: editor.instance.__test.getGrammar() }).children)).toEqual(
+		blocksIn(editor)
+	);
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	const typed = editor.source();
-	expect(blocksOf(parse(typed).children)).toEqual(blocksIn(editor));
+	expect(blocksOf(parse(typed, { grammar: editor.instance.__test.getGrammar() }).children)).toEqual(
+		blocksIn(editor)
+	);
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
 	await destroyMountedEditors();
 	return [left, typed];

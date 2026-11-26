@@ -6,11 +6,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { byteOfGap, heldGapOf } from '#lib/selection/range-bytes.js';
 import { gapEligibleAt, type GapCaretPosition } from '#lib/selection/gap-caret.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 
 interface Row {
 	source: string;
@@ -129,8 +128,7 @@ describe('the line a pasted last line ending opened is held as its own', () => {
 });
 
 function opened(source: string): Document {
-	installPlugins(SYNTAX_PLUGINS);
-	return parse(source);
+	return parse(source, { grammar: syntaxGrammar() });
 }
 
 describe('a boundary place is held as its gap, unless a letter there joins prose', () => {

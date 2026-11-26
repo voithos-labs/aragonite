@@ -9,8 +9,7 @@ import { afterEach, beforeAll, beforeEach, describe, it } from 'vitest';
 import fc from 'fast-check';
 import type { Document } from '#lib/core/nodes.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs
@@ -20,7 +19,7 @@ import {
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { arbClipboardText, arbLawDocument } from '../range-laws/shapes';
 import { arbEnd, arbRangeSeed, resolveCaret, resolveRange } from '../range-laws/ranges';
 import { diffCase, type PasteCase } from './paste-differential';
@@ -44,7 +43,7 @@ const crlf = (text: string) => text.replace(/\r?\n/g, '\r\n');
 
 /** The drawn cases: per document and mode, two pastes and a plain paste at a caret, and per range
  *  a paste over it and a cut pasted back; every other document in CRLF, its clipboard too. */
-function drawnCases(grammar: typeof defaultGrammarView): PasteCase[] {
+function drawnCases(grammar: GrammarView): PasteCase[] {
 	const clips = fc.sample(arbClipboardText, { numRuns: 400, seed: SEED + 1 });
 	const sources = fc.sample(arbLawDocument, { numRuns: DOCS, seed: SEED });
 	return sources.flatMap((drawn, d) => {
@@ -76,11 +75,9 @@ function drawnCases(grammar: typeof defaultGrammarView): PasteCase[] {
 describe.skipIf(!OUT)('the paste differential', () => {
 	it('writes a row per case', { timeout: 3_600_000 }, async () => {
 		writeFileSync(OUT!, '');
-		installPlugins(SYNTAX_PLUGINS);
-		const named = namedCases(defaultGrammarView);
-		const cases = process.env.PASTE_DIFF_NAMED
-			? named
-			: [...named, ...drawnCases(defaultGrammarView)];
+		const grammar = syntaxGrammar();
+		const named = namedCases(grammar);
+		const cases = process.env.PASTE_DIFF_NAMED ? named : [...named, ...drawnCases(grammar)];
 		for (const input of cases) {
 			const row = await diffCase(input);
 			appendFileSync(OUT!, JSON.stringify(row) + '\n');

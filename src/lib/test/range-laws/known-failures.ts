@@ -86,7 +86,8 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		lane: 'rebuild',
 		defect:
 			'a whole alert or fence cut and pasted back lands inside its own kind (a nested alert, a wider fence)',
-		lines: /^L3 \[(?:document \| fencedCode|[^\]]*githubAlert>paragraph → githubAlert)/,
+		lines:
+			/^L3 \[(?:document \| fencedCode|[^\]]*admonitions\/alert>paragraph → admonitions\/alert)/,
 		keeps: (got, wanted) =>
 			count(got, ALERT_MARKER) > count(wanted, ALERT_MARKER) ||
 			count(got, FENCE_LINE) > count(wanted, FENCE_LINE),
@@ -243,7 +244,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect: 'a paste at an empty quote line keeps that line above the pasted ones',
-		lines: /^L9 \[(?:githubAlert|blockquote) \| paragraph\] paste:\S+ text /,
+		lines: /^L9 \[(?:admonitions\/alert|blockquote) \| paragraph\] paste:\S+ text /,
 		keeps: (got, wanted) =>
 			sameWords(got, wanted) && count(got, /\n/g) === count(wanted, /\n/g) + 1,
 		repro: {

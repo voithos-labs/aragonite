@@ -46,7 +46,9 @@ async function landed(marked: string, mode: PresentationMode, clip: string | nul
 	else await pasteGesture(editor, { 'text/plain': clip }, 'key');
 	await editor.settle();
 	for (const k of keys) await key(k);
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
 	const left = editor.source();
 	await destroyMountedEditors();

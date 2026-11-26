@@ -45,7 +45,9 @@ async function put(marked: string, mode: PresentationMode, clip: string, enters 
 	if (enters > 0) await insertBy('hardware key', field(), clip);
 	else await pasteGesture(editor, { 'text/plain': clip }, 'key');
 	await editor.settle();
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
 	const left = editor.source();
 	await destroyMountedEditors();

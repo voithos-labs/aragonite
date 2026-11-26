@@ -46,7 +46,9 @@ async function pasted(marked: string, mode: PresentationMode, clip: string, rout
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	return [left, editor.source()];
 }
 

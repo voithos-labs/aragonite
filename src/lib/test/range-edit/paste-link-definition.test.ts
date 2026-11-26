@@ -43,7 +43,9 @@ async function landed(marked: string, mode: PresentationMode, clip: string) {
 	await pasteGesture(editor, { 'text/plain': clip }, 'key');
 	await editor.settle();
 	const left = editor.source();
-	expect(blocksOf(parse(left).children)).toEqual(blocksIn(editor));
+	expect(blocksOf(parse(left, { grammar: editor.instance.__test.getGrammar() }).children)).toEqual(
+		blocksIn(editor)
+	);
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	const typed = editor.source();

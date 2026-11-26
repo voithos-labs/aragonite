@@ -63,7 +63,9 @@ async function run(source: string, mode: PresentationMode, steps: Step[]): Promi
 		}
 		await editor.settle();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
-		expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+		expect(
+			describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+		).toBeNull();
 		seen.push(editor.source());
 	}
 	return seen;

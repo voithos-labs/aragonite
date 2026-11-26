@@ -2,41 +2,38 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { installPlugins } from '#lib';
+import type { GrammarView } from '../../schema/block-openers';
 import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
-import { registeredFootnotes, FOOTNOTE_DEF_KIND } from '#lib/test/harness/registered-footnotes.js';
-import { registeredMath, MATH_BLOCK } from '#lib/test/harness/registered-math.js';
-import { registeredAdmonitions } from '#lib/test/harness/registered-admonitions.js';
-import { registeredDetails, DETAILS } from '#lib/test/harness/registered-details.js';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { arbPluginGfmDoc, arbPluginInlineSource, freshOrFixedSeed } from './arbitraries';
 
 /**
- * Round-trip (G2.1) over the plugin grammar: a registered opener or inline handler changes which
- * bytes the parser takes, so this is a different parser under test, not more input. Registries
- * register once, so the plugins install once for the file, and the reset afterwards stops a
- * handler leaking into this worker's bare-grammar cases.
+ * Round-trip (G2.1) over the plugin grammar: a plugin's opener or inline handler changes which
+ * bytes the parser takes, so this is a different parser under test, not more input.
  */
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
-function roundTrips(source: string): boolean {
-	return serialize(parse(source)) === source;
-}
-
+let grammar: GrammarView;
 beforeEach(() => {
-	installPlugins([
-		registeredFootnotes(),
-		registeredMath(),
-		registeredAdmonitions(),
-		registeredDetails()
-	]);
+	grammar = syntaxGrammar();
 });
+
+function roundTrips(source: string): boolean {
+	return serialize(parse(source, { grammar })) === source;
+}
 
 describe('G2.1 round-trip with the bundled plugins installed', () => {
 	it('installed the openers this lane exists to cover', () => {
 		// Without this the property passes with every install silently failed, because the bare
 		// grammar round-trips these bytes as prose.
-		for (const kind of [FOOTNOTE_DEF_KIND, MATH_BLOCK, DETAILS, 'admonition', 'githubAlert']) {
+		for (const kind of [
+			'footnotes/definition',
+			'latex/block',
+			'details/details',
+			'admonitions/admonition',
+			'admonitions/alert'
+		]) {
 			expect(isBlockKindRegistered(kind), `plugin kind not registered: ${kind}`).toBe(true);
 		}
 	});
@@ -65,7 +62,7 @@ describe('G2.1 round-trip with the bundled plugins installed', () => {
 			':::note\n:::\n:::\n',
 			'$$\n$$\n$$\n'
 		]) {
-			expect(serialize(parse(source)), JSON.stringify(source)).toBe(source);
+			expect(roundTrips(source), JSON.stringify(source)).toBe(true);
 		}
 	});
 });

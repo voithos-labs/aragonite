@@ -1,17 +1,16 @@
 // The byte map answers alike with a quote's or a table's child spans and without them: a question
 // about one child pairs that child's lines alone and must land where pairing every line lands, at
 // every byte, every block offset, every child's blank lines and every gap caret boundary.
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { serialize } from '#lib/core/serializer.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { childTriviaStart, documentByteMap } from '#lib/tree-operations/container-offsets.js';
 import { gapAtByte } from '#lib/selection/range-bytes.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { arbLawDocument } from '../range-laws/shapes';
 import { allBlockPaths, freshOrFixedSeed } from '../invariants/arbitraries/index';
 import { arbQuoteDoc, arbTableDoc } from '../invariants/arbitraries/spanned';
@@ -52,10 +51,12 @@ function expectAnswersWithoutSpans(doc: Document, label: string): void {
 	expect(misses.slice(0, 5), `${label} against ${whole.length} answers`).toEqual([]);
 }
 
-const opened = (source: string) => {
-	installPlugins(SYNTAX_PLUGINS);
-	return readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
-};
+let grammar: GrammarView;
+beforeEach(() => {
+	grammar = syntaxGrammar();
+});
+
+const opened = (source: string) => readAsOpened(source, { grammar, scope: 'document' });
 
 const expectSpansChangeNothing = (source: string) =>
 	expectAnswersWithoutSpans(opened(source), JSON.stringify(source));

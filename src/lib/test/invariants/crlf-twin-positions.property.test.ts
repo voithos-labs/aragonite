@@ -12,11 +12,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { Block, Doc, Piece } from '#lib/schema/doc-view.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { initDocument } from '#lib/components/editor-root/document-swap.js';
-import { createDocumentRead } from '#lib/editor-actions/commit/document-read.js';
-import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { grammar } from '#lib/components/editor-root/headless-grammar.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { arbLawDocument } from '../range-laws/shapes';
 import { freshOrFixedSeed } from './arbitraries';
@@ -39,21 +35,11 @@ const FIXED = [
 	'- a\n  b\n\n  c\n- d'
 ];
 
-beforeEach(() => installPlugins(SYNTAX_PLUGINS));
-
-// The read a mounted editor and `grammar(...).parse` make, over the syntax installed page-wide.
-function read(text: string): Doc {
-	const { doc, resolver, signature } = initDocument(text, defaultGrammarView);
-	const of = measured(doc);
-	return createDocumentRead({
-		getDoc: () => doc,
-		measured: () => of,
-		typeOf: (kind) => ({ name: kind, label: kind }),
-		reading: { grammar: defaultGrammarView, resolver, resolverSignature: signature },
-		version: () => 0,
-		source: () => text
-	}).doc();
-}
+// The read an editor running the bundled syntax plugins makes.
+let read: (text: string) => Doc;
+beforeEach(() => {
+	read = grammar(SYNTAX_PLUGINS).parse;
+});
 
 /** `lf` with the endings `crlf` picks (by their index) written `\r\n`, and where each LF byte went. */
 function twin(lf: string, crlf: (index: number) => boolean) {
@@ -72,7 +58,9 @@ function twin(lf: string, crlf: (index: number) => boolean) {
 // The byte map puts both bytes of an empty body's CRLF ending, which no raw line of an alert's
 // carries, on its `\r` (`pairLines.toRaw`); the last row pins it, and the waiver goes once it reds.
 const emptyAlertBody = (block: Block) =>
-	block.parent?.type.name === 'githubAlert' && block.index === 0 && /^\r?\n$/.test(block.text);
+	block.parent?.type.name === 'admonitions/alert' &&
+	block.index === 0 &&
+	/^\r?\n$/.test(block.text);
 
 /** What `twinBlock` must read for each of `lfBlock`'s answers, or why the two don't pair. */
 function misreads(lfBlock: Block, twinBlock: Block, carried: number[]): string | null {
@@ -170,8 +158,14 @@ describe('G1.250 every block of a CRLF document reads at its LF twin bytes', () 
 		const kinds = new Set(
 			FIXED.flatMap((source) => [...read(source).walk()].map((b) => b.type.name))
 		);
-		for (const kind of ['details', 'details.title', 'admonition', 'githubAlert', 'footnote-def'])
-			expect(kinds.has(kind), kind).toBe(true);
+		const nested = [
+			'details/details',
+			'details/details.title',
+			'admonitions/admonition',
+			'admonitions/alert',
+			'footnotes/definition'
+		];
+		for (const kind of nested) expect(kinds.has(kind), kind).toBe(true);
 	});
 
 	it.each(FIXED)('reads %j at its twins bytes', (source) => {

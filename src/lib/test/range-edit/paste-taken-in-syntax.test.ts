@@ -40,7 +40,9 @@ async function put(marked: string, mode: PresentationMode, text: string, typed =
 	if (typed) await insertBy('hardware key', document.activeElement as HTMLElement, text);
 	else await pasteGesture(editor, { 'text/plain': text }, 'key');
 	await editor.settle();
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);

@@ -20,6 +20,7 @@ import {
 	type InsertionRoute
 } from '#lib/test/harness/insertion-routes.js';
 import {
+	activateDirectives,
 	COLON_LINES,
 	colonLines,
 	container,
@@ -129,14 +130,15 @@ describe.each(INSERTION_ROUTES)('text at an untitled row’s name end, by %s', (
 		});
 });
 
-// The held names are the editor's own list's, as its grammar reads them: a `notes` installed for
-// the page continues `note` in an editor that lists nothing, never in one whose list leaves it out.
+// The held names are the editor's own list's: a `notes` installed for the page continues a generic
+// `note` box in an editor that lists nothing, never in one whose list leaves it out.
 describe('a name end reads the names of the plugins its editor runs', () => {
 	it.each([
 		['an editor running every installed plugin', undefined, ':::notes'],
 		['an editor whose list leaves the box out', SYNTAX_PLUGINS, ':::note s']
 	])('%s', async (_, plugins, typed) => {
-		installPlugins([...SYNTAX_PLUGINS, notesBox]);
+		activateDirectives();
+		installPlugins([notesBox]);
 		const editor = mountEditor({ source: ':::note\nin\n:::\n', plugins });
 		await editor.settle();
 		placeCaret(surfaceAt(editor, [0, 0]), ':::note'.length);

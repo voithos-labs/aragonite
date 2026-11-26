@@ -10,8 +10,9 @@ import { emptiedPlace } from '#lib/selection/cross-block/range-removal.js';
 import { deleteRange } from '../harness/range-delete';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { pointAtByte } from '#lib/selection/range-bytes.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
-import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { fixtureGrammar, fixtureReading } from '../harness/fixture-grammar';
+import { syntaxGrammar } from '../support/syntax-grammar';
 
 const cell = (path: number[], offset = 0): SelectionPoint => ({
 	path,
@@ -21,9 +22,17 @@ const cell = (path: number[], offset = 0): SelectionPoint => ({
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
 /** The place `emptiedPlace` names once the range from `start` to `end` is deleted. */
-function placeAfterRemoval(source: string, start: SelectionPoint, end: SelectionPoint) {
+function placeAfterRemoval(
+	source: string,
+	start: SelectionPoint,
+	end: SelectionPoint,
+	grammar: GrammarView = fixtureGrammar
+) {
 	// Delete's side, which a typed character's removal takes.
-	const result = deleteRange(parse(source), start, end, { gesture: 'Delete' });
+	const result = deleteRange(parse(source, { grammar }), start, end, {
+		gesture: 'Delete',
+		reading: fixtureReading({ grammar })
+	});
 	const caret = result.caret(result.newDoc);
 	if (!caret) throw new Error('the removal left no caret');
 	return emptiedPlace(measured(result.newDoc), { ...result.removed, caret }, false);
@@ -102,8 +111,8 @@ describe('a range that took its start block, ending on a boundary no gap caret t
 	const DETAILS =
 		'one\n\n> [!NOTE]\n> :::note\n> <details>\n> <summary>S</summary>\n>\n> ```\n> x\n> ```\n> ---\n> <div>\n> h\n> </div>\n>\n> </details>\n> :::\n\nafter';
 	it('opens a paragraph where the start block was, not on the rule beside it', () => {
-		installPlugins(SYNTAX_PLUGINS);
-		expect(placeAfterRemoval(DETAILS, at([1, 0, 1, 3], 0), at([2], 5))).toEqual([1, 0, 1, 3]);
+		const place = placeAfterRemoval(DETAILS, at([1, 0, 1, 3], 0), at([2], 5), syntaxGrammar());
+		expect(place).toEqual([1, 0, 1, 3]);
 	});
 });
 

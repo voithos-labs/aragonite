@@ -27,9 +27,7 @@ async function write(
 	typed = '',
 	over = true
 ) {
-	// The bundled plugins register the `:::` grammar the harness reads with.
-	testReading();
-	const h = makeNestedHarness(source, { index: 0 });
+	const h = makeNestedHarness(source, { index: 0, grammar: testReading().grammar });
 	const text = row.slice(0, start) + typed + row.slice(end);
 	const selection = over ? { start, end } : undefined;
 	await h.bundle.blockEdit.updateBlockContent(
@@ -180,15 +178,13 @@ describe('a selection written over an opening row', () => {
 
 	// A program's write names no selection, so the rule leaves it literal.
 	it('a plugin replaceRaw of the row stays literal', async () => {
-		testReading();
-		const h = makeContainerHarness(G, [0]);
+		const h = makeContainerHarness(G, [0], { reading: testReading() });
 		expect(await h.bundle.blockEdit.replaceRaw(0, 'foo Title\n')).toBe(true);
 		expect(serialize(h.deps.doc)).toBe('foo Title\nbody\n:::\n');
 	});
 
 	it('a find and replace over the marker stays literal', async () => {
-		testReading();
-		const { deps, sr } = makeSearchReplace(G);
+		const { deps, sr } = makeSearchReplace(G, { reading: testReading() });
 		await sr.replaceAll(
 			scanCompiled(deps.doc, ':::foo ', { regex: false, caseSensitive: true }),
 			''
@@ -203,8 +199,8 @@ describe('a selection written over an opening row', () => {
 	] as const)(
 		'a box under a paragraph, %s removed, unwraps as the core does',
 		async (_, start, end, after) => {
-			testReading();
-			const h = makeNestedHarness('x\n:::tip\nner\n:::\n\n# h\n', { index: 1 });
+			const grammar = testReading().grammar;
+			const h = makeNestedHarness('x\n:::tip\nner\n:::\n\n# h\n', { index: 1, grammar });
 			const row = ':::tip\n';
 			const text = row.slice(0, start) + row.slice(end);
 			await h.bundle.blockEdit.updateBlockContent(0, text, 'authored', 'join-typing', end, start, {

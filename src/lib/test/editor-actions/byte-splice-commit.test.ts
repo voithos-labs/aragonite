@@ -109,7 +109,7 @@ describe('a byte splice', () => {
 		const editor = await mounted(':::note\na\n\nb\n\nc\n');
 		await editor.instance.__test.spliceSource(':::note\na\n\nb\n\nc\n:::\n', text(19), OP);
 		const kinds = editor.instance.__test.getDocument().children.map((n) => n.kind);
-		expect(kinds).toEqual(['admonition']);
+		expect(kinds).toEqual(['admonitions/admonition']);
 	});
 
 	// Miss-analysis: the commit's own tests landed carets only; the range replay found the stale range.

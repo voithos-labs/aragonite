@@ -72,7 +72,7 @@ const SHAPES: Record<string, Shape> = {
 		range: { anchor: at([0, 1, 0], 1), focus: at([0, 2], 0) },
 		left: [
 			[
-				'admonition',
+				'admonitions/admonition',
 				[
 					['directiveOpenerLine', ':::note'],
 					['paragraph', 'para']
@@ -99,9 +99,9 @@ const SHAPES: Record<string, Shape> = {
 		left: [
 			['paragraph', 'a'],
 			[
-				'details',
+				'details/details',
 				[
-					['details.title', ''],
+					['details/details.title', ''],
 					['thematicBreak', '---'],
 					['paragraph', 'body']
 				]

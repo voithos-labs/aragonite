@@ -38,7 +38,9 @@ async function pasted(marked: string, mode: PresentationMode, clip: string) {
 	expect(await placeRange(editor, { anchor: at, focus: at })).toBe(true);
 	await pasteGesture(editor, { 'text/plain': clip }, 'key');
 	await editor.settle();
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
 	const left = editor.source();
 	await destroyMountedEditors();
