@@ -423,8 +423,10 @@
 				return;
 			seen = now;
 			heard = answered;
+			// Keeping the scroll reads every mounted block's box, and with no `update` nothing redraws.
+			if (!drawn.update) return;
 			const restore = keepScroll();
-			if (drawn.update?.(read(), ctx) === false) generation++;
+			if (drawn.update(read(), ctx) === false) generation++;
 			void restore();
 		});
 	});
