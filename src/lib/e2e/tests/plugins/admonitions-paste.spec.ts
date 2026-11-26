@@ -3,7 +3,7 @@ import { PluginsPage, readDoc, roundTripStable } from './helpers';
 
 /**
  * Native GitHub alerts on paste. The admonitions plugin's paste rewrite is opt-in, so a pasted
- * `> [!TYPE]` blockquote keeps its GitHub bytes and lands as a native `githubAlert`, never
+ * `> [!TYPE]` blockquote keeps its GitHub bytes and lands as a native `admonitions/alert`, never
  * `:::name`. The opt-in rewrite is unit-covered (`github-alert-paste-opt-in`).
  */
 
@@ -16,7 +16,7 @@ test.describe('plugin admonitions: native alert paste', () => {
 		await expect(page.locator(".admonition[data-alert-source='github']")).toHaveCount(1);
 	});
 
-	test('pasting a GitHub alert lands a native githubAlert, bytes intact, undoable in one step', async ({
+	test('pasting a GitHub alert lands a native alert, bytes intact, undoable in one step', async ({
 		page
 	}) => {
 		await editor.loadContent('Intro paragraph.\n');

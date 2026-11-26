@@ -94,7 +94,7 @@ test.describe('plugin admonitions', () => {
 		page
 	}) => {
 		const convert = page.getByTestId('convert-alerts');
-		// Precondition: a native alert exists (a `githubAlert`, not a plain blockquote) → enabled.
+		// Precondition: a native alert exists (an `admonitions/alert`, not a plain blockquote) → enabled.
 		await expect(convert).toBeEnabled();
 		expect((await readDoc(page)).kinds[5]).toBe('admonitions/alert');
 

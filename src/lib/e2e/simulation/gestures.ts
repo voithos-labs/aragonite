@@ -466,8 +466,8 @@ export class Gestures {
 		return setCalloutKind(this.ctx);
 	}
 
-	// A real paste (Mod+V) of a GitHub alert, which stays GitHub syntax and parses as a
-	// `githubAlert`; resyncs after the reparse.
+	// A real paste (Mod+V) of a GitHub alert, which stays GitHub syntax and parses as an
+	// `admonitions/alert`; resyncs after the reparse.
 	pasteGithubAlert(): Promise<void> {
 		return pasteGithubAlert(this.ctx);
 	}

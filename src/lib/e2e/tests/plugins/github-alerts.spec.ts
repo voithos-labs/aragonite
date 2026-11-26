@@ -40,7 +40,7 @@ test.describe('plugin github alerts', () => {
 		expect((await readContainer(page, 5)).raw).toBe('> [!CAUTION]\n> Still a blockquote alert.\n');
 	});
 
-	test('editing the body rebuilds through the marker and keeps the githubAlert kind', async ({
+	test('editing the body rebuilds through the marker and keeps the alert kind', async ({
 		page
 	}) => {
 		await editor.focusBlockAtPath([5, 0], 'Still a blockquote alert.'.length);
@@ -85,7 +85,7 @@ test.describe('plugin github alerts', () => {
 		await page.keyboard.press('Backspace');
 
 		// The middle child merges into the previous body block the ordinary way; the alert stays one
-		// `githubAlert` with its marker, never lifting the block out.
+		// `admonitions/alert` with its marker, never lifting the block out.
 		const alert = await waitForContainer(page, 0, (s) => s.childCount === 1);
 		expect(alert.rootCount).toBe(1);
 		expect(alert.kind).toBe('admonitions/alert');

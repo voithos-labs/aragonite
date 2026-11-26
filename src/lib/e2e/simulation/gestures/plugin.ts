@@ -41,7 +41,7 @@ export async function setCalloutKind(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Waits for the `githubAlert` kind, not a source change: a broken alert opener would still paste a
+ * Waits for the `admonitions/alert` kind, not a source change: a broken alert opener would still paste a
  * plain blockquote that changes the source and round-trips, and no other check would notice.
  */
 export async function pasteGithubAlert(ctx: SimContext): Promise<void> {

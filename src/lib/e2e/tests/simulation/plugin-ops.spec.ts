@@ -229,8 +229,8 @@ test.describe('plugin-container ops simulation', () => {
 		await g.undo();
 		await assertCheckpoint(ctx, 'cross-container-undo');
 
-		// ── Paste a GitHub alert, which parses as a githubAlert ──────────────────
-		// Converting is opt-in, so the pasted `> [!TIP]` keeps its bytes and parses as a githubAlert
+		// ── Paste a GitHub alert, which parses as an alert ───────────────────────
+		// Converting is opt-in, so the pasted `> [!TIP]` keeps its bytes and parses as an alert
 		// container under the round-trip, nested-state and no-errors checks.
 		tailIdx = (await rootCount(page)) - 1;
 		await g.clickToReposition([tailIdx]);

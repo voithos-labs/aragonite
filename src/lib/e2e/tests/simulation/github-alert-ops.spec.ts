@@ -6,7 +6,7 @@ import { makeRng } from '../../simulation/rng';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// GitHub alerts, run in the default gate. A `> [!TYPE]` blockquote is its own `githubAlert`
+// GitHub alerts, run in the default gate. A `> [!TYPE]` blockquote is its own `admonitions/alert`
 // container with its bytes untouched, so these checks cover building one, editing inside it,
 // merging a middle child and unwrapping it. The alert's marker breaks the paragraph above, so a
 // built alert never sits a single newline from a block, and the reparse check runs throughout.

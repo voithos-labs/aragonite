@@ -2,7 +2,7 @@ import { type SimContext, actThenResync, assertStructuralIntegrity } from '../in
 import { edgeKey } from '../../platform-keys';
 
 // Gestures for a native GitHub alert (plugins route, `?seed=admonitions`). A `> [!TYPE]`
-// blockquote is its own `githubAlert` container, and its bytes are never rewritten to `:::`. Each
+// blockquote is its own `admonitions/alert` container, and its bytes are never rewritten to `:::`. Each
 // waits for the block to change kind or shape and resyncs; the merge and unwrap gestures check the
 // kind and marker against what the container's `unwrapRole` promises.
 
@@ -91,7 +91,7 @@ export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Pr
 	const alertsAfter = (await docKinds(ctx)).filter((k) => k === 'admonitions/alert').length;
 	if (alertsAfter !== alertsBefore - 1 || source.includes(':::')) {
 		throw new Error(
-			`[${ctx.label}] unwrap did not drop exactly one githubAlert, or rewrote bytes to :::.\n` +
+			`[${ctx.label}] unwrap did not drop exactly one alert, or rewrote bytes to :::.\n` +
 				`ALERTS: ${alertsBefore} → ${alertsAfter}\nSOURCE: ${JSON.stringify(source)}`
 		);
 	}

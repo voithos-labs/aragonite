@@ -293,9 +293,7 @@ const PLAIN_READS: Record<string, string> = {
 	'src/lib/invariants/node-shape.ts':
 		'probe: G1.1 and G1.12 compare a container’s bytes with its children’s bytes, which the empty paragraph would hide; G1.42 compares block kinds and reads through `readAsOpened`',
 	'src/lib/invariants/settled-window-reads-back.ts':
-		'probe: G1.145 compares a settled window’s blocks with how their joined bytes read, as the neighbour merge reads them, and installs nothing',
-	'packages/admonitions/src/convert-document.ts':
-		'probe: converts a document’s alerts to admonitions as text, headless; no editor holds the nodes'
+		'probe: G1.145 compares a settled window’s blocks with how their joined bytes read, as the neighbour merge reads them, and installs nothing'
 };
 
 // ── The manifests ────────────────────────────────────────────────────────────
