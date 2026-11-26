@@ -1,7 +1,7 @@
 // A parsed quote and a parsed table keep where each child's bytes sit in theirs, as a parsed list
 // does, so a keystroke's rebuild and the byte splice find a child without pairing every line.
 // Each span is checked against the child's own bytes and against the spans a full rebuild writes.
-import { beforeEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
@@ -19,10 +19,10 @@ import { headedLines } from '#lib/schema/headed-lines.js';
 import { rebuildStripRaw } from '#lib/schema/strip-rebuild.js';
 import { rebuildTableRaw } from '#lib/schema/container-rebuilders.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { freshOrFixedSeed } from '../../invariants/arbitraries/property-seed';
-import { installPlugins } from '#lib/schema/plugin-install.js';
-import { SYNTAX_PLUGINS } from '../../behavior/corpus';
+import { syntaxGrammar } from '../../support/syntax-grammar';
 import {
 	arbHeadedDoc,
 	arbIndentedDoc,
@@ -49,8 +49,8 @@ function regionReads(node: CstNode, region: string): string {
 		.join('');
 }
 
-function expectSpansHold(source: string): void {
-	const found = spanned(parse(source).children);
+function expectSpansHold(source: string, grammar: GrammarView = defaultGrammarView): void {
+	const found = spanned(parse(source, { grammar }).children);
 	expect(found.length, JSON.stringify(source)).toBeGreaterThan(0);
 	for (const node of found) {
 		const spans = node.childSpans;
@@ -61,7 +61,7 @@ function expectSpansHold(source: string): void {
 		}
 		const rebuilt = { ...node, childSpans: undefined } as CstNode;
 		if (node.kind === 'table') rebuildTableRaw(rebuilt);
-		else writeContainerRaw(rebuilt, defaultGrammarView);
+		else writeContainerRaw(rebuilt, grammar);
 		// A child opening on a lazy line, or bytes a full rebuild leaves out, leave the quote's
 		// spans to the full rebuild.
 		const wholeOnly = splitLines(node.raw).some(isLazy) || rebuilt.raw !== node.raw;
@@ -115,18 +115,22 @@ describe('a parsed quote and table keep their child spans', () => {
 	});
 
 	it('over generated quotes and tables', () => {
-		fc.assert(fc.property(fc.oneof(arbQuoteDoc, arbTableDoc), expectSpansHold), {
-			numRuns: 300,
-			seed: freshOrFixedSeed(20261108)
-		});
+		fc.assert(
+			fc.property(fc.oneof(arbQuoteDoc, arbTableDoc), (source) => expectSpansHold(source)),
+			{
+				numRuns: 300,
+				seed: freshOrFixedSeed(20261108)
+			}
+		);
 	});
 });
 
 describe('a quote inside a plugin block keeps its child spans', () => {
-	beforeEach(() => installPlugins(SYNTAX_PLUGINS));
-
 	it('in a details body', () => {
-		expectSpansHold('<details>\n<summary>t</summary>\n\n> a\n>\n> b\n\n</details>\n');
+		expectSpansHold(
+			'<details>\n<summary>t</summary>\n\n> a\n>\n> b\n\n</details>\n',
+			syntaxGrammar()
+		);
 	});
 });
 

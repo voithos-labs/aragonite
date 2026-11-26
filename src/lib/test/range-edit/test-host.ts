@@ -1,7 +1,6 @@
-// The parts the range-edit checks read Markdown with: every bundled plugin that adds syntax,
-// installed inside each test (the setup resets the platform between tests), the editor's reading
-// over them and the plugin values beside them, and the host the core reads through, with what a
-// block's text shows on screen.
+// The parts the range-edit checks read Markdown with: the reading of an editor listing every bundled
+// plugin that adds syntax, made inside each test (the setup resets the platform between tests), and
+// the host the core reads through, with what a block's text shows on screen.
 
 import { mermaid } from '#packages/mermaid/src/index.js';
 import { constructContentRange, inlineDescendants, readInline } from '#lib/core/inline/index.js';
@@ -9,26 +8,16 @@ import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import { splitBehaviorOf } from '#lib/core/inline/live-edit/live-split.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
-import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { listGrammar } from '#lib/schema/own-syntax.js';
 import type { Reading } from '#lib/schema/reading.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
 import { rangeHost, type Mode, type PasteHost, type RangeHost } from '#lib/range-edit/host.js';
 import { normalizeBodyWrite } from '#lib/tree-operations/node-primitives.js';
-import { SYNTAX_PLUGINS, SYNTAX_PLUGIN_VALUES } from '../behavior/corpus';
+import { EDITOR_SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 
 /** The reading an editor with every bundled syntax plugin reads with; call it inside a test. */
 export function testReading(): Reading {
-	installPlugins(SYNTAX_PLUGINS);
-	const values = listGrammar([...SYNTAX_PLUGIN_VALUES, mermaid], ({ cause }) => {
-		throw cause;
-	});
-	const grammar = createEditorGrammar({
-		blocks: () => values.blocks,
-		inlines: () => values.inlines
-	});
-	return { ...kitReading(), grammar };
+	return { ...kitReading(), grammar: syntaxGrammar([...EDITOR_SYNTAX_PLUGINS, mermaid]) };
 }
 
 /** `host` as a paste reads through it in an editor that registered no paste transform. */

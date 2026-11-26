@@ -50,7 +50,9 @@ async function pasted(marked: string, mode: PresentationMode, clip: string, ente
 		source: editor.source(),
 		caret: JSON.stringify(editor.instance.getSelection()?.focus)
 	};
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	await key('Z');
 	const typed = editor.source();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);

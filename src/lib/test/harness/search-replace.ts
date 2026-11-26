@@ -1,7 +1,6 @@
 // Shared drivers for the search-replace suites: the deps + bundle assembly and the
 // real compile-then-scan pipeline.
 
-import { parse } from '#lib/core/parser.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { compileMatcher, type MatcherOptions } from '#lib/search/matcher.js';
 import { scanDocument } from '#lib/search/document-scan.js';
@@ -17,7 +16,7 @@ export function makeSearchReplace(
 	input: string | CstNode[] | Document,
 	options: Parameters<typeof makeEditorActionsDeps>[1] = {}
 ): SearchReplaceHarness {
-	const harness = makeEditorActionsDeps(typeof input === 'string' ? parse(input) : input, options);
+	const harness = makeEditorActionsDeps(input, options);
 	return { ...harness, sr: createSearchReplace(harness.deps, createUndoController(harness.deps)) };
 }
 

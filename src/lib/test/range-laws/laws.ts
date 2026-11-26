@@ -6,6 +6,7 @@
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { EditorSelection, SelectionPoint } from '#lib/selection/primitives.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { parse, serialize, getContentRange } from '#lib/index.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { rangeBytes, rangePaint } from '#lib/selection/range-bytes.js';
@@ -113,10 +114,11 @@ function undecided(run: LawRun, error: unknown): void {
 function law8(at: Opened, gesture: string, run: LawRun): void {
 	const source = at.editor.source();
 	const doc = at.editor.instance.__test.getDocument();
-	const diverged = source === '' ? null : reloadDivergence(doc, source);
+	const grammar = at.editor.instance.__test.getGrammar();
+	const diverged = source === '' ? null : reloadDivergence(doc, source, grammar);
 	if (diverged)
 		run.lines.push(at.line('L8', gesture, `${quote(source)} differs from a reload: ${diverged}`));
-	if (serialize(parse(source)) !== source) {
+	if (serialize(parse(source, { grammar })) !== source) {
 		run.lines.push(at.line('L8', gesture, `${quote(source)} does not round-trip`));
 	}
 	for (const tag of new Set(takeDevWarns().map((record) => record.tag))) {
@@ -395,7 +397,8 @@ export async function law5(input: LawInput, r: Replacement): Promise<LawRun> {
 		takeDevWarns();
 		const expected = cut.editor.source();
 		if (replaced === expected) return run;
-		const declared = law5Exception(input, over.range, landing, r, replaced);
+		const grammar = over.editor.instance.__test.getGrammar();
+		const declared = law5Exception(input, over.range, landing, r, replaced, grammar);
 		if (declared === null) {
 			run.lines.push(
 				over.line('L5', gesture, `gave ${quote(replaced)}, cut then ${gesture} ${quote(expected)}`)
@@ -417,9 +420,11 @@ function law5Exception(
 	range: EditorSelection,
 	landing: EditorSelection | null,
 	r: Replacement,
-	replaced: string
+	replaced: string,
+	grammar: GrammarView
 ): { name: string; holds: boolean } | null {
-	const doc = parse(input.source);
+	const read = (source: string) => parse(source, { grammar });
+	const doc = read(input.source);
 	const inOneTable =
 		range.anchor.cellCoordinate &&
 		range.focus.cellCoordinate &&
@@ -429,7 +434,7 @@ function law5Exception(
 	if (inOneTable && text !== null) {
 		// Cells cleared and the text in the first; an IME clears them as a plain delete does.
 		const tables = (source: string) =>
-			parse(source).children.filter((n) => n.kind === 'table').length;
+			read(source).children.filter((n) => n.kind === 'table').length;
 		const keptTable = tables(replaced) === tables(input.source);
 		return {
 			name: composed ? 'ime-in-cells' : 'text-in-first-cell',
@@ -440,10 +445,10 @@ function law5Exception(
 	const cover = coverRange(doc, range.anchor, range.focus);
 	const tookStart = cover.unitHolding(startOf(range).path) !== null;
 	if (!tookStart) return null;
-	const onSyntax = !landing || caretOnSyntax(parse(lf(input.source)), landing.anchor);
+	const onSyntax = !landing || caretOnSyntax(read(lf(input.source)), landing.anchor);
 	const name = onSyntax ? 'emptied-paragraph' : 'whole-block-slot';
 	// The text goes into a paragraph of its own where the range was.
-	const own = parse(replaced).children.some(
+	const own = read(replaced).children.some(
 		(n) => n.kind === 'paragraph' && n.raw.trim() === text.trim()
 	);
 	return { name, holds: own };
@@ -482,12 +487,14 @@ export async function law9(
 		resolveCaret(doc, input.caret)
 	);
 	if (!at) return run;
-	const blocks = parse(text).children.filter((n) => n.kind !== 'paragraph' || n.raw.trim() !== '');
+	const grammar = at.editor.instance.__test.getGrammar();
+	const blocks = parse(text, { grammar }).children.filter(
+		(n) => n.kind !== 'paragraph' || n.raw.trim() !== ''
+	);
 	const gesture = `paste:${paste} ${blocks.length === 1 && blocks[0].kind === 'paragraph' ? 'text' : 'blocks'}`;
 	try {
 		const source = at.editor.source();
 		const caret = at.editor.instance.getSelection()!.anchor;
-		const grammar = at.editor.instance.__test.getGrammar();
 		const positions = bytePositions(source, grammar);
 		const byte = positions.get(pointKey(caret.path, caret.offset));
 		if (byte === undefined) {

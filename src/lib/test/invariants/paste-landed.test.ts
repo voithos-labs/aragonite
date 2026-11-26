@@ -5,7 +5,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { splicedBytes } from '#lib/tree-operations/spliced-openers.js';
 import { checkPasteLanded } from '#lib/invariants/paste-landed.js';
@@ -23,7 +22,6 @@ import {
 } from '#lib/test/harness/clipboard-events.js';
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { mountCase, pasteGesture } from '../range-laws/gestures';
 
 /** Whether the paste's arm question is answered as built, or forced to the block's own write. */
@@ -89,7 +87,6 @@ describe('in a running editor', () => {
 	beforeEach(() => {
 		installClipboardEvents();
 		installSystemClipboard();
-		installPlugins(SYNTAX_PLUGINS);
 	});
 	afterEach(async () => {
 		arm.forced = false;

@@ -345,7 +345,7 @@ describe('a rule removed whole lands where the kind beside it takes a caret, off
 		'below the rule, by Mod+X': {
 			route: { cut: true },
 			above: false,
-			gap: ['fencedCode', 'directiveContainer', 'mathBlock', 'mathFence', 'toc/toc']
+			gap: ['fencedCode', 'directiveContainer', 'latex/block', 'toc/toc']
 		}
 	} satisfies Record<string, { route: WholeRoute; above: boolean; gap: string[] }>;
 	for (const mode of ['source', 'live'] as const) {

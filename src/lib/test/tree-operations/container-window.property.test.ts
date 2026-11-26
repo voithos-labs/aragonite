@@ -2,13 +2,13 @@
 // top-level window would: the same bytes, the same tree, the same nodes and ids kept, and what a
 // reload reads. The shapes at the run's edges are drawn by name, so each fallback has a row, and
 // the pastes the range-edit core writes are drawn as it answers them.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import type { Document } from '#lib/core/nodes.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import { serialize } from '#lib/core/serializer.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { OPENER_PRIORITIES } from '#lib/schema/opener-priorities.js';
 import { stripOpener } from '#lib/core/parsers/strip-container.js';
@@ -34,7 +34,7 @@ import {
 } from '#lib/perf/instruments.js';
 import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
 afterEach(() => disablePerfInstruments());
@@ -58,14 +58,19 @@ const boxes = definePlugin({
 		}))
 });
 
+let grammar: GrammarView;
+beforeEach(() => {
+	installPlugins([boxes]);
+	grammar = syntaxGrammar();
+});
+
 /** `text` with each line's opening run of quote markers written as the box's. */
 const boxed = (text: string) =>
 	text.replace(/^(?: {0,3}>[ \t]?)+/gm, (run) => run.replace(/>/g, '%>'));
 
 /** `source` opened as the editor opens it, every container carrying its children's ids. */
 function open(source: string): Document {
-	installPlugins([...SYNTAX_PLUGINS, boxes]);
-	const doc = initDocument(source, defaultGrammarView).doc;
+	const doc = initDocument(source, grammar).doc;
 	for (const block of doc.children) assignChildIdsDeep(block);
 	return doc;
 }
@@ -98,12 +103,12 @@ function divergence(source: string, changes: (before: string) => ByteChange[]) {
 	}));
 	enablePerfInstruments();
 	resetPerfInstruments();
-	const reading = spliceReading(measured(inside), before, made, defaultGrammarView);
+	const reading = spliceReading(measured(inside), before, made, grammar);
 	const parsed = perfSnapshot().parseBytes;
 	disablePerfInstruments();
 	const oldsOut = outside.children.map((b) => ({ kids: b.children ?? [], ids: b.childIds }));
 	install(inside, reading);
-	install(outside, topLevelReading(measured(outside), before, made, defaultGrammarView));
+	install(outside, topLevelReading(measured(outside), before, made, grammar));
 	const bytes = serialize(inside);
 	const failure = (() => {
 		if (bytes !== serialize(outside)) return `bytes ${JSON.stringify(bytes)}`;
@@ -132,8 +137,8 @@ function divergence(source: string, changes: (before: string) => ByteChange[]) {
 		if (bytes === '') return null;
 		// One the top-level window shares (a table read anew keeps rows another column count spelt)
 		// is that window's own, booked apart; only the window inside a container is judged here.
-		const reload = reloadDivergence(inside, bytes);
-		return reload && !reloadDivergence(outside, bytes) ? reload : null;
+		const reload = reloadDivergence(inside, bytes, grammar);
+		return reload && !reloadDivergence(outside, bytes, grammar) ? reload : null;
 	})();
 	return { failure, parsed, size: before.length };
 }
@@ -356,15 +361,13 @@ function pasteChanges(before: string, at: number, clip: string): ByteChange[] {
 	const layout = documentLayout(measured(doc));
 	let from = at;
 	while (from < before.length && !layout.pointAt(from)) from++;
-	const host = rangeHost(fixtureReading({ grammar: defaultGrammarView }, 'source'));
+	const host = rangeHost(fixtureReading({ grammar }, 'source'));
 	const paste = { paste: clip, plain: false, holds: 'text' as const };
 	const pasting = { ...host, transformPaste: (text: string) => text };
 	const after = editRange(before, { from, to: from }, paste, 'source', pasting).source;
 	const changes = changesBetween(before, after);
-	const read = spliceReading(measured(doc), before, changes, defaultGrammarView);
-	const closers = read
-		? splicedOpenerClosers(measured(doc), before, changes, read, defaultGrammarView)
-		: [];
+	const read = spliceReading(measured(doc), before, changes, grammar);
+	const closers = read ? splicedOpenerClosers(measured(doc), before, changes, read, grammar) : [];
 	return withSplicedClosers(before, changes, closers);
 }
 

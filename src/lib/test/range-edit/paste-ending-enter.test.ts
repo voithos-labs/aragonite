@@ -327,7 +327,7 @@ function readsSameLists(editor: Editor): void {
 		nodes.some(
 			(n) => (n.kind === 'list' && /\n[ \t]*\n/.test(n.raw.trimEnd())) || loose(n.children ?? [])
 		);
-	const reload = parse(source).children;
+	const reload = parse(source, { grammar: editor.instance.__test.getGrammar() }).children;
 	expect(blocksOf(reload)).toEqual(blocksIn(editor));
 	expect(loose(reload)).toBe(false);
 }

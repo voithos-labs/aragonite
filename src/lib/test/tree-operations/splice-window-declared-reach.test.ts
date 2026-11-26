@@ -73,7 +73,7 @@ function divergence(before: string, after: string): string | null {
 	if (reading) doc.suffix = reading.suffix;
 	const bytes = serialize(doc);
 	if (bytes !== after) return `bytes ${JSON.stringify(bytes)}`;
-	return after === '' ? null : reloadDivergence(doc, after);
+	return after === '' ? null : reloadDivergence(doc, after, defaultGrammarView);
 }
 
 const quoted = (text: string) =>

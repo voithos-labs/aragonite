@@ -45,7 +45,9 @@ async function put(marked: string, mode: PresentationMode, text: string, typed =
 	else await pasteGesture(editor, { 'text/plain': text }, 'key');
 	await editor.settle();
 	const left = editor.source();
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);

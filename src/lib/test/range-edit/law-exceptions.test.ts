@@ -279,7 +279,7 @@ describe('law 9 at a line that could close the container around the caret', () =
 		expect(got?.source).toMatch(/^::::note\n/);
 		const spliced = calls(BODY.replace('‸', input.text));
 		expect(pasteAtCaret(spliced.fake, spliced.host, input)).toEqual([
-			expect.stringMatching(/^L9 a pasted line closed the \w+ around it/)
+			expect.stringMatching(/^L9 a pasted line closed the \S+ around it/)
 		]);
 	});
 });

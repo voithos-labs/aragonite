@@ -50,7 +50,13 @@ async function thenLetter(
 	const step = async (act: () => Promise<unknown>) => {
 		await act();
 		await editor.settle();
-		if (converges) expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+		if (converges)
+			expect(
+				describeConvergence(
+					editor.instance.__test.getDocument(),
+					editor.instance.__test.getGrammar()
+				)
+			).toBeNull();
 		return editor.source();
 	};
 	return [

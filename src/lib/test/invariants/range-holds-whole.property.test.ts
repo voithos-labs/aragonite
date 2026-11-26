@@ -10,15 +10,14 @@ import { checkRangeHoldsWhole } from '../../invariants/range-holds-whole';
 import { displayLength } from '../../core/lines';
 import { documentLayout, type Layout } from '../../range-edit/layout';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import { defaultGrammarView } from '../../schema/editor-grammar';
-import { installPlugins } from '../../schema/plugin-install';
+import type { GrammarView } from '../../schema/block-openers';
 import { rangeBytes, wholeBlockBytes } from '../../selection/range-bytes';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { measured } from '../../tree-operations/top-level-starts';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { bytePositions, opened, pointKey } from '../range-laws/positions';
 import { arbRangeSeed, resolveRange } from '../range-laws/ranges';
 import { arbLawDocument } from '../range-laws/shapes';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { takeDevWarns } from '../support/warn-gate';
 import { freshOrFixedSeed } from './arbitraries';
 
@@ -38,13 +37,17 @@ const arbDocument = fc.oneof(
 
 /** A block's span off the layout, except a leaf whose bytes hold more than its text (a title row
  *  inside its container's tags), whose end the parser-only position map reads. */
-function heldSpan(source: string, doc: Document, layout: Layout, root: readonly number[]) {
+function heldSpan(
+	source: string,
+	doc: Document,
+	layout: Layout,
+	root: readonly number[],
+	grammar: GrammarView
+) {
 	const span = wholeBlockBytes(doc, layout, root)!;
 	const node = blockNodeAt(doc, root)!;
 	if (node.children?.length || span.to - span.from <= displayLength(node.raw)) return span;
-	const last = bytePositions(source, defaultGrammarView).get(
-		pointKey(root, displayLength(node.raw))
-	);
+	const last = bytePositions(source, grammar).get(pointKey(root, displayLength(node.raw)));
 	return { from: span.from, to: last ?? span.to };
 }
 
@@ -63,10 +66,10 @@ describe('G1.212 a range read as bytes holds every block it holds whole', () => 
 	});
 
 	it('over the law corpus', () => {
-		installPlugins(SYNTAX_PLUGINS);
+		const grammar = syntaxGrammar();
 		fc.assert(
 			fc.property(arbDocument, arbRangeSeed, (source, seed) => {
-				const doc = opened(source, defaultGrammarView) as Document;
+				const doc = opened(source, grammar) as Document;
 				const range = resolveRange(doc, seed);
 				if (!range) return;
 				const coverage = rangeCoverage(doc, coverRange(doc, range.anchor, range.focus));
@@ -74,7 +77,9 @@ describe('G1.212 a range read as bytes holds every block it holds whole', () => 
 				const bytes = rangeBytes(doc, coverage, layout);
 				takeDevWarns();
 				if (!bytes) return;
-				const whole = coverage.wholeRoots.map((root) => heldSpan(source, doc, layout, root));
+				const whole = coverage.wholeRoots.map((root) =>
+					heldSpan(source, doc, layout, root, grammar)
+				);
 				expect(checkRangeHoldsWhole(bytes, whole)).toBeNull();
 				// Past a held leaf's last character, the rest of its line is its container's.
 				coverage.wholeRoots.forEach((root, i) => {

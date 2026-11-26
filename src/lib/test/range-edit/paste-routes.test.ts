@@ -6,8 +6,6 @@
 // Miss-analysis: each paste route had suites of its own bytes, and none ran every route over one
 // place against the answer they all share.
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs
@@ -17,7 +15,7 @@ import {
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { diffCase, type PasteCase, type PasteRow } from './paste-differential';
 import { namedCases } from './paste-differential-cases';
 
@@ -81,9 +79,8 @@ function parts(input: PasteCase, row: PasteRow, took: string): string | null {
 }
 
 it('every paste route leaves the core’s bytes and caret', { timeout: 300_000 }, async () => {
-	installPlugins(SYNTAX_PLUGINS);
 	const out: string[] = [];
-	for (const input of namedCases(defaultGrammarView)) {
+	for (const input of namedCases(syntaxGrammar())) {
 		commits.taken = [];
 		const row = await diffCase(input);
 		await destroyMountedEditors();

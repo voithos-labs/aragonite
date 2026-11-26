@@ -11,11 +11,10 @@ import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { reservedChromeKindOf } from '#lib/schema/reserved-chrome.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
 import { registerMermaidKind } from '#lib/test/harness/registered-diagram.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { arbLawDocument } from '../range-laws/shapes';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 
@@ -54,9 +53,8 @@ function sameLine(laid: string, body: string): boolean {
 }
 
 it('every block and container line reads back from the bytes', () => {
-	installPlugins(SYNTAX_PLUGINS);
 	registerMermaidKind(testView());
-	const grammar = defaultGrammarView;
+	const grammar = syntaxGrammar();
 	const docs = [...EXTRA, ...fc.sample(arbLawDocument, { numRuns: 150, seed: 20261106 })];
 	const misses: string[] = [];
 	for (const source of docs) {

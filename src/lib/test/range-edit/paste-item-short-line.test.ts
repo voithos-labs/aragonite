@@ -40,7 +40,9 @@ async function typedAfter(marked: string, mode: PresentationMode, clip: string) 
 	expect(await placeRange(editor, { anchor: at, focus: at })).toBe(true);
 	await pasteGesture(editor, { 'text/plain': clip }, 'key');
 	await editor.settle();
-	expect(describeConvergence(editor.instance.__test.getDocument())).toBeNull();
+	expect(
+		describeConvergence(editor.instance.__test.getDocument(), editor.instance.__test.getGrammar())
+	).toBeNull();
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);

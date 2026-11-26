@@ -6,7 +6,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { getContentRange, parseInline } from '#lib/core/inline/index.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { loadDefinitionExamples, loadSpecExamples } from '../gfm-conformance/corpus';
 import {
 	FLUSH_JOIN_DOCUMENTS,
@@ -16,7 +16,6 @@ import {
 	SEQUENCE_SEEDS,
 	SEQUENCE_STEPS,
 	SMALL_DOCUMENTS,
-	SYNTAX_PLUGINS,
 	blockPairs,
 	LONG_DOCUMENTS,
 	type Key
@@ -25,6 +24,7 @@ import { keyRows, scriptedRows, sequenceRows, sitesOf } from './key-driver';
 import { rangeRows, rangesOf } from './range-driver';
 import { ISSUE_DOCUMENTS } from '../range-laws/shapes';
 import { textField, type Row } from './rows';
+import { syntaxGrammar } from '../support/syntax-grammar';
 
 /** Every key at every offset of every site of the small documents and the flush joins, and each
  *  flush join's blocks moved up and down. */
@@ -87,7 +87,7 @@ const AT_SECOND_START = pick('Backspace');
 /** How each long document and spec example parses, then keys at the join of each adjacent block
  *  pair of the long documents, in live mode, the showcase's own. */
 export async function documentRows(): Promise<Row[]> {
-	installPlugins(SYNTAX_PLUGINS);
+	const grammar = syntaxGrammar();
 	const rows: Row[] = [];
 	const parsed = [
 		...loadSpecExamples().map((e) => ({ id: `spec ${e.example}`, source: e.markdown })),
@@ -98,16 +98,18 @@ export async function documentRows(): Promise<Row[]> {
 		...LONG_DOCUMENTS
 	];
 	for (const { id, source } of parsed) {
-		const doc = parse(source);
+		const doc = parse(source, { grammar });
 		const read = serialize(doc);
 		rows.push({
 			in: `docs ${id}`,
 			bytes: read === source ? '=' : textField(source, read),
-			outline: textField('', outline(doc.children))
+			outline: textField('', outline(doc.children, grammar))
 		});
 	}
 	for (const long of LONG_DOCUMENTS) {
-		for (const pair of blockPairs(long)) rows.push(...(await pairRows(pair.id, pair.source)));
+		for (const pair of blockPairs(long, grammar)) {
+			rows.push(...(await pairRows(pair.id, pair.source)));
+		}
 	}
 	return rows;
 }
@@ -126,12 +128,13 @@ async function pairRows(id: string, source: string): Promise<Row[]> {
 }
 
 /** Block kinds nested by container, each leaf with its inline node kinds nested the same way. */
-function outline(nodes: readonly CstNode[]): string {
+function outline(nodes: readonly CstNode[], grammar: GrammarView): string {
 	return nodes
 		.map((node) => {
-			if (node.children) return `${node.kind}(${outline(node.children)})`;
+			if (node.children) return `${node.kind}(${outline(node.children, grammar)})`;
 			const { start, end } = getContentRange(node);
-			return `${node.kind}[${inlineOutline(parseInline(node.raw, start, end))}]`;
+			const inlines = parseInline(node.raw, start, end, undefined, grammar);
+			return `${node.kind}[${inlineOutline(inlines)}]`;
 		})
 		.join(' ');
 }

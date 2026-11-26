@@ -4,11 +4,9 @@ import { displayLength } from '#lib/core/lines.js';
 import fc from 'fast-check';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
-import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
 import { isReservedChromeChild } from '#lib/schema/reserved-chrome.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
-import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 import { allBlockPaths } from '../invariants/arbitraries/cst';
 import { arbLawDocument } from '../range-laws/shapes';
 import { testReading } from '../range-edit/test-host';
@@ -81,9 +79,9 @@ describe('the leaf position back to a raw offset', () => {
 // below its tags, so the body under it read one line low (found by the caret-walk property).
 describe('a title row with no text', () => {
 	it('sits inside its tags, and the body below keeps its own lines', () => {
-		testReading();
+		const { grammar } = testReading();
 		const source = '<details open>\n<summary></summary>\n\nx\n\n</details>\n\nafter\n';
-		const map = documentByteMap(measured(parse(source)));
+		const map = documentByteMap(measured(parse(source, { grammar })));
 		expect(map.byteOf([0, 0], 0)).toBe(source.indexOf('</summary>'));
 		expect(map.byteOf([0, 1], 0)).toBe(source.indexOf('x'));
 		expect(map.leafAt(source.indexOf('x'))).toEqual({ path: [0, 1], offset: 0 });
@@ -198,9 +196,8 @@ describe('every offset of a nested block, its line ending included', () => {
 	for (const [name, lf] of Object.entries(SHAPES)) {
 		for (const [ending, eol] of ENDINGS) {
 			it(`${name}, ${ending}: each character at its byte, a last child's end past its line`, () => {
-				installPlugins(SYNTAX_PLUGINS);
 				const source = lf.replaceAll('\n', eol);
-				const doc = readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
+				const doc = readAsOpened(source, { grammar: syntaxGrammar(), scope: 'document' });
 				const map = documentByteMap(measured(doc));
 				for (const path of allBlockPaths(doc).filter((at) => at.length > 1)) {
 					const parent = blockNodeAt(doc, path.slice(0, -1))!;

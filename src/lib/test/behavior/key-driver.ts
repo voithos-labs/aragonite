@@ -23,6 +23,7 @@ import {
 import { makeRng } from '#lib/e2e/simulation/rng.js';
 import { KEYS, EDITOR_SYNTAX_PLUGINS, type Key, type ScriptedKey } from './corpus';
 import { caretField, textField, undoField, warnsField, type Row } from './rows';
+import { syntaxGrammar } from '../support/syntax-grammar';
 
 /** Where a caret goes: a leaf block by its CST path, or one cell of the table at that path. */
 export interface Site {
@@ -40,10 +41,13 @@ function mount(source: string, mode: PresentationMode): MountedEditor {
 	return mountEditor({ source, presentationMode: mode, plugins: EDITOR_SYNTAX_PLUGINS });
 }
 
+const blocksOf = (source: string) =>
+	parse(source, { grammar: syntaxGrammar(EDITOR_SYNTAX_PLUGINS) }).children;
+
 /** Every leaf block of `source`, and each cell of each table, read off a mount only where a table
  *  needs it, since a cell's text length is what the cell renders. */
 export async function sitesOf(source: string, mode: PresentationMode): Promise<Site[]> {
-	const blocks = leaves(parse(source).children, []);
+	const blocks = leaves(blocksOf(source), []);
 	if (!blocks.some(({ node }) => node.kind === 'table')) {
 		return blocks.map(({ path, node }) => leafSite(path, node));
 	}
@@ -179,7 +183,7 @@ export async function sequenceRows(
 	const rows: Row[] = [];
 	for (let step = 0; step < steps; step++) {
 		const before = editor.source();
-		const sites = sitesIn(editor, leaves(parse(before).children, []));
+		const sites = sitesIn(editor, leaves(blocksOf(before), []));
 		const site = rng.pick(sites);
 		const offset = rng.int(0, site.end + 1);
 		const key = rng.pick(KEYS);
@@ -196,7 +200,7 @@ export async function sequenceRows(
 	}
 	const edited = editor.source();
 	// The undo command needs a focused block, and the last key may have left none.
-	placeAt(editor, { path: leaves(parse(edited).children, [])[0].path, start: 0, end: 0 }, 0);
+	placeAt(editor, { path: leaves(blocksOf(edited), [])[0].path, start: 0, end: 0 }, 0);
 	// A key makes one undo entry at most, so a count past `steps` shows a key that made more.
 	const runs = steps + 5;
 	const undo = await repeatWhileRunnable(editor, 'history.undo', runs);

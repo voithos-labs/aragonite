@@ -406,6 +406,15 @@ export function writeBytes(
 	});
 }
 
+/** `input` as the harness's document: a string read with the grammar of the reading the harness
+ *  is handed, as that editor would read it. */
+function harnessDocument(
+	input: string | CstNode[] | Document,
+	reading?: Reading
+): CstNode[] | Document {
+	return typeof input === 'string' ? parse(input, { grammar: reading?.grammar }) : input;
+}
+
 /** The published headless deps with spied collaborators and a content-version counter. */
 export function makeEditorActionsDeps(
 	source: string | CstNode[] | Document,
@@ -413,7 +422,7 @@ export function makeEditorActionsDeps(
 ): EditorActionsHarness {
 	let contentVersion = 0;
 	const replaced: ReplacedBlocks[] = [];
-	const headless = createHeadlessActions(source, {
+	const headless = createHeadlessActions(harnessDocument(source, options.reading), {
 		...options,
 		spy: spyEvery,
 		bumpContentVersion: () => {
@@ -461,8 +470,7 @@ export function makeTopHarness(
 	input: string | CstNode[] | Document,
 	options: Parameters<typeof makeEditorActionsDeps>[1] = {}
 ): TopHarness {
-	const source = typeof input === 'string' ? parse(input) : input;
-	const harness = makeEditorActionsDeps(source, options);
+	const harness = makeEditorActionsDeps(input, options);
 	const controller = createUndoController(harness.deps);
 	const actions = createBlockEditActions(harness.deps, controller);
 	const edits: EditEvent[] = [];
@@ -581,14 +589,14 @@ export function makeNestedHarness(
 	input: string | CstNode[] | Document,
 	opts: NestedHarnessOptions = {}
 ): NestedHarness {
-	const source = typeof input === 'string' ? parse(input) : input;
-	const nodes = Array.isArray(source) ? source : source.children;
-	const index = opts.index ?? nodes.length - 1;
 	// One reading for the root and the container, as the editor hands both the same one.
 	const reading =
 		opts.grammar || opts.presentationMode
 			? fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}, opts.presentationMode)
 			: undefined;
+	const source = harnessDocument(input, reading);
+	const nodes = Array.isArray(source) ? source : source.children;
+	const index = opts.index ?? nodes.length - 1;
 	const { deps, events, contentVersion, landings, replaced } = makeEditorActionsDeps(
 		source,
 		reading ? { reading } : {}
@@ -651,7 +659,7 @@ export function makeContainerHarness(
 	containerPath: number[],
 	options: { reading?: Reading } = {}
 ) {
-	const harness = makeEditorActionsDeps(parse(source), options);
+	const harness = makeEditorActionsDeps(source, options);
 	const controller = createUndoController(harness.deps);
 	const focus = makeStubFocus();
 	const { bundle, state, getNode } = containerBundleOver(

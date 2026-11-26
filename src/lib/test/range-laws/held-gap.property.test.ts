@@ -196,7 +196,13 @@ function sideOf(editor: Editor): Side {
 	return {
 		source,
 		blocks: JSON.stringify(blocksIn(editor)),
-		tree: source && reloadDivergence(editor.instance.__test.getDocument(), source),
+		tree:
+			source &&
+			reloadDivergence(
+				editor.instance.__test.getDocument(),
+				source,
+				editor.instance.__test.getGrammar()
+			),
 		warns: [...new Set(takeDevWarns().map((w) => w.tag))]
 	};
 }

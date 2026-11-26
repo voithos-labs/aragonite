@@ -8,8 +8,7 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { assignIds } from '#lib/block-id.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
-import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
 import { measured, type Measured } from '#lib/tree-operations/top-level-starts.js';
@@ -26,8 +25,9 @@ import { gapAtByte } from '#lib/selection/range-bytes.js';
 import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
 import { idleDraftRegistry } from '#lib/test/harness/drafts.js';
 import { makeTopHarness, writeBytes } from '#lib/test/harness/editor-actions.js';
-import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { fixtureGrammar, fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { syntaxGrammar } from '../support/syntax-grammar';
 
 interface Shape {
 	name: string;
@@ -153,9 +153,12 @@ const READERS: [string, (laid: Measured, path: number[]) => (number | null)[] | 
 	]
 ];
 
+/** The grammar a shape reads with: the bundled syntax plugins' where it names them. */
+const grammarOf = (shape: { plugins?: boolean }): GrammarView =>
+	shape.plugins ? syntaxGrammar() : fixtureGrammar;
+
 function opened(shape: Shape): Document {
-	if (shape.plugins) installPlugins(SYNTAX_PLUGINS);
-	return parse(shape.source);
+	return parse(shape.source, { grammar: grammarOf(shape) });
 }
 
 const pathOf = (key: string) => key.split('.').map(Number);
@@ -184,7 +187,8 @@ describe("a nested block's bytes", () => {
 // byte that left its draft fresh, or one to the next line's marker that staled it, went unseen.
 describe('a draft on a nested block', () => {
 	it.each(ROWS)('goes stale at a write to its own bytes only: $shape.name, $path', (row) => {
-		const doc = opened(row.shape);
+		const grammar = grammarOf(row.shape);
+		const doc = parse(row.shape.source, { grammar });
 		const [from, to] = spanOf(row.shape.source, row.bytes);
 		const at = { first: from, last: to - 1, before: from - 1, after: to };
 		const stale = Object.fromEntries(
@@ -192,7 +196,7 @@ describe('a draft on a nested block', () => {
 				.filter(([, byte]) => byte >= 0 && byte < row.shape.source.length)
 				.map(([edge, byte]) => [
 					edge,
-					staleAfterWrite(doc, row.shape.source, pathOf(row.path), byte)
+					staleAfterWrite(doc, row.shape.source, pathOf(row.path), byte, grammar)
 				])
 		);
 		expect(stale).toEqual({
@@ -205,13 +209,19 @@ describe('a draft on a nested block', () => {
 });
 
 /** Whether a draft opened on the block at `path` goes stale once byte `at` is written over. */
-function staleAfterWrite(doc: Document, source: string, path: number[], at: number): boolean {
+function staleAfterWrite(
+	doc: Document,
+	source: string,
+	path: number[],
+	at: number,
+	grammar: GrammarView
+): boolean {
 	const live = { doc };
 	const registry = idleDraftRegistry(undefined, () => live.doc);
 	const draft = registry.open({ close: () => {} }, path);
 	const capture = captureChange(live.doc, null);
 	const other = source[at] === 'Z' ? 'Y' : 'Z';
-	live.doc = parse(source.slice(0, at) + other + source.slice(at + 1));
+	live.doc = parse(source.slice(0, at) + other + source.slice(at + 1), { grammar });
 	registry.record(changeAfter(live.doc, capture, null));
 	return draft.stale;
 }
@@ -301,8 +311,7 @@ const GAPS: GapShape[] = [
 ];
 
 function gapDoc(shape: GapShape): Document {
-	if (shape.plugins) installPlugins(SYNTAX_PLUGINS);
-	return parse(shape.source);
+	return parse(shape.source, { grammar: grammarOf(shape) });
 }
 
 // Miss-analysis: every gap-byte row stood in a top-level container, whose raw is the document's
@@ -320,8 +329,10 @@ describe("a gap caret's byte at a nested boundary", () => {
 
 	// An editor reads one grammar for its life on this branch, so the row swaps it as `use()` would.
 	it.each(GAPS)('comes back from an undo under another grammar: $name', async (shape) => {
-		gapDoc(shape);
-		const s = makeTopHarness(shape.source, { reading: fixtureReading() });
+		const read = grammarOf(shape);
+		const s = makeTopHarness(parse(shape.source, { grammar: read }), {
+			reading: fixtureReading({ grammar: read })
+		});
 		const history = createHistoryActions(s.deps, s.controller);
 		const restore = vi.spyOn(s.deps.caretLanding, 'restore');
 		s.deps.selectionState.setGapCaret(shape.gap);
@@ -335,7 +346,8 @@ describe("a gap caret's byte at a nested boundary", () => {
 			snapshot: { path: docPathFrom([0]), offset: 0 }
 		});
 		expect(wrote).toBe(true);
-		const grammar = createEditorGrammar({ syntax: { indentedCode: false } });
+		const syntax = { indentedCode: false };
+		const grammar = syntaxGrammar(shape.plugins ? SYNTAX_PLUGINS : [], { syntax });
 		s.deps.reading = fixtureReading({ grammar });
 		const reread = parse(serialize(s.deps.doc), { grammar });
 		writeBytes(s.deps, () => {
