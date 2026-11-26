@@ -30,12 +30,17 @@ export interface BlockViews {
 	box: Draw<ContainerDrawContext>;
 	note: Draw<BoxDrawContext>;
 	dice: Draw<BoxDrawContext>;
-	chip: PluginView<WidgetProps<null>>;
+	chip: PluginView<WidgetProps<ChipData>>;
 	/** Shows the `data-memo-length` attribute of the paint it's given. */
 	memoLength: PluginView<{ paint: BlockPaint }>;
 }
 
 export const MEMO_LENGTH_ATTR = 'data-memo-length';
+
+/** A chip's name, between its braces. */
+export interface ChipData {
+	name: string;
+}
 
 /** The chip each app's view throws on. */
 export const BOOM = '{{boom}}';
@@ -129,14 +134,14 @@ export function blockViewsPlugins(views: BlockViews) {
 }
 
 // `{{name}}` on one line, drawn whole by the app's view.
-const chip = (view: PluginView<WidgetProps<null>>) =>
-	inline<null>({
+const chip = (view: PluginView<WidgetProps<ChipData>>) =>
+	inline<ChipData>({
 		name: 'chip',
 		label: 'Chip',
 		prefix: '{',
 		sample: '{{pebble}}',
 		match: /\{\{[^\n]*?\}\}/,
-		read: () => null,
+		read: (match) => ({ name: match[0].slice(2, -2) }),
 		widget: { delete: 'whole', arrows: 'over', click: 'none' },
 		draw: view
 	});

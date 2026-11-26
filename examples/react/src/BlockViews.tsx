@@ -27,6 +27,7 @@ import type {
 import {
 	BLOCK_VIEWS_SOURCE,
 	BOOM,
+	type ChipData,
 	DICE_BOOM,
 	LONG_SOURCE,
 	MEMO_LENGTH_ATTR,
@@ -169,7 +170,7 @@ const withName = (view: ReactNode) => (
 );
 
 // `{{boom}}` throws, so a spec can see the editor contain a framework view's throw.
-function Chip({ source, from }: WidgetProps<null>) {
+function Chip({ source, from }: WidgetProps<ChipData>) {
 	useEffect(viewMounted, []);
 	if (source === BOOM) throw new Error('the chip went boom');
 	return (
