@@ -10,7 +10,7 @@ import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import type { FixedUpEdit } from '../tree-operations/fix-up/apply';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, documentBody, nodeAt } from '../tree-operations/node-primitives';
-import { orderedBaseOf, renumberOrderedListFrom } from '../tree-operations/list/ordered-markers';
+import { numberingOfList, renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { getStateForNode } from '../block-lists/state-registry';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { readCurrentSelection } from '../selection/native-bridge';
@@ -87,8 +87,8 @@ export function createReorderAction(
 				eventPath: docPathFrom(unit.parentPath)
 			},
 			mutate: (scope) => {
-				// Read before the move, which can take the first item and its number elsewhere.
-				const start = orderedBaseOf(scope.node.children?.[0]);
+				// Read before the move, which can take the first two items and their numbers elsewhere.
+				const numbering = numberingOfList(scope.node);
 				const moved = reorderChildrenWithTrivia(
 					scope.body,
 					unit.index,
@@ -98,8 +98,9 @@ export function createReorderAction(
 				);
 				landedAt = moved.landing;
 				settled = scope.describeEdit({ moved: { to: landedAt, uncovered: moved.uncovered } });
-				// Only an ordered list renumbers; any other container keeps its children as moved.
-				renumberOrderedListFrom(scope.node, start, scope.sharing);
+				// Only an ordered list renumbers, from the first place the move touched.
+				const from = Math.min(unit.index, landedAt);
+				renumberOrderedList(scope.node, from, numbering, scope.sharing);
 				return moved.change;
 			},
 			landing: landing(unit.parentPath),

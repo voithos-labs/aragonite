@@ -43,6 +43,10 @@ The worked examples above are the ground truth for where the lines end up. The b
 ### Ordered list numbering on M1
 
 - Deleting an item via M1 renumbers subsequent items (`merge-list-item.test.ts`)
+- The renumber starts at the merged item's place, so the items above keep their numbers:
+  Backspace at the start of `b` in `1. a / 5. x / 3. b / 7. c` gives `1. a / 5. xb / 6. c`, and
+  in a list of `1.`s every item keeps its `1.` (miss-analysis: every M1 fixture counted up by 1
+  from its start, where a renumber from item 1 writes the bytes it read)
 
 ## Opaque previous leaf: fall back to move-focus (no merge)
 

@@ -16,7 +16,7 @@ import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
 import { checkChildSpansLockstep } from '#lib/invariants/structural-descriptor.js';
-import { renumberOrderedListFrom } from '#lib/tree-operations/list/ordered-markers.js';
+import { renumberOrderedList } from '#lib/tree-operations/list/ordered-markers.js';
 import { spliceChildren } from '#lib/tree-operations/children.js';
 import { insertEmptyColumn } from '#lib/tree-operations/table-mutations.js';
 import { ensureUnsharedSubtree } from '#lib/tree-operations/unshare.js';
@@ -317,13 +317,14 @@ describe('a write that changes more than bytes where it stands and fails', () =>
 			name: 'an ordered list renumbered through its own scope',
 			source: ORDERED,
 			commit: overList,
-			write: ([list]) => renumberOrderedListFrom(list.node, 7, list.sharing)
+			write: ([list]) => renumberOrderedList(list.node, 0, { start: 7, step: 1 }, list.sharing)
 		},
 		{
 			name: 'an ordered list renumbered through the document scope',
 			source: ORDERED,
 			commit: overDocument,
-			write: ([doc]) => renumberOrderedListFrom(doc.own([LIST])[0], 7, doc.sharing)
+			write: ([doc]) =>
+				renumberOrderedList(doc.own([LIST])[0], 0, { start: 7, step: 1 }, doc.sharing)
 		},
 		{
 			name: 'a table given a column',
