@@ -24,7 +24,7 @@ import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 
-type Seam = { getDocument(): CstNode; getGrammar(): GrammarView };
+type Seam = { getDocument(): Document; getGrammar(): GrammarView };
 
 const BODIES: Record<string, string> = {
 	empty: '',
@@ -67,9 +67,9 @@ const sourceOf = ({ host, shape, body, crlf }: Case): string => {
 
 /** The path of the row a case types on: child 0 of the innermost container opened by `tip T` or
  *  a `<summary>`. */
-function rowPath(doc: CstNode): number[] {
+function rowPath(doc: Document): number[] {
 	let found: number[] | null = null;
-	const walk = (node: CstNode, path: number[]) => {
+	const walk = (node: { children?: readonly CstNode[] }, path: number[]) => {
 		node.children?.forEach((child, i) => {
 			const row = child.children?.[0];
 			if (row && /^(:+tip T|T)\r?\n?$/.test(row.raw) && child.kind !== 'paragraph') {
@@ -100,7 +100,7 @@ async function typedAndTakenBack(source: string, offset: number, ch: string): Pr
 	await m.settle();
 	const fired = takeDevWarns().map((w) => w.tag);
 	const seam = m.instance.__test;
-	const drift = describeConvergence(seam.getDocument() as Document, seam.getGrammar());
+	const drift = describeConvergence(seam.getDocument(), seam.getGrammar());
 	const notes = [...fired, ...(drift ? [`reload differs: ${drift}`] : [])];
 	return notes.length > 0 ? `${m.source()} ${notes.join(' ')}` : m.source();
 }
@@ -110,9 +110,9 @@ async function rowLength(source: string): Promise<number> {
 	await m.settle();
 	const doc = m.instance.__test.getDocument();
 	const path = rowPath(doc);
-	let node: CstNode = doc;
+	let node: { children?: readonly CstNode[]; raw?: string } = doc;
 	for (const i of path) node = node.children![i];
-	return displayLength(node.raw);
+	return displayLength(node.raw ?? '');
 }
 
 /** Two rare shapes the law leaves out, booked: a letter splitting a four-colon run into a narrower
