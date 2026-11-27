@@ -12,18 +12,18 @@ import { bareImports } from './verify-prebuilt.mjs';
 import { verifyTypes } from './verify-types.mjs';
 
 // Gzipped bytes of each package's prebuilt JS, a little above what it measured. Measured:
-// admonitions 3,689, details 3,416, emoji 16,261, footnotes 3,844, highlight 5,485, highlight-occurrences 1,257,
-// latex 4,503, mermaid 6,336, parrot 3,102, slash-commands 1,725, spellcheck 4,499, toc 2,152.
+// admonitions 2,788, details 1,167, emoji 16,261, footnotes 2,182, highlight 5,485, highlight-occurrences 1,257,
+// latex 4,503, mermaid 5,605, parrot 3,102, slash-commands 1,725, spellcheck 4,499, toc 2,152.
 /** @type {Record<string, number>} */
 const BUDGET = {
-	admonitions: 4_650,
-	details: 4_100,
+	admonitions: 3_300,
+	details: 1_650,
 	emoji: 16_500,
-	footnotes: 4_450,
+	footnotes: 2_700,
 	highlight: 5_800,
 	'highlight-occurrences': 1_500,
 	latex: 5_000,
-	mermaid: 7_050,
+	mermaid: 6_200,
 	parrot: 4_450,
 	'slash-commands': 2_100,
 	spellcheck: 4_650,

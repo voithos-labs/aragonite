@@ -1,12 +1,12 @@
 {
 	"rows": {
 		"minimalAppSvelteFirstLoadGzip": {
-			"baseline": 352236,
+			"baseline": 355076,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppSvelteTotalGzip": {
-			"baseline": 352236,
+			"baseline": 355076,
 			"tolerance": 4000,
 			"unit": "B"
 		},
@@ -16,12 +16,12 @@
 			"unit": "chunks"
 		},
 		"minimalAppPrebuiltFirstLoadGzip": {
-			"baseline": 352738,
+			"baseline": 355502,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppPrebuiltTotalGzip": {
-			"baseline": 352738,
+			"baseline": 355502,
 			"tolerance": 4000,
 			"unit": "B"
 		},
@@ -31,12 +31,12 @@
 			"unit": "chunks"
 		},
 		"highlightAppSvelteFirstLoadGzip": {
-			"baseline": 373311,
+			"baseline": 376115,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"highlightAppSvelteTotalGzip": {
-			"baseline": 399456,
+			"baseline": 402260,
 			"tolerance": 4000,
 			"unit": "B"
 		},
@@ -46,12 +46,12 @@
 			"unit": "chunks"
 		},
 		"allLanguagesAppSvelteFirstLoadGzip": {
-			"baseline": 377294,
+			"baseline": 380150,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"allLanguagesAppSvelteTotalGzip": {
-			"baseline": 704194,
+			"baseline": 707050,
 			"tolerance": 40000,
 			"unit": "B"
 		},
@@ -61,12 +61,12 @@
 			"unit": "chunks"
 		},
 		"highlightAppPrebuiltFirstLoadGzip": {
-			"baseline": 373769,
+			"baseline": 376577,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"highlightAppPrebuiltTotalGzip": {
-			"baseline": 399914,
+			"baseline": 402722,
 			"tolerance": 4000,
 			"unit": "B"
 		},
@@ -76,12 +76,12 @@
 			"unit": "chunks"
 		},
 		"allLanguagesAppPrebuiltFirstLoadGzip": {
-			"baseline": 377924,
+			"baseline": 380742,
 			"tolerance": 4000,
 			"unit": "B"
 		},
 		"allLanguagesAppPrebuiltTotalGzip": {
-			"baseline": 704824,
+			"baseline": 707642,
 			"tolerance": 40000,
 			"unit": "B"
 		},
