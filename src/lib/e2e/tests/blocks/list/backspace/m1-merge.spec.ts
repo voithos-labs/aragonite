@@ -91,4 +91,17 @@ test.describe('list Backspace: M1 merge on non-first item', () => {
 		expect(source).toMatch(/2\.\s*Second/);
 		expect(source).toMatch(/3\.\s*Third/);
 	});
+
+	// The join numbers on from its own place, so the items above keep the numbers written there.
+	for (const { list, joined } of [
+		{ list: '1. a\n5. x\n3. b\n7. c\n', joined: '1. a\n5. xb\n6. c\n' },
+		{ list: '1. a\n1. x\n1. b\n1. c\n', joined: '1. a\n1. xb\n1. c\n' }
+	]) {
+		test(`ordered: Backspace at the start of b in ${JSON.stringify(list)}`, async () => {
+			await editor.loadContent(list);
+			await editor.focusBlockAtPath([0, 2, 0], 0);
+			await editor.page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals(joined);
+		});
+	}
 });

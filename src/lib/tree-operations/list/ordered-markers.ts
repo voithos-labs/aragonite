@@ -11,15 +11,6 @@ import { writeUnsharedChild } from '../unshare';
 
 // ── Marker reads ─────────────────────────────────────────────────────────────
 
-/** Read an item's marker as an integer base, defaulting to 1 for a non-numeric marker or a
- *  block that is not a list item. */
-export function orderedBaseOf(item: NodeView | undefined): number {
-	if (!item) return 1;
-	const marker = metadataIfKind(item, 'listItem')?.marker ?? '';
-	const n = parseInt(marker, 10);
-	return Number.isFinite(n) && n > 0 ? n : 1;
-}
-
 /** Whether GFM reads `lower` as continuing `upper`'s list once nothing parts the two items: the
  *  same bullet character, or the same ordered delimiter. A task item is a bullet item. */
 export function itemsShareList(upper: NodeView | undefined, lower: NodeView | undefined): boolean {
@@ -32,51 +23,67 @@ export function itemsShareList(upper: NodeView | undefined, lower: NodeView | un
 const markerOf = (item: NodeView | undefined): string =>
 	item ? (metadataOf(item, 'listItem')?.marker ?? '').trimEnd() : '';
 
-// ── Renumbering ──────────────────────────────────────────────────────────────
-
-/** Increment an ordered marker's numeric prefix, preserving its suffix. */
-export function bumpOrderedMarker(marker: string): string {
-	return marker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
+/** An item's number, or null for a marker with no digits or a block that is not a list item. */
+function numberOf(item: NodeView | undefined): number | null {
+	const digits = /^\d+/.exec(item ? (metadataIfKind(item, 'listItem')?.marker ?? '') : '');
+	return digits ? Number(digits[0]) : null;
 }
 
-/** Renumber an ordered list from `fromIndex` on, any other block left as it is. Item 0 keeps the
- *  list's start; an edit that moves, removes or creates item 0 calls `renumberOrderedListFrom`. */
+// ── Renumbering ──────────────────────────────────────────────────────────────
+
+/** How an ordered list counts, read off the numbers its author wrote before an edit. A renumber
+ *  needs it read before the edit changes the list's first two items. */
+export interface OrderedNumbering {
+	readonly start: number;
+	readonly step: 0 | 1;
+}
+
+/** The numbering of a list whose first two numbers are `first` and `second`: it starts at
+ *  `first` (1 when there is none) and steps by 0 when the two match, else by 1. */
+export function numberingOf(first: number | null, second: number | null): OrderedNumbering {
+	return { start: first ?? 1, step: first !== null && first === second ? 0 : 1 };
+}
+
+/** `list`'s numbering as it stands. */
+export function numberingOfList(list: NodeView): OrderedNumbering {
+	const items = list.children ?? [];
+	return numberingOf(numberOf(items[0]), numberOf(items[1]));
+}
+
+/** The number item `index` of `list` takes under `numbering`: the start for item 0, else the
+ *  number of the item above it plus the step. */
+export function numberAt(list: NodeView, index: number, numbering: OrderedNumbering): number {
+	if (index === 0) return numbering.start;
+	return (numberOf(list.children?.[index - 1]) ?? 0) + numbering.step;
+}
+
+/** The marker one past `marker` in a list stepping by `step`, keeping its suffix. */
+export function bumpOrderedMarker(marker: string, step: 0 | 1): string {
+	return marker.replace(/^(\d+)/, (_, n) => String(Number(n) + step));
+}
+
+/** Renumber an ordered list from item `from` on by `numbering` (see `numberAt`), any other block
+ *  left as it is; the items above `from` keep their numbers. */
 export function renumberOrderedList(
 	list: CstNode,
-	fromIndex: number,
+	from: number,
+	numbering: OrderedNumbering,
 	sharing: SharingState,
 	grammar: GrammarView
 ): void {
-	if (!list.children) return;
-	if (!metadataIfKind(list, 'list')?.ordered) return;
-	// Each item is copied out of the undo snapshot and written before the tree holds it, since a
-	// write through the tree's `$state` proxy is paid once per item below the edit.
-	for (let j = Math.max(fromIndex, 1); j < list.children.length; j++) {
-		const prevNum = parseInt(metadataOf(list.children[j - 1], 'listItem').marker, 10) || 0;
+	if (!list.children || !metadataIfKind(list, 'list')?.ordered) return;
+	let number = numberAt(list, from, numbering);
+	for (let j = from; j < list.children.length; j++, number += numbering.step) {
+		const marker = metadataOf(list.children[j], 'listItem').marker;
+		const target = String(number) + (marker.replace(/^\d+/, '') || '. ');
+		if (marker === target) continue;
+		// Each item is copied out of the undo snapshot and written before the tree holds it, since a
+		// write through the tree's `$state` proxy is paid once per item below the edit.
 		writeUnsharedChild(list, j, sharing, (item) => {
-			const meta = metadataOf(item, 'listItem');
-			meta.marker = String(prevNum + 1) + meta.marker.replace(/^\d+/, '');
+			metadataOf(item, 'listItem').marker = target;
 			writeContainerRaw(item, grammar);
 		});
 	}
-}
-
-/** Renumber a whole ordered list from `start`, keeping marker suffixes. A caller reads `start`
- *  before its edit when that edit moves or removes the first item. */
-export function renumberOrderedListFrom(
-	list: CstNode,
-	start: number,
-	sharing: SharingState,
-	grammar: GrammarView
-): void {
-	if (!metadataIfKind(list, 'list')?.ordered) return;
-	if (!list.children || list.children.length === 0) return;
-	writeUnsharedChild(list, 0, sharing, (first) => {
-		const meta = metadataOf(first, 'listItem');
-		meta.marker = String(start) + (meta.marker.replace(/^\d+/, '') || '. ');
-		writeContainerRaw(first, grammar);
-	});
-	renumberOrderedList(list, 1, sharing, grammar);
 }
 
 /** Reads an ordered list's numbering before items are removed from it, and returns the renumber
@@ -88,15 +95,13 @@ export function holdOrderedNumbering(
 		return keepNumbering;
 	}
 	const before = list.children.slice();
-	const start = orderedBaseOf(before[0]);
+	const numbering = numberingOfList(list);
 	return (sharing, grammar) => {
 		const after = list.children ?? [];
 		if (after.length >= before.length) return;
 		let shifted = 0;
 		while (shifted < after.length && after[shifted] === before[shifted]) shifted++;
-		if (shifted === after.length) return;
-		if (shifted === 0) renumberOrderedListFrom(list, start, sharing, grammar);
-		else renumberOrderedList(list, shifted, sharing, grammar);
+		if (shifted < after.length) renumberOrderedList(list, shifted, numbering, sharing, grammar);
 	};
 }
 
@@ -121,23 +126,23 @@ export function normalizeItemMarkerToList(
 }
 
 /** Items `from` on, which a move appended to `list`: each takes the list's marker style and, in an
- *  ordered list, the number after the item above, written once before the tree holds it. */
+ *  ordered list, its number by `numbering` (read before the move), written before the tree holds it. */
 export function joinItemsToList(
 	list: CstNode,
 	from: number,
+	numbering: OrderedNumbering,
 	sharing: SharingState,
 	grammar: GrammarView
 ): void {
 	const ordered = metadataIfKind(list, 'list')?.ordered ?? false;
-	for (let j = from; j < list.children!.length; j++) {
-		const above = j === 0 ? undefined : list.children![j - 1];
-		const prevNum = above ? parseInt(metadataOf(above, 'listItem').marker, 10) || 0 : 0;
+	let number = numberAt(list, from, numbering);
+	for (let j = from; j < list.children!.length; j++, number += numbering.step) {
+		const marker = metadataOf(list.children![j], 'listItem').marker;
+		const styled = styledAs(list, marker);
+		const target = ordered ? String(number) + (styled.replace(/^\d+/, '') || '. ') : styled;
+		if (target === marker) continue;
 		writeUnsharedChild(list, j, sharing, (item) => {
-			const meta = metadataOf(item, 'listItem');
-			const styled = styledAs(list, meta.marker);
-			// An ordered item is written even where its marker stands, as a renumber writes it.
-			if (!ordered && styled === meta.marker) return;
-			meta.marker = ordered ? String(prevNum + 1) + styled.replace(/^\d+/, '') : styled;
+			metadataOf(item, 'listItem').marker = target;
 			writeContainerRaw(item, grammar);
 		});
 	}

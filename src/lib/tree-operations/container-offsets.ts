@@ -512,23 +512,21 @@ function pairLines(
 		toRaw(bodyOffset) {
 			const b = lineHolding(bodyLines, bodyOffset);
 			const r = carrier[b];
-			if (r === undefined) {
-				// A body line no raw line carries (an empty body under a title) sits at the end of the
-				// raw line before the next one carried.
-				const below = carrier.slice(b + 1).find((at) => at !== undefined) ?? raw.length;
-				const line = raw[Math.max(below - 1, 0)];
-				return line ? line.start + line.text.length : 0;
-			}
+			// The carried body lines come first, so one no raw line carries (an alert's empty body under
+			// its head line) sits at the end of the last raw line, its ending on that line's.
+			const line = raw[r ?? raw.length - 1];
+			if (!line) return 0;
+			const textEnd = line.start + line.text.length;
+			if (!bodyLines[b]) return textEnd;
 			const { start, end, text } = bodyLines[b];
-			const line = raw[r];
 			const column = Math.min(bodyOffset - start, end - start);
 			if (column > text.length) {
 				// A line ending maps byte for byte onto the raw line's (a CRLF's `\n` is its second byte),
 				// and the offset past it sits past the raw line.
 				if (column === end - start) return line.end;
-				const textEnd = line.start + line.text.length;
 				return Math.min(textEnd + column - text.length, Math.max(line.end - 1, textEnd));
 			}
+			if (r === undefined) return textEnd;
 			return line.start + Math.min(Math.max(paired[r]!.at + column, 0), line.text.length);
 		}
 	};

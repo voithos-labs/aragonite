@@ -32,12 +32,12 @@ describe('list-builders', () => {
 				fixtureGrammar
 			)
 		];
-		const half = assembleListHalf(tplList, items, 5, defaultGrammarView);
+		const half = assembleListHalf(tplList, items, { start: 5, step: 1 }, defaultGrammarView);
 		expect(half.children![0].metadata).toMatchObject({ marker: '5. ' });
 		expect(half.children![1].metadata).toMatchObject({ marker: '6. ' });
 	});
 
-	it('assembleListHalf leaves marker untouched on unordered template even when startNumber != 1', () => {
+	it('assembleListHalf leaves marker untouched on unordered template even when the start is not 1', () => {
 		const tplList = parse('- a\n- b\n').children[0];
 		const items = [
 			buildListItemWithContent(
@@ -51,7 +51,7 @@ describe('list-builders', () => {
 				fixtureGrammar
 			)
 		];
-		const half = assembleListHalf(tplList, items, 7, defaultGrammarView);
+		const half = assembleListHalf(tplList, items, { start: 7, step: 1 }, defaultGrammarView);
 		expect(half.children![0].metadata).toMatchObject({ marker: '- ' });
 		expect(half.children![1].metadata).toMatchObject({ marker: '- ' });
 	});

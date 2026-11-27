@@ -141,5 +141,4 @@ is back, the failure last. A cleanup that throws fails nothing: it is reported a
 document reads its bounds, each character's `byteAt`, `offsetAt` back, its pieces and its title
 where its LF twin does, carried past the endings before it (a `\r\n` takes two bytes where a `\n`
 took one). A miss is the byte map clamping a line ending (`container-offsets.ts :: pairLines`).
-Waived and pinned: an alert's empty body, whose CRLF ending sits on its `\r`.
 `crlf-twin-positions.property.test.ts`, `block-at.svelte.test.ts`.

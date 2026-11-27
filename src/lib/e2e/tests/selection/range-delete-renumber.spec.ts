@@ -89,4 +89,21 @@ test.describe('a range removal keeps the ordered list’s numbers', () => {
 			expect(await editor.parseConverged()).toBe(true);
 		});
 	}
+
+	// A list whose first two numbers match counts by 0, so a removal leaves its numbers alone.
+	for (const n of ['1', '0']) {
+		for (const gesture of GESTURES.filter((g) => g.name === 'Delete' || g.name === 'Cut')) {
+			test(`${gesture.name} over a middle item of a list of ${n}s keeps every ${n}`, async () => {
+				await editor.loadContent(LIST.replace(/^\d+\./gm, `${n}.`));
+				await editor.focusBlockAtPath([0, 1, 0], 1);
+				await extend(editor, [edgeKey('lineEnd'), 'ArrowRight']);
+
+				await gesture.run(editor);
+
+				await expect
+					.poll(() => editor.bridge.getSource())
+					.toBe(gesture.source.replace(/^\d+\./gm, `${n}.`));
+			});
+		}
+	}
 });

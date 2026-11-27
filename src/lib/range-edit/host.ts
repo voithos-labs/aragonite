@@ -31,6 +31,7 @@ import { splitHalves } from '../tree-operations/node-ops';
 import { enteredOut, exitedOut } from '../tree-operations/list/enter-out';
 import { openedIn } from '../tree-operations/opened-paragraph';
 import { followerMetadata } from '../tree-operations/list/list-builders';
+import { numberingOfList } from '../tree-operations/list/ordered-markers';
 import {
 	blockNodeAt,
 	normalizeBodyWrite,
@@ -372,7 +373,7 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 		},
 		itemAfter(doc, path) {
 			const own = metadataIfKind(blockNodeAt(doc, path)!, 'listItem') ?? undefined;
-			const follower = followerMetadata(own);
+			const follower = followerMetadata(own, numberingOfList(blockNodeAt(doc, path.slice(0, -1))!));
 			return follower.marker + (follower.taskMarker ?? '');
 		},
 		enterOut(doc, path) {

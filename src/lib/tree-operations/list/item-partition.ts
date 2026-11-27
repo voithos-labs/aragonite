@@ -14,7 +14,7 @@ import { isBlankParagraph } from '../../core/parser';
 import { keepingListOrder } from './keeping-order';
 import { cloneNode } from '../clone';
 import { assembleListHalf } from './list-builders';
-import { orderedBaseOf } from './ordered-markers';
+import { numberAt, numberingOfList } from './ordered-markers';
 
 export interface DissolvedItem {
 	blocks: CstNode[];
@@ -78,13 +78,14 @@ function assembleInOrder(
 	for (const item of items.slice(itemIndex + 1)) tail.items.push(cloneNode(item));
 	if (tail !== last && tail.items.length > 0) pieces.push(tail);
 
-	// The list's starting number runs on across every list the item leaves, never spending its slot.
-	const base = orderedBaseOf(items[0]);
+	// The items above keep their numbers; the list's count runs on across every list the item
+	// leaves, never spending its slot.
+	const numbering = numberingOfList(list);
 	const blocks: CstNode[] = [];
 	if (itemIndex > 0)
-		blocks.push(assembleListHalf(list, items.slice(0, itemIndex).map(cloneNode), base, grammar));
+		blocks.push(assembleListHalf(list, items.slice(0, itemIndex).map(cloneNode), null, grammar));
 	const firstBlockIndex = blocks.length;
-	let number = base + itemIndex;
+	let number = numberAt(list, itemIndex, numbering);
 	for (let k = 0; k < pieces.length; k++) {
 		const piece = pieces[k];
 		if ('block' in piece) {
@@ -98,8 +99,8 @@ function assembleInOrder(
 			blocks.push(piece.block);
 			continue;
 		}
-		const half = assembleListHalf(list, piece.items, number, grammar);
-		number += piece.items.length;
+		const half = assembleListHalf(list, piece.items, { ...numbering, start: number }, grammar);
+		number += numbering.step * piece.items.length;
 		half.leadingTrivia = lineAboveList(blocks.at(-1), half, piece.leadingTrivia);
 		blocks.push(half);
 	}

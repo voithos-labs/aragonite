@@ -17,7 +17,7 @@ import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { writeContainerRaw } from '../../schema/container-writer';
 import { readItemShape } from '../../core/parsers/list';
 import { cloneMetadata } from '../clone';
-import { bumpOrderedMarker, renumberOrderedListFrom } from './ordered-markers';
+import { bumpOrderedMarker, renumberOrderedList, type OrderedNumbering } from './ordered-markers';
 import { createSharingState } from '../sharing';
 import { assignIds } from '../../block-id';
 import { markerLineWidening } from './task-paragraph';
@@ -27,14 +27,12 @@ import { emptyParagraph } from '../node-primitives';
 
 // ── List / item construction ─────────────────────────────────────────────────
 
-/**
- * A list node carrying `items`, which keep their own bytes, mirroring `template`'s metadata and
- * affixes and renumbering ordered markers from `startNumber`. Items are mutated in place.
- */
+/** A list node carrying `items` in place, mirroring `template`'s metadata and affixes, numbered by
+ *  `numbering` or, where it is null, keeping the numbers they have. */
 export function assembleListHalf(
 	template: NodeView,
 	items: CstNode[],
-	startNumber: number,
+	numbering: OrderedNumbering | null,
 	grammar: GrammarView
 ): CstNode {
 	const half: CstNode = {
@@ -51,17 +49,20 @@ export function assembleListHalf(
 	};
 	if (items[0]) items[0].leadingTrivia = '';
 	// The caller owns the items, so a fresh sharing state copies none of them.
-	renumberOrderedListFrom(half, startNumber, createSharingState(), grammar);
+	if (numbering) renumberOrderedList(half, 0, numbering, createSharingState(), grammar);
 	rebuildListRaw(half);
 	return half;
 }
 
-/** The marker and checkbox of the item Enter opens after an item: its marker bumped, its task
- *  checkbox inherited unchecked. */
-export function followerMetadata(prevMeta: ListItemMetadata | undefined): ListItemMetadata {
+/** The marker and checkbox of the item Enter opens after an item: its marker bumped by its list's
+ *  step, its task checkbox inherited unchecked. */
+export function followerMetadata(
+	prevMeta: ListItemMetadata | undefined,
+	numbering: OrderedNumbering
+): ListItemMetadata {
 	const inheritTask = prevMeta?.taskItem === true;
 	return {
-		marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
+		marker: bumpOrderedMarker(prevMeta?.marker ?? '- ', numbering.step),
 		taskItem: inheritTask,
 		taskChecked: false,
 		taskMarker: inheritTask ? '[ ] ' : null

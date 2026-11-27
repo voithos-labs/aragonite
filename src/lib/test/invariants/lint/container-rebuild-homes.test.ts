@@ -100,7 +100,7 @@ const PINNED: Record<string, Pin> = {
 		why: 'builds new items and list halves, nodes no commit has seen, and rewrites a new item whose first line widens its marker or opens below an empty one'
 	},
 	'src/lib/tree-operations/list/ordered-markers.ts': {
-		calls: { writeContainerRaw: 4 },
+		calls: { writeContainerRaw: 3 },
 		why: 'a renumber, or the restyle of items a move appended, rewrites items below the scope, keeping each line its new marker still reads'
 	},
 	'src/lib/tree-operations/list/task-paragraph.ts': {

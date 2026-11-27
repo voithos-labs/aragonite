@@ -59,7 +59,7 @@ describe('checkStaleRaw (G1.1)', () => {
 		expect(emptyItem.raw).toBe('- \n');
 		expect(checkStaleRaw(emptyItem, defaultGrammarView)).toBeNull();
 
-		const list = assembleListHalf(listTemplate, [emptyItem], 1, defaultGrammarView);
+		const list = assembleListHalf(listTemplate, [emptyItem], null, defaultGrammarView);
 		expect(list.raw).toBe('- \n');
 		expect(checkStaleRaw(list, defaultGrammarView)).toBeNull();
 	});

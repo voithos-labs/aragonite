@@ -5,6 +5,7 @@
  */
 
 import { metadataIfKind } from '../core/nodes';
+import { numberingOf, type OrderedNumbering } from '../tree-operations/list/ordered-markers';
 import { nodeAt, readDoc, type Doc } from './document';
 import type { LaidBlock } from './layout';
 import type { Edit } from './leaf-splice';
@@ -19,14 +20,20 @@ export function numberedOn(doc: Doc, from: number, to: number, out: string): str
 		if (!node.children || !metadataIfKind(node, 'list')?.ordered) continue;
 		const items = node.children.map((_, i) => layout.block([...list.path, i])!);
 		const kept = items.filter((item) => item.from >= to);
-		if (kept.length === 0 || kept.length === items.length) continue;
+		// An item the range ends inside that keeps its marker is the first item numbered on.
+		const held = heldLead(doc, out, items, from, to);
+		if ((kept.length === 0 && !held) || kept.length === items.length) continue;
+		const { start, step } = numberingIn(source, items);
 		const above = items.filter((item) => item.from < from).at(-1);
-		let next = markerOf(source, above ?? items[0])?.number ?? 1;
-		if (above) next++;
+		let next = above ? (markerOf(source, above)?.number ?? 0) + step : start;
+		if (held) {
+			if (held.marker.number !== next) renumber(edits, source, held.item, held.marker, next);
+			next += step;
+		}
 		for (const item of kept) {
 			const marker = markerOf(source, item);
 			if (marker && marker.number !== next) renumber(edits, source, item, marker, next);
-			next++;
+			next += step;
 		}
 	}
 	return written(out, edits, out.length - source.length);
@@ -49,9 +56,11 @@ export function numberedAfterSplit(
 	const shift = out.length - source.length;
 	const edits: Renumbering[] = [];
 	const own = markerOf(source, items[index]);
-	let next = (own?.number ?? 1) + 1;
+	const { step } = numberingIn(source, items);
+	let next = (own?.number ?? 1) + step;
 	if (copyAt !== null && own) {
-		const insert = String(next++);
+		const insert = String(next);
+		next += step;
 		const at = copyAt + own.from - items[index].lineAt!(items[index].from).from - shift;
 		edits.push({ at, remove: own.to - own.from, insert });
 		indented(edits, source, items[index], insert.length - (own.to - own.from), to);
@@ -59,7 +68,7 @@ export function numberedAfterSplit(
 	for (const item of items.slice(index + 1)) {
 		const marker = markerOf(source, item);
 		if (marker && marker.number !== next) renumber(edits, source, item, marker, next);
-		next++;
+		next += step;
 	}
 	return written(out, edits, shift);
 }
@@ -67,8 +76,8 @@ export function numberedAfterSplit(
 /** `edit`, a paste whose items the ordered list at `list` took in after its item `index`, with the
  *  items from there on numbered on from that item's number. */
 export function numberedAfterTaking(doc: Doc, list: LaidBlock, index: number, edit: Edit): Edit {
-	const after = (items: LaidBlock[], source: string) =>
-		(markerOf(source, items[index])?.number ?? 1) + 1;
+	const after = (items: LaidBlock[], source: string, step: number) =>
+		(markerOf(source, items[index])?.number ?? 1) + step;
 	return numberedFrom(doc, list, edit, index + 1, after);
 }
 
@@ -81,30 +90,63 @@ export function numberedFromHead(doc: Doc, list: LaidBlock, edit: Edit): Edit {
 }
 
 /** `edit` with the items of the ordered list at `list` from item `from` on numbered on from the
- *  number `first` reads off the new bytes. */
+ *  number `first` reads off the new bytes, by the step the list had before the edit. */
 function numberedFrom(
 	doc: Doc,
 	list: LaidBlock,
 	edit: Edit,
 	from: number,
-	first: (items: LaidBlock[], source: string) => number
+	first: (items: LaidBlock[], source: string, step: number) => number
 ): Edit {
-	if (!metadataIfKind(nodeAt(doc, list.path), 'list')?.ordered) return edit;
+	const before = nodeAt(doc, list.path);
+	if (!metadataIfKind(before, 'list')?.ordered) return edit;
+	const head = [0, 1].map((i) => doc.layout.block([...list.path, i]));
+	const { step } = numberingIn(doc.source, head);
 	const read = readDoc(edit.source, doc.host, doc.mode);
 	const node = nodeAt(read, list.path);
 	if (!metadataIfKind(node, 'list')?.ordered) return edit;
 	const items = node.children!.map((_, i) => read.layout.block([...list.path, i])!);
 	const edits: Renumbering[] = [];
-	let next = first(items, read.source);
+	let next = first(items, read.source, step);
 	for (const item of items.slice(from)) {
 		const marker = markerOf(read.source, item);
 		if (marker && marker.number !== next) renumber(edits, read.source, item, marker, next);
-		next++;
+		next += step;
 	}
 	const grown = edits
 		.filter((e) => e.at < edit.caret)
 		.reduce((sum, e) => sum + e.insert.length - e.remove, 0);
 	return { source: written(edit.source, edits, 0), caret: edit.caret + grown };
+}
+
+/** How the ordered list holding `items` counts, read off its first two numbers in `source`. */
+function numberingIn(source: string, items: (LaidBlock | undefined)[]): OrderedNumbering {
+	return numberingOf(
+		markerOf(source, items[0])?.number ?? null,
+		markerOf(source, items[1])?.number ?? null
+	);
+}
+
+/** The item the range ends inside on its first line, with its marker where it still opens a line
+ *  of `out` past the range's start; null where the tail joined a line above. */
+function heldLead(
+	doc: Doc,
+	out: string,
+	items: LaidBlock[],
+	from: number,
+	to: number
+): { item: LaidBlock; marker: Marker } | null {
+	const item = items.find((laid) => laid.from < to && to < laid.lineAt!(laid.from).to);
+	if (!item) return null;
+	const shift = out.length - doc.source.length;
+	const line = out.lastIndexOf('\n', to + shift - 1) + 1;
+	if (line < from) return null;
+	const past = doc.host.pastMarkers(out, line);
+	const digits = /^[ \t]*(\d+)[.)]/.exec(out.slice(past, to + shift));
+	if (!digits || Number(digits[1]) !== markerOf(doc.source, item)?.number) return null;
+	// The digits sit in bytes the removal wrote, placed as the source byte `shift` before them.
+	const at = past + digits[0].length - 1 - digits[1].length - shift;
+	return { item, marker: { number: Number(digits[1]), from: at, to: at + digits[1].length } };
 }
 
 /** `out` with `edits` made, each at its byte of the source plus `shift`. */

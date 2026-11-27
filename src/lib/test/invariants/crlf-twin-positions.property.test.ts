@@ -5,7 +5,7 @@
  * pieces' and title's bounds equal the LF answer carried past the endings before it: a `\n` written
  * `\r\n` puts its `\r` at the carried byte and its `\n` one past, and a span ends past its last
  * character's carried byte. A position LF already gets wrong (a tab cut by a marker) twins as it
- * is, so the file holds the endings alone. One shape is waived and pinned: an alert's empty body.
+ * is, so the file holds the endings alone.
  * Miss-analysis: the byte map was tested only at caret positions and against itself, and no
  * read-model suite placed a nested block's characters in a CRLF document.
  */
@@ -19,7 +19,8 @@ import { freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(20261125) } as const;
 
-/** One of each nested kind, and the shapes a byte map finds hard: lazy, tab, blank `>`, no ending. */
+/** One of each nested kind, and the shapes a byte map finds hard: lazy, tab, blank `>`, no ending,
+ *  an empty body. */
 const FIXED = [
 	'intro\n\n> foo bar\n> baz qux\n',
 	'- foo bar\n  baz qux\n- next\n',
@@ -32,7 +33,8 @@ const FIXED = [
 	'>\ta\n> > b\n',
 	'> a\n>\n> b\n',
 	'> a\n> b',
-	'- a\n  b\n\n  c\n- d'
+	'- a\n  b\n\n  c\n- d',
+	'> [!NOTE]\n'
 ];
 
 // The read an editor running the bundled syntax plugins makes.
@@ -54,13 +56,6 @@ function twin(lf: string, crlf: (index: number) => boolean) {
 	}
 	return { text, carried };
 }
-
-// The byte map puts both bytes of an empty body's CRLF ending, which no raw line of an alert's
-// carries, on its `\r` (`pairLines.toRaw`); the last row pins it, and the waiver goes once it reds.
-const emptyAlertBody = (block: Block) =>
-	block.parent?.type.name === 'admonitions/alert' &&
-	block.index === 0 &&
-	/^\r?\n$/.test(block.text);
 
 /** What `twinBlock` must read for each of `lfBlock`'s answers, or why the two don't pair. */
 function misreads(lfBlock: Block, twinBlock: Block, carried: number[]): string | null {
@@ -145,7 +140,6 @@ function twinsMisread(source: string): string | null {
 		if (blocks.length !== lfBlocks.length)
 			return `${JSON.stringify(text)} walks ${blocks.length} blocks, its LF twin ${lfBlocks.length}`;
 		for (let k = 0; k < blocks.length; k++) {
-			if (emptyAlertBody(blocks[k])) continue;
 			const wrong = misreads(lfBlocks[k], blocks[k], carried);
 			if (wrong) return `${JSON.stringify(text)}: ${wrong}`;
 		}
@@ -170,14 +164,6 @@ describe('G1.250 every block of a CRLF document reads at its LF twin bytes', () 
 
 	it.each(FIXED)('reads %j at its twins bytes', (source) => {
 		expect(twinsMisread(source)).toBeNull();
-	});
-
-	it("still reads an alert's empty body with both bytes of its CRLF ending on the `\\r`", () => {
-		const { text, carried } = twin('> [!NOTE]\n', () => true);
-		const [lfBody, body] = [read('> [!NOTE]\n'), read(text)].map((doc) => [...doc.walk()][1]);
-		expect(emptyAlertBody(body)).toBe(true);
-		expect([body.text, body.byteAt(0), body.byteAt(1)]).toEqual(['\r\n', 9, 9]);
-		expect(misreads(lfBody, body, carried)).toMatch(/offsetAt of 0 is 1, its LF twin's 0/);
 	});
 
 	it('reads every drawn document at its twins bytes', () => {

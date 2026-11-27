@@ -50,8 +50,8 @@ export interface InlineCommands {
 	/** `range` is read before the command runs and never again: hiding a shown source collapses the
 	 *  live selection. */
 	toggleFormat(format: InlineMarkKind, range: RawRange): void;
-	/** Edit link at the caret; `selection` is the range a new link would wrap, null where the block
-	 *  creates none. */
+	/** Edit link at the caret; `selection` is the range a new link would wrap, null or empty at a
+	 *  caret. */
 	enterLinkCard(selection: RawRange | null): void;
 	/** Runs `run` once a shown source is closed and its widget drawn again, with the caret parked
 	 *  at `offset`. */

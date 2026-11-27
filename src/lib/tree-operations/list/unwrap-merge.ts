@@ -16,7 +16,7 @@ import { parseContainerRaw } from '../../schema/container-raw';
 import type { GrammarView } from '../../schema/block-openers';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
-import { renumberOrderedList } from './ordered-markers';
+import { numberingOfList, renumberOrderedList } from './ordered-markers';
 import { dissolveItem } from './item-partition';
 import { bytesWithoutMarkerLine } from './marker-line';
 import { keepingTextAround } from './keeping-order';
@@ -101,6 +101,7 @@ function mergeMarkerLine(
 	reading: Reading
 ): MergeResult | null {
 	if (!targetPath || !list.children) return null;
+	const numbering = numberingOfList(list);
 	const currentItem = children[currentIndex];
 	const absorbed = currentItem.children?.[0];
 	if (absorbed?.kind !== 'paragraph') return null;
@@ -129,11 +130,8 @@ function mergeMarkerLine(
 	// So the reads below see the new shape; idempotent with the commit's final write to state.
 	list.children = children;
 
-	if (metadataOf(list, 'list')?.ordered) {
-		// The merge only removes a non-first item, so children[0] keeps the list's starting number;
-		// renumber from 1 to continue it rather than resetting the sequence.
-		renumberOrderedList(list, 1, sharing, reading.grammar);
-	}
+	// Numbered from the merged item's own index on: the items above it keep the author's numbers.
+	renumberOrderedList(list, currentIndex, numbering, sharing, reading.grammar);
 
 	return { mergePoint: { targetPath, offset: joined.joinOffset }, change };
 }
