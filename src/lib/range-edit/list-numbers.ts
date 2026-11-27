@@ -25,11 +25,9 @@ export function numberedOn(doc: Doc, from: number, to: number, out: string): str
 		const above = items.filter((item) => item.from < from).at(-1);
 		let next = above ? (markerOf(source, above)?.number ?? 0) + step : start;
 		// An item the range ends inside that keeps its marker leads what is left, so it takes the start.
-		const held = above ? undefined : items.find((item) => item.from < to && item.to > to);
-		const lead =
-			held && markerLeading(out, to + out.length - source.length, out.length - source.length);
-		if (held && lead && lead.number === markerOf(source, held)?.number) {
-			if (lead.number !== next) renumber(edits, source, held, lead, next);
+		const held = above ? null : heldLead(source, out, items, from, to);
+		if (held) {
+			if (held.marker.number !== next) renumber(edits, source, held.item, held.marker, next);
 			next += step;
 		}
 		for (const item of kept) {
@@ -102,8 +100,8 @@ function numberedFrom(
 ): Edit {
 	const before = nodeAt(doc, list.path);
 	if (!metadataIfKind(before, 'list')?.ordered) return edit;
-	const laid = before.children!.map((_, i) => doc.layout.block([...list.path, i])!);
-	const { step } = numberingIn(doc.source, laid);
+	const head = [0, 1].map((i) => doc.layout.block([...list.path, i]));
+	const { step } = numberingIn(doc.source, head);
 	const read = readDoc(edit.source, doc.host, doc.mode);
 	const node = nodeAt(read, list.path);
 	if (!metadataIfKind(node, 'list')?.ordered) return edit;
@@ -122,21 +120,31 @@ function numberedFrom(
 }
 
 /** How the ordered list holding `items` counts, read off its first two numbers in `source`. */
-function numberingIn(source: string, items: LaidBlock[]): OrderedNumbering {
+function numberingIn(source: string, items: (LaidBlock | undefined)[]): OrderedNumbering {
 	return numberingOf(
 		markerOf(source, items[0])?.number ?? null,
 		markerOf(source, items[1])?.number ?? null
 	);
 }
 
-/** The marker opening the line of `out` that byte `at` sits on, its digits placed as a source byte
- *  `shift` before them; null for a line that opens with none. */
-function markerLeading(out: string, at: number, shift: number): Marker | null {
-	const line = out.lastIndexOf('\n', at - 1) + 1;
-	const digits = /^[ \t>]*(\d+)[.)]/.exec(out.slice(line, at));
-	if (!digits) return null;
-	const from = line + digits[0].length - 1 - digits[1].length - shift;
-	return { number: Number(digits[1]), from, to: from + digits[1].length };
+/** The item the range ends inside on its first line, with its marker where it still opens a line
+ *  of `out` past the range's start; null where the tail joined a line above. */
+function heldLead(
+	source: string,
+	out: string,
+	items: LaidBlock[],
+	from: number,
+	to: number
+): { item: LaidBlock; marker: Marker } | null {
+	const item = items.find((laid) => laid.from < to && to < laid.lineAt!(laid.from).to);
+	if (!item) return null;
+	const shift = out.length - source.length;
+	const line = out.lastIndexOf('\n', to + shift - 1) + 1;
+	const digits = line < from ? null : /^[ \t>]*(\d+)[.)]/.exec(out.slice(line, to + shift));
+	if (!digits || Number(digits[1]) !== markerOf(source, item)?.number) return null;
+	// The digits sit in bytes the removal wrote, placed as the source byte `shift` before them.
+	const at = line + digits[0].length - 1 - digits[1].length - shift;
+	return { item, marker: { number: Number(digits[1]), from: at, to: at + digits[1].length } };
 }
 
 /** `out` with `edits` made, each at its byte of the source plus `shift`. */

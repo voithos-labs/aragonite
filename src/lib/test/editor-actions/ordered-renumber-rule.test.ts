@@ -45,6 +45,16 @@ const ROUTES: { gesture: string; from: number; items: number; run: Route }[] = [
 		}
 	},
 	{
+		gesture: 'Enter at the end of a',
+		from: 1,
+		items: 5,
+		run: async (source) => {
+			const h = mountList(source);
+			await h.listContext.insertItemAfter(0);
+			return serialize(h.deps.doc);
+		}
+	},
+	{
 		gesture: 'Enter inside b',
 		from: 2,
 		items: 5,
@@ -98,6 +108,16 @@ const ROUTES: { gesture: string; from: number; items: number; run: Route }[] = [
 		run: async (source) => {
 			const h = mountList(source);
 			await h.listContext.indentItem(2);
+			return serialize(h.deps.doc);
+		}
+	},
+	{
+		gesture: 'Tab on b',
+		from: 1,
+		items: 3,
+		run: async (source) => {
+			const h = mountList(source);
+			await h.listContext.indentItem(1);
 			return serialize(h.deps.doc);
 		}
 	},

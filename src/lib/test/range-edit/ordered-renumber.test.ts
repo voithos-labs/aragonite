@@ -61,6 +61,28 @@ const ROWS: {
 		items: 5,
 		range: (s) => ({ from: after(s, 'bb'), to: after(s, 'bb') }),
 		run: paste('x\n')
+	},
+	// At the end of a the edit reaches the list's second item, so only a read before it holds.
+	{
+		gesture: 'pasting two items at the end of a',
+		from: 1,
+		items: 5,
+		range: (s) => ({ from: after(s, 'aa'), to: after(s, 'aa') }),
+		run: paste('1. x\n2. y')
+	},
+	{
+		gesture: 'pasting two items and their ending at the end of a',
+		from: 1,
+		items: 6,
+		range: (s) => ({ from: after(s, 'aa'), to: after(s, 'aa') }),
+		run: paste('1. x\n2. y\n')
+	},
+	{
+		gesture: 'pasting a line and its ending at the end of a',
+		from: 1,
+		items: 5,
+		range: (s) => ({ from: after(s, 'aa'), to: after(s, 'aa') }),
+		run: paste('x\n')
 	}
 ];
 
@@ -94,5 +116,34 @@ describe('a removal from above a list into an item', () => {
 		expect(out.source.slice(out.source.indexOf('\n', out.source.indexOf('```', 4)) + 1)).toContain(
 			rest
 		);
+	});
+});
+
+// The marker on the line the tail joins is the start line's own, so the item left leading the
+// list takes the start.
+describe('a removal whose tail joins a line holding its own marker', () => {
+	it.each([
+		{
+			name: 'from an item into its sublist',
+			source: '1. outer\n   1. xx\n   2. yy\n',
+			range: (s: string) => ({ from: after(s, 'ou'), to: after(s, '1. x') }),
+			out: '1. oux\n   1. yy\n'
+		},
+		{
+			name: 'from one list into the next',
+			source: '1. only\n\n1) cc\n2) dd\n',
+			range: (s: string) => ({ from: after(s, 'on'), to: after(s, '1) c') }),
+			out: '1. onc\n\n1) dd\n'
+		},
+		{
+			name: 'from a paragraph into an item’s later line',
+			source: 'pp\n\n1. a\n2. bb\n\n   more\n3. c\n',
+			range: (s: string) => ({ from: after(s, 'p'), to: after(s, 'mo') }),
+			out: null
+		}
+	])('$name', ({ source, range, out }) => {
+		const got = editRange(source, range(source), 'delete', 'source', checkHost()).source;
+		if (out) expect(got).toBe(out);
+		else expect(topMarkers(got)[0]).toBe('1.');
 	});
 });
