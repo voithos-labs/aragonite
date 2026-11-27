@@ -1,303 +1,64 @@
-name: CI
+name: Perf A/B
+# Times the perf A/B probe's gestures on several refs on one runner, alternating the refs round by
+# round (`scripts/ci/perf-ab.mjs`), since two separate CI runs swing by a factor of two on one row.
+# Fired by hand: `gh workflow run perf-ab.yml -f refs="v0.11.5 next <branch>"`. The comparison
+# lands in the job summary and the raw samples in the `perf-ab-results` artifact.
 on:
-  # Every dev and next push runs the Linux matrix, so a Linux or engine red shows on the merge that made it.
-  # macOS WebKit is its own workflow, webkit-macos.yml.
-  push:
-    branches: [main, dev, next]
-  pull_request:
-    branches: [main, dev]
   workflow_dispatch:
+    inputs:
+      refs:
+        description: Refs to compare, space-separated (tags, branches or shas); the first is the baseline
+        required: true
+        type: string
+      rounds:
+        description: Rounds, each timing every ref once in turn
+        default: '6'
+        type: string
+      grep:
+        description: Only the rows whose full title (file, group and row id) matches this regex, as `range-` or `blocks-letter$`
+        default: ''
+        type: string
 
-# No job needs to write anything back through GITHUB_TOKEN; actions/cache
-# authenticates to the cache service on its own, not through this scope.
 permissions:
   contents: read
 
-# A newer push to a PR or to dev supersedes the run in progress. Main's runs are never cancelled:
-# each main commit keeps its own pass/fail record, the thing the branch is protected on.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-
-# Third-party actions are pinned to commit SHAs with the version in a trailing
-# comment: a major tag is mutable, so a repoint silently changes what every job
-# runs. Bump the SHA and the comment together.
-#
-# Parallel jobs: the static and unit gate, the e2e suite sharded once per browser engine by
-# measured time (`scripts/ci/e2e-shards.mjs`) and the census over its shards, the prod-build perf
-# gate, the consumer and framework smokes (the packed library installed into example apps), and
-# the emoji-table provenance gate. The Chromium e2e shards run every Playwright project (the perf
-# rows skip themselves there; the perf job runs them against the prod build).
+# Third-party actions are pinned to commit SHAs with the version in a trailing comment, as in ci.yml.
 jobs:
-  # Whether the change touches more than docs; a docs-only one skips the e2e and perf work. A
-  # gating matrix job skips its steps, not itself: skipped whole, it reports one check under its bare
-  # job name, and its required per-shard checks would wait forever.
-  changes:
+  # The probe runs on this checkout's Playwright, so the timing job runs in that version's image.
+  playwright:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      code: ${{ steps.diff.outputs.code }}
-      playwright: ${{ steps.playwright.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - id: diff
-        env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: node scripts/ci/ci-code-changed.mjs "$BASE" >> "$GITHUB_OUTPUT"
-      # The e2e jobs run in Playwright's image for this exact version, which ships every browser
-      # and its OS packages, so no job installs them from the Ubuntu mirror.
-      - id: playwright
+      - id: version
         run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
 
-  unit:
+  perf-ab:
+    needs: playwright
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Three refs of six rounds run about two hours; GitHub stops any job at six.
+    timeout-minutes: 240
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright.outputs.version }}-noble
+      options: --user 1001
+    env:
+      REFS: ${{ inputs.refs }}
+      ROUNDS: ${{ inputs.rounds }}
+      GREP: ${{ inputs.grep }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The commit-message door below reads the PR's own commits.
+          # Every compared ref is checked out from this clone.
           fetch-depth: 0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-      # The commit-subject rule's second door: a contributor who never ran `npm ci` never
-      # installed the `commit-msg` hook. `HEAD^1..HEAD^2` on the checked-out merge ref is the
-      # PR's own commits, current base tip and all. The dev-to-main release PR is scoped out:
-      # its range is every commit on dev, which nobody in that PR wrote.
-      - name: Lint commit messages
-        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref != 'main'
-        run: node scripts/lint-commit-message.mjs --range HEAD^1..HEAD^2
-      - run: npm ci
-      # The unit suite imports from examples/consumer, and vite resolves that file's tsconfig
-      # chain into the example's GENERATED kit config — absent on a fresh checkout until the
-      # example installs and syncs.
-      - run: npm ci
-        working-directory: examples/consumer
-      - run: npx svelte-kit sync
-        working-directory: examples/consumer
-      - run: npm run lint
-      - run: npm run check
-      - run: npm run test:editor
-
-  e2e:
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    container:
-      image: mcr.microsoft.com/playwright:v${{ needs.changes.outputs.playwright }}-noble
-      options: --user 1001
-    strategy:
-      # One red shard must not cancel the others — a full failure map per run
-      # beats re-running to discover the next failure.
-      fail-fast: false
-      matrix:
-        shard: ['1/4', '2/4', '3/4', '4/4']
-    steps:
-      - if: needs.changes.outputs.code == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - if: needs.changes.outputs.code == 'true'
-        uses: ./.github/actions/e2e-setup
+      - uses: ./.github/actions/e2e-setup
         timeout-minutes: 10
         with:
           engine: chromium
-      - if: needs.changes.outputs.code == 'true'
-        env:
-          E2E_SHARD: ${{ matrix.shard }}
-          E2E_SHARD_PLAN: ${{ runner.temp }}/shard-list.txt.plan.json
-        run: |
-          node scripts/ci/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
-          npx playwright test --test-list "$RUNNER_TEMP/shard-list.txt"
-      - if: always() && needs.changes.outputs.code == 'true'
+      - run: node scripts/ci/perf-ab.mjs --work "$RUNNER_TEMP/perf-ab" --rounds "$ROUNDS" --grep "$GREP" --summary "$GITHUB_STEP_SUMMARY" --results perf-ab-results.json $REFS
+      - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-chromium-${{ strategy.job-index }}
-          path: |
-            test-results/ci-summary.json
-            test-results/**/error-context.md
-
-  # The same correctness suite in WebKit and Firefox (docs/contributing/testing.md § Browser
-  # engines). Their checks are required, so a docs-only change skips the steps, not the job.
-  e2e-webkit:
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    container:
-      image: mcr.microsoft.com/playwright:v${{ needs.changes.outputs.playwright }}-noble
-      options: --user 1001
-    env:
-      ENGINE: webkit
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ['1/5', '2/5', '3/5', '4/5', '5/5']
-    steps:
-      - if: needs.changes.outputs.code == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - if: needs.changes.outputs.code == 'true'
-        uses: ./.github/actions/e2e-setup
-        timeout-minutes: 10
-        with:
-          engine: webkit
-      - if: needs.changes.outputs.code == 'true'
-        env:
-          E2E_SHARD: ${{ matrix.shard }}
-          E2E_SHARD_PLAN: ${{ runner.temp }}/shard-list.txt.plan.json
-        run: |
-          node scripts/ci/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
-          npx playwright test --test-list "$RUNNER_TEMP/shard-list.txt"
-      - if: always() && needs.changes.outputs.code == 'true'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: e2e-webkit-${{ strategy.job-index }}
-          path: |
-            test-results/ci-summary.json
-            test-results/**/error-context.md
-
-  # Mozilla ships Firefox as .tar.xz and Playwright's image has no xz, so the runner unpacks it once
-  # and hands the shards a .tar.gz.
-  firefox:
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      FIREFOX_VERSION: '158.0'
-    steps:
-      - if: needs.changes.outputs.code == 'true'
-        run: |
-          curl -fsSL "https://ftp.mozilla.org/pub/firefox/releases/$FIREFOX_VERSION/linux-x86_64/en-US/firefox-$FIREFOX_VERSION.tar.xz" | tar -xJ
-          tar -czf firefox.tar.gz firefox
-      - if: needs.changes.outputs.code == 'true'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: firefox-linux
-          path: firefox.tar.gz
-          compression-level: 0
-          retention-days: 1
-
-  e2e-firefox:
-    needs: [changes, firefox]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    container:
-      image: mcr.microsoft.com/playwright:v${{ needs.changes.outputs.playwright }}-noble
-      options: --user 1001
-    env:
-      ENGINE: firefox
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ['1/8', '2/8', '3/8', '4/8', '5/8', '6/8', '7/8', '8/8']
-    steps:
-      - if: needs.changes.outputs.code == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - if: needs.changes.outputs.code == 'true'
-        uses: ./.github/actions/e2e-setup
-        timeout-minutes: 10
-        with:
-          engine: firefox
-      # One worker per core. Firefox is CPU-bound against the build: six and eight workers made each
-      # test slower without finishing the shard sooner. Two against four hasn't been measured.
-      - if: needs.changes.outputs.code == 'true'
-        env:
-          E2E_SHARD: ${{ matrix.shard }}
-          E2E_SHARD_PLAN: ${{ runner.temp }}/shard-list.txt.plan.json
-        run: |
-          node scripts/ci/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
-          npx playwright test --test-list "$RUNNER_TEMP/shard-list.txt" --workers=4
-      - if: always() && needs.changes.outputs.code == 'true'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: e2e-firefox-${{ strategy.job-index }}
-          path: |
-            test-results/ci-summary.json
-            test-results/**/error-context.md
-
-  # Every test the tree lists ran in exactly one shard per engine. Its steps skip on a docs-only
-  # change, like the engine jobs', so its required check still reports.
-  e2e-census:
-    needs: [changes, e2e, e2e-webkit, e2e-firefox]
-    # A red shard still counts; a cancelled run has nothing to count.
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - if: needs.changes.outputs.code == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - if: needs.changes.outputs.code == 'true'
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: e2e-*
-          path: e2e-summaries
-      - if: needs.changes.outputs.code == 'true'
-        run: node scripts/ci/e2e-census.mjs e2e-summaries chromium webkit firefox
-
-  perf:
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    container:
-      image: mcr.microsoft.com/playwright:v${{ needs.changes.outputs.playwright }}-noble
-      options: --user 1001
-    env:
-      # Runners measured ~2.2x the calibration machine (runs 29177807039 /
-      # 29178211384); 2.5 keeps this job a gross-regression net while the local
-      # unscaled gate stays the tight one.
-      PERF_RUNNER_SCALE: '2.5'
-    steps:
-      - if: needs.changes.outputs.code == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - if: needs.changes.outputs.code == 'true'
-        uses: ./.github/actions/e2e-setup
-        timeout-minutes: 10
-        with:
-          engine: chromium
-      # perf:check builds and previews the app, then gates the keystroke rows against
-      # that prod build (the e2e-perf-prod project) — a dev-server run would measure vite
-      # transform overhead, not the editor. The report-only rows exclude themselves via
-      # their own PERF_GATE skip, so this needs no row filter.
-      - if: needs.changes.outputs.code == 'true'
-        run: npm run perf:check
-
-  consumer-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: node scripts/smoke/consumer-smoke.mjs
-
-  # The framework gate on each PR: the React and Vue wrappers' tarballs in Vite apps, built and in
-  # dev. Next, Nuxt and the oldest supported React and Vue run per release, in adapter-suite.yml.
-  adapter-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: node scripts/smoke/adapter-smoke.mjs --per-pr
-
-  # The committed emoji table is a generated artifact no other gate reproduces, so
-  # a hand-edit or half-finished regen would ship silently. Its own job: no `npm ci`
-  # (the script imports node builtins only), and a drift reads as drift rather than
-  # as a failure buried in the unit suite. The fetch is of a pinned commit, so this
-  # is deterministic — a red here means the table changed, not that upstream did.
-  emoji-table:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-      - run: node scripts/vendor/verify-emoji-table.mjs
+          name: perf-ab-results
+          path: perf-ab-results.json
