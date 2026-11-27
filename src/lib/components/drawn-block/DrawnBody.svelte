@@ -197,15 +197,15 @@
 			return;
 		}
 		if (closed === closedByData()) return;
-		// Read at the click, never reactively: a caret in the body goes to the title row, and a range
-		// across blocks keeps its ends.
-		const caret = closed && !services?.selection.ownsRange;
-		const at = caret ? container.containerApi.getCursorPosition?.() : null;
-		const inBody = at != null && at.path[0] >= 1;
+		// Read at the click, never reactively: a caret in the body goes to the title row, one on the
+		// row stays there, and a range across blocks keeps its ends.
+		const at = services?.selection.ownsRange ? null : container.containerApi.getCursorPosition?.();
+		const onRow = at != null && at.path.length === 1 && at.path[0] === 0;
+		const inBody = closed && at != null && at.path[0] >= 1;
 		const data = closable.set(getPluginMetadata<object>(node) ?? {}, closed);
 		void container.updateOwnMetadata(
 			data as Record<string, unknown>,
-			inBody ? { caret: { path: [0], offset: 0 } } : undefined
+			onRow || inBody ? { caret: { path: [0], offset: onRow ? at.offset : 0 } } : undefined
 		);
 	}
 

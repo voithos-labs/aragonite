@@ -42,7 +42,7 @@ import type { TrackedPosition } from '../tree-operations/fix-up/apply';
 import type { TaskStartLanding } from '../tree-operations/list/reconcile-task';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { rowIsOpenerLine } from '../schema/reserved-chrome';
+import { rowContentRange, rowIsOpenerLine } from '../schema/reserved-chrome';
 import type {
 	BlockCaret,
 	BlockEditActions,
@@ -319,6 +319,15 @@ function spelledRow(
 	return legalizeWrite(parent, 0, text, 'literal', scope.reading.grammar);
 }
 
+/** Where a caret at `offset` on a title row that held `before` lands on `now`'s: through the row's
+ *  rewrite, and never on the marker in front of the title. */
+function titleRowOffset(before: string | undefined, now: NodeView | undefined, offset: number) {
+	const after = now?.children?.[0];
+	if (!now || before === undefined || !after) return offset;
+	const kept = offsetThroughRewrite(before, after.raw, offset);
+	return Math.max(kept, rowContentRange(now, after).start);
+}
+
 /** Where an offset in `before` sits in `after`: on the same text when it is outside the span the
  *  rewrite changed, else at the end of what replaced that span. */
 function offsetThroughRewrite(before: string, after: string, offset: number): number {
@@ -478,6 +487,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				return false;
 			}
 			if (row?.unchanged) return false;
+			const rowBefore = node.children?.[0]?.raw;
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
@@ -495,7 +505,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				},
 				landing: () => {
 					const caret = options?.caret;
-					return caret ? scope.at(i, caret.path, caret.offset) : null;
+					if (!caret) return null;
+					const onRow = caret.path.length === 1 && caret.path[0] === 0;
+					const offset = onRow
+						? titleRowOffset(rowBefore, scope.children()[i], caret.offset)
+						: caret.offset;
+					return scope.at(i, caret.path, offset);
 				}
 			});
 		},

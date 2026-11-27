@@ -244,13 +244,29 @@ describe('a colon type that folds by its name', () => {
 		expect(m.source()).toBe(AROUND(SPOILER));
 	});
 
-	it('closes with the caret in the body, which goes to the title row', async () => {
+	// Miss-analysis: the colon rows read only the caret's path, and offset 0 of a `:::` row is in
+	// front of its colons, so a letter typed after the fold unmade the box.
+	it('closes with the caret in the body, which goes to the title’s start', async () => {
 		const { m, ctx } = await mountedSpoiler(AROUND(SHOWN));
 		placeCaret(surfaceAt(m, [1, 1]), 2);
 		ctx().setClosed(true);
 		await m.settle();
 		expect(m.source()).toBe(AROUND(SPOILER));
-		expect(m.instance.getSelection()?.focus.path).toEqual([1, 0]);
+		expect(m.instance.getSelection()?.focus).toEqual({
+			path: [1, 0],
+			offset: ':::spoiler '.length
+		});
+	});
+
+	it.each([
+		['closes', ':::shown Title\nbody\n:::\n', true, ':::shown Titl', ':::spoiler Titl'],
+		['opens', ':::spoiler Title\nbody\n:::\n', false, ':::spoiler Titl', ':::shown Titl']
+	])('%s with the caret in the title, which stays in its text', async (_l, box, closed, at, to) => {
+		const { m, ctx } = await mountedSpoiler(AROUND(box));
+		placeCaret(surfaceAt(m, [1, 0]), at.length);
+		ctx().setClosed(closed);
+		await m.settle();
+		expect(m.instance.getSelection()?.focus).toEqual({ path: [1, 0], offset: to.length });
 	});
 
 	it('opens on a reveal into its folded body', async () => {
