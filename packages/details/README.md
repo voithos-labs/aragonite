@@ -34,7 +34,7 @@ import { details } from '@voithos-labs/aragonite-details';
 const plugins = [details];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. No options. A few things worth knowing:
+Hand `plugins` to the editor. No options. A few things worth knowing:
 
 - On React, Vue or plain JS, the sections bring a stylesheet of their own: import `@voithos-labs/aragonite-details/style.css` beside the editor's.
 - Opening or closing a section while you edit adds or drops the `open` on the tag, so the file remembers how you left it.

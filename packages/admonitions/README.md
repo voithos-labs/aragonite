@@ -38,7 +38,7 @@ import { admonitions } from '@voithos-labs/aragonite-admonitions';
 const plugins = [admonitions];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. A few things worth knowing:
+Hand `plugins` to the editor. Editors that want the same options can share one array; an editor that wants others gets its own. A few things worth knowing:
 
 - On React, Vue or plain JS, the boxes bring a stylesheet of their own: import `@voithos-labs/aragonite-admonitions/style.css` beside the editor's.
 - `Ctrl+7` (`Cmd+7` on a Mac) inside a `:::` box switches it to the next type, through note, tip, important, warning and caution, then back to note.

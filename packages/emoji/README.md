@@ -29,7 +29,7 @@ import { emoji } from '@voithos-labs/aragonite-emoji';
 const plugins = [emoji];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. No options and no stylesheet. Two small things:
+Hand `plugins` to the editor. No options and no stylesheet. Two small things:
 
 - A glyph acts like one character: Backspace takes out the whole `:rocket:`, and the arrow keys step over it.
 - Building a picker? `EMOJI_TABLE` is exported too, a `Map` from shortcode to glyph (`EMOJI_TABLE.get('tada')` is `'🎉'`).

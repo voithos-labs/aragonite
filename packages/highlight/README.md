@@ -33,7 +33,7 @@ import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
 const plugins = [highlight({ renderer: highlightJs() })];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. A few things worth knowing:
+Hand `plugins` to the editor. Editors that want the same options can share one array; an editor that wants others gets its own. A few things worth knowing:
 
 - Out of the box it highlights bash, C, C++, C#, CSS, diff, Dockerfile, Go, HTML, Java, JavaScript, JSON, Kotlin, LaTeX, Markdown, PHP, PowerShell, Python, Ruby, Rust, SQL, Swift, TypeScript and YAML, with the short spellings people write (`js`, `ts`, `py`, `sh`, `yml`).
 - Eight of those load with the page: JavaScript, TypeScript, JSON, bash, Python, HTML, CSS and Markdown. The rest are chunks of their own, fetched the first time a fence names one. The fence paints plain until it lands, then highlights, and the caret stays put.

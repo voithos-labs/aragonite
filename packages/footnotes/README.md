@@ -39,7 +39,7 @@ import { footnotes } from '@voithos-labs/aragonite-footnotes';
 const plugins = [footnotes];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. No options. A few things worth knowing:
+Hand `plugins` to the editor. No options. A few things worth knowing:
 
 - On React, Vue or plain JS, the footnotes bring a stylesheet of their own: import `@voithos-labs/aragonite-footnotes/style.css` beside the editor's.
 - A reference jumps to its definition on the click your editor uses to follow a link: Ctrl+click (Cmd+click on a Mac) while you edit, a plain click in reading mode, and a plain click in live mode too if you set the editor's `linkClick` to `'plain'`. Any other click on a reference opens its `[^label]` for editing.

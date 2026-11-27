@@ -26,7 +26,7 @@ import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
 const plugins = [parrotPlugin()];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. No options. Not much else to it:
+Hand `plugins` to the editor. No options. Not much else to it:
 
 - On React, Vue or plain JS, import `@voithos-labs/aragonite-parrot/style.css` beside the editor's stylesheet. The dance lives in that file.
 - Click the parrot or its caption to edit the line. It goes back to dancing when the caret leaves.

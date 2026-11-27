@@ -32,7 +32,7 @@ import { toc } from '@voithos-labs/aragonite-toc';
 const plugins = [toc];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. A few things worth knowing:
+Hand `plugins` to the editor. Editors that want the same options can share one array; an editor that wants others gets its own. A few things worth knowing:
 
 - On React, Vue or plain JS, the list brings a stylesheet of its own: import `@voithos-labs/aragonite-toc/style.css` beside the editor's.
 - Click an entry (or press Enter on it) to jump to its heading. To edit the `[[toc]]` line itself, click the block anywhere but an entry.

@@ -27,7 +27,7 @@ import { highlightOccurrences } from '@voithos-labs/aragonite-highlight-occurren
 const plugins = [highlightOccurrences];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. Then give the highlight a color. Each match gets a see-through box with the classes `decoration-overlay hl-occurrence`:
+Hand `plugins` to the editor. Then give the highlight a color. Each match gets a see-through box with the classes `decoration-overlay hl-occurrence`:
 
 ```css
 .decoration-overlay.hl-occurrence {
