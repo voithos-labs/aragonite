@@ -406,7 +406,8 @@
 		canConvert = canConvertSource(source.text);
 	});
 	$effect(() => {
-		if (!editor) return;
+		// Only the seed that shows the Convert button reads the document again on every edit.
+		if (!editor || data.seed !== 'admonitions') return;
 		return editor.getEvents().on('edit', () => {
 			canConvert = canConvertSource(editor!.getSource());
 		});
