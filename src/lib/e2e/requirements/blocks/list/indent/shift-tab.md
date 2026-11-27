@@ -31,8 +31,10 @@ What the lifted item carries, and the marker and number it ends with, are pinned
 
 ### Ordered list numbering and marker style on Shift+Tab
 
-- The nested list's remaining items (if any) are renumbered from 1, and so are the items that came
-  along, in their new sublist
-- The parent list's items after the insertion point are renumbered, so the promoted item slots into the sequence and every later item shifts up
+- The items left in the nested list are the ones above the promoted item, so they keep their
+  numbers. The items that come along continue the promoted item's own sublist, or start a new one
+  at 1
+- The parent list renumbers from the promoted item on, by 0 when its first two numbers match and by
+  1 otherwise, so the promoted item slots into the sequence
 - When the nested and parent lists are different types (ordered ↔ unordered), the promoted item's marker is rewritten to match the parent list's style before renumbering. The destination marker suffix (`. ` / `) ` for ordered, `- ` / `*` / `+` for unordered) is copied from an existing sibling in the parent list
 - Regression: ArrowUp immediately after Shift+Tab must move the caret into the previous outer item (out-of-date references to the outer list after a promote could leave ArrowUp doing nothing)

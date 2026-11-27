@@ -24,6 +24,20 @@ test.describe('list Enter: ordered numbering', () => {
 		expect(source).toMatch(/4\.\s*Third/);
 	});
 
+	// The new item and those after it count on as the list's first two numbers do.
+	for (const { list, entered } of [
+		{ list: '1. a\n1. b\n1. c\n', entered: '1. a\n1. \n1. b\n1. c\n' },
+		{ list: '0. a\n1. b\n', entered: '0. a\n1. \n2. b\n' },
+		{ list: '3. a\n5. b\n7. c\n', entered: '3. a\n4. \n5. b\n6. c\n' }
+	]) {
+		test(`ordered: Enter at the end of a in ${JSON.stringify(list)}`, async () => {
+			await editor.loadContent(list);
+			await editor.focusBlockAtPath([0, 0, 0], 1);
+			await editor.page.keyboard.press('Enter');
+			await editor.bridge.waitForSourceEquals(entered);
+		});
+	}
+
 	test('ordered: Enter at start of first item numbers correctly', async () => {
 		await editor.loadContent('1. First\n2. Second\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });
