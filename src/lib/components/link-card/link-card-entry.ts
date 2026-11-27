@@ -17,8 +17,7 @@ import type { LinkCardState } from './link-card-state.svelte';
 
 /** What locating the card's construct takes, whether a click or a pressed-state read asks. */
 export interface LinkCardTargetQuery extends LinkPointQuery {
-	/** The raw selection within this block, or null at a collapsed caret. Required, never given a
-	 *  default: a caller that must create no link says so by passing null wherever it could. */
+	/** The raw selection within this block; null or an empty range at a collapsed caret. */
 	selection: { start: number; end: number } | null;
 	/** True while the editor holds a range across blocks: `selection`, measured against this
 	 *  block's DOM, reports an endpoint in another block as this block's end. */
@@ -41,7 +40,8 @@ export function editTargetAt(query: LinkCardTargetQuery): EditTarget | null {
 	if (query.spansBlocks) return null;
 	const hit = followTargetAtCaret(query);
 	if (hit === null) return null;
-	const range = query.selection;
+	const range =
+		query.selection && query.selection.start < query.selection.end ? query.selection : null;
 	if (hit.edit === 'source') return range ? null : hit;
 	if (range && (range.start < hit.link.start || range.end > hit.link.end)) return null;
 	return { edit: 'card', target: { path: query.path, sourceStart: hit.link.start } };

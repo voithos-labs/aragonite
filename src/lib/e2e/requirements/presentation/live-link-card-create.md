@@ -38,8 +38,11 @@ consumption contract is `live-link-card-chord.md`.
   opens and not a byte moves. One shape is handled before create is even asked: a range lying
   wholly inside a link the card can edit takes the edit path and enters that link's card, since
   create would decline bytes the construct already owns and leave the keypress doing nothing
-- a selection inside a table cell declines to create: a cell's raw bytes carry pipe escapes, which
-  is a wrapping policy of its own; the chord stays consumed
+- a selection inside a table cell creates the link as a paragraph does, and the cell's write rule
+  escapes a `|` in the wrapped text, so the row keeps one cell (miss-analysis: the cell row
+  asserted the decline the cell's null range produced, so the spec held the bug as the contract)
+- in a table cell, a range from past a link's end back into its text leaves the link alone: the
+  chord reads the whole range, so it neither enters that link's card nor wraps across it
 - a selection spanning two blocks declines to create: no single block holds the range, and the
   block-local offsets the handler would read are made up, because a block's own DOM-to-offset
   traversal reports an endpoint in another block as the end of the traversal. The chord stays

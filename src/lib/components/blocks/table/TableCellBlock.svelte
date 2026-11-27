@@ -374,9 +374,8 @@
 		// the command that toggles it, so a new one needs no branch here.
 		const marked = inlineMarkForCommand(id);
 		if (marked) return () => commands.toggleFormat(marked.kind, range);
-		// Consumed whether or not a card opens, as in prose; the null selection means a cell never
-		// creates a link.
-		if (id === 'link.openCard') return () => commands.enterLinkCard(null);
+		// Consumed whether or not a card opens, as in prose.
+		if (id === 'link.openCard') return () => commands.enterLinkCard(range);
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {
 			return () =>

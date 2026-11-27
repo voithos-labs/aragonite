@@ -146,11 +146,46 @@ test.describe('live-mode link card: the create half of Mod+K', () => {
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
-	test('a selection inside a table cell declines create', async ({ page }) => {
+	test('the chord over plain text in a table cell creates the link', async ({ page }) => {
 		await clickWordSettled(ep, page, 'plain');
-		await selectRight(ep, page, 3);
-		expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
+		await landAt(ep, page, 0);
+		await selectRight(ep, page, 5);
+
+		await ep.pressDeclined('ControlOrMeta+k');
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await page.keyboard.type('https://u.example');
+		await page.keyboard.press('Enter');
+
+		await ep.bridge.waitForSourceContains('| [plain](https://u.example) cell | word |');
+		expect(await ep.parseConverged()).toBe(true);
+	});
+
+	// The cell's write rule escapes the pipe in the wrapped text, so the row keeps one cell.
+	test('a link created over cell text holding a pipe keeps the pipe escaped', async ({ page }) => {
+		await ep.loadContent('| h |\n| - |\n| a\\|b cd |\n');
+		await clickWordSettled(ep, page, 'cd');
+		await landAt(ep, page, 0);
+		await extendTo(ep, page, 'ArrowRight', [0, 1, 0], 4);
+		expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('a|b');
+
+		await ep.pressDeclined('ControlOrMeta+k');
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await page.keyboard.type('https://u.example');
+		await page.keyboard.press('Enter');
+
+		await ep.bridge.waitForSourceContains('| [a\\|b](https://u.example) cd |');
+		expect(await ep.parseConverged()).toBe(true);
+	});
+
+	// The chord reads the range, not its focus: a range running past a link edits nothing.
+	test('a cell range running past a link leaves the link alone', async ({ page }) => {
+		await ep.loadContent('| h |\n| - |\n| [ab](https://one.test) cd |\n');
+		await clickWordSettled(ep, page, 'cd');
+		await landAt(ep, page, 25);
 		const before = await ep.bridge.getSource();
+		// The focus ends inside the link, where a caret alone would enter its card.
+		await extendTo(ep, page, 'ArrowLeft', [0, 1, 0], 2);
+		await expect(ep.bridge.getSelectionPaths()).resolves.toMatchObject({ focus: { offset: 2 } });
 
 		await ep.pressDeclined('ControlOrMeta+k');
 		await ep.waitForRenderFlush();
