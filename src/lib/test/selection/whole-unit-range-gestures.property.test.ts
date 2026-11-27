@@ -9,6 +9,7 @@ import { isBlankParagraph, parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { MATH_BLOCK, registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { crossBlockClipboardArm } from '#lib/selection/cross-block/clipboard.js';
 import { runClipboardCut } from '#lib/components/blocks/editable/clipboard-step.js';
@@ -116,7 +117,10 @@ describe('a whole-unit range takes typing, paste and cut', () => {
 					expect(contentOf(doc.children ?? []), `${label}: wrong blocks`).toEqual(
 						expectedContent(gesture)
 					);
-					expect(describeConvergence(doc as never), `${label}: reload diverges`).toBeNull();
+					expect(
+						describeConvergence(doc as never, defaultGrammarView),
+						`${label}: reload diverges`
+					).toBeNull();
 
 					const out = serialize(doc as never);
 					const bare = shape.eol === '\r\n' ? /(^|[^\r])\n/.test(out) : /\r/.test(out);

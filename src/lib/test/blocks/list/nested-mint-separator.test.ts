@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { assertParseConverged } from '#lib/testing/parse-convergence.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import {
 	installLayoutStubs,
 	mountEditor,
@@ -30,7 +31,7 @@ describe('Enter then Tab creates a readable sublist', () => {
 		await pressKeyAt(mounted, [0, 1, 0], 0, TAB);
 
 		expect(mounted.source()).toBe('- alpha\n\n  - \n');
-		assertParseConverged(parse(mounted.source()));
+		assertParseConverged(parse(mounted.source()), defaultGrammarView);
 	});
 
 	it('the tree the editor shows survives its own bytes', async () => {
@@ -93,6 +94,6 @@ describe('Enter then Tab creates a readable sublist', () => {
 		await pressKeyAt(mounted, [0, 0, 1, 1, 0], 0, TAB);
 
 		expect(mounted.source()).toBe('- alpha\n  - beta\n\n    - \n');
-		assertParseConverged(parse(mounted.source()));
+		assertParseConverged(parse(mounted.source()), defaultGrammarView);
 	});
 });

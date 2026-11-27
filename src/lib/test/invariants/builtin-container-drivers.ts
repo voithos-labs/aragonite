@@ -25,6 +25,7 @@ import {
 } from '#lib/testing/headless-actions.js';
 import { mountBlockListState } from '#lib/testing/headless-block-list.svelte.js';
 import { assertParseConverged } from '#lib/testing/parse-convergence.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 /** A table column op addresses cells by (rowIdx, colIdx) and emits the table's own path; the
  *  leading paragraph keeps the table off index 0, so a global index would differ. */
@@ -51,7 +52,7 @@ export async function checkTableLocalIndexAddressing(): Promise<void> {
 	const editEvent = seen.find((e) => e.op === 'tableInsertColumn');
 	assert(editEvent, 'tableInsertColumn edit event fired');
 	assertIndices(editEvent.path, [1], 'column op emits the table’s own local path');
-	assertParseConverged(doc, 'doc converges after a grid column op');
+	assertParseConverged(doc, defaultGrammarView, 'doc converges after a grid column op');
 }
 
 /** Indenting item 1 under item 0 spans the outer list and the new nested list. */
@@ -91,7 +92,7 @@ export async function checkListIndentOneUndo(): Promise<void> {
 
 	assertIs(after - before, 1, 'list indentItem (multi-scope) pushes exactly one undo entry');
 	assertIs(deps.doc.children[0].children!.length, 1, 'item 1 was indented out of the outer list');
-	assertParseConverged(deps.doc, 'doc converges after a multi-scope strip op');
+	assertParseConverged(deps.doc, defaultGrammarView, 'doc converges after a multi-scope strip op');
 }
 
 /** A column insert writes the table and every row, as one undo entry. */
@@ -108,7 +109,7 @@ export async function checkTableColumnOneUndo(): Promise<void> {
 	const after = deps.undoManager.getStacks().undo.length;
 
 	assertIs(after - before, 1, 'table insertColumn (multi-scope) pushes exactly one undo entry');
-	assertParseConverged(deps.doc, 'doc converges after a multi-scope grid op');
+	assertParseConverged(deps.doc, defaultGrammarView, 'doc converges after a multi-scope grid op');
 }
 
 function mountTableMutations(children: CstNode[], tableIndex: number) {

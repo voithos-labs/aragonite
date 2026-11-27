@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { serialize } from '../../core/serializer';
 import { parseConverges } from '../../testing/parse-convergence';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries';
 import {
 	arbOp,
@@ -103,7 +104,7 @@ describe('undo restoration property (structural sharing)', () => {
 						expect(serialize(h.deps.doc)).toBe(target);
 					}
 					expect(serialize(h.deps.doc)).toBe(original);
-					expect(parseConverges(h.deps.doc)).toBe(true);
+					expect(parseConverges(h.deps.doc, defaultGrammarView)).toBe(true);
 				}
 			),
 			PARAMS

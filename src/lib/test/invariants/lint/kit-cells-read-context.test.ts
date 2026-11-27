@@ -15,7 +15,7 @@ const ALLOWED: Record<string, string> = {
 	'plugin-conformance.ts': 'the legacy door, which checks the page-wide registry by design',
 	'headless-actions.ts': 'defines the headless actions; a cell gets them from the context',
 	'kit-reading.ts': 'defines the default reading the context replaces',
-	'parse-convergence.ts': 'defines the default convergence check the context replaces'
+	'parse-convergence.ts': 'defines the convergence check, which reads with the grammar it is given'
 };
 
 const OWN_READ =

@@ -1,7 +1,7 @@
 // The parse-comparison check, offered to unit suites under the name `expectParseConverged`. The
 // comparison itself lives in the published testing folder (`testing/parse-convergence.ts`), so
-// the kit, this harness and the e2e bridge all share one implementation; that module's header
-// says what it replaces and what it tolerates.
+// the kit, this harness and the e2e bridge all share one implementation. Here a suite that names
+// no grammar reads with every installed plugin, as its editor does.
 
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { NodeView } from '#lib/core/node-views.js';
@@ -11,12 +11,21 @@ import { serialize } from '#lib/core/serializer.js';
 import { type GrammarView } from '#lib/schema/block-openers.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
+import * as convergence from '#lib/testing/parse-convergence.js';
 
-export {
-	assertParseConverged as expectParseConverged,
-	parseConverges,
-	describeConvergence
-} from '#lib/testing/parse-convergence.js';
+// ── Shape against a reload ───────────────────────────────────────────────────
+
+export const describeConvergence = (doc: Document, grammar: GrammarView = defaultGrammarView) =>
+	convergence.describeConvergence(doc, grammar);
+
+export const parseConverges = (doc: Document, grammar: GrammarView = defaultGrammarView) =>
+	convergence.parseConverges(doc, grammar);
+
+export const expectParseConverged = (
+	doc: Document,
+	grammar: GrammarView = defaultGrammarView,
+	label?: string
+) => convergence.assertParseConverged(doc, grammar, label);
 
 // ── The views the separator suites assert against ────────────────────────────
 

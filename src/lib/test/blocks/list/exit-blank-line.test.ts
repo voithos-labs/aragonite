@@ -6,6 +6,7 @@
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import {
 	installLayoutStubs,
 	mountEditor,
@@ -43,7 +44,9 @@ describe('Enter out of an empty middle item leaves one blank line', () => {
 			await pressKeyAt(mounted, emptyPath, 0, ENTER);
 
 			expect(mounted.source()).toBe(exited);
-			expect(describeConvergence(mounted.instance.__test.getDocument())).toBeNull();
+			expect(
+				describeConvergence(mounted.instance.__test.getDocument(), defaultGrammarView)
+			).toBeNull();
 		});
 	}
 });

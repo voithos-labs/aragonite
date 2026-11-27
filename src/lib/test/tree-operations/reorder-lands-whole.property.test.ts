@@ -8,6 +8,7 @@ import { parse, isBlankParagraph } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { MATH_BLOCK, registerMathBlock } from '#lib/test/harness/registered-math.js';
 import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
@@ -134,7 +135,10 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 							contentPreserved(before, from, doc.children),
 							`${label}: a block folded; before ${JSON.stringify(contentOf(before))}, after ${JSON.stringify(contentOf(doc.children))}`
 						).toBe(true);
-						expect(describeConvergence(doc), `${label}: reload diverges`).toBeNull();
+						expect(
+							describeConvergence(doc, defaultGrammarView),
+							`${label}: reload diverges`
+						).toBeNull();
 						const out = serialize(doc);
 						const bare = shape.eol === '\r\n' ? /(^|[^\r])\n/.test(out) : /\r/.test(out);
 						expect(bare, `${label}: a separator carries the wrong line ending`).toBe(false);

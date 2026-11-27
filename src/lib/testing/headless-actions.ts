@@ -15,6 +15,7 @@ import type { EditorActionsDeps } from '../editor-actions/deps';
 import { refusedWrite, withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
+import type { GrammarView } from '../schema/block-openers';
 import { createEditorEvents, emitCommitError, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
 import type { ChildList } from '../block-lists/child-list';
@@ -123,8 +124,8 @@ export interface HeadlessActionsOptions {
 	spy?: <T extends object>(stub: T) => T;
 	/** A construction option because `SelectionState` cannot take one later. */
 	onSelectionChange?: () => void;
-	/** The editor's reading, for a suite whose editor is in another mode or switched a syntax off.
-	 *  Absent, every installed plugin in styled source. */
+	/** The editor's reading, whose grammar also reads text handed in as the source. Absent, every
+	 *  installed plugin in styled source. */
 	reading?: Reading;
 	bumpContentVersion?: () => void;
 	/** Hears what each write that emits `edit` said it replaced. */
@@ -153,7 +154,8 @@ export function createHeadlessActions(
 	source: string | Document | CstNode[],
 	options: HeadlessActionsOptions = {}
 ): HeadlessActions {
-	const whole = documentOf(source);
+	const reading = options.reading ?? kitReading();
+	const whole = documentOf(source, reading.grammar);
 	const doc: Document = {
 		kind: 'document',
 		prefix: whole.prefix,
@@ -227,8 +229,7 @@ export function createHeadlessActions(
 			return caretLanding;
 		},
 		events,
-		// An author's suite runs with no editor, so every installed plugin is in the grammar.
-		reading: options.reading ?? kitReading(),
+		reading,
 		stamps,
 		// Nothing opens a draft without an editor, so no write records what it changed.
 		drafts: { closeAll() {}, watching: () => false, record() {} }
@@ -287,8 +288,8 @@ function recordingLanding(
 	};
 }
 
-function documentOf(source: string | Document | CstNode[]): Document {
-	if (typeof source === 'string') return parse(source);
+function documentOf(source: string | Document | CstNode[], grammar: GrammarView): Document {
+	if (typeof source === 'string') return parse(source, { grammar });
 	if (Array.isArray(source)) return { kind: 'document', prefix: '', children: source, suffix: '' };
 	return source;
 }

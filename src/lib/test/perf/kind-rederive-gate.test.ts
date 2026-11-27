@@ -202,7 +202,7 @@ describe('container kind re-derivation gate', () => {
 		const doc = typeInPlace(source, index, [raw]);
 
 		expect(reparses()).toBe(1);
-		expect(describeConvergence(doc)).toBeNull();
+		expect(describeConvergence(doc, defaultGrammarView)).toBeNull();
 	});
 
 	// Only the keystroke that closes the marker changes the answer. The trailing `x` keeps one

@@ -72,7 +72,7 @@ describe('an opaque container’s metadata follows the open last line (#640)', (
 		it(`${row.name}: the next edit gives the bytes a reload would`, async () => {
 			const live = makeTopHarness(row.source);
 			await row.structural(live);
-			expect(describeConvergence(live.deps.doc)).toBeNull();
+			expect(describeConvergence(live.deps.doc, defaultGrammarView)).toBeNull();
 
 			const reloaded = makeTopHarness(serialize(live.deps.doc));
 			await row.plain(live);

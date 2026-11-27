@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parse, setPluginMetadata, type CstNode, type PluginBlockKind } from '#lib/plugin.js';
 import { assertParseConverged } from '#lib/testing/parse-convergence.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 interface TagMetadata {
@@ -34,18 +35,20 @@ describe('parse convergence compares a plugin kind’s metadata', () => {
 	});
 
 	it('converges on a fresh parse, arrays compared by value', () => {
-		expect(() => assertParseConverged(parse('@@ alpha beta\n'))).not.toThrow();
+		expect(() => assertParseConverged(parse('@@ alpha beta\n'), defaultGrammarView)).not.toThrow();
 	});
 
 	it('fails a live value its bytes no longer produce', () => {
 		const doc = parse('@@ alpha beta\n');
 		setPluginMetadata<TagMetadata>(doc.children[0], { tag: 'stale', words: ['alpha', 'beta'] });
-		expect(() => assertParseConverged(doc)).toThrow(/convergence-tag\.tag: live "stale"/);
+		expect(() => assertParseConverged(doc, defaultGrammarView)).toThrow(
+			/convergence-tag\.tag: live "stale"/
+		);
 	});
 
 	it('fails a key only the live node carries', () => {
 		const doc = parse('@@ alpha beta\n');
 		setPluginMetadata(doc.children[0], { tag: 'alpha', words: ['alpha', 'beta'], extra: 1 });
-		expect(() => assertParseConverged(doc)).toThrow(/convergence-tag\.extra/);
+		expect(() => assertParseConverged(doc, defaultGrammarView)).toThrow(/convergence-tag\.extra/);
 	});
 });
