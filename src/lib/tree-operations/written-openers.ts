@@ -62,6 +62,9 @@ export function writtenOpenerClosers(
 		const ending = ownTrailingLineEnding(last ? text : block.raw);
 		if (ending === '') continue;
 		if (last && takesCloserBelow(text, block, next, read, readings)) continue;
+		if (last && restoresOpener(before, text, start, block, reading)) {
+			if (closesOnStrayLine(children, index, text, k, block, reading, read)) continue;
+		}
 		// Bytes the slot read as text (a to-do's first line, behind its checkbox) read on only if a
 		// reread with the blocks below says so, whatever they would open alone.
 		const readsOn = reading.readsOn && !isProseKind(block.kind);
@@ -145,6 +148,62 @@ function takesCloserBelow(
 	const head = read(text + firstDisplayLine(next.raw).text + ownTrailingLineEnding(text));
 	const last = head.children[head.children.length - 1];
 	return !last || waitingReading(last.raw, readings) === null;
+}
+
+/** Whether the write changed only the marker run before a name already there: an opener put
+ *  back (a colon retyped, a stray letter taken out), never a new one typed. */
+function restoresOpener(
+	before: string,
+	text: string,
+	start: number,
+	opened: NodeView,
+	reading: ClosedInGrammar
+): boolean {
+	const span = writtenSpan(before, text);
+	const line = firstDisplayLine(opened.raw).text;
+	const runEnd = /^[ \t]*/.exec(line)![0].length + reading.closer(opened.raw).length;
+	return span.start >= start && span.end <= start + runEnd && /\S/.test(line.slice(runEnd));
+}
+
+/** Whether written block `k`, reread with the blocks below, closes on a line that reads as text
+ *  there (a lazy line of a quote or an item included), never a block's own closing line. */
+function closesOnStrayLine(
+	children: readonly NodeView[],
+	index: number,
+	text: string,
+	k: number,
+	opened: NodeView,
+	reading: ClosedInGrammar,
+	read: FragmentReader
+): boolean {
+	const width = reading.closer(opened.raw).length;
+	const closes = (line: string) => reading.mayClose(line) && line.trim().length >= width;
+	let bytes = text;
+	for (let i = index + 1; i < children.length; i++) {
+		const node = children[i];
+		const from = bytes.length + node.leadingTrivia.length;
+		bytes += node.leadingTrivia + node.raw;
+		const lines = splitLines(node.raw);
+		if (!lines.some((line) => closes(line.text))) continue;
+		const reread = read(bytes);
+		let end = reread.prefix.length;
+		for (let j = 0; j <= k && j < reread.children.length; j++) {
+			end += reread.children[j].leadingTrivia.length + reread.children[j].raw.length;
+		}
+		if (end <= from) return false;
+		if (end < bytes.length) return isProseKind(node.kind);
+		const last = lines[lines.length - 1].text;
+		if (closes(last)) return endsOnParagraphLine(node, last);
+	}
+	return false;
+}
+
+/** Whether `node`'s last line is `line` as a line of its innermost last paragraph. */
+function endsOnParagraphLine(node: NodeView, line: string): boolean {
+	let inner = node;
+	while (inner.children?.length) inner = inner.children[inner.children.length - 1];
+	const lines = splitLines(inner.raw);
+	return isProseKind(inner.kind) && lines[lines.length - 1].text === line;
 }
 
 /** Whether written block `k`, which only a closer below changes, takes blocks in down to one,

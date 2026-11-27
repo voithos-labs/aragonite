@@ -42,10 +42,15 @@ function writeColon(node: CstNode): void {
 	const closer = closingLine(node.raw, fence?.colonCount ?? 3);
 	const closerEnding = closer.newline ? ownTrailingLineEnding(node.raw) || ending : '';
 	const before = matchDirectiveOpener(firstDisplayLine(node.raw).text);
-	// Colons a write on the opener line changed are the user's, and a line that stopped opening a
-	// fence is kept too: both stand as typed, and the re-read reads what they now are.
+	// Colons typed on the opener line, or a line that stopped opening, stand as typed; the closing
+	// line follows the colons up, and a colon taken out back down to what the body needs.
 	if (!fence || (before !== null && before.colonCount !== fence.colonCount)) {
-		const colons = Math.max(fence?.colonCount ?? 0, closer.colons);
+		const sameName = fence !== null && before !== null && fence.name === before.name;
+		const fewer = sameName && fence.colonCount >= 3 ? before.colonCount - fence.colonCount : 0;
+		const colons =
+			fence && fewer > 0
+				? Math.max(closer.colons - fewer, escalatedColonCount(inner, fence.colonCount))
+				: Math.max(fence?.colonCount ?? 0, closer.colons);
 		node.raw = line + ending + inner + ':'.repeat(colons) + closerEnding;
 		return;
 	}

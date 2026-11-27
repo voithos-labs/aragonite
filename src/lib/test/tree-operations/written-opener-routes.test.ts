@@ -148,6 +148,76 @@ describe.each(ROUTES)('an opener %s', (_name, route) => {
 	});
 });
 
+/** A route that rewrites block 0 of `source` to `line`, as a key, a command, a paste or a draft. */
+const LINE_ROUTES: Array<[name: string, write: (source: string, line: string) => Promise<string>]> =
+	[
+		[
+			'typed into the line',
+			async (source, line) => {
+				const h = makeTopHarness(source);
+				await h.actions.updateBlockContent(0, `${line}\n`, 'authored', 'join-typing', 1);
+				return settled(h.deps.doc);
+			}
+		],
+		[
+			'a command rewriting the block',
+			async (source, line) => {
+				const h = makeTopHarness(source);
+				await h.actions.replaceRaw(0, `${line}\n`);
+				return settled(h.deps.doc);
+			}
+		],
+		[
+			'pasted over the line, spliced in as bytes',
+			async (source, line) => {
+				const h = makeTopHarness(source);
+				await spliced(h, 0, source.indexOf('\n'), line);
+				return settled(h.deps.doc);
+			}
+		],
+		[
+			'written by a draft',
+			async (source, line) => {
+				const h = makeTopHarness(source);
+				const draft = draftRegistryOver(h)
+					.edit()
+					.replace({ from: 0, to: source.indexOf('\n') }, line);
+				expect(await draft.commit()).toEqual({ ok: true });
+				return settled(h.deps.doc);
+			}
+		]
+	];
+
+// Miss-analysis (#851): every closer row wrote a new opener, so no row put back one whose closing
+// line stayed below as paragraph text, and each route gave it a second closer.
+describe.each(LINE_ROUTES)('an opener put back, %s', (_name, write) => {
+	it.each([
+		['a letter taken out of the colons', '::x:tip T\nbody\n:::\n', ':::tip T\nbody\n:::\n'],
+		['a colon typed back', '::tip T\nbody\n:::\n', ':::tip T\nbody\n:::\n'],
+		[
+			'blank lines in the body',
+			'::x:tip T\n\nbody\n\n:::\n\nafter\n',
+			':::tip T\n\nbody\n\n:::\n\nafter\n'
+		],
+		['a quote in the body', '::x:tip T\n> q\n:::\n', ':::tip T\n> q\n:::\n'],
+		['a list in the body', '::x:tip T\n- a\n- b\n:::\n', ':::tip T\n- a\n- b\n:::\n']
+	])('takes the closing line it lost: %s', async (_l, source, expected) => {
+		expect(await write(source, expected.slice(0, expected.indexOf('\n')))).toBe(expected);
+	});
+
+	it.each([
+		['a new opener above a literal `:::` further down', 'x\n\npara\n\nmore\n\n:::\n', ':::tip T'],
+		[
+			'a box below whose own closing line it would take',
+			'::x:tip T\n\n:::note\nn\n:::\n',
+			':::tip T'
+		]
+	])('takes in nothing: %s', async (_l, source, line) => {
+		const rest = source.slice(source.indexOf('\n') + 1);
+		expect(await write(source, line)).toBe(`${line}\n:::\n${rest}`);
+	});
+});
+
 // A fragment's opener need not be its last block: each waiting block is closed at its own end.
 describe('a written fragment whose middle block waits', () => {
 	// An open code fence takes in the rest of its fragment, so it is never a middle block.

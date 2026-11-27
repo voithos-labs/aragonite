@@ -246,6 +246,7 @@ describe.each(ROUTES)('a closer written blocks below the construct it finishes, 
 	// An opener a write puts on a line of its own gets its own closer, as a typed fence does, so a
 	// closer already below stays the block it was.
 	it.each([
+		// A bare marker names nothing it could be putting back.
 		['a `$$$` shortened to `$$`', '$$$\n\nx\n\n$$\n', 0, '$$\n', '$$\n$$\n\nx\n\n$$\n'],
 		[
 			'a `$$` written under paragraph text',
@@ -262,27 +263,37 @@ describe.each(ROUTES)('a closer written blocks below the construct it finishes, 
 			'$$\n$$\n\na\n\n$$\nm\n$$\n\nb\n\n$$\nn\n$$\n'
 		],
 		[
-			'a `::::note` shortened to `:::note`',
-			'::::note\n\nx\n\n:::\n',
-			0,
-			':::note\n',
-			':::note\n:::\n\nx\n\n:::\n'
-		],
-		[
 			'a `:::note` written under paragraph text',
 			'a\n\nx\n\n:::\n',
 			0,
 			'a\n:::note\n',
 			'a\n:::note\n:::\n\nx\n\n:::\n'
+		]
+	])('%s gets its own closer', async (_l, source, index, text, expected) => {
+		const { doc, write } = route(source);
+		await write(index, text);
+		expect(serialize(doc)).toBe(expected);
+		expectParseConverged(doc);
+	});
+
+	// An opener put back by its marker (a fence shortened, a stray letter taken out), its name kept,
+	// takes the closing line it lost, standing below as paragraph text, as a reload reads the bytes.
+	it.each([
+		[
+			'a `::::note` shortened to `:::note`',
+			'::::note\n\nx\n\n:::\n',
+			0,
+			':::note\n',
+			':::note\n\nx\n\n:::\n'
 		],
 		[
-			'a `::::note` above a `:::` it refuses',
+			'a `::::note` past a `:::` it refuses',
 			'x::::note\n\na\n\n:::\n\nb\n\n::::\n',
 			0,
 			'::::note\n',
-			'::::note\n::::\n\na\n\n:::\n\nb\n\n::::\n'
+			'::::note\n\na\n\n:::\n\nb\n\n::::\n'
 		]
-	])('%s gets its own closer', async (_l, source, index, text, expected) => {
+	])('%s takes the closing line below', async (_l, source, index, text, expected) => {
 		const { doc, write } = route(source);
 		await write(index, text);
 		expect(serialize(doc)).toBe(expected);
@@ -312,16 +323,16 @@ describe('an opener made by a write inside a quote', () => {
 
 	it.each([
 		[
-			'above two `$$` blocks',
+			'above two `$$` blocks gets its own closer',
 			'> x$$\n>\n> a\n>\n> $$\n> m\n> $$\n>\n> b\n>\n> $$\n> n\n> $$\n',
 			'> $$\n> $$\n>\n> a\n>\n> $$\n> m\n> $$\n>\n> b\n>\n> $$\n> n\n> $$\n'
 		],
 		[
-			'above a `:::` it refuses',
+			'put back past a `:::` it refuses, takes the closing line below',
 			'> x::::note\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n',
-			'> ::::note\n> ::::\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n'
+			'> ::::note\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n'
 		]
-	])('gets its own closer %s', async (_l, source, expected) => {
+	])('an opener %s', async (_l, source, expected) => {
 		const h = makeNestedHarness(source, { index: 0 });
 		const raw = h.deps.doc.children[0].children![0].raw;
 		await h.bundle.blockEdit.updateBlockContent(0, raw.slice(1), 'authored', 'join-typing', 1, 0);
