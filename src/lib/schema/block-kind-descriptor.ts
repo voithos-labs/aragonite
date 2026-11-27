@@ -205,7 +205,7 @@ export interface BlockKindDescriptor {
 	 *  empty-block hint may pass a shown source's text as `raw`, so read only `raw`. */
 	bodyRange?: (node: NodeView) => { start: number; end: number } | null;
 	/** The block's bytes with `data` written into them, null where the kind has no spelling for it;
-	 *  every data write reads it (a draft's, a metadata write's, a fold's). */
+	 *  a draft's data write reads it, and so do a metadata write and a fold on a `:::` type. */
 	writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
 	/**
 	 * Recompute `raw` from children and metadata; `changed` names the one child whose raw moved
