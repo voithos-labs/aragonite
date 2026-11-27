@@ -42,7 +42,8 @@ consumption contract is `live-link-card-chord.md`.
   escapes a `|` in the wrapped text, so the row keeps one cell (miss-analysis: the cell row
   asserted the decline the cell's null range produced, so the spec held the bug as the contract)
 - in a table cell, a range from past a link's end back into its text leaves the link alone: the
-  chord reads the whole range, so it neither enters that link's card nor wraps across it
+  chord reads the whole range, as the link button's pressed state does, so the button reads as
+  not pressed and the chord neither enters that link's card nor wraps across it
 - a selection spanning two blocks declines to create: no single block holds the range, and the
   block-local offsets the handler would read are made up, because a block's own DOM-to-offset
   traversal reports an endpoint in another block as the end of the traversal. The chord stays

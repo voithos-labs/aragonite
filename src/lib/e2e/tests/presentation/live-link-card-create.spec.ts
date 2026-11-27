@@ -177,8 +177,11 @@ test.describe('live-mode link card: the create half of Mod+K', () => {
 		expect(await ep.parseConverged()).toBe(true);
 	});
 
-	// The chord reads the range, not its focus: a range running past a link edits nothing.
-	test('a cell range running past a link leaves the link alone', async ({ page }) => {
+	// The chord reads the range, not its focus, as the pressed state does: past a link, neither
+	// claims it.
+	test('a cell range running past a link reads as not pressed and leaves the link alone', async ({
+		page
+	}) => {
 		await ep.loadContent('| h |\n| - |\n| [ab](https://one.test) cd |\n');
 		await clickWordSettled(ep, page, 'cd');
 		await landAt(ep, page, 25);
@@ -186,6 +189,10 @@ test.describe('live-mode link card: the create half of Mod+K', () => {
 		// The focus ends inside the link, where a caret alone would enter its card.
 		await extendTo(ep, page, 'ArrowLeft', [0, 1, 0], 2);
 		await expect(ep.bridge.getSelectionPaths()).resolves.toMatchObject({ focus: { offset: 2 } });
+		await expect(page.locator('[data-testid="toolbar-link.openCard"]')).toHaveAttribute(
+			'aria-pressed',
+			'false'
+		);
 
 		await ep.pressDeclined('ControlOrMeta+k');
 		await ep.waitForRenderFlush();
