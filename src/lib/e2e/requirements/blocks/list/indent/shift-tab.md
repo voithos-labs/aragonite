@@ -33,7 +33,8 @@ What the lifted item carries, and the marker and number it ends with, are pinned
 
 - The items left in the nested list are the ones above the promoted item, so they keep their
   numbers. The items that come along continue the promoted item's own sublist, or start a new one
-  at 1
+  at 1 that counts the way the nested list did (`1. 1.` from a list of `1.`s). The unit property
+  `src/lib/test/editor-actions/ordered-renumber.property.test.ts` holds this
 - The parent list renumbers from the promoted item on, by 0 when its first two numbers match and by
   1 otherwise, so the promoted item slots into the sequence
 - When the nested and parent lists are different types (ordered ↔ unordered), the promoted item's marker is rewritten to match the parent list's style before renumbering. The destination marker suffix (`. ` / `) ` for ordered, `- ` / `*` / `+` for unordered) is copied from an existing sibling in the parent list
