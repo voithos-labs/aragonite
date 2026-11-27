@@ -147,3 +147,21 @@ describe('a letter typed over the title replaces it', () => {
 				expect(await letter(editor)).toBe(':::tip x\nin\n:::\n');
 			});
 });
+
+// Miss-analysis: the floor's rows sent a word delete by its key and a line delete as one input, so
+// no row sent a soft keyboard's word delete or a hard line delete, which reach it by the same input.
+describe('a word or line delete at an emptied title takes nothing', () => {
+	const EMPTIED = ':::tip \nin\n:::\n';
+	it.each(['deleteWordBackward', 'deleteSoftLineBackward', 'deleteHardLineBackward'])(
+		'%s with no keydown, live',
+		async (inputType) => {
+			const editor = mountCase(EMPTIED, 'live');
+			await editor.settle();
+			placeCaret(surfaceAt(editor, [0, 0]), 7);
+			const input = dispatchBeforeInput(focused(), inputType);
+			await editor.settle();
+			expect([input.defaultPrevented, editor.source()]).toEqual([true, EMPTIED]);
+			expect(editor.instance.canRunCommand('history.undo')).toBe(false);
+		}
+	);
+});

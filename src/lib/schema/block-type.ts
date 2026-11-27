@@ -6,7 +6,7 @@
 import type { AnyBlockKind, PluginBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
-import type { BlockOpener, GrammarView } from './block-openers';
+import type { BlockOpener } from './block-openers';
 import type { BlockCompleter } from './block-completions';
 import type { BlockView } from './block-view';
 import type { BlockAction, BlockCommon, BlockInsert, BlockKey } from './block-shapes';
@@ -33,8 +33,6 @@ export interface BlockMaking<D = unknown> {
 	readonly bodyRange?: ((node: NodeView) => { start: number; end: number } | null) | null;
 	/** For a fenced type that may sit on one line: whether `line` is a whole block of it. */
 	readonly oneLine?: (line: string) => boolean;
-	/** The block's bytes with `data` written into them; null where the type has no writer for it. */
-	readonly writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
 	/** The changes that write `text` as the block's body where `at` places it; null where that
 	 *  wouldn't read back as the type. A maker brings it, so the core imports no body writer. */
 	readonly writeBody?: (node: NodeView, text: string, at: BodyPlace) => BodyChange[] | null;

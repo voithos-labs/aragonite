@@ -20,6 +20,8 @@ import {
 	type MarkedLines
 } from '../../core/strip-lines';
 import type { CstNode, PluginBlockKind } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
+import type { GrammarView } from '../../schema/block-openers';
 import { writeContainerRaw } from '../../schema/container-writer';
 import { cloneNode } from '../../tree-operations/clone';
 import { titleRowKind, titleRowRegistration } from '../../schema/title-row-leaf';
@@ -58,9 +60,12 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 		actions: spec.actions,
 		commands: spec.commands,
 		priority,
-		registration: containerRegistration(spec as ContainerSpec<object>, lines, () =>
-			colon ? colon.row : titleRowKind(type.name as PluginBlockKind)
-		),
+		registration: {
+			...containerRegistration(spec as ContainerSpec<object>, lines, () =>
+				colon ? colon.row : titleRowKind(type.name as PluginBlockKind)
+			),
+			writeData
+		},
 		view: drawnView(drawing),
 		openers: (kind) =>
 			colon
@@ -74,21 +79,22 @@ export function container<D extends object = never>(spec: ContainerSpec<D>): Blo
 			colon ? colon.claims(written) : fenced ? fenced.claims(written) : stripClaims(strip, written)
 		),
 		rows: (kind) => (row ? [{ kind: titleRowKind(kind), ...row }] : []),
-		colonNames: colon?.names,
-		writeData(node, data, grammar) {
-			// A colon type's data is the name its opening line spells, the one part of the row it reads;
-			// a name it doesn't hold would read as another type.
-			if (colon) {
-				const { name } = data as { name: string };
-				return colon.names.includes(name) ? colon.renamed(node.raw, name) : null;
-			}
-			const copy = cloneNode(node);
-			copy.metadata = data as CstNode['metadata'];
-			writeContainerRaw(copy, grammar);
-			return copy.raw;
-		}
+		colonNames: colon?.names
 	});
 	return type;
+
+	function writeData(node: NodeView, data: unknown, grammar: GrammarView): string | null {
+		// A colon type's data is the name its opening line spells, the one part of the row it reads;
+		// a name it doesn't hold would read as another type.
+		if (colon) {
+			const { name } = data as { name: string };
+			return colon.names.includes(name) ? colon.renamed(node.raw, name) : null;
+		}
+		const copy = cloneNode(node);
+		copy.metadata = data as CstNode['metadata'];
+		writeContainerRaw(copy, grammar);
+		return copy.raw;
+	}
 }
 
 const children = (ctx: object): HTMLElement => (ctx as { children: HTMLElement }).children;

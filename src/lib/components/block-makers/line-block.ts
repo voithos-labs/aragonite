@@ -66,16 +66,18 @@ export function lineBlock<D = never, H = unknown>(spec: LineBlockSpec<D, H>): Bl
 		actions: spec.actions,
 		commands: spec.commands,
 		priority,
-		registration: leafRegistration(spec as LineBlockSpec<unknown>, {
-			range: shape.range,
-			multiLine: false
-		}),
+		registration: {
+			...leafRegistration(spec as LineBlockSpec<unknown>, {
+				range: shape.range,
+				multiLine: false
+			}),
+			writeData: shape.writeData
+		},
 		view: drawing ? drawnView(drawing) : textBlockView(),
 		openers: (kind) => [shape.opener(kind)],
 		completer: completerOf(spec.complete, shape.claims),
 		// A line with no text of its own has an empty body, as its open text is empty.
 		bodyRange: shape.range ?? lineEnd,
-		writeData: shape.writeData,
 		writeBody: bodyWriter(shape.writeBody)
 	});
 	return type;

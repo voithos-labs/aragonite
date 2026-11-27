@@ -413,7 +413,7 @@ function dataChanges(
 ): ByteChange[] | DraftResult {
 	const map = documentByteMap(laid);
 	const byteOf = (offset: number) => map.byteOf(path, offset);
-	const written = makingOf(block.type)?.writeData?.(node, data, grammar) ?? null;
+	const written = makingOf(block.type)?.registration.writeData?.(node, data, grammar) ?? null;
 	if (written === null)
 		return refused('illegal', `block type '${block.type.name}' has no writer for that data`);
 	const was = splitLines(node.raw);

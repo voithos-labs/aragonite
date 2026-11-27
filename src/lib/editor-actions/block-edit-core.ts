@@ -7,9 +7,11 @@
 import { tick } from 'svelte';
 import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import {
 	displayLength,
 	documentLineEnding,
+	firstDisplayLine,
 	ownTrailingLineEnding,
 	withLineEnding
 } from '../core/lines';
@@ -40,6 +42,7 @@ import type { TrackedPosition } from '../tree-operations/fix-up/apply';
 import type { TaskStartLanding } from '../tree-operations/list/reconcile-task';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { rowContentRange, rowIsOpenerLine } from '../schema/reserved-chrome';
 import type {
 	BlockCaret,
 	BlockEditActions,
@@ -287,17 +290,42 @@ function landedFocus(
 	return { replacementIndex: moved.index, offset: moved.offset };
 }
 
-/** A leaf's metadata is what its opener reads from its bytes, so a metadata write there could not
- *  survive a reload; it is refused, in every build, before anything is written (G1.110). */
-function refuseLeafMetadata(scope: CommitScope, i: number, kind: string): void {
-	const message =
-		`updateBlockMetadata wrote nothing: '${kind}' is a leaf, whose metadata comes from its ` +
-		"bytes. A leaf's command rewrites them with replaceRaw.";
+/** A metadata write that no bytes would carry could not survive a reload: a leaf's metadata is what
+ *  its opener reads, and a type may have no spelling for the data. Refused in every build (G1.110). */
+function refuseMetadata(scope: CommitScope, i: number, why: string): void {
+	const message = `updateBlockMetadata wrote nothing: ${why}. A command rewrites bytes with replaceRaw.`;
 	assertInvariant('metadata-without-rebuild', () => ({
 		code: 'metadata-without-rebuild',
 		message
 	}));
 	scope.reportCommitError(new Error(`aragonite: ${message}`), 'metadataUpdate', i);
+}
+
+// A row that is the opening line spells the data (a `:::` type's name), so the type's writer
+// rewrites it; null: no spelling for the data; undefined: the rebuild writes it from metadata.
+function spelledRow(
+	scope: CommitScope,
+	node: NodeView,
+	data: Record<string, unknown>
+): LegalWrite | null | undefined {
+	const row = node.children?.[0];
+	if (!row || !rowIsOpenerLine(node.kind)) return undefined;
+	const written = getBlockKindDescriptor(node.kind).writeData?.(node, data, scope.reading.grammar);
+	if (written === undefined || written === null) return written;
+	const target = scope.target();
+	const lineEnding = 'lineEnding' in target ? target.lineEnding : documentLineEnding(target);
+	const text = firstDisplayLine(written).text + ownTrailingLineEnding(row.raw);
+	const parent = { children: node.children, owner: node, lineEnding };
+	return legalizeWrite(parent, 0, text, 'literal', scope.reading.grammar);
+}
+
+/** Where a caret at `offset` on a title row that held `before` lands on `now`'s: through the row's
+ *  rewrite, and never on the marker in front of the title. */
+function titleRowOffset(before: string | undefined, now: NodeView | undefined, offset: number) {
+	const after = now?.children?.[0];
+	if (!now || before === undefined || !after) return offset;
+	const kept = offsetThroughRewrite(before, after.raw, offset);
+	return Math.max(kept, rowContentRange(now, after).start);
 }
 
 /** Where an offset in `before` sits in `after`: on the same text when it is outside the span the
@@ -448,15 +476,27 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			if (i < 0 || i >= children.length) return false;
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return false;
-			if (!getBlockKindDescriptor(children[i].kind).isContainer) {
-				refuseLeafMetadata(scope, i, children[i].kind);
+			const node = children[i];
+			if (!getBlockKindDescriptor(node.kind).isContainer) {
+				refuseMetadata(scope, i, `'${node.kind}' is a leaf, whose metadata comes from its bytes`);
 				return false;
 			}
+			const row = spelledRow(scope, node, { ...(node.metadata ?? {}), ...metadata });
+			if (row === null) {
+				refuseMetadata(scope, i, `'${node.kind}' has no spelling for that data`);
+				return false;
+			}
+			if (row?.unchanged) return false;
+			const rowBefore = node.children?.[0]?.raw;
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'metadataUpdate', detail: { fields } },
 				mutate: (view) => {
+					if (row) {
+						view.writeLeaf([i, 0], row);
+						return { op: 'noop' };
+					}
 					// Owned, so the commit rebuilds it and re-derives its kind: metadata can rewrite the
 					// opener line (an alert's type).
 					const [node] = view.own([i]);
@@ -465,7 +505,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				},
 				landing: () => {
 					const caret = options?.caret;
-					return caret ? scope.at(i, caret.path, caret.offset) : null;
+					if (!caret) return null;
+					const onRow = caret.path.length === 1 && caret.path[0] === 0;
+					const offset = onRow
+						? titleRowOffset(rowBefore, scope.children()[i], caret.offset)
+						: caret.offset;
+					return scope.at(i, caret.path, offset);
 				}
 			});
 		},

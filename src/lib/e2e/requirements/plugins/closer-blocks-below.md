@@ -8,7 +8,12 @@ Miss-analysis: the join check after a write asked only the pair of blocks beside
 
 - `:::note\n<div>\n`, Enter at the end of `<div>`, then `:::` on the new line under it: `:::note\n<div>\n\n:::\n`, one block holding the `<div>`, and the tree reloads as itself (the #684 report's own keys)
 - `$$\n<div>\n\nx\n`, Enter at the end of `x`, then `$$`: one math block from the first `$$` to the one typed, and the tree reloads as itself
-- `::::note\n\nx\n\n:::\n`, Delete at the start of the first line: the shortened `:::note` is an opener the keystroke wrote, so it gets a closer of its own (`:::note\n:::\n\nx\n\n:::\n`), the blocks below stay as they were, and the tree reloads as itself; Undo gives back the four colons, which reload as themselves too
+- `::::note\n\nx\n\n:::\n`, Delete at the start of the first line: the shortened `:::note` takes the `:::` below as its closer, one block, and the tree reloads as itself; Undo gives back the four colons and the three paragraphs, which reload as themselves too
+
+- `:::tip T`, `body`, `:::` in source mode, `x` typed between the second and third colon (the line becomes a leaf directive), then Backspace: the bytes are as they started, the closing line taken back rather than a second one written; Undo takes the Backspace back
+- the same callout, a colon deleted at the end of the run and typed back: the bytes are as they started
+
+Miss-analysis (#851): every closer row wrote a new opener, so no row broke an opener whose closing line stayed below and put it back.
 
 ## Edge cases
 

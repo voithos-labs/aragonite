@@ -70,11 +70,23 @@ const fold = container<FoldData>({
 	insert: { none: 'a test block type' },
 	draw
 });
+const spoiler = container<{ name: string }>({
+	name: 'spoiler',
+	label: 'Spoiler',
+	lines: colonLines({ names: ['spoiler', 'shown'] }),
+	closable: {
+		closed: (data) => data.name === 'spoiler',
+		set: (data, closed) => ({ ...data, name: closed ? 'spoiler' : 'shown' })
+	},
+	sample: ':::spoiler T\nbody\n:::\n',
+	insert: { none: 'a test block type' },
+	draw
+});
 const plugin = definePlugin({
 	name: 'counted',
 	version: '1.0.0',
 	editor: '*',
-	contributes: () => ({ blocks: [box, alert, fold] })
+	contributes: () => ({ blocks: [box, alert, fold, spoiler] })
 });
 
 /** Two letters typed at the end of `el`'s text, the caret already there. */
@@ -110,3 +122,14 @@ it.each([
 		expect(m.source()).toContain('bodyxy');
 	}
 );
+
+it('a key beside forty folded colon containers redraws none of them', async () => {
+	drawings.length = 0;
+	const folded = ':::spoiler T\nbody\n:::\n\n'.repeat(40);
+	const m = mountEditor({ source: `${folded}para\n`, plugins: [plugin] });
+	await m.settle();
+	expect(drawings).toHaveLength(40);
+	await twoKeys(m, surfaceAt(m, [40]));
+	expect(drawings).toHaveLength(40);
+	expect(drawings.filter((d) => d.updates > 0)).toEqual([]);
+});

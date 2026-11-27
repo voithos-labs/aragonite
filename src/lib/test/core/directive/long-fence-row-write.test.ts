@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // A key in the run of colons of a long `::::` fence holding a nested container writes the colons
-// typed, and the row reads as its bytes say; a body edit that needs a longer fence still grows it.
+// typed, and the row reads as its bytes say; a colon taken out takes one off the closing line, to no
+// fewer than the body needs; a body edit that needs a longer fence still grows it.
 // Miss-analysis: every opener-line row edited a three-colon fence, whose body asks no growth, so
 // the rebuild re-adding colons over a typed row never showed.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -105,8 +106,9 @@ describe('a key in the run of colons writes the colons typed', () => {
 			'::::::note Hi\nx\n:::tip\nner\n:::\n::::::\n',
 			':::w:::note Hi\nx\n:::tip\nner\n:::\n::::::\n'
 		],
-		['five colons, Backspace', F5, 4, 'Backspace', '::::note Hi' + REST5, ':::w:note Hi' + REST5],
-		['five colons, Delete', F5, 2, 'Delete', '::::note Hi' + REST5, '::w::note Hi' + REST5],
+		// A colon taken out takes the closing line's down with it, to the four the body needs.
+		['five colons, Backspace', F5, 4, 'Backspace', '::::note Hi' + REST4, ':::w:note Hi' + REST4],
+		['five colons, Delete', F5, 2, 'Delete', '::::note Hi' + REST4, '::w::note Hi' + REST4],
 		[
 			'a generic directive container',
 			'::::box Hi\nx\n:::tip\nner\n:::\n::::\n',

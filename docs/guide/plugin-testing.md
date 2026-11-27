@@ -120,7 +120,7 @@ You declare nothing: a subject gets the checks its shape can take. One table per
 | `openerLine` | Typing your opener above a block keeps the caret on a line it can type in. `not-applicable` unless a prefix of your first line waits on a closer below | yes |
 | `containerCopy` | A copy into or out of your container reads back inside it, your markers on every line it holds | no |
 | `containerDeclared` | Your line shape reads back every marker and line it writes | no |
-| `closable` | Closing your container writes data that reads closed, opening it data that reads open, and doing either twice writes the same data. `not-applicable` without `closable` | no |
+| `closable` | Closing your container writes data that reads closed, opening it data that reads open, doing either twice writes the same data, and your type can write that data into its bytes (a `:::` type's `set` names one of its own names). `not-applicable` without `closable` | no |
 
 **An inline construct.** `of: 'inline'`, and the subject is its full name (`wikilinks/note`). A marker pair is one subject, both its sides.
 

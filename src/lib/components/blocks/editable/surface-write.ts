@@ -47,6 +47,9 @@ export interface TextWrite {
 	/** The write already put its bytes on the side of a hidden edge the caret means (the auto-pair),
 	 *  so an insertion in it is not moved again. */
 	inPlace?: true;
+	/** The stretch of the block's text a delete at a caret removed as a selection would (a line
+	 *  delete), handed on as the selection the write replaced. */
+	removes?: { start: number; end: number };
 	/** What the caret memory kept for the block, taken by a route before it forgot or reset the
 	 *  caret's side (a composition, the input read back); spent here instead of a new hold. */
 	held?: HeldInsertion;
@@ -107,7 +110,8 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 					write.mode,
 					write.history,
 					began,
-					edit.caretAfter
+					edit.caretAfter,
+					write.removes
 				);
 		held.finish(changed);
 		if (!written.admitted) return written;
