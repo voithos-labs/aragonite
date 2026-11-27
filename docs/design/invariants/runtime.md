@@ -76,7 +76,7 @@ These checks run in three kinds of place:
 | G1.99 | A styled editor resolves the host colors, from the theme stylesheet or the page | A |
 | G1.104 | A plugin registers only from its `definePlugin` setup | N |
 | G1.106 | A range delete takes whole rows from a table it keeps an edge of | A·N |
-| G1.110 | A metadata write to a leaf is refused, since a leaf's metadata comes from its bytes | A·N |
+| G1.110 | A metadata write lands in bytes or is refused: a leaf's, or data its type can't spell | A·N |
 | G1.112 | A content write inside a commit leaves its fix-up to the commit | A·N |
 | G1.113 | A list item's drawn marker is its own opening bytes | A·P |
 | G1.115 | A caret restored inside a widget that can show its source opens the source at that byte | A·N |
@@ -163,7 +163,7 @@ These checks run in three kinds of place:
 
 **G1.6 · Clone-safe metadata.** A kind's `cloneMetadata` returns a copy that's safe to mutate independently, checked at both places a node is copied: `tree-operations/clone.ts :: cloneNode` and `tree-operations/unshare.ts :: copyNode`. Predicate `checkCloneSafeMetadata` (`node-shape.ts`) · `clone-safe-metadata.test.ts`.
 
-**G1.7 · Metadata writes route through `updateBlockMetadata`.** No predicate of its own; the rule is enforced by routing. `editor-actions/block-edit-core.ts :: updateBlockMetadata` rebuilds raw after the merge, and both factories delegate to the shared core, so metadata and bytes can't drift apart. A leaf has no rebuild, so the core refuses it (G1.110). G1.1 is the runtime backstop for a bypass. Test `test/editor-actions/update-block-metadata.test.ts`.
+**G1.7 · Metadata writes route through `updateBlockMetadata`.** No predicate of its own; the rule is enforced by routing. `editor-actions/block-edit-core.ts :: updateBlockMetadata` rebuilds raw after the merge, and both factories delegate to the shared core, so metadata and bytes can't drift apart. A leaf has no rebuild, so the core refuses it, and a `:::` type's name is written into its opening line (G1.110). G1.1 is the runtime backstop for a bypass. Test `test/editor-actions/update-block-metadata.test.ts`.
 
 **G1.8 · Well-formed content ranges.** `getContentRange` is well-formed for every kind that has one: the prose kinds, plus any non-prose kind declaring its own (the directive leaf does), because the range is consumed without asking `supportsInline` first. Predicate `checkContentRange` (`descriptor.ts`) · commit primitive · `descriptor.test.ts`.
 
@@ -275,7 +275,7 @@ These checks run in three kinds of place:
 
 **G1.106 · A kept table edge loses whole rows.** A selection that starts or ends inside a table and runs past it deletes whole rows of that table, never part of one. `coverRange` in `selection/range-coverage.ts` snaps both ends to a row's edge first. If a run that splits a row still shows up (only an end that skipped the snap could hand one over), `rangeCoverage` warns `invariant:kept-table-edge`. `test/selection/range-coverage.test.ts`.
 
-**G1.110 · A leaf takes no metadata write.** A leaf's metadata is what its opener reads from its bytes (a heading's level), so a metadata-only write is gone on reload. `updateBlockMetadata` refuses any non-container before writing (no bytes, no undo entry, no edit event); dev warns `invariant:metadata-without-rebuild`, and every build reports an `error` event (`origin: 'commit'`) pointing at `replaceRaw`. A maker-built type's data goes through `Draft.data`, which writes the bytes through the type's own writer. `update-block-metadata.test.ts`, `draft-data.svelte.test.ts`.
+**G1.110 · A metadata write lands in bytes or not at all.** A leaf's metadata is what its opener reads (a heading's level), and a `:::` type's data is the name its opening line spells. `updateBlockMetadata` writes that name into the line through the type's `writeData`, and refuses a leaf, or data the writer can't spell, before writing (no bytes, no undo entry, no edit event); dev warns `invariant:metadata-without-rebuild`, and every build reports an `error` event (`origin: 'commit'`). `update-block-metadata.test.ts`, `closable.svelte.test.ts`.
 
 **G1.112 · One fix-up per list.** A commit fixes up (`fixUpEdit`) each list it wrote once, so a mutation writes with `writeNodeContent`, reports through its scope's `describeEdit`, and leaves the fix-up to the commit; one using `updateNodeContent` and reporting there gets it twice, and dev warns `invariant:settle-once`. Unseen: two edits calling a separator helper by hand (codebase-map § Blank lines and separators). A scope's `writeLeaf` fixes up its slot as it lands and the commit the rest, so the check skips its lists. `settle-once.test.ts`, `settle-passes.test.ts`.
 

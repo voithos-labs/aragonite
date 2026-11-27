@@ -217,7 +217,9 @@ export const CHECKS: { readonly [C in CheckName]: CheckSpec<C> } = {
 	closable: {
 		excusable: false,
 		contract: {
-			block: promise('closing your container writes data that reads closed, and opening it open')
+			block: promise(
+				'closing your container writes data that reads closed, opening it open, in bytes it can spell'
+			)
 		}
 	},
 	containerDeclared: {

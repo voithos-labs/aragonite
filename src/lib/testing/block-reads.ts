@@ -33,7 +33,7 @@ export async function blockReadOutcomes(
 	];
 	const drawing = drawingOf(making.view);
 	if (drawing?.edit === 'container') {
-		rows.push(['closable', settled(() => closable(run, drawing.closable, samples))]);
+		rows.push(['closable', await settledAsync(() => closable(run, drawing.closable, samples))]);
 	}
 	return rows;
 }
@@ -100,7 +100,7 @@ async function dataWriteback(
 	making: BlockMaking,
 	samples: readonly string[]
 ): Promise<Outcome> {
-	if (!making.writeData)
+	if (!making.registration.writeData)
 		return { status: 'not-applicable', detail: 'lists no writer for its data' };
 	for (const sample of samples) {
 		const stage = run.stage(sample);
@@ -120,13 +120,13 @@ async function dataWriteback(
 	return { status: 'passed', detail: 'each sample’s data writes back to the same bytes' };
 }
 
-/** Each sample's data closed and opened through `closable.set`, read back through `closed`, then
- *  set the same way again. */
-function closable(
+/** Each sample's data closed and opened through `closable.set`, read back through `closed`, set
+ *  the same way again, and written into the bytes as a draft writes data. */
+async function closable(
 	run: PluginCheckRun,
 	fold: Closable<unknown> | undefined,
 	samples: readonly string[]
-): Outcome {
+): Promise<Outcome> {
 	if (!fold) return { status: 'not-applicable', detail: 'lists no closable' };
 	const problems: string[] = [];
 	for (const sample of samples) {
@@ -138,11 +138,24 @@ function closable(
 				problems.push(`${said} ${show(sample)} writes data that reads ${shut ? 'open' : 'closed'}`);
 			} else if (JSON.stringify(fold.set(once, shut)) !== JSON.stringify(once)) {
 				problems.push(`${said} ${show(sample)} twice writes different data`);
+			} else if (await unspelled(run, sample, once)) {
+				problems.push(`${said} ${show(sample)} writes data the type has no bytes for`);
 			}
 		}
 	}
 	if (problems.length > 0) return failed(problems.join('; '));
 	return { status: 'passed', detail: 'each sample closes and opens as its data then says' };
+}
+
+/** Whether `data` written into `sample`'s block is refused as data the type can't spell. */
+async function unspelled(run: PluginCheckRun, sample: string, data: unknown): Promise<boolean> {
+	const { editor } = run.stage(sample);
+	const [block] = editor.doc.blocks;
+	const result = await editor
+		.edit()
+		.data(block as Block<object>, data as object)
+		.commit();
+	return !result.ok && result.reason === 'illegal';
 }
 
 /** Each sample's `Doc`, read as `grammar(plugins).parse` reads one: every block of the type, and

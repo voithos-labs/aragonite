@@ -36,8 +36,8 @@ export type { ContainerLines } from '../core/parsers/strip-container';
 export type ContainerSpec<D extends object> = BlockCommon<D, Chord> & {
 	/** Text joined to its end from below lands in its deepest text block; default true. */
 	joins?: boolean;
-	/** Its body folds away under its title row, as the data says; for now only fenced lines with a
-	 *  title give a container one. */
+	/** Its body folds away under its title row, as the data says; fenced lines with a title and
+	 *  colon lines have one. */
 	closable?: Closable<NoInfer<D>>;
 } & (
 		| {
@@ -79,11 +79,8 @@ export function containerRegistration(
 	const reading = lines.shape === 'fenced' ? lines[READS_LINES] : null;
 	const colon = lines.shape === 'colon';
 	const titled = colon || reading?.title !== undefined;
-	// A colon type's data is its name, which its opening line spells and no metadata write reaches.
-	if (spec.closable && !reading?.title) {
-		throw new Error(
-			`container "${spec.name}": closable needs a title row, for now fenced lines with a title`
-		);
+	if (spec.closable && !titled) {
+		throw new Error(`container "${spec.name}": closable needs a title row to fold under`);
 	}
 	// A marked container's markers go with its first child; any other's lines stay with it.
 	const firstChild = marked ? 'lift-first-child-drop-opener' : 'lift-first-child-keep-container';

@@ -21,7 +21,7 @@ import { closesOwnLine, rejectIncoherentPairs } from './registration-pairs';
 import { isBlockView, type BlockView } from './block-view';
 import type { PluginActivation } from './plugin-activation';
 import type { RegistryRecord } from './plugin-registry';
-import type { BlockOpener } from './block-openers';
+import type { BlockOpener, GrammarView } from './block-openers';
 import type { LineShape, MarkedLines } from '../core/strip-lines';
 
 /**
@@ -204,6 +204,9 @@ export interface BlockKindDescriptor {
 	/** The body typed between the kind's own fence lines, or null before it has a body line. The
 	 *  empty-block hint may pass a shown source's text as `raw`, so read only `raw`. */
 	bodyRange?: (node: NodeView) => { start: number; end: number } | null;
+	/** The block's bytes with `data` written into them, null where the kind has no spelling for it;
+	 *  every data write reads it (a draft's, a metadata write's, a fold's). */
+	writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
 	/**
 	 * Recompute `raw` from children and metadata; `changed` names the one child whose raw moved
 	 * (ignoring it is correct). Return `{ rereads: true }` to have the new bytes read whole.
@@ -273,6 +276,7 @@ export const DESCRIPTOR_FIELDS = [
 	'getContentRange',
 	'contentStartBackspace',
 	'bodyRange',
+	'writeData',
 	'rebuildRaw',
 	'renderImagesAsWidgets',
 	'foreignDragHitTest',

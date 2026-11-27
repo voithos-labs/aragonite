@@ -5,7 +5,7 @@
 // Miss-analysis: every fold was a package's own component with its own caret rule and reading-mode
 // state, so no row held the editor's fold for a container a maker made.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { container, definePlugin } from '#lib/plugin.js';
+import { colonLines, container, definePlugin } from '#lib/plugin.js';
 import type { ContainerDrawContext } from '#lib/schema/drawing.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import {
@@ -15,6 +15,7 @@ import {
 	placeCaret,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { FOLD_LINES, FOLD_SAMPLE, type FoldData } from '#lib/test/support/fold-fixture.js';
 
 beforeAll(() => installLayoutStubs());
@@ -170,7 +171,7 @@ describe('a fold with no title row', () => {
 				sample: '%> body',
 				insert: { none: 'a test block type' }
 			});
-		expect(make).toThrow(/closable needs a title row, for now fenced lines with a title/);
+		expect(make).toThrow(/closable needs a title row to fold under/);
 	});
 });
 
@@ -184,5 +185,93 @@ describe('a reveal into a folded body', () => {
 		m.instance.runCommand('history.undo');
 		await m.settle();
 		expect(m.source()).toBe(AROUND(FOLD_SAMPLE));
+	});
+});
+
+// Miss-analysis: a fold wrote the data into metadata the rebuild never reads for a colon type, so
+// `closable` was refused there and no row folded a container whose name spells its data.
+describe('a colon type that folds by its name', () => {
+	const SPOILER = ':::spoiler T\nbody\n:::\n';
+	const SHOWN = ':::shown T\nbody\n:::\n';
+
+	function spoilers(set?: (closed: boolean) => string) {
+		const seen: { ctx: ContainerDrawContext | null } = { ctx: null };
+		const plugin = definePlugin({
+			name: 'spoilers',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				blocks: [
+					container<{ name: string }>({
+						name: 'spoiler',
+						label: 'Spoiler',
+						lines: colonLines({ names: ['spoiler', 'shown'] }),
+						closable: {
+							closed: (d) => d.name === 'spoiler',
+							set: (d, closed) => ({ ...d, name: set ? set(closed) : closed ? 'spoiler' : 'shown' })
+						},
+						sample: SPOILER,
+						insert: { none: 'a test block type' },
+						draw: (_block, ctx) => {
+							seen.ctx = ctx;
+							const dom = document.createElement('div');
+							dom.append(ctx.children);
+							return { dom };
+						}
+					})
+				]
+			})
+		});
+		return { plugin, ctx: () => seen.ctx! };
+	}
+
+	async function mountedSpoiler(source: string, set?: (closed: boolean) => string) {
+		const { plugin, ctx } = spoilers(set);
+		const m = mountEditor({ source, plugins: [plugin] });
+		await m.settle();
+		return { m, ctx };
+	}
+
+	it('opens by renaming its opening line, one undo step', async () => {
+		const { m, ctx } = await mountedSpoiler(AROUND(SPOILER));
+		expect(ctx().closed).toBe(true);
+		ctx().setClosed(false);
+		await m.settle();
+		expect(m.source()).toBe(AROUND(SHOWN));
+		expect([ctx().closed, bodyMounted(m)]).toEqual([false, true]);
+		m.instance.runCommand('history.undo');
+		await m.settle();
+		expect(m.source()).toBe(AROUND(SPOILER));
+	});
+
+	it('closes with the caret in the body, which goes to the title row', async () => {
+		const { m, ctx } = await mountedSpoiler(AROUND(SHOWN));
+		placeCaret(surfaceAt(m, [1, 1]), 2);
+		ctx().setClosed(true);
+		await m.settle();
+		expect(m.source()).toBe(AROUND(SPOILER));
+		expect(m.instance.getSelection()?.focus.path).toEqual([1, 0]);
+	});
+
+	it('opens on a reveal into its folded body', async () => {
+		const { m, ctx } = await mountedSpoiler(AROUND(SPOILER));
+		await m.instance.getRects().navigateTo([1, 1], 2);
+		await m.settle();
+		expect(m.source()).toBe(AROUND(SHOWN));
+		expect(ctx().closed).toBe(false);
+	});
+
+	it('refuses a name the type doesn’t hold, the bytes kept and the refusal reported', async () => {
+		const { m, ctx } = await mountedSpoiler(AROUND(SPOILER), (closed) =>
+			closed ? 'spoiler' : 'gone'
+		);
+		const errors: unknown[] = [];
+		m.instance.on('error', (e) => void errors.push(e));
+		ctx().setClosed(false);
+		await m.settle();
+		expect(m.source()).toBe(AROUND(SPOILER));
+		expect(errors).toHaveLength(1);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:metadata-without-rebuild']);
+		expect(m.instance.canRunCommand('history.undo')).toBe(false);
 	});
 });

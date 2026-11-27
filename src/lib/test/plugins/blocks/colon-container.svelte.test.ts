@@ -186,22 +186,6 @@ describe('a colon type’s data and attributes', () => {
 		expect(result).toMatchObject({ ok: false, reason: 'illegal' });
 		expect(m.source()).toBe(':::aside T\nbody\n:::\n');
 	});
-
-	it('takes no fold yet, refused when the type is made', () => {
-		const make = () =>
-			container<ColonData>({
-				name: 'spoiler',
-				label: 'Spoiler',
-				lines: colonLines({ names: ['spoiler', 'shown'] }),
-				closable: {
-					closed: (d) => d.name === 'spoiler',
-					set: (d, closed) => ({ ...d, name: closed ? 'spoiler' : 'shown' })
-				},
-				sample: ':::spoiler T\nbody\n:::\n',
-				insert: { none: 'a test block type' }
-			});
-		expect(make).toThrow(/closable needs a title row, for now fenced lines with a title/);
-	});
 });
 
 describe('a colon type’s title row', () => {

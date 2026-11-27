@@ -4,7 +4,7 @@
 // Miss-analysis: no check read `closable` at all, so a `set` that inverted the flag gave a toggle
 // that wrote and did nothing, with every row green.
 import { describe, expect, it } from 'vitest';
-import { container, definePlugin } from '#lib/plugin.js';
+import { colonLines, container, definePlugin } from '#lib/plugin.js';
 import { check, isCheckFailure, type CheckReport } from '#lib/testing/check.js';
 import { FOLD_LINES, FOLD_SAMPLE, type FoldData } from '#lib/test/support/fold-fixture.js';
 
@@ -70,5 +70,42 @@ describe('closable', () => {
 	it('does not apply to a container that does not fold', async () => {
 		const row = await closableRow(foldWith('fold-fixed', undefined));
 		expect(row?.status).toBe('not-applicable');
+	});
+});
+
+/** A colon type folding by its name, `set` naming `open` for an opened one. */
+const spoilerWith = (name: string, open: string) =>
+	definePlugin({
+		name,
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({
+			blocks: [
+				container<{ name: string }>({
+					name: 'spoiler',
+					label: 'Spoiler',
+					lines: colonLines({ names: ['spoiler', 'shown'] }),
+					closable: {
+						closed: (data) => data.name === 'spoiler',
+						set: (data, shut) => ({ ...data, name: shut ? 'spoiler' : open })
+					},
+					sample: ':::spoiler T\nbody\n:::\n',
+					insert: { none: 'a fixture of the check suite' }
+				})
+			]
+		})
+	});
+
+describe('closable on a colon type', () => {
+	it('passes a fold between two names the type holds', async () => {
+		expect(await closableRow(spoilerWith('spoiler-kept', 'shown'))).toMatchObject({
+			status: 'passed'
+		});
+	});
+
+	it('fails a fold to a name the type does not hold', async () => {
+		const row = await closableRow(spoilerWith('spoiler-gone', 'gone'));
+		expect(row?.status).toBe('failed');
+		expect(row?.detail).toMatch(/no bytes for/);
 	});
 });

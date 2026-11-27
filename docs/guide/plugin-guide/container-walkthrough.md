@@ -188,6 +188,6 @@ The flip is one undoable edit, so undo un-debunks it, which is how conspiracies 
 
 The wrapper and the two `light`s are there because the editor paints no background of its own. A fresh app's page is white, so the built-in chrome (the wrapper's attribute) and the editor's own surfaces (the prop) both have to say so; on a dark page, both say `dark`, or nothing. [consumer-guide.md](../consumer-guide.md)'s theming section explains the two tiers.
 
-Want a collapse toggle? A box on fenced lines folds under its title with `closable` (`fencedLines`, with a title line); a `:::` box can't fold yet.
+Want a collapse toggle? Give the type `closable`. A box on fenced lines folds under its title line. A `:::` box folds by its name: list two names, say `spoiler` and `shown`, and the fold renames the opening line from one to the other.
 
 ![A conspiracy, debunked](./conspiracy.png)
