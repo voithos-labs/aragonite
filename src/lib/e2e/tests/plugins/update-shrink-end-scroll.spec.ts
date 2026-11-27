@@ -31,44 +31,72 @@ interface Change {
 
 const caretAbove = (page: Page) => clickInPlace(page.locator('.editor').getByText(LAST_PARAGRAPH));
 
+async function caretInBody(page: Page, box: Locator) {
+	await clickInPlace(box.getByText('body line'));
+	await expect(box).toHaveAttribute('data-caret-in', 'true');
+}
+
+const switchMode = (editor: PluginsPage) => editor.setPresentationMode('reading');
+const switchTheme = (editor: PluginsPage) => clickInPlace(editor.page.getByTestId('theme-toggle'));
+const fold = (expanded: 'true' | 'false') => async (_editor: PluginsPage, box: Locator) => {
+	const toggle = box.locator('.shrink-toggle');
+	await clickInPlace(toggle);
+	await expect(toggle).toHaveAttribute('aria-expanded', expanded);
+};
+
+// The caret in the block too, where an edit of its own would skip the keep: these changes are no edit.
 const CHANGES: Change[] = [
 	{
-		name: 'switching to reading mode',
+		name: 'switching to reading mode, the caret above',
 		open: true,
 		keeps: 'end',
 		prepare: caretAbove,
-		run: (editor) => editor.setPresentationMode('reading')
+		run: switchMode
 	},
 	{
-		name: 'switching the theme',
+		name: 'switching to reading mode, the caret in the block',
+		open: true,
+		keeps: 'end',
+		prepare: caretInBody,
+		run: switchMode
+	},
+	{
+		name: 'switching the theme, the caret above',
 		open: true,
 		keeps: 'end',
 		prepare: caretAbove,
-		run: (editor) => clickInPlace(editor.page.getByTestId('theme-toggle'))
+		run: switchTheme
+	},
+	{
+		name: 'switching the theme, the caret in the block',
+		open: true,
+		keeps: 'end',
+		prepare: caretInBody,
+		run: switchTheme
 	},
 	{
 		name: 'the caret leaving the block',
 		open: true,
 		keeps: 'end',
-		async prepare(page, box) {
-			await clickInPlace(box.getByText('body line'));
-			await expect(box).toHaveAttribute('data-caret-in', 'true');
-		},
+		prepare: caretInBody,
 		async run(editor, box) {
 			await caretAbove(editor.page);
 			await expect(box).toHaveAttribute('data-caret-in', 'false');
 		}
 	},
 	{
-		name: 'opening its fold',
+		name: 'opening its fold, the caret above',
 		open: false,
 		keeps: 'scrollTop',
 		prepare: caretAbove,
-		async run(_editor, box) {
-			const toggle = box.locator('.shrink-toggle');
-			await clickInPlace(toggle);
-			await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-		}
+		run: fold('true')
+	},
+	{
+		name: 'closing its fold, the caret in its body',
+		open: true,
+		keeps: 'end',
+		prepare: caretInBody,
+		run: fold('false')
 	}
 ];
 

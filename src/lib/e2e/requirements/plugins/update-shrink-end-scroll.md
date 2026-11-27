@@ -25,6 +25,10 @@ before and after the change.
 
 ## Edge cases
 
+- The editor leaves the scroll alone for an edit made with the caret in the block's own text or
+  children, so reading mode, the theme and closing the fold also run with the caret in the block,
+  where none of them is an edit: each still ends at the document's end (closing the fold from its
+  body moves the caret to the title)
 - Each test checks its setup before acting: the document really is windowed, the container
   really is at its bottom, and the drawing's `update` really ran for the change, so a fixture that
   stops doing any of those fails instead of passing for nothing

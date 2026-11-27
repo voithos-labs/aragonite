@@ -28,8 +28,8 @@ export interface DrawContext {
 	/** Fills `el` with what `produce` makes, cached per theme and block bytes (as typed while its source
 	 *  is open); a throw or a rejection shows those bytes with the error instead. */
 	render(el: HTMLElement, produce: (theme: string) => Node | Promise<Node>): void;
-	/** Read the scroll position before your drawing changes height on its own (an expander's
-	 *  click); await the returned restore once it has. Around `update` the editor does it for you. */
+	/** Read the scroll position before your drawing changes height on its own, and await the restore
+	 *  once it has. Around `update` the editor does it, except after an edit in your text or children. */
 	keepScroll(): () => Promise<void>;
 	/** Whether `event` on a link your drawing holds follows it, by the host's rule: the click it
 	 *  picked for links, or Enter or Space on the focused link. */

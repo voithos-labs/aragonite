@@ -408,27 +408,41 @@
 		document.addEventListener(e.type, unmark, { once: true });
 	}
 
-	function watched(): unknown[] {
-		const mode = editorDoc.reading.mode();
-		return [node.raw, myPath.join(), mode, policies.theme(), focused(), typed, readerClosed];
+	interface Watched {
+		written: unknown[];
+		shown: unknown[];
 	}
 
-	let seen: unknown[] = [];
+	function watched(): Watched {
+		const mode = editorDoc.reading.mode();
+		return {
+			written: [node.raw, typed],
+			shown: [myPath.join(), mode, policies.theme(), focused(), closedNow()]
+		};
+	}
+
+	const same = (now: unknown[], before: unknown[]) =>
+		now.every((value, i) => Object.is(value, before[i]));
+
+	let seen: Watched = { written: [], shown: [] };
 	$effect(() => {
 		const now = watched();
 		// Every write, for a drawing with `depends`: its answers say whether `update` runs.
 		if (view.depends) editorDoc.contentVersion();
 		untrack(() => {
 			const answered = keys?.version() ?? 0;
-			if (!drawn || (answered === heard && now.every((value, i) => Object.is(value, seen[i]))))
-				return;
+			const sameView = answered === heard && same(now.shown, seen.shown);
+			if (!drawn || (sameView && same(now.written, seen.written))) return;
 			seen = now;
 			heard = answered;
 			// Keeping the scroll reads every mounted block's box, and with no `update` nothing redraws.
 			if (!drawn.update) return;
-			const restore = keepScroll();
+			// An edit with the caret in the block's own text or children grows where the caret is; a
+			// box's bytes change at its own commit, which can swap what it shows.
+			const inPlace = sameView && focused() && view.edit !== 'box';
+			const restore = inPlace ? null : keepScroll();
 			if (drawn.update(read(), ctx) === false) generation++;
-			void restore();
+			void restore?.();
 		});
 	});
 </script>
