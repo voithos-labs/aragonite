@@ -5,6 +5,7 @@
  */
 
 import { metadataIfKind } from '../core/nodes';
+import { numberingOf, type OrderedNumbering } from '../tree-operations/list/ordered-markers';
 import { nodeAt, readDoc, type Doc } from './document';
 import type { LaidBlock } from './layout';
 import type { Edit } from './leaf-splice';
@@ -20,13 +21,21 @@ export function numberedOn(doc: Doc, from: number, to: number, out: string): str
 		const items = node.children.map((_, i) => layout.block([...list.path, i])!);
 		const kept = items.filter((item) => item.from >= to);
 		if (kept.length === 0 || kept.length === items.length) continue;
+		const { start, step } = numberingIn(source, items);
 		const above = items.filter((item) => item.from < from).at(-1);
-		let next = markerOf(source, above ?? items[0])?.number ?? 1;
-		if (above) next++;
+		let next = above ? (markerOf(source, above)?.number ?? 0) + step : start;
+		// An item the range ends inside that keeps its marker leads what is left, so it takes the start.
+		const held = above ? undefined : items.find((item) => item.from < to && item.to > to);
+		const lead =
+			held && markerLeading(out, to + out.length - source.length, out.length - source.length);
+		if (held && lead && lead.number === markerOf(source, held)?.number) {
+			if (lead.number !== next) renumber(edits, source, held, lead, next);
+			next += step;
+		}
 		for (const item of kept) {
 			const marker = markerOf(source, item);
 			if (marker && marker.number !== next) renumber(edits, source, item, marker, next);
-			next++;
+			next += step;
 		}
 	}
 	return written(out, edits, out.length - source.length);
@@ -49,9 +58,11 @@ export function numberedAfterSplit(
 	const shift = out.length - source.length;
 	const edits: Renumbering[] = [];
 	const own = markerOf(source, items[index]);
-	let next = (own?.number ?? 1) + 1;
+	const { step } = numberingIn(source, items);
+	let next = (own?.number ?? 1) + step;
 	if (copyAt !== null && own) {
-		const insert = String(next++);
+		const insert = String(next);
+		next += step;
 		const at = copyAt + own.from - items[index].lineAt!(items[index].from).from - shift;
 		edits.push({ at, remove: own.to - own.from, insert });
 		indented(edits, source, items[index], insert.length - (own.to - own.from), to);
@@ -59,7 +70,7 @@ export function numberedAfterSplit(
 	for (const item of items.slice(index + 1)) {
 		const marker = markerOf(source, item);
 		if (marker && marker.number !== next) renumber(edits, source, item, marker, next);
-		next++;
+		next += step;
 	}
 	return written(out, edits, shift);
 }
@@ -67,8 +78,8 @@ export function numberedAfterSplit(
 /** `edit`, a paste whose items the ordered list at `list` took in after its item `index`, with the
  *  items from there on numbered on from that item's number. */
 export function numberedAfterTaking(doc: Doc, list: LaidBlock, index: number, edit: Edit): Edit {
-	const after = (items: LaidBlock[], source: string) =>
-		(markerOf(source, items[index])?.number ?? 1) + 1;
+	const after = (items: LaidBlock[], source: string, step: number) =>
+		(markerOf(source, items[index])?.number ?? 1) + step;
 	return numberedFrom(doc, list, edit, index + 1, after);
 }
 
@@ -81,30 +92,51 @@ export function numberedFromHead(doc: Doc, list: LaidBlock, edit: Edit): Edit {
 }
 
 /** `edit` with the items of the ordered list at `list` from item `from` on numbered on from the
- *  number `first` reads off the new bytes. */
+ *  number `first` reads off the new bytes, by the step the list had before the edit. */
 function numberedFrom(
 	doc: Doc,
 	list: LaidBlock,
 	edit: Edit,
 	from: number,
-	first: (items: LaidBlock[], source: string) => number
+	first: (items: LaidBlock[], source: string, step: number) => number
 ): Edit {
-	if (!metadataIfKind(nodeAt(doc, list.path), 'list')?.ordered) return edit;
+	const before = nodeAt(doc, list.path);
+	if (!metadataIfKind(before, 'list')?.ordered) return edit;
+	const laid = before.children!.map((_, i) => doc.layout.block([...list.path, i])!);
+	const { step } = numberingIn(doc.source, laid);
 	const read = readDoc(edit.source, doc.host, doc.mode);
 	const node = nodeAt(read, list.path);
 	if (!metadataIfKind(node, 'list')?.ordered) return edit;
 	const items = node.children!.map((_, i) => read.layout.block([...list.path, i])!);
 	const edits: Renumbering[] = [];
-	let next = first(items, read.source);
+	let next = first(items, read.source, step);
 	for (const item of items.slice(from)) {
 		const marker = markerOf(read.source, item);
 		if (marker && marker.number !== next) renumber(edits, read.source, item, marker, next);
-		next++;
+		next += step;
 	}
 	const grown = edits
 		.filter((e) => e.at < edit.caret)
 		.reduce((sum, e) => sum + e.insert.length - e.remove, 0);
 	return { source: written(edit.source, edits, 0), caret: edit.caret + grown };
+}
+
+/** How the ordered list holding `items` counts, read off its first two numbers in `source`. */
+function numberingIn(source: string, items: LaidBlock[]): OrderedNumbering {
+	return numberingOf(
+		markerOf(source, items[0])?.number ?? null,
+		markerOf(source, items[1])?.number ?? null
+	);
+}
+
+/** The marker opening the line of `out` that byte `at` sits on, its digits placed as a source byte
+ *  `shift` before them; null for a line that opens with none. */
+function markerLeading(out: string, at: number, shift: number): Marker | null {
+	const line = out.lastIndexOf('\n', at - 1) + 1;
+	const digits = /^[ \t>]*(\d+)[.)]/.exec(out.slice(line, at));
+	if (!digits) return null;
+	const from = line + digits[0].length - 1 - digits[1].length - shift;
+	return { number: Number(digits[1]), from, to: from + digits[1].length };
 }
 
 /** `out` with `edits` made, each at its byte of the source plus `shift`. */
