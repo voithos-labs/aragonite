@@ -20,12 +20,12 @@ export function numberedOn(doc: Doc, from: number, to: number, out: string): str
 		if (!node.children || !metadataIfKind(node, 'list')?.ordered) continue;
 		const items = node.children.map((_, i) => layout.block([...list.path, i])!);
 		const kept = items.filter((item) => item.from >= to);
-		if (kept.length === 0 || kept.length === items.length) continue;
+		// An item the range ends inside that keeps its marker is the first item numbered on.
+		const held = heldLead(source, out, items, from, to);
+		if ((kept.length === 0 && !held) || kept.length === items.length) continue;
 		const { start, step } = numberingIn(source, items);
 		const above = items.filter((item) => item.from < from).at(-1);
 		let next = above ? (markerOf(source, above)?.number ?? 0) + step : start;
-		// An item the range ends inside that keeps its marker leads what is left, so it takes the start.
-		const held = above ? null : heldLead(source, out, items, from, to);
 		if (held) {
 			if (held.marker.number !== next) renumber(edits, source, held.item, held.marker, next);
 			next += step;

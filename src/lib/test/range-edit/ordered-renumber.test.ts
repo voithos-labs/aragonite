@@ -119,6 +119,27 @@ describe('a removal from above a list into an item', () => {
 	});
 });
 
+// Miss-analysis: every held row had nothing of its list above the range and an item after the held
+// one, so a held item under a kept item, or ending its list, never took its number.
+describe('an item the removal ends inside numbers on wherever it sits', () => {
+	it.each([
+		{
+			name: 'under an item the range starts in',
+			source: '1. a\n\n   ```\n   code\n   ```\n2. b\n3. ccc\n4. d\n',
+			rest: '   ```\n2. cc\n3. d\n'
+		},
+		{
+			name: 'as the last item of its list',
+			source: '```\ncode\n```\n\n9. a\n10. bbb\n',
+			rest: '```\n9. bb\n'
+		}
+	])('$name', ({ source, rest }) => {
+		const range = { from: after(source, 'co'), to: source.search(/b{3}|c{3}/) + 1 };
+		const out = editRange(source, range, 'delete', 'source', checkHost()).source;
+		expect(out.slice(-rest.length)).toBe(rest);
+	});
+});
+
 // The marker on the line the tail joins is the start line's own, so the item left leading the
 // list takes the start.
 describe('a removal whose tail joins a line holding its own marker', () => {
