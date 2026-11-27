@@ -480,10 +480,9 @@ function pairLines(rawText: string, body: string, childStart: (index: number) =>
 		toRaw(bodyOffset) {
 			const b = lineHolding(bodyLines, bodyOffset);
 			const r = carrier[b];
-			// A body line no raw line carries (an alert's empty body under its head line) sits at the
-			// end of the raw line before the next one carried, its ending on that line's.
-			const rawIndex = r ?? (carrier.slice(b + 1).find((at) => at !== undefined) ?? raw.length) - 1;
-			const line = raw[Math.max(rawIndex, 0)];
+			// The carried body lines come first, so one no raw line carries (an alert's empty body under
+			// its head line) sits at the end of the last raw line, its ending on that line's.
+			const line = raw[r ?? raw.length - 1];
 			if (!line) return 0;
 			const textEnd = line.start + line.text.length;
 			if (!bodyLines[b]) return textEnd;
