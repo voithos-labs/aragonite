@@ -1,6 +1,6 @@
 // @vitest-environment node
 // `check` over a container on fenced lines: every row passes for one that escapes a body line
-// spelling its closing line, a body line that closes it early fails `terminatorCollision`, and a
+// spelling its closing line, in LF or CRLF; a body line that closes it early fails `terminatorCollision`, and a
 // title row is typed in. A container marked line by line has neither row to run.
 // Miss-analysis: the two rows ran only in the kit's own runner, over a profile a package wrote, so
 // no check held a container a maker made to its closing line or its title row.
@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { container, definePlugin, fencedLines } from '#lib/plugin.js';
 import { check, isCheckFailure, type CheckReport } from '#lib/testing/check.js';
 import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
-import { folds, FOLD_SAMPLE } from '#lib/test/support/fold-fixture.js';
+import { folds, FOLD_LINES, FOLD_SAMPLE } from '#lib/test/support/fold-fixture.js';
 
 async function reportOf(run: Promise<CheckReport>): Promise<CheckReport> {
 	return run.catch((error: unknown) => {
@@ -58,6 +58,24 @@ describe('check over a fenced container', () => {
 			'folds/fold terminatorCollision passed',
 			'folds/fold titleRow passed'
 		]);
+	});
+
+	it('passes every row on a sample whose lines end in CRLF, its title row among them', async () => {
+		const crlf = container({
+			name: 'fold',
+			label: 'Fold',
+			lines: FOLD_LINES,
+			sample: FOLD_SAMPLE.replace(/\n/g, '\r\n'),
+			insert: { none: 'a fixture of the check suite' }
+		});
+		const plugin = definePlugin({
+			name: 'folds',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ blocks: [crlf] })
+		});
+		const report = await reportOf(check(plugin));
+		expect(report.rows.filter((row) => row.status === 'failed')).toEqual([]);
 	});
 
 	it.each([
