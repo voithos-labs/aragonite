@@ -454,6 +454,21 @@ const MIXED_ENDING_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: no drawn document put an alert's empty body on a CRLF line over a lone `\n` one, and
+// the byte map put that body's `\n` on its `\r`.
+const EMPTY_BODY_ENDING_ROWS: NamedRow[] = [
+	...cut(
+		'L4 with mixed line endings text joined onto an alert’s empty body keeps its own line ending',
+		'- > [!NOTE]⟦\r\n- ⟧next\n',
+		'- > [!NOTE]next\n'
+	),
+	...cut(
+		'L4 with mixed line endings a range from an alert’s empty body to the end leaves the last line’s ending',
+		'- > [!NOTE]⟦\r\n- next\n⟧',
+		'- > [!NOTE]\n'
+	)
+];
+
 // Miss-analysis: every range the rows drew into a block that runs on ended mid-line, so none ended at
 // a line's end, where whole lines took that line and its markers stood again before the next line's.
 const LINE_END_ROWS: NamedRow[] = [
@@ -917,6 +932,7 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...ENTERED_ROWS,
 	...MIXED_ROWS,
 	...MIXED_ENDING_ROWS,
+	...EMPTY_BODY_ENDING_ROWS,
 	...LINE_END_ROWS,
 	...COMPOSITION_ROWS,
 	...LINE_BREAK_ROWS,

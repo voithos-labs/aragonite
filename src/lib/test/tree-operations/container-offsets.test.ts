@@ -220,3 +220,55 @@ describe('every offset of a nested block, its line ending included', () => {
 		}
 	}
 });
+
+// Miss-analysis: every container in the rows above gives its body a line of its own, so none read
+// the branch for a body no raw line carries, an alert's empty body under its head line.
+describe('an empty body under a head line, at its LF twin’s bytes', () => {
+	const SHAPES: Record<string, string> = {
+		'alert, the whole document': '> [!NOTE]\n',
+		'alert, mid-document': 'intro\n\n> [!NOTE]\n\nafter\n',
+		'alert, no final line ending after it': 'intro\n\n> [!NOTE]\n\nafter',
+		'alert in a quote': '> > [!NOTE]\n',
+		'alert in a list item': '- > [!NOTE]\n- next\n',
+		'alert in a quote, mid-document': 'intro\n\n> > [!NOTE]\n\nafter\n'
+	};
+
+	/** The byte map's answer for each offset of the alert's empty body, and that body's raw. */
+	const bodyBytes = (source: string) => {
+		installPlugins(SYNTAX_PLUGINS);
+		const doc = readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
+		const map = documentByteMap(measured(doc));
+		const paths = allBlockPaths(doc).filter(
+			(path) => blockNodeAt(doc, path.slice(0, -1))?.kind === 'githubAlert'
+		);
+		expect(paths, 'the alert holds one block').toHaveLength(1);
+		const [path] = paths;
+		const { raw } = blockNodeAt(doc, path)!;
+		const bytes = Array.from({ length: raw.length + 1 }, (_, i) => map.byteOf(path, i)!);
+		return { raw, bytes, end: map.endOf(path, raw.length) };
+	};
+
+	for (const [name, lf] of Object.entries(SHAPES)) {
+		it(`${name}, LF: its line ending's byte, then past it`, () => {
+			const { raw, bytes, end } = bodyBytes(lf);
+			expect(raw).toBe('\n');
+			expect(bytes).toEqual([lf.indexOf('\n', lf.indexOf(']')), end]);
+		});
+
+		it(`${name}, CRLF: at its LF twin's bytes, its \`\\n\` one past its \`\\r\``, () => {
+			// Where each LF byte goes once every `\n` before it is written `\r\n`.
+			const carried = (byte: number) => byte + lf.slice(0, byte).split('\n').length - 1;
+			const [atEnding, past] = bodyBytes(lf).bytes.map(carried);
+			const source = lf.replaceAll('\n', '\r\n');
+			const { raw, bytes, end } = bodyBytes(source);
+			expect(raw).toBe('\r\n');
+			expect(bytes).toEqual([atEnding, atEnding + 1, past]);
+			expect([source[bytes[0]], source[bytes[1]], end]).toEqual(['\r', '\n', past]);
+		});
+	}
+
+	it('with no line ending of its own, sits at the end of the head line', () => {
+		expect(bodyBytes('> [!NOTE]').bytes).toEqual([9]);
+		expect(bodyBytes('intro\r\n\r\n> [!NOTE]').bytes).toEqual([18]);
+	});
+});
