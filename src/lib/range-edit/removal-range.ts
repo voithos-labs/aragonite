@@ -22,16 +22,19 @@ import {
 import { byteAt } from './leaf-splice';
 import { lineHead } from './lines';
 
-/** The range narrowed to what a removal takes: a live code block's hidden opening fence and the
- *  last line ending stay, a title row loses only its text, an emptied container keeps its markers. */
+/** The range narrowed to what a removal takes: hidden or one-line fences and the last line ending
+ *  stay, a title row loses only its text, an emptied container keeps its markers. */
 export function removalRange(doc: Doc, start: number, end: number): { from: number; to: number } {
 	// A range from the block's first byte holds it whole, so its fences go with it.
-	const code = doc.mode === 'live' && !heldAt(doc, start, end) ? leafAt(doc, start) : null;
-	const body = code && fenceBody(doc, code.leaf);
-	let from = body ? Math.max(start, body.from) : start;
-	// A range that leaves the block runs on; the removal keeps the hidden closing line.
-	const stays = body && end <= contentEnd(doc, code.leaf);
-	let to = stays ? Math.max(from, Math.min(end, body.to)) : end;
+	const leaf = heldAt(doc, start, end) ? undefined : leafAt(doc, start)?.leaf;
+	const body = leaf && literalBody(doc, leaf);
+	const shown = body && doc.mode === 'live' && fenceBody(doc, leaf);
+	let from = shown ? Math.max(start, body.from) : start;
+	// A range that leaves the block runs on. One that ends in it keeps the hidden closing line, and
+	// a closer on the body's line from any start past the opener.
+	const keeps = shown || (body && body.oneLine && from >= body.from);
+	const stays = keeps && end <= contentEnd(doc, leaf!);
+	let to = stays ? Math.max(from, Math.min(end, body!.to)) : end;
 	const final = ownTrailingLineEnding(doc.source);
 	if (to === doc.source.length && to - final.length > from) to -= final.length;
 	from = pastOpening(doc, from, to);
@@ -98,28 +101,28 @@ export function holdsText(doc: Doc, from: number, to: number): boolean {
 
 /** The body of a fenced block a caret can enter, between its fence lines; null for any other block.
  *  A block drawn as a picture of its source is held whole, never entered. */
-export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
+export function fenceBody(doc: Doc, leaf: LaidBlock): LiteralBody | null {
 	return factsOf(doc, leaf).textPosition === 'always' ? literalBody(doc, leaf) : null;
 }
 
-/** The bytes between a literal block's fence lines, a picture of its source's too, or the body its
- *  kind declares where no fence line opens it (a one-line `$$x^2$$`); null for none. */
-export function literalBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
+/** The bytes between a literal block's fences, a picture of its source's too, and whether its
+ *  closer shares the body's line; null for none. */
+export function literalBody(doc: Doc, leaf: LaidBlock): LiteralBody | null {
 	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
 	if (!holdsLiteralBody(doc.host.facts, leaf.type, parentOf(doc, leaf)?.type)) return null;
-	const node = nodeAt(doc, leaf.path);
-	const { raw } = node;
-	const fence = doc.host.fence(raw);
-	const declared = fence ? null : doc.host.body(node);
-	if (declared)
-		return { from: byteAt(doc, leaf, declared.start), to: byteAt(doc, leaf, declared.end) };
+	const fence = doc.host.fence(nodeAt(doc, leaf.path));
 	if (!fence) return null;
-	const { body, closer } = fence;
-	const end =
-		closer === null
-			? raw.replace(/\r?\n$/, '').length
-			: closer - (raw[closer - 2] === '\r' ? 2 : 1);
-	return { from: byteAt(doc, leaf, body), to: byteAt(doc, leaf, Math.max(body, end)) };
+	return {
+		from: byteAt(doc, leaf, fence.body),
+		to: byteAt(doc, leaf, fence.end),
+		oneLine: fence.oneLine
+	};
+}
+
+interface LiteralBody {
+	from: number;
+	to: number;
+	oneLine: boolean;
 }
 
 /** The last place a caret takes in the block ending at `at`: a fenced block's body end, a container's

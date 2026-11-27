@@ -6,7 +6,8 @@
  */
 
 import type { NodeView } from '../core/node-views';
-import { makeBlockNode } from '../core/nodes';
+import { makeBlockNode, type AnyBlockKind } from '../core/nodes';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import {
 	constructContentRange,
 	getContentRange,
@@ -104,7 +105,7 @@ export function replaceDrawnRange(
 }
 
 /** The block's text inside its own markers and any run around all of it, where `range` covers that
- *  whole text in a reading that hides them; null for any other range. */
+ *  whole text in a reading that hides them; null for any other range, and for a fenced block. */
 function wholeTextInside(
 	node: NodeView,
 	range: { start: number; end: number },
@@ -112,6 +113,8 @@ function wholeTextInside(
 ): { start: number; end: number } | null {
 	const { reading } = store;
 	if (range.start >= range.end || !reading.hidesDelimitersAtCaret()) return null;
+	// A fenced block's fences hold its body, so a range over that whole body leaves them standing.
+	if (tryGetBlockKindDescriptor(node.kind as AnyBlockKind)?.bodyRange) return null;
 	const content = getContentRange(node);
 	if (range.start > content.start || range.end < content.end || content.start >= content.end) {
 		return null;

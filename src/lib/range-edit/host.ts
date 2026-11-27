@@ -179,16 +179,15 @@ export interface RangeHost {
 	/** `text` as the body of each container from the block at `path` up takes it: a line that would
 	 *  close one of them comes in escaped. */
 	inBodies(doc: DocumentView, path: readonly number[], text: string): string;
-	/** The fence a block's bytes open, by the openers of the editor's grammar; null for none. */
-	fence(raw: string): Fence | null;
+	/** The fence a block's bytes open: lines the editor's grammar opens and closes, or the body its
+	 *  kind declares (`bodyRange`) between syntax on its one line, as `$$x^2$$`; null for none. */
+	fence(node: NodeView): Fence | null;
 	/** Where the text of the line holding `at` starts from `at`, past the markers of the grammar's
 	 *  marked containers, in any order, spaces and tabs free between them. */
 	pastMarkers(text: string, at: number): number;
 	/** Whether `line` already keeps two blocks inside containers of `kinds` (outermost first) apart:
 	 *  blank past one marker of each, or holding only markers no paragraph runs into (a quote's). */
 	blankIn(kinds: readonly string[], line: string): boolean;
-	/** The body the block's kind declares between its own fences (`bodyRange`), on one line too. */
-	body(node: NodeView): { start: number; end: number } | null;
 	/** `raw`, the bytes of the container at `path` once an edit in its body landed, with its own lines
 	 *  as its kind writes them around that body: a `:::` fence one colon past a closing line in it. */
 	rewritten(doc: DocumentView, path: readonly number[], raw: string): string;
@@ -204,8 +203,12 @@ export interface PasteHost extends RangeHost {
 export interface Fence {
 	/** Where the body starts in the block's bytes. */
 	body: number;
-	/** Where the closing line starts; null while nothing closes the fence. */
+	/** Where the body ends: before the closing line's line ending, or the closer on its line. */
+	end: number;
+	/** Where the closing syntax starts; null while nothing closes the fence. */
 	closer: number | null;
+	/** The block is one line, its closer on the body's line rather than a line of its own. */
+	oneLine: boolean;
 	/** Whether a line written into the body could close the fence. */
 	mayClose(line: string): boolean;
 }
@@ -397,7 +400,6 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			return { source, caret: block.text.from };
 		},
 		escaped: escapeMarkdownLiteral,
-		body: (node) => tryGetBlockKindDescriptor(node.kind)?.bodyRange?.(node) ?? null,
 		inBodies(doc, path, text) {
 			const ending = documentLineEnding(doc);
 			return path.reduceRight(
@@ -406,17 +408,21 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 				text
 			);
 		},
-		fence(raw) {
+		fence(node) {
+			const { raw } = node;
 			const body = raw.indexOf('\n') + 1;
-			if (body === 0) return null;
 			// A fence's opening line alone waits on the line that closes it.
-			const fence = lineClosed(unfinishedReadings(reading.grammar)).find((r) =>
-				r.notFinal(raw.slice(0, body))
-			);
-			if (!fence) return null;
+			const fence =
+				body > 0 &&
+				lineClosed(unfinishedReadings(reading.grammar)).find((r) => r.notFinal(raw.slice(0, body)));
+			if (!fence) return oneLineFence(node);
 			const last = raw.lastIndexOf('\n', raw.length - 2) + 1;
-			const closed = last >= body && !fence.notFinal(raw);
-			return { body, closer: closed ? last : null, mayClose: fence.mayClose };
+			const closer = last >= body && !fence.notFinal(raw) ? last : null;
+			const end =
+				closer === null
+					? trimTrailingLineEnding(raw).length
+					: closer - (raw[closer - 2] === '\r' ? 2 : 1);
+			return { body, end: Math.max(body, end), closer, oneLine: false, mayClose: fence.mayClose };
 		},
 		pastMarkers(text, at) {
 			const shapes = reading.grammar.markedLines();
@@ -564,6 +570,17 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 		tail = trimTrailingLineEnding(joined.raw);
 		return inBody({ head, tail, at: joined.caret, empty: false });
 	}
+}
+
+/** The fence of a block on one line whose kind declares its body between syntax on that line, as a
+ *  one-line `$$x^2$$`: its closer shares the body's line, and no line written in can close it. */
+function oneLineFence(node: NodeView): Fence | null {
+	const text = trimTrailingLineEnding(node.raw);
+	if (/[\r\n]/.test(text) || blockFacts(node.kind).body !== 'literal') return null;
+	const declared = tryGetBlockKindDescriptor(node.kind)?.bodyRange?.(node);
+	if (!declared || declared.start === 0 || declared.end >= text.length) return null;
+	const { start, end } = declared;
+	return { body: start, end, closer: end, oneLine: true, mayClose: () => false };
 }
 
 /** Where `line`'s text starts, past one marker after another, the `n`th read by one of `shapes(n)`;

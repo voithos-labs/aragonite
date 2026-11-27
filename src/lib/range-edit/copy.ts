@@ -21,6 +21,7 @@ import {
 import { displayLength } from '../core/lines';
 import { byteAt } from './leaf-splice';
 import { lineEnd } from './lines';
+import type { NodeView } from '../core/node-views';
 import { openingOf } from './markers';
 
 export function copyOf(doc: Doc, from: number, to: number): string {
@@ -95,11 +96,11 @@ function fenceCloser(doc: Doc, shared: LaidBlock | null, from: number, to: numbe
 	for (const block of doc.layout.within(from, to)) {
 		if (!block.text || factsOf(doc, block).body !== 'literal') continue;
 		if (from >= block.from || to <= block.from) continue;
-		const raw = nodeAt(doc, block.path).raw;
-		const closer = doc.host.fence(raw)?.closer;
-		if (closer === null || closer === undefined) continue;
-		const lineStart = doc.source.lastIndexOf('\n', byteAt(doc, block, closer) - 1) + 1;
-		if (to > lineStart || !opensFence(doc, block, raw, to)) continue;
+		const node = nodeAt(doc, block.path);
+		const fence = doc.host.fence(node);
+		if (!fence || fence.closer === null) continue;
+		const lineStart = doc.source.lastIndexOf('\n', byteAt(doc, block, fence.closer) - 1) + 1;
+		if (to > lineStart || !opensFence(doc, block, node, to)) continue;
 		const start = shared ? Math.max(lineStart, lineOf(shared, lineStart).markerTo) : lineStart;
 		return eol + doc.source.slice(start, contentEnd(doc, block));
 	}
@@ -108,10 +109,10 @@ function fenceCloser(doc: Doc, shared: LaidBlock | null, from: number, to: numbe
 
 /** Whether the block's bytes before `to` open its fence: a range ending inside the opening marker
  *  copies text that opens nothing. */
-function opensFence(doc: Doc, block: LaidBlock, raw: string, to: number): boolean {
+function opensFence(doc: Doc, block: LaidBlock, node: NodeView, to: number): boolean {
 	const at = doc.layout.pointAt(to);
-	const head = at && at.path.join() === block.path.join() ? raw.slice(0, at.offset) : raw;
-	return doc.host.fence(head + '\n') !== null;
+	const head = at && at.path.join() === block.path.join() ? node.raw.slice(0, at.offset) : node.raw;
+	return doc.host.fence({ ...node, raw: head + '\n' }) !== null;
 }
 
 /** The deepest container both ends sit in, of those `counts` allows; null for the document. */

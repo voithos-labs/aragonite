@@ -94,10 +94,11 @@ export function fenceShape(fences: readonly Fence[], priority: number, interrupt
 	};
 
 	// The body as a code block's reads: the line ending before the closer is the closer's, and a
-	// block with no body line has none.
+	// block with no body line has none. A one-line block's body is on its line, empty or not.
 	const bodyOf = (text: string): { start: number; end: number } | null => {
 		const { start, end } = range(text);
-		return start === end ? null : { start, end: start + displayLength(text.slice(start, end)) };
+		if (start === end) return splitFixed(fixed, text, false)?.oneLine ? { start, end } : null;
+		return { start, end: start + displayLength(text.slice(start, end)) };
 	};
 
 	const writes: WriteRule = {

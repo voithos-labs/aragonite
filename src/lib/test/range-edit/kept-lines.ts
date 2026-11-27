@@ -5,7 +5,7 @@
 // range starts on stays too, emptied, wherever its block does. Where no text joins across the range,
 // the lines after its end line stay byte for byte, each keeping its own markers once.
 
-import { inTitleRow, leafAt, readOf, type Read } from './expected';
+import { inTitleRow, leafAt, oneLineCloserAt, readOf, type Read } from './expected';
 import type { CheckHost } from './test-host';
 
 interface KeptLine {
@@ -63,8 +63,10 @@ export function gluedStart(
 	const rest = got.slice(from);
 	if (whole || /^[ \t]*(?:\r?\n|$)/.test(rest)) return null;
 	const lineRest = (at: number) => /^[^\r\n]*/.exec(source.slice(at))![0].trim();
-	// The end line's text joined the start's, or a closing fence the range started on came back.
-	const joined = [lineRest(to), lineRest(from)].some(
+	// The end line's text joined the start's, a closing fence the range started on came back, or a
+	// one-line fence's closer stayed on its line.
+	const closer = oneLineCloserAt(read, host, from);
+	const joined = [lineRest(to), lineRest(from), closer ?? ''].some(
 		(t) => t !== '' && rest.trimStart().startsWith(t)
 	);
 	if (joined) return null;

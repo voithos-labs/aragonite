@@ -3,6 +3,7 @@
 // commit gate, the full 600 with `RANGE_EDIT_FULL=1`. Live mode's in-block writes read text the way
 // a page shows it, hence jsdom. HTML blocks have a draw of their own (`html-laws.test.ts`).
 
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import { leavesLiteralBlock, readOf } from './expected';
@@ -15,6 +16,13 @@ const DOCUMENTS = process.env.RANGE_EDIT_FULL === '1' ? 600 : 120;
 const SEED = freshOrFixedSeed(20261105);
 
 describeLaws('the range-edit laws', DOCUMENTS, (grammar) => lawInputs(DOCUMENTS, SEED, grammar));
+
+// A one-line fence between paragraphs, drawn apart so it moves none of the draws above.
+// Miss-analysis: no law document held a one-line `$$` block, so no law asked what a range keeps.
+const ONE_LINE_FENCE = 'Before\n\n$$x^2$$\n\nAfter\n';
+describeLaws('the range-edit laws over a one-line fence', 8, (grammar) =>
+	lawInputs(8, SEED, grammar, fc.constant(ONE_LINE_FENCE))
+);
 
 // Miss-analysis: the exception read a nested block's bytes with its container's markers on, and no
 // row held a fenced block whole from its first byte, which plain text carries back.

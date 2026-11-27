@@ -413,6 +413,29 @@ function copiesItsFence(read: Read, b: LaidBlock, to: number): boolean {
 	return (lineEnd >= 0 && to > lineEnd) || !!fenceRun(read.source.slice(b.from, to));
 }
 
+/** The closer of the one-line fence whose body holds `at`, which a removal from there keeps on its
+ *  line; null anywhere else. */
+export function oneLineCloserAt(read: Read, host: CheckHost, at: number): string | null {
+	const leaf = leafAt(read, at);
+	if (!leaf || host.facts(leaf.type).body !== 'literal') return null;
+	const raw = treeNodeAt(read.tree, leaf.path)!.raw;
+	const body = oneLineBody(raw);
+	const offset = at - leaf.from;
+	if (!body || offset < body.start || offset > body.end) return null;
+	return raw.replace(/\r?\n$/, '').slice(body.end);
+}
+
+/** The body of a fence on one line (`$$x^2$$`), its closer the run it opens with, by the syntax
+ *  alone; null for any other block. */
+function oneLineBody(raw: string): { start: number; end: number } | null {
+	const line = raw.replace(/\r?\n$/, '');
+	const run = fenceRun(line);
+	const start = run ? line.indexOf(run) + run.length : 0;
+	if (!run || /[\r\n]/.test(line) || !line.endsWith(run) || line.length - run.length <= start)
+		return null;
+	return { start, end: line.length - run.length };
+}
+
 /** Whether a block's own bytes, its container's markers off, close the fence they open. */
 function closesItsFence(raw: string): boolean {
 	const lines = raw.replace(/\r?\n$/, '').split(/\r?\n/);
@@ -1311,7 +1334,7 @@ function landedPaste(
 
 /** The fence around `leaf`'s text, by the host's grammar; null for a block with none. */
 export const fenceOf = (read: Read, leaf: LaidBlock, host: CheckHost) =>
-	host.fence(treeNodeAt(read.tree, leaf.path)!.raw);
+	host.fence(treeNodeAt(read.tree, leaf.path)!);
 
 /** What a later line pasted into literal text at `at` starts with; null where the block's write rule
  *  takes it (the closing line, a line left that could close the fence), which the rows hold. */
@@ -1329,6 +1352,8 @@ function literalPrefix(
 	// write rule settles.
 	if (fence && offset < fence.body && /[`~$]/.test(text)) return null;
 	if (fence && fence.closer !== null && offset >= fence.closer) return null;
+	// A one-line fence given a line break takes fence lines of its own, as a typed break does.
+	if (fence?.oneLine && text.includes('\n')) return null;
 	const lines = (raw.slice(0, offset) + text + raw.slice(offset)).slice(fence?.body).split('\n');
 	const body = fence?.closer === null ? lines : lines.slice(0, -2);
 	if (fence && body.some((line) => fence.mayClose(line.replace(/\r$/, '')))) return null;

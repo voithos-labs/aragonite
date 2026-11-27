@@ -430,11 +430,12 @@ function pulledIn(doc: Doc, from: number, to: number, block: LaidBlock): boolean
 }
 
 /** A text block cut through its own write, the text `after` the offset or `before` it on its line,
- *  so a run the cut leaves open closes. Null for a fenced block, whose closer `closers` keeps. */
+ *  so a run it leaves open closes; a one-line fence's body alone. Null for a fence on lines. */
 function cutLeaf(doc: Doc, leaf: LaidBlock, at: number, side: 'after' | 'before') {
 	const node = nodeAt(doc, leaf.path);
-	if (doc.host.fence(node.raw)) return null;
-	const text = getContentRange(node);
+	const fence = doc.host.fence(node);
+	if (fence && !fence.oneLine) return null;
+	const text = fence ? { start: fence.body, end: fence.end } : getContentRange(node);
 	const lineStart = Math.max(node.raw.lastIndexOf('\n', at - 1) + 1, text.start);
 	const [cutFrom, cutTo] = side === 'after' ? [at, text.end] : [lineStart, at];
 	// Nothing cut, or the whole text: the bytes alone, since a live write of a block's whole text
@@ -627,7 +628,7 @@ export const entersOpening = (doc: Doc, from: number, to: number): boolean =>
 function enteredBlocks(doc: Doc, from: number, to: number): LaidBlock[] {
 	const fence = findWithin(doc, from, to, (b) => {
 		if (!b.text || b.from <= from || to <= b.from) return false;
-		const closer = doc.host.fence(nodeAt(doc, b.path).raw)?.closer;
+		const closer = doc.host.fence(nodeAt(doc, b.path))?.closer;
 		return closer !== null && closer !== undefined && to <= byteAt(doc, b, closer);
 	});
 	return [
@@ -649,7 +650,7 @@ function opensFenced(doc: Doc, c: LaidBlock, to: number): boolean {
  *  container's past its opening lines and its title row. */
 function openingEnd(doc: Doc, block: LaidBlock): number {
 	if (!block.container) {
-		const body = doc.host.fence(nodeAt(doc, block.path).raw)?.body;
+		const body = doc.host.fence(nodeAt(doc, block.path))?.body;
 		return body === undefined ? block.from : byteAt(doc, block, body);
 	}
 	if (factsOf(doc, block).lines === 'rows') return firstLine(block, (l) => l.own)?.to ?? block.from;
@@ -661,13 +662,13 @@ function openingEnd(doc: Doc, block: LaidBlock): number {
 	return Math.max(at, titleRowOf(doc, block)?.to ?? at);
 }
 
-/** The closing lines the range starts inside and leaves, innermost first: a fenced block's, the
- *  way its own write rule closes it, then each fenced container's. They stay after the joined text. */
+/** The closing lines the range starts inside and leaves, innermost first: a fence's on lines (a
+ *  one-line closer stays in `cutLeaf`), then each fenced container's, after the joined text. */
 function closers(doc: Doc, from: number, to: number): string {
 	let out = '';
 	const start = leafAt(doc, from)?.leaf;
-	const fence = start && !titleOwner(doc, start) && doc.host.fence(nodeAt(doc, start.path).raw);
-	if (start && fence && fence.closer !== null && to > contentEnd(doc, start)) {
+	const fence = start && !titleOwner(doc, start) && doc.host.fence(nodeAt(doc, start.path));
+	if (start && fence && !fence.oneLine && fence.closer !== null && to > contentEnd(doc, start)) {
 		const closer = byteAt(doc, start, fence.closer);
 		// From the line ending before the closing line, so that line keeps its own ending.
 		const before = doc.source.lastIndexOf('\n', closer - 1);

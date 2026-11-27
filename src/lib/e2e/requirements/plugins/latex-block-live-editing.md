@@ -36,9 +36,8 @@ sits on the body's own line where a range through the body reaches it.
   hidden fence lines included, since the cut removes those too
 
 - Home then six Shift+ArrowRight out of a one-line block's body, then Backspace: the body is
-  emptied, the block is still math and the paragraph below stays its own block. The bytes differ
-  from 0.11.5's `$$` over `$$`: the range core reads no fence whose closer shares the body's
-  line, so the block writes `$$$$` and an empty paragraph sits between it and `After`
+  emptied, both fences stay on its line (`$$$$`), the block is still math, and the paragraph
+  below stays its own block, one blank line under it
 - one undo after that range delete puts the block and the paragraph below it back
 
 ## Miss-analysis
@@ -51,6 +50,9 @@ sits on the body's own line where a range through the body reaches it.
   the fence out of reach. A range is the one gesture that leaves the block, and no scenario made
   one, so nothing asked what the block's own bytes look like after a tree operation truncated
   them.
+- The range out of a one-line body held the block's kind but not its bytes, since the range core
+  read a fence only from a closer on its own line. The core's named rows and law documents held
+  no one-line `$$` block, so no row asked what a range keeps of one.
 - Copy and cut in the source wrote two different strings (what the browser showed, and the
   bytes), and no scenario compared them. They only differ in live mode, where the fence lines
   are hidden.

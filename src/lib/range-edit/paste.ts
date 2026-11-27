@@ -378,8 +378,9 @@ function endsOnText(read: Doc): boolean {
 /** Whether the clipboard `read` ends on a fence nothing closes, whose body takes what follows. */
 function endsOpen(read: Doc): boolean {
 	const last = lastTop(read);
-	const raw = last && nodeAt(read, last.path).raw.replace(/\n?$/, '\n');
-	return !!raw && read.host.fence(raw)?.closer === null;
+	const node = last && nodeAt(read, last.path);
+	const raw = node?.raw.replace(/\n?$/, '\n');
+	return !!node && read.host.fence({ ...node, raw: raw! })?.closer === null;
 }
 
 /** Whether the last block the clipboard lands as at `at` is a list. */
@@ -772,13 +773,14 @@ function landed(
 	// Literal text takes the paste as written, plain or not; a line that could close its fence goes
 	// through the block's write rule, which grows the fence past it.
 	if (factsOf(doc, leaf).body === 'literal') {
-		const raw = nodeAt(doc, leaf.path).raw;
-		const fence = doc.host.fence(raw);
+		const node = nodeAt(doc, leaf.path);
+		const { raw } = node;
+		const fence = doc.host.fence(node);
 		// The opening fence line is the block's own syntax, which its write rule reads: an info
 		// string holds no backtick, and a run grown at its end grows the closer with it.
 		if (fence && target.from < fence.body) return write(clip);
-		// So is the closing line, which text in front of it or after it would un-close.
-		if (fence && fence.closer !== null && target.to >= fence.closer) return write(clip);
+		// So is the closer, which text in front of it or after it would un-close.
+		if (fence && fence.closer !== null && target.to > fence.end) return write(clip);
 		// With no fence, a line stays in the block by its indent, which a new line repeats.
 		const lineStart = raw.lastIndexOf('\n', target.from - 1) + 1;
 		const indent = fence ? '' : /^[ \t]*/.exec(raw.slice(lineStart, target.from))![0];

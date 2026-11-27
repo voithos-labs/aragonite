@@ -148,15 +148,15 @@ test.describe('a range out of the body keeps the block (live)', () => {
 		for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowRight');
 	});
 
-	// The fences, on one line or two, around an empty body, then the paragraph on its own.
-	const EMPTIED = /^Before\n\n\$\$\n?\$\$\n\n+After\n$/;
+	// Both fences stay on the body’s line around an empty body, and the paragraph keeps its blank line.
+	const EMPTIED = 'Before\n\n$$$$\n\nAfter\n';
 
 	test('Backspace empties the body, the block stays math and the paragraph stays', async ({
 		page
 	}) => {
 		await page.keyboard.press('Backspace');
 
-		await editor.bridge.waitForSourceMatches(EMPTIED);
+		await editor.bridge.waitForSourceEquals(EMPTIED);
 		expect(await editor.bridge.getBlockKind(1)).toBe('latex/block');
 		const last = (await editor.bridge.getBlockCount()) - 1;
 		expect(await editor.bridge.getBlockKind(last)).toBe('paragraph');
@@ -165,7 +165,7 @@ test.describe('a range out of the body keeps the block (live)', () => {
 
 	test('undo puts the paragraph back in one step', async ({ page }) => {
 		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches(EMPTIED);
+		await editor.bridge.waitForSourceEquals(EMPTIED);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('Before\n\n$$x^2$$\n\nAfter\n');
