@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { writeFileSync } from 'node:fs';
 import type { CstNode } from '#lib/plugin.js';
+import type { Document } from '#lib/core/nodes.js';
 import { admonitions } from '#packages/admonitions/src/index.js';
 import { details } from '#packages/details/src/index.js';
 import {
@@ -20,8 +21,10 @@ import {
 import { deleteBy, insertBy } from '#lib/test/harness/insertion-routes.js';
 import { displayLength } from '#lib/core/lines.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 
-type Seam = { getDocument(): CstNode };
+type Seam = { getDocument(): CstNode; getGrammar(): GrammarView };
 
 const BODIES: Record<string, string> = {
 	empty: '',
@@ -85,7 +88,8 @@ let m: MountedEditor<Seam>;
 beforeAll(() => installLayoutStubs());
 afterAll(() => m?.destroy());
 
-/** The bytes after `ch` is typed at `offset` of the case's row and Backspace takes it back. */
+/** The bytes after `ch` is typed at `offset` of the case's row and Backspace takes it back, with
+ *  any dev check that fired and how the tree differs from a reload of its bytes. */
 async function typedAndTakenBack(source: string, offset: number, ch: string): Promise<string> {
 	await m.instance.load(source);
 	await m.settle();
@@ -94,8 +98,11 @@ async function typedAndTakenBack(source: string, offset: number, ch: string): Pr
 	await insertBy('hardware key', document.activeElement as HTMLElement, ch);
 	await deleteBy(document.activeElement as HTMLElement, 'Backspace');
 	await m.settle();
-	takeDevWarns();
-	return m.source();
+	const fired = takeDevWarns().map((w) => w.tag);
+	const seam = m.instance.__test;
+	const drift = describeConvergence(seam.getDocument() as Document, seam.getGrammar());
+	const notes = [...fired, ...(drift ? [`reload differs: ${drift}`] : [])];
+	return notes.length > 0 ? `${m.source()} ${notes.join(' ')}` : m.source();
 }
 
 async function rowLength(source: string): Promise<number> {
