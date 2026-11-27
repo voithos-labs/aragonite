@@ -99,6 +99,64 @@ describe('a range edit numbers on as the author wrote', () => {
 	}
 });
 
+// Miss-analysis: the spelling rows were four top-level items with LF endings, so no CRLF, missing
+// final ending, one-item, two-item, lazy or quoted nested list met a removal or a paste.
+describe('the byte routes keep the rule over other list shapes', () => {
+	const removeB = (s: string) => ({ from: s.search(/\r?\n[^\n]*bb/), to: after(s, 'bb') });
+	const atEnd = (text: string) => (s: string) => ({ from: after(s, text), to: after(s, text) });
+	it.each([
+		['CRLF, b removed', '1. aa\r\n1. bb\r\n1. cc\r\n', removeB, 'delete', '1. aa\r\n1. cc\r\n'],
+		[
+			'CRLF, Enter pasted at b',
+			'1. aa\r\n1. bb\r\n1. cc\r\n',
+			atEnd('bb'),
+			paste('x\n'),
+			'1. aa\r\n1. bbx\r\n1. \r\n1. cc\r\n'
+		],
+		['no final ending, b removed', '1. aa\n1. bb\n1. cc', removeB, 'cut', '1. aa\n1. cc'],
+		[
+			'no final ending, Enter pasted at the last item',
+			'1. aa\n1. bb',
+			atEnd('bb'),
+			paste('x\n'),
+			'1. aa\n1. bbx\n1. \n'
+		],
+		['one item, Enter pasted', '3. aa\n', atEnd('aa'), paste('x\n'), '3. aax\n4. \n'],
+		[
+			'1. 1., Enter pasted at a',
+			'1. aa\n1. bb\n',
+			atEnd('aa'),
+			paste('x\n'),
+			'1. aax\n1. \n1. bb\n'
+		],
+		[
+			'lazy line above, b removed',
+			'1. aa\nlazy\n1. bb\n1. cc\n',
+			removeB,
+			'delete',
+			'1. aa\nlazy\n1. cc\n'
+		],
+		[
+			'quoted nested, b removed',
+			'> - top\n>   1. aa\n>   1. bb\n>   1. cc\n',
+			removeB,
+			'delete',
+			'> - top\n>   1. aa\n>   1. cc\n'
+		],
+		[
+			'quoted nested, Enter pasted at b',
+			'> - top\n>   1. aa\n>   1. bb\n>   1. cc\n',
+			atEnd('bb'),
+			paste('x\n'),
+			'> - top\n>   1. aa\n>   1. bbx\n>   1. \n>   1. cc\n'
+		]
+	] as const)('%s', (_name, source, range, gesture, out) => {
+		expect(editRange(source, range(source), gesture as Gesture, 'source', checkHost()).source).toBe(
+			out
+		);
+	});
+});
+
 // The item holding the removal's end survives as the list's first item, so it takes the start.
 describe('a removal from above a list into an item', () => {
 	it.each([
