@@ -35,7 +35,7 @@ describe('parseConverges on the empty-paragraph shapes the editor reaches', () =
 			[emptyParagraph()],
 			fixtureGrammar
 		);
-		const list = assembleListHalf(listTemplate, [emptyItem], 1);
+		const list = assembleListHalf(listTemplate, [emptyItem], null);
 		expect(list.raw).toBe('- \n');
 		expect(parseConverges(docOf([list]))).toBe(true);
 	});

@@ -20,7 +20,7 @@ import {
 } from '../tree-operations/structural-change';
 import { splitNode, emptyParagraph, type SplitResult } from '../tree-operations';
 import { lastCaretLeaf } from '../selection/path-lookup';
-import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
+import { numberingOfList, renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { buildListItem, followerMetadata } from '../tree-operations/list/list-builders';
 import { storedAsIn } from '../tree-operations/stored-as';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
@@ -91,12 +91,13 @@ export function createListContext(deps: ListContextDeps): ListContext {
 		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<boolean> {
 			const node = deps.scope.node;
 			if (!node.children) return false;
+			const numbering = numberingOfList(node);
 
 			if (!newItem) {
 				const prevItem = node.children[itemIndex];
 				// The new item starts from `prevItem`'s bytes, so its marker line takes the indent.
 				newItem = buildListItem(
-					followerMetadata(prevItem ? metadataOf(prevItem, 'listItem') : undefined),
+					followerMetadata(prevItem ? metadataOf(prevItem, 'listItem') : undefined, numbering),
 					// rebuildListItemRaw derives the item's raw from its body's line ending.
 					[emptyParagraph('', deps.getLineEnding())],
 					deps.reading.grammar,
@@ -111,7 +112,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const sharing = scope.sharing;
 					sharing.stamp(newItem!);
 					scope.children.splice(itemIndex + 1, 0, newItem!);
-					renumberOrderedList(scope.node, itemIndex + 1, sharing);
+					renumberOrderedList(scope.node, itemIndex + 1, numbering, sharing);
 					return [{ op: 'insert', at: itemIndex + 1, count: 1 }];
 				},
 				op: {
@@ -130,6 +131,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 		): Promise<boolean> {
 			const outerList = deps.scope.node;
 			if (!outerList.children) return false;
+			const numbering = numberingOfList(outerList);
 
 			const item = outerList.children[itemIndex];
 			if (!item.children) return false;
@@ -154,7 +156,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const preSpliceLen = itemChildren.length;
 
 					// The second half is stored as the new item's first block, behind its marker line.
-					const metadata = followerMetadata(metadataOf(itemScope.node, 'listItem'));
+					const metadata = followerMetadata(metadataOf(itemScope.node, 'listItem'), numbering);
 					const follower: NodeView = { kind: 'listItem', leadingTrivia: '', raw: '', metadata };
 					const secondHalfAt = storedAsIn(
 						{ owner: follower, children: [], lineEnding: itemScope.body.lineEnding },
@@ -184,7 +186,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					sharing.stamp(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);
-					renumberOrderedList(outerScope.node, itemIndex + 1, sharing);
+					renumberOrderedList(outerScope.node, itemIndex + 1, numbering, sharing);
 
 					// Net item change: [innerIndex .. preSpliceLen) replaced by the first half's
 					// blocks, several when the cut bytes reparse to more than one.

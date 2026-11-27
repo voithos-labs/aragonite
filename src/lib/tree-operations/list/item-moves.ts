@@ -15,9 +15,11 @@ import { trackChildIds } from '../structural-change';
 import { spliceChildren } from '../children';
 import { cascadeCleanupEmptyAncestors } from '../cleanup';
 import {
+	numberingOf,
+	numberingOfList,
 	renumberOrderedList,
-	renumberOrderedListFrom,
-	normalizeItemMarkerToList
+	normalizeItemMarkerToList,
+	type OrderedNumbering
 } from './ordered-markers';
 import { buildListShell } from './list-builders';
 import { lacksSublistSeparator, settleSublistSeparator } from './sublist-separator';
@@ -74,6 +76,7 @@ export function nestListItem(
 				() => [outerScope.node],
 				() => {
 					const sharing = outerScope.sharing;
+					const outerNumbering = numberingOfList(outerScope.node);
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
 					const at = destScope.children.length;
 					movedTo = existingNestedList
@@ -83,11 +86,12 @@ export function nestListItem(
 					// Each branch renumbers the moved item's marker through `sharing`, which copies it first.
 					if (existingNestedList) {
 						const destList = destScope.node;
+						const destNumbering = numberingOfList(destList);
 						destScope.children.push(movedItem);
 						// The item takes the sublist's marker style, as a paste does; a fresh list has none.
 						const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
 						normalizeItemMarkerToList(moved, destList);
-						numberJoinedItems(destList, destScope.children.length - 1, sharing);
+						renumberOrderedList(destList, destScope.children.length - 1, destNumbering, sharing);
 					} else {
 						const shell = buildListShell(ordered, [movedItem]);
 						sharing.stamp(shell);
@@ -95,13 +99,13 @@ export function nestListItem(
 						// Write, then read back (tree-operations/unshare.ts): the writes below go through the
 						// value in the tree, not the list the proxy has observed.
 						const destList = destScope.children[destScope.children.length - 1];
-						numberJoinedItems(destList, 0, sharing);
+						renumberOrderedList(destList, 0, FRESH_LIST, sharing);
 						// A new sublist sits below the commit's chain, which never rebuilds it; the blank-line
 						// rule below reads its bytes too.
 						destScope.rebuild(destList);
 						settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					}
-					renumberOrderedList(outerScope.node, itemIndex, sharing);
+					renumberOrderedList(outerScope.node, itemIndex, outerNumbering, sharing);
 
 					return [
 						{ op: 'delete', at: itemIndex, count: 1 },
@@ -216,12 +220,14 @@ export function liftItemOut(at: NestedItemAt, writes: LiftWrites): number {
 			// The promoted item is moved and written (marker normalization, renumbering), so copy it
 			// before it leaves the nested list.
 			const item = ensureUnsharedChild(nested, nestedItemIdx, sharing);
+			const outerNumbering = numberingOfList(outer);
+			const nestedNumbering = numberingOfList(nested);
 			const laterItems = nested.children!.slice(nestedItemIdx + 1);
 			spliceChildren(nested, nestedItemIdx, 1 + laterItems.length, []);
 			const laterBlocks = parent.children!.slice(nestedIdxInParent + 1);
 			spliceChildren(parent, nestedIdxInParent + 1, laterBlocks.length, []);
 			const ordered = metadataOf(nested, 'list').ordered;
-			adoptAsLastChildren(item, laterItems, ordered, sharing, rebuild);
+			adoptAsLastChildren(item, laterItems, ordered, nestedNumbering, sharing, rebuild);
 			appendLaterBlocks(item, laterBlocks, sharing);
 			if (laterItems.length + laterBlocks.length > 0) rebuild(item);
 			normalizeItemMarkerToList(item, outer);
@@ -237,8 +243,8 @@ export function liftItemOut(at: NestedItemAt, writes: LiftWrites): number {
 			]);
 			promotedAt -= outerCount - outer.children!.length;
 
-			if (nested.children!.length > 0) renumberOrderedList(nested, 1, sharing);
-			renumberOrderedList(outer, promotedAt, sharing);
+			// The items left in the nested list are the ones above the lifted item, so they keep theirs.
+			renumberOrderedList(outer, promotedAt, outerNumbering, sharing);
 			return promotedAt;
 		}
 	);
@@ -250,14 +256,18 @@ function adoptAsLastChildren(
 	item: CstNode,
 	later: CstNode[],
 	ordered: boolean,
+	nestedNumbering: OrderedNumbering,
 	sharing: SharingState,
 	rebuild: (node: CstNode) => void
 ): void {
 	if (later.length === 0 || !item.children) return;
 	const last = item.children.length - 1;
 	let first = 0;
+	// A fresh sublist starts at 1 and counts the way the list the items came from did.
+	let numbering = { ...FRESH_LIST, step: nestedNumbering.step };
 	if (isListOfKind(item.children[last], ordered)) {
 		const list = ensureUnsharedChild(item, last, sharing);
+		numbering = numberingOfList(list);
 		first = list.children!.length;
 		spliceChildren(list, first, 0, later);
 		for (let i = first; i < list.children!.length; i++) {
@@ -271,7 +281,7 @@ function adoptAsLastChildren(
 	// Write, then read back (tree-operations/unshare.ts) before the writes below.
 	const at = item.children.length - 1;
 	const list = item.children[at];
-	numberJoinedItems(list, first, sharing);
+	renumberOrderedList(list, first, numbering, sharing);
 	rebuild(list);
 	settleSublistSeparator(item.children, at);
 }
@@ -305,11 +315,8 @@ function separatorBelow(above: CstNode, below: CstNode): string | null {
 	return merges ? ownTrailingLineEnding(above.raw) : null;
 }
 
-/** Numbers the items a move put at `from` and after; items that open the list start it at 1. */
-function numberJoinedItems(list: CstNode, from: number, sharing: SharingState): void {
-	if (from === 0) renumberOrderedListFrom(list, 1, sharing);
-	else renumberOrderedList(list, from, sharing);
-}
+/** A list a move creates starts at 1. */
+const FRESH_LIST: OrderedNumbering = numberingOf(null, null);
 
 function isListOfKind(node: NodeView | undefined, ordered: boolean): boolean {
 	return node?.kind === 'list' && metadataOf(node, 'list').ordered === ordered;
