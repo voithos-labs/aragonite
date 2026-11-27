@@ -267,6 +267,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.396 | A `:::` container name is read in one file | L |
 | G4.397 | A fenced shape's lines are paired in one file | L |
 | G4.407 | The repo's pages and examples list plugin values, save the `setup` plugins held by name | L |
+| G4.413 | Every parse in the testing folder names its grammar | L |
 
 ### The entries
 
@@ -778,3 +779,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.397 · A fenced shape is paired in one file.** A fixed fence and a fenced container find their closing line in `schema/fence-shape.ts`, which counts depth and skips a code fence in a body there, so the reader and the escape a write runs can't disagree. No other file but the code fence's own parser looks for a code fence's closer to pair lines past it. `lint/fenced-pairing-home.test.ts`.
 
 **G4.407 · Setup plugins, held by name.** The repo's pages and examples list plugin values. The `setup` plugins left each test a published `setup` surface the old API's removal takes with it (the harness callout, memo and doc-stats, the seed-only decoration and inline fixtures, the probes that make a built-in's rebuild throw or leave a kind with no view, the Vue wrapper's proxy page), and only the pages named list them. A new one fails the scan. `lint/setup-plugins-held.test.ts`.
+
+**G4.413 · The testing folder names its grammar.** Every `parse(...)` under `src/lib/testing/` passes the grammar it reads with, so a kit or a headless harness reads a plugin value's syntax as that value's editor does; a bare parse reads only the page-wide registrations, which a value never joins. `createHeadlessActions` reads a string with its reading's grammar, and the convergence helpers require one. `lint/testing-reads-name-grammar.test.ts`.

@@ -26,7 +26,8 @@ function rows(name: string, marked: string, left: Left): NamedRow[] {
 	const source = marked.replace(/[⟦⟧]/g, '');
 	return (['source', 'live'] as Mode[]).flatMap((mode) => {
 		const clipboard = mode === 'live' ? (left.liveClip ?? left.clip) : left.clip;
-		const at = (gesture: string) => `G22 ${name}: ${gesture}${mode === 'live' ? ', live' : ''}`;
+		const at = (gesture: string) =>
+			`one-line fence, ${name}: ${gesture}${mode === 'live' ? ', live' : ''}`;
 		return [
 			{
 				name: at('Backspace'),
