@@ -190,4 +190,4 @@ The wrapper and the two `light`s are there because the editor paints no backgrou
 
 Want a collapse toggle? A box on fenced lines folds under its title with `closable` (`fencedLines`, with a title line); a `:::` box can't fold yet.
 
-![A conspiracy, debunked on camera](./conspiracy.gif)
+![A conspiracy, debunked](./conspiracy.png)
