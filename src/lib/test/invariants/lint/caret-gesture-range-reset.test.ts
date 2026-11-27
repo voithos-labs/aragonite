@@ -114,6 +114,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/routes/test/plugins/+page.svelte':
 		'harness chrome — preventDefault on a mode toggle so the press takes no focus',
 	'src/routes/test/plugins/folds/folds-plugin.ts':
+		'preventDefault on the fold toggle so the press keeps the caret where it was',
+	'src/routes/test/plugins/shrink/shrink-plugin.ts':
 		'preventDefault on the fold toggle so the press keeps the caret where it was'
 };
 

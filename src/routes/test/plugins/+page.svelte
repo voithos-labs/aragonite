@@ -37,6 +37,7 @@
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { drawnPlugin } from './drawn/drawn-plugin';
 	import { foldsPlugin } from './folds/folds-plugin';
+	import { shrinkPlugin } from './shrink/shrink-plugin';
 	import { fenceLinesPlugin } from './fence-lines/fence-lines-plugin';
 	import { outlinePlugin } from './outline/outline-plugin';
 	import { noteNumbersPlugin } from './note-numbers/note-numbers-plugin';
@@ -118,6 +119,8 @@
 		drawn: [drawnPlugin],
 		// A container on fenced lines that folds; its type opens only in this seed.
 		folds: [foldsPlugin],
+		// A folding container whose drawing is a moment shorter on every update; its own seed.
+		shrink: [shrinkPlugin],
 		// Fenced blocks whose fence lines the editor draws; without the base plugins, whose math block
 		// would take the ```math fence.
 		'fence-lines': [fenceLinesPlugin],
@@ -352,7 +355,9 @@
 	// The seeds whose suites switch mode or theme for real through the header controls. Kept
 	// per seed, so no other suite's DOM gains extra buttons.
 	const MODE_TOGGLE_SEEDS = ['mathblock', 'details'];
-	const THEME_TOGGLE_SEEDS = ['mermaid', 'fence-lines'];
+	const THEME_TOGGLE_SEEDS = ['mermaid', 'fence-lines', 'shrink'];
+	// Its controls stay on screen while the page box scrolls to the document's end.
+	const PINNED_CONTROLS_SEEDS = ['shrink'];
 	// The seeds whose links follow on a plain click, as a host that opts in, with a toggle to
 	// switch the gesture back after mount.
 	const PLAIN_LINK_CLICK_SEEDS = ['wikilinks', 'follow-keys'];
@@ -460,7 +465,7 @@
 		</div>
 	{/if}
 	{#if THEME_TOGGLE_SEEDS.includes(data.seed ?? '')}
-		<div class="harness-controls">
+		<div class="harness-controls" class:pinned={PINNED_CONTROLS_SEEDS.includes(data.seed ?? '')}>
 			<button
 				data-testid="theme-toggle"
 				onmousedown={(e) => e.preventDefault()}
@@ -499,6 +504,13 @@
 		display: flex;
 		gap: 0.5rem;
 		padding: 0.4rem;
+	}
+
+	.harness-controls.pinned {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		background: Canvas;
 	}
 
 	.plugins-harness :global(.decoration-overlay.hl-occurrence) {

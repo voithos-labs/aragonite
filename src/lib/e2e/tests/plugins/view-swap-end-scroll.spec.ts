@@ -4,6 +4,7 @@ import { gotoReady } from '../../goto-ready';
 import { MermaidPage } from './mermaid-helpers';
 import { multiClick } from '../../multi-click';
 import { clickInPlace } from '../../click-in-place';
+import { END_SLACK, wheelToBottom } from './end-scroll-helpers';
 
 /**
  * A block that swaps to a shorter view at the end of a windowed document costs the reader only the
@@ -48,9 +49,6 @@ const LONG_LIST = [
 	...TALL_DIAGRAM.split('\n').map((line) => `  ${line}`)
 ].join('\n');
 
-// Sub-pixel block heights can leave a scroll container a pixel short of its maximum.
-const END_SLACK = 2;
-
 interface Geometry {
 	scrollTop: number;
 	maxScrollTop: number;
@@ -81,22 +79,6 @@ function geometry(page: Page, portSelector: string, blockSelector: string): Prom
 		},
 		[portSelector, blockSelector]
 	);
-}
-
-/** Wheel down until the scroll container stops at its bottom, the way a reader gets there. Short
- *  steps mount and measure every block on the way, so no estimate is left to correct at the end. */
-async function wheelToBottom(page: Page, port: Locator): Promise<void> {
-	const box = (await port.boundingBox())!;
-	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-	await expect
-		.poll(
-			async () => {
-				await page.mouse.wheel(0, 400);
-				return port.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop);
-			},
-			{ timeout: 40_000, intervals: [50] }
-		)
-		.toBeLessThan(END_SLACK);
 }
 
 interface Swap {
