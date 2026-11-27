@@ -349,6 +349,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('| a |\n| - |'),
 		expect: { source: 'Before\n\n$$\nx| a |\n| - |^2\n$$\n\nAfter\n' }
 	},
+	// Miss-analysis: every fence row held a body line, so none pasted at a closing line right under
+	// its opener, where the body's end and the closer's start are one offset.
+	{
+		name: 'L9 a paste into an empty code fence lands on a line of its own, the closer kept',
+		source: 'Before\n\n```\n⟦⟧```\n\nAfter\n',
+		gesture: paste('pq'),
+		expect: { source: 'Before\n\n```\npq\n```\n\nAfter\n' }
+	},
 	{
 		name: 'L9 a fence pasted on indented code’s last line stays code, and opens nothing',
 		source: '    code\n\t⟦⟧\n\nnext\n',

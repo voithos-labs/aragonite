@@ -456,7 +456,7 @@ function literalAt(doc: Doc, from: number, to: number, at: number): boolean {
 	if (!held || factsOf(doc, held.leaf).body !== 'literal') return false;
 	// A fence's closer is no text of it.
 	const fence = doc.host.fence(nodeAt(doc, held.leaf.path));
-	if (fence && fence.closer !== null && held.to > fence.end) return false;
+	if (fence?.inCloser(held.to)) return false;
 	return !(at === to && heldAlone(doc, from, to));
 }
 
@@ -512,7 +512,7 @@ function inOneText(doc: Doc, from: number, to: number): boolean {
 	if (!held || heldAlone(doc, from, to)) return false;
 	const { leaf } = held;
 	const fence = titleOwner(doc, leaf) ? null : doc.host.fence(nodeAt(doc, leaf.path));
-	return !fence || (held.from >= fence.body && held.to <= fence.end);
+	return !fence || (held.from >= fence.body && !fence.inCloser(held.to));
 }
 
 /** A removal's answer alone, for a caller that never pastes, so the paste stays unloaded. */

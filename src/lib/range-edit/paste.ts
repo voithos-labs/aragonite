@@ -780,7 +780,7 @@ function landed(
 		// string holds no backtick, and a run grown at its end grows the closer with it.
 		if (fence && target.from < fence.body) return write(clip);
 		// So is the closer, which text in front of it or after it would un-close.
-		if (fence && fence.closer !== null && target.to > fence.end) return write(clip);
+		if (fence?.inCloser(target.to)) return write(clip);
 		// With no fence, a line stays in the block by its indent, which a new line repeats.
 		const lineStart = raw.lastIndexOf('\n', target.from - 1) + 1;
 		const indent = fence ? '' : /^[ \t]*/.exec(raw.slice(lineStart, target.from))![0];

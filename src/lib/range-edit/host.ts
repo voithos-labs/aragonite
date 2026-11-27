@@ -209,6 +209,9 @@ export interface Fence {
 	closer: number | null;
 	/** The block is one line, its closer on the body's line rather than a line of its own. */
 	oneLine: boolean;
+	/** Whether offset `at` of the block's bytes is in its closer: from the closing line's start, even
+	 *  where no body line comes before it, or past the body on a one-line block. */
+	inCloser(at: number): boolean;
 	/** Whether a line written into the body could close the fence. */
 	mayClose(line: string): boolean;
 }
@@ -422,7 +425,14 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 				closer === null
 					? trimTrailingLineEnding(raw).length
 					: closer - (raw[closer - 2] === '\r' ? 2 : 1);
-			return { body, end: Math.max(body, end), closer, oneLine: false, mayClose: fence.mayClose };
+			return {
+				body,
+				end: Math.max(body, end),
+				closer,
+				oneLine: false,
+				inCloser: (at) => closer !== null && at >= closer,
+				mayClose: fence.mayClose
+			};
 		},
 		pastMarkers(text, at) {
 			const shapes = reading.grammar.markedLines();
@@ -580,7 +590,14 @@ function oneLineFence(node: NodeView): Fence | null {
 	const declared = tryGetBlockKindDescriptor(node.kind)?.bodyRange?.(node);
 	if (!declared || declared.start === 0 || declared.end >= text.length) return null;
 	const { start, end } = declared;
-	return { body: start, end, closer: end, oneLine: true, mayClose: () => false };
+	return {
+		body: start,
+		end,
+		closer: end,
+		oneLine: true,
+		inCloser: (at) => at > end,
+		mayClose: () => false
+	};
 }
 
 /** Where `line`'s text starts, past one marker after another, the `n`th read by one of `shapes(n)`;
