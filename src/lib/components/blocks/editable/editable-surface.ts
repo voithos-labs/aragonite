@@ -623,9 +623,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// them open the way Shift+Enter opened them, whichever route in the block wrote it.
 	const blockEdit: BlockEditActions = {
 		...deps.blockEdit,
-		updateBlockContent(index, text, mode, history, preEditOffset, caret) {
+		updateBlockContent(index, text, mode, history, preEditOffset, caret, removes) {
 			const open = droppedOpenLines(deps.getNode(), text);
-			const selection = preEditSelection ?? undefined;
+			const selection = removes ?? preEditSelection ?? undefined;
 			preEditSelection = null;
 			const written = deps.blockEdit.updateBlockContent(
 				index,

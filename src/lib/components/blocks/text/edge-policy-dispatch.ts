@@ -28,6 +28,7 @@ import {
 	type DeleteSpan
 } from '../../../caret/delete-extent';
 import type { DeleteDirection, DeleteIntent } from '../../../browser/input';
+import { titleDeleteFloor } from '../../../schema/reserved-chrome';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { hasModifier, isBareKey } from './click-snap-guard';
 import { typesCharacter } from '../../../schema/keybindings';
@@ -560,8 +561,12 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		reachable: DeleteSpan | null
 	): boolean {
 		const text = display();
-		const span = deleteExtent(intent, contextAt(el, caret, reachable));
-		if (!span) return false;
+		const extent = deleteExtent(intent, contextAt(el, caret, reachable));
+		if (!extent) return false;
+		const floor = wideBackward(intent) && live() ? titleFloor(caret) : null;
+		// A word or line delete in a title stops at its start; with nothing left the key takes nothing.
+		if (floor !== null && caret <= floor && extent.start < floor) return true;
+		const span = floor !== null && extent.start < floor ? { ...extent, start: floor } : extent;
 		deps.setSnapTarget(null);
 		const written = rangeEdit(span, '');
 		const kept = keptBlockText(editedBlock(el, text, span, written.text));
@@ -572,10 +577,17 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				intent: 'typed',
 				history: 'join-typing',
 				mode: 'authored',
-				source: 'delete'
+				source: 'delete',
+				// A line delete removes a stretch as a selection would, so the bytes it took are the
+				// removal a broken opener reads.
+				...(intent.unit === 'character' || intent.unit === 'word' ? {} : { removes: span })
 			});
 		return true;
 	}
+
+	const live = () => deps.reading.mode() === 'live';
+	const titleFloor = (caret: number) =>
+		titleDeleteFloor(deps.containerParent, deps.index, deps.node, caret);
 
 	/** What the delete rule and the motion rule read at `caret`: the text as the key's write sees
 	 *  it, the offsets a caret reaches, the visual line's edges and the text as the screen shows it. */
@@ -653,4 +665,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	return { handleKeydown, arms, inlineUnits, typing, deleteAtCaret, deleteBeside, unitContext };
+}
+
+/** A delete wider than a character that reaches back toward the line's start. */
+function wideBackward(intent: DeleteIntent): boolean {
+	return intent.unit !== 'character' && intent.direction === 'backward';
 }

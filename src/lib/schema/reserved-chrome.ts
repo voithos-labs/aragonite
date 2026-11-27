@@ -107,6 +107,23 @@ export function typedTitleGap(
 	return joined === fence.name || startsContainerName(joined, grammar) ? '' : ' ';
 }
 
+/** Where a backward word or line delete at `caret` on a `:::` opener row stops: the title's start,
+ *  for a caret in a title past the gap; null elsewhere, an untitled name's end deleting as text. */
+export function titleDeleteFloor(
+	container: NodeView | null,
+	index: number,
+	row: NodeView,
+	caret: number
+): number | null {
+	if (!container || !isReservedChromeChild(container, index) || !rowIsOpenerLine(container.kind)) {
+		return null;
+	}
+	const fence = matchDirectiveOpener(trimTrailingLineEnding(row.raw));
+	if (!fence || !/^[ \t]/.test(fence.info)) return null;
+	const start = rowContentRange(container, row).start;
+	return caret >= start ? start : null;
+}
+
 function withoutTrailingSpaces(text: string): string {
 	return text.replace(/[ \t]+$/, '');
 }
