@@ -1,8 +1,8 @@
 /**
- * The per-block spans a cross-block format toggle rewrites, and the write over them; pure over
- * the tree, with the commit in `./format-toggle`. The direction is decided over the whole range:
- * every span already marked removes the mark, anything else adds it. Each span goes through the
- * single-block toggle, and a table joins by its covered cells.
+ * The per-block spans a cross-block format toggle or heading level rewrites, and the write over
+ * them; pure over the tree, with the commit in `./format-toggle`. A mark's direction is decided over
+ * the whole range: every span already marked removes it, anything else adds it. Each span goes
+ * through the single-block rule, and a table joins a mark by its covered cells.
  */
 
 import {
@@ -23,6 +23,8 @@ import type { Reading } from '../../schema/reading';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { ContainerScope } from '../../action-contracts';
+import type { AnyBlockKind } from '../../core/nodes';
+import { headingWrite } from '../../tree-operations/heading-level';
 import { pathsEqual } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
 import {
@@ -92,6 +94,45 @@ export function planCrossBlockFormat(
 		if (!coverage.endEdge && pathsEqual(span.path, end.path)) {
 			plan.endOffset = toggled.newDisplay.length;
 		}
+	}
+	return plan.writes.length === 0 ? null : plan;
+}
+
+/** The level a heading key or command sets in a block of `kind`, or null where it sets none. */
+export type HeadingLevelAt = (kind: AnyBlockKind) => number | null;
+
+/** Each text block the range reaches takes the heading level the in-block command writes (a set,
+ *  never a toggle), and the range stays over the same text; null where none changes. */
+export function planCrossBlockHeading(
+	doc: DocumentView,
+	range: CoveredRange,
+	levelAt: HeadingLevelAt,
+	reading: Reading
+): CrossBlockFormatPlan | null {
+	const coverage = rangeCoverage(doc, range);
+	const { start, end } = range;
+	const plan: CrossBlockFormatPlan = {
+		writes: [],
+		startOffset: start.offset,
+		endOffset: end.offset
+	};
+	for (const span of spansInRange(doc, coverage, reading)) {
+		const node = blockNodeAt(doc, span.path)!;
+		const level = levelAt(node.kind);
+		if (level === null) continue;
+		const parent = blockNodeAt(doc, span.path.slice(0, -1));
+		const at = (offset: number) => headingWrite(node, parent, span.path.at(-1)!, level, offset);
+		const { selection, display } = span.edit;
+		const head = at(selection.start);
+		// A to-do keeps its box: over a range a heading deletes nothing, a checkbox included.
+		if (!head || head.replacesBlock) continue;
+		const newDisplay = trimTrailingLineEnding(head.newRaw);
+		if (newDisplay === display) continue;
+		const newSelEnd = at(selection.end)!.caretOffset;
+		plan.writes.push({ path: span.path, newDisplay, newSelStart: head.caretOffset, newSelEnd });
+		if (span.isStart) plan.startOffset = head.caretOffset;
+		if (span.isEnd) plan.endOffset = newSelEnd;
+		if (!coverage.endEdge && pathsEqual(span.path, end.path)) plan.endOffset = newDisplay.length;
 	}
 	return plan.writes.length === 0 ? null : plan;
 }

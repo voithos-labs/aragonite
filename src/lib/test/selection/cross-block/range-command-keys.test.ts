@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Over a selection, a key is Backspace and then the key exactly when the keymap binds it to a
-// command run at the caret the removal leaves: a rebound key works, a disabled one removes nothing.
+// command run where the removal leaves text, and a heading key re-kinds the blocks instead: a
+// rebound key works, a disabled one removes nothing.
 // Miss-analysis: every command-key row pressed the default chords, which the literal-key claim and
 // the keymap agree on, so no row saw them part once a consumer rebinds or disables one.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
@@ -34,13 +35,13 @@ const ALT_ENTER = { key: 'Enter', altKey: true };
 type Row = [name: string, key: KeyboardEventInit, keybindings: KeybindingOverride[], after: string];
 
 const ROWS: Row[] = [
-	['Mod+1 by default makes the heading', MOD_1, [], '# ata\n'],
+	['Mod+1 by default makes both blocks headings', MOD_1, [], '# alpha\n\n# beta\n'],
 	['Mod+1 disabled removes nothing', MOD_1, [{ chord: 'Mod+1', command: null }], SOURCE],
 	[
-		'the heading command rebound to Mod+Alt+1 makes the heading',
+		'the heading command rebound to Mod+Alt+1 makes both blocks headings',
 		MOD_ALT_1,
 		[{ chord: 'Mod+Alt+1', command: 'heading.cycle', arg: 1 }],
-		'# ata\n'
+		'# alpha\n\n# beta\n'
 	],
 	['Enter by default splits', ENTER, [], 'a\n\nta\n'],
 	['Enter disabled removes nothing', ENTER, [{ chord: 'Enter', command: null }], SOURCE],
@@ -50,7 +51,7 @@ const ROWS: Row[] = [
 		[{ chord: 'Alt+Enter', command: 'block.split' }],
 		'a\n\nta\n'
 	],
-	['Mod+2 by default makes the level-2 heading', MOD_2, [], '## ata\n'],
+	['Mod+2 by default makes both level-2 headings', MOD_2, [], '## alpha\n\n## beta\n'],
 	['Shift+Enter by default writes a hard break', SHIFT_ENTER, [], 'a\\\nta\n']
 ];
 
@@ -74,8 +75,7 @@ describe('a command key over a range', () => {
 		});
 	}
 
-	// Mod+0 acts only on a heading, so it needs a heading to show it ran at the caret the removal left.
-	it('Mod+0 by default strips the heading prefix from the merged block', async () => {
+	it('Mod+0 by default strips the heading and keeps the paragraph', async () => {
 		const mounted = mountEditor<Seam>({ source: '# alpha\n\nbeta\n' });
 		await mounted.settle();
 		await mounted.instance.setSelection({
@@ -86,7 +86,7 @@ describe('a command key over a range', () => {
 
 		await pressKey(surfaceAt(mounted, [1]), { key: '0', ctrlKey: true });
 
-		expect(mounted.source()).toBe('alta\n');
+		expect(mounted.source()).toBe('alpha\n\nbeta\n');
 	});
 });
 
@@ -165,8 +165,7 @@ describe('a binding scoped to one kind, over a range', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The removal lands past the rule it takes whole, in the paragraph, which is whose binding counts.
-	it('a heading bound to Mod+J on paragraphs runs where a range from a rule lands', async () => {
+	it('a heading bound to Mod+J on paragraphs re-kinds the paragraph a range from a rule reaches', async () => {
 		const source = '# head\n\n---\n\nbeta\n';
 		const mounted = mountEditor<Seam>({
 			source,
@@ -181,7 +180,7 @@ describe('a binding scoped to one kind, over a range', () => {
 
 		await pressKey(surfaceAt(mounted, [2]), { key: 'j', ctrlKey: true });
 
-		expect(mounted.source()).toBe('# head\n\n# ta\n');
+		expect(mounted.source()).toBe('# head\n\n---\n\n# beta\n');
 	});
 });
 

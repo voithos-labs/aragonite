@@ -39,18 +39,6 @@ describe('cross-block keydown: command candidates', () => {
 		expect(env.revealed.at(-1)).toEqual([0]);
 	});
 
-	it('resolves the chord against the survivor kind, not the anchor kind', async () => {
-		const runCommand = vi.fn(() => true);
-		const env = makeKeydownEnv('# head\n\npara\n', {
-			revealTo: stubBlockComponent({ runCommand })
-		});
-		env.selection.enterCrossBlock({ path: [0], offset: 6 }, { path: [1], offset: 4 });
-
-		await env.keydown.handleKeyDown(press('1', { ctrlKey: true }));
-
-		expect(runCommand).toHaveBeenCalledWith('heading.cycle', 1, { afterRemoval: true });
-	});
-
 	// Reading mode: consumed (the range must not reach a per-block handler) but neither half
 	// runs: no delete, no command.
 	it('consumes but neither deletes nor dispatches in reading mode', async () => {

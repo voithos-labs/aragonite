@@ -18,9 +18,9 @@ key, in one undo unit.
 
 These press the plain-prose keys over a range across two blocks, without a page:
 
-- Enter splits at the merge target and Shift+Enter writes a hard break there, Ctrl+2 makes the
-  merged block a level-2 heading and Ctrl+0 strips a heading prefix from it: each deletes the
-  range first and runs at the collapsed caret
+- Enter splits at the merge target and Shift+Enter writes a hard break there: each deletes the
+  range first and runs at the collapsed caret. Ctrl+2 makes both blocks level-2 headings and
+  Ctrl+0 strips them, deleting nothing and keeping the range
   (`test/selection/cross-block/range-command-keys.test.ts`,
   `test/selection/cross-block/keydown-command-candidates.test.ts`).
 - Ctrl+B marks each block's own span, deletes nothing, and the range survives the press, which is
@@ -43,11 +43,10 @@ well-formed and the next keystroke writes in that paragraph.
 ### 2. A command key over a whole table, row or column removes it first
 
 Drag over a whole body row, a whole column, or every cell of the table, then press
-Enter, or Ctrl+2 over the whole table. The row, column or table goes the way it goes on
-Backspace, and the key runs at the caret that's left, so each ends exactly as Backspace and
-then the key would. One Ctrl+Z puts the document back as it was. Ctrl+2 over a whole row or
-column changes nothing and the selection stays: the caret would land in a cell, and a cell
-binds no Ctrl+2, so the key isn't a command key there. Tab over the same grid changes
+Enter. The row, column or table goes the way it goes on Backspace, and the key runs at the
+caret that's left, so each ends exactly as Backspace and then the key would. One Ctrl+Z puts
+the document back as it was. Ctrl+2 over the same grid changes nothing and the selection
+stays: a cell takes no heading. Tab over the same grid changes
 nothing, since a table has nothing to indent. Miss-analysis: every scenario above drew prose
 or a range leaving a table, so nothing pressed a command key over a grid held whole, where
 the key cleared the cells and ran in the first one instead.

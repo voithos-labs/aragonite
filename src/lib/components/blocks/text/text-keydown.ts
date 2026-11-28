@@ -1,10 +1,11 @@
 /**
- * Pure text and caret transforms for TextEditableBlock's structural gestures: changing a
- * heading's level, demoting it to prose, inserting a hard break inside the text, inserting a
- * literal tab. The component owns the wiring; these own the string math.
+ * Pure text and caret transforms for TextEditableBlock's structural gestures: demoting an empty
+ * heading, inserting a hard break inside the text, inserting a literal tab. The component owns the
+ * wiring; these own the string math. A heading level's bytes are `tree-operations/heading-level.ts`.
  */
 
 import { sameLineSuffixOf, withHardBreak, type ContentRange } from '../../../core/inline';
+import { demoteToParagraph, type TextEditResult } from '../../../tree-operations/heading-level';
 import {
 	displayLength,
 	ownTrailingLineEnding,
@@ -12,57 +13,11 @@ import {
 	type LineEnding
 } from '../../../core/lines';
 
-export interface TextEditResult {
-	newRaw: string;
-	caretOffset: number;
-}
-
-/**
- * Drop the block's structure outside its content range, the same range the check that let the
- * key through reads. Null where the content is the whole display.
- */
-export function demoteToParagraph(
-	raw: string,
-	content: ContentRange,
-	preEditOffset: number
-): TextEditResult | null {
-	if (content.start === 0 && content.end === displayLength(raw)) return null;
-	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
-	return {
-		newRaw: raw.slice(content.start, content.end) + endingPastContent(raw, content.end),
-		caretOffset: inContent - content.start
-	};
-}
-
-// The line ending the dropped structure ended in, a lone `\r` on a document's last line included.
-function endingPastContent(raw: string, contentEnd: number): string {
-	return /(?:\r\n?|\n)$/.exec(raw.slice(contentEnd))?.[0] ?? '';
-}
-
 /** An ATX heading with no text draws nothing when unfocused, so on blur it becomes the empty
  *  paragraph it looks like rather than a `#` that reappears on the next click. */
 export function demoteEmptyAtxHeading(raw: string, content: ContentRange): TextEditResult | null {
 	if (content.start === 0 || content.end > content.start) return null;
 	return demoteToParagraph(raw, content, 0);
-}
-
-/** Re-mark the content with an ATX prefix for `level`, keeping a closing `#` run. Not a toggle:
- *  level 0 demotes, and null there means there was nothing to strip. */
-export function cycleHeading(
-	raw: string,
-	content: ContentRange,
-	level: number,
-	preEditOffset: number
-): TextEditResult | null {
-	if (level === 0) return demoteToParagraph(raw, content, preEditOffset);
-	const prefix = '#'.repeat(level) + ' ';
-	const suffix = sameLineSuffixOf(raw, content.end);
-	const newDisplay = prefix + raw.slice(content.start, content.end) + suffix;
-	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
-	return {
-		newRaw: newDisplay + endingPastContent(raw, content.end + suffix.length),
-		caretOffset: prefix.length + (inContent - content.start)
-	};
 }
 
 /** A GFM hard break (a backslash at end of line) at `offset`, ended with `ending`, the typed break's;

@@ -27,6 +27,7 @@ import {
 } from '#lib/test/harness/clipboard-events.js';
 import { insertBy, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { leafTexts } from '#lib/invariants/leaf-text.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import {
 	clipboardGesture,
@@ -165,10 +166,6 @@ function lineGoes(d: Draw): boolean {
 const hasTwin = (d: Draw) =>
 	d.end === 'a paragraph’s end' && d.above !== 'right under a paragraph' && !lineGoes(d);
 
-/** Booked, not ruled: a range from a fence or a callout's opening row asks that block's keymap for
- *  Mod+digit, which binds none, so the key goes to the browser and the range stays. */
-const unclaimed = (d: Draw, g: Gesture) => ['fence', 'callout'].includes(d.start) && g === 'Mod+2';
-
 /** Lane 5a's count: a command key over a range that runs in a block of another kind than claimed it. */
 const LANE_5A = 'invariant:command-key-landing';
 
@@ -182,7 +179,6 @@ const GESTURES = [
 	'a composition',
 	'Enter',
 	'Shift+Enter',
-	'Mod+2',
 	'a one-line paste'
 ] as const;
 type Gesture = (typeof GESTURES)[number];
@@ -270,7 +266,6 @@ async function run(editor: Editor, gesture: Gesture): Promise<void> {
 	else if (gesture === 'a typed key') await insertBy('hardware key', focused(), WRITTEN);
 	else if (gesture === 'a composition') await insertBy('composition', focused(), WRITTEN);
 	else if (gesture === 'Shift+Enter') await press(editor, { key: 'Enter', shiftKey: true });
-	else if (gesture === 'Mod+2') await press(editor, { key: '2', ctrlKey: true });
 	else await press(editor, { key: gesture });
 	await editor.settle();
 }
@@ -320,7 +315,7 @@ async function land(text: string, mode: PresentationMode, gesture: Gesture): Pro
 }
 
 /** The gestures whose own landing P5 binds: written text is P2's and P3's. */
-const LANDS = ['Backspace', 'Delete', 'a cut', 'Enter', 'Shift+Enter', 'Mod+2'] as const;
+const LANDS = ['Backspace', 'Delete', 'a cut', 'Enter', 'Shift+Enter'] as const;
 
 /** A letter a `:::` name takes, which `WRITTEN` isn't: typed at a name's end it renames the container. */
 const NAMING = 'q';
@@ -433,7 +428,6 @@ describe('the landing law', () => {
 	it('P1b: outside its exception, a range from a block taken whole lands as its twin does, every gesture', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbDraw.filter(hasTwin), fc.constantFrom(...GESTURES), async (d, g) => {
-				if (unclaimed(d, g)) return;
 				const text = marked(d, STARTS[d.start]);
 				const twin = marked(d, TWIN_START);
 				const got = await land(text, d.mode, g);
@@ -476,7 +470,6 @@ describe('the landing law', () => {
 	it('P5: after a gesture’s own landing a letter goes into a leaf’s text and re-kinds nothing', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbLanding, fc.constantFrom(...LANDS), async (d, g) => {
-				if (unclaimed(d, g)) return;
 				const text = marked(d, STARTS[d.start]);
 				const got = await arrival(text, d.mode, g);
 				expect(got, `${g} over ${JSON.stringify(text)}`).toEqual({ lost: false, offSyntax: true });
@@ -494,6 +487,26 @@ describe('the landing law', () => {
 				expect(own, `${g} over ${JSON.stringify(text)}`).toEqual([]);
 			}),
 			params(1.5)
+		);
+	}, 600_000);
+
+	it('P10: a heading key lands nowhere: every leaf keeps its text and the range stays', async () => {
+		await fc.assert(
+			fc.asyncProperty(arbDraw, async (d) => {
+				const text = marked(d, STARTS[d.start]);
+				const { editor } = await mounted(text, d.mode);
+				const texts = () => leafTexts(editor.instance.__test.getDocument().children);
+				const before = texts();
+				await press(editor, { key: '2', ctrlKey: true });
+				const at = JSON.stringify(text);
+				expect(texts(), at).toEqual(before);
+				expect(editor.instance.__test.ownsRange(), at).toBe(true);
+				expect(
+					takeDevWarns().map((w) => w.tag),
+					at
+				).toEqual([]);
+			}),
+			params()
 		);
 	}, 600_000);
 });

@@ -15,10 +15,8 @@ spliced while the kind stays stale until the next full re-parse: the source read
 
 ## Edge cases
 
-- The same selection with `Mod+2` pressed instead of a typed marker: the chord takes
-  the same delete-then-redispatch branch, so the survivor ends a level-2 heading. The
-  command check declines `heading.cycle` while a range is painted (a level belongs to
-  one block), and this is the path that must keep landing.
+- The same selection with `Mod+2` pressed instead of a typed marker: nothing is
+  deleted, both blocks become level-2 headings and the selection stays.
 
 - Nested survivor: a blockquote paragraph selected out through a following
   paragraph, collapse landing inside the blockquote at offset 0, type `>`: the

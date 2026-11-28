@@ -47,11 +47,11 @@ right of the selection.
 - a cross-block selection leaves the format toggles live and greys out only the
   link editor: the toggles have a cross-block handler behind them, while the link
   editor works from one block's offsets and a range across blocks gives it none
-- a cross-block selection drops the "Set heading" row entirely, and a single-block
-  one still offers it: a heading level belongs to one block, so the command declines
-  to run across a range, and a labelled row the command declines leaves the bar
-  rather than sitting there greyed out (a mark button only dims, which keeps the
-  icon bar's shape)
+- a cross-block selection offers the "Set heading" row as a single-block one does,
+  and its Heading 2 makes every text block the selection reaches a level-2 heading,
+  keeping the selection; a labelled row the command declines would leave the bar
+  rather than sit there greyed out (a mark button only dims, which keeps the icon
+  bar's shape)
 - the "Inline code" row survives the same selection and wraps each block's covered
   run on its own: it has the cross-block handler the other toggles have, so the bar
   offers exactly what the commands accept

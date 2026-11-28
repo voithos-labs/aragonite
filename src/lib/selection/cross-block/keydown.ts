@@ -5,6 +5,9 @@ import type { AnyBlockKind, Document } from '../../core/nodes';
 import { kindOfPath, replaceRange, replaceWidget } from './range-replace';
 import { bindsLineBreak, commandLandingKind } from './range-removal';
 import { overRangeAnswer, placeKind, type PlaceAnswer } from './range-paste';
+import { headingOverRange } from './format-toggle';
+import type { HeadingLevelAt } from './format-range';
+import { headingLevelOf } from '../../tree-operations/heading-level';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
@@ -29,6 +32,7 @@ import {
 	chordsBoundTo,
 	commandForKey,
 	containerMayBind,
+	resolveBinding,
 	resolveKindBinding
 } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
@@ -137,6 +141,11 @@ async function handleCrossBlockActive(
 		case 'indent':
 			if (!isReadingMode(ctx.reading.mode)) await indentRange(ctx, e);
 			return true;
+		case 'heading': {
+			const chord = eventToChord(e);
+			if (chord && !isReadingMode(ctx.reading.mode)) await headingOver(ctx, chord);
+			return true;
+		}
 		case 'command': {
 			const chord = eventToChord(e);
 			if (chord && !isReadingMode(ctx.reading.mode)) {
@@ -305,6 +314,7 @@ type RangeKeyRole =
 	| 'delete'
 	| 'rewrite'
 	| 'indent'
+	| 'heading'
 	| 'command'
 	| 'type'
 	| 'extend'
@@ -331,6 +341,7 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	// caret would leave empty marker pairs where the text stood.
 	if (isClaimedRewriteChord(e)) return 'rewrite';
 	if (isIndentKey(e, reads)) return 'indent';
+	if (isHeadingKey(e, reads)) return 'heading';
 	const edge = caretEdgeKey(e);
 	if (edge?.to === 'line' && edge.extend) return 'lineEdge';
 	// Any other caret-edge key (Cmd+ArrowUp, plain Home) the range leaves to the block.
@@ -361,6 +372,31 @@ function containerBindsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 		if (container && resolveKindBinding(chord, container.kind, overrides)) return true;
 	}
 	return false;
+}
+
+const HEADING = new Set<AnyCommandId>(['heading.cycle']);
+
+/** A chord some keymap binds to a heading level: taken even where no block the range covers takes
+ *  a heading, as a format chord is. */
+function isHeadingKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	const chord = eventToChord(e);
+	return !!chord && bindsHeading(chord, reads.commands);
+}
+
+/** Whether some keymap binds `chord` to a heading level, for a key or a break input it stands for. */
+export function bindsHeading(chord: string, commands: RangeKeyReads['commands']): boolean {
+	return chordsBoundTo(HEADING, commands).has(chord);
+}
+
+/** Each block the range reaches takes the level `chord` sets in its kind's keymap, so a kind that
+ *  binds it to nothing keeps its kind. */
+export function headingOver(ctx: CrossBlockDispatchContext, chord: string): Promise<void> {
+	const overrides = ctx.commands.keybindingOverrides();
+	const levelAt: HeadingLevelAt = (kind) => {
+		const binding = resolveBinding(chord, kind, overrides, ctx.commands.activation);
+		return binding?.command === 'heading.cycle' ? headingLevelOf(binding.arg) : null;
+	};
+	return headingOverRange(ctx, levelAt);
 }
 
 /** Backspace and Delete, which remove the range. */

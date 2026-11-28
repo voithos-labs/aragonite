@@ -239,7 +239,8 @@ describe('a line break over a range goes by the command its key runs', () => {
 		source: string,
 		select: EditorSelection,
 		binding: KeybindingOverride,
-		key: KeyboardEventInit | 'insertParagraph'
+		key: KeyboardEventInit | 'insertParagraph',
+		letter = true
 	): Promise<string> {
 		await destroyMountedEditors();
 		const editor = mountEditor<EditorTestSurface>({
@@ -253,7 +254,7 @@ describe('a line break over a range goes by the command its key runs', () => {
 		if (key === 'insertParagraph') dispatchBeforeInput(focused(), key);
 		else await pressHardwareKey(focused(), key);
 		await editor.settle();
-		await pressHardwareKey(focused(), { key: 'x' });
+		if (letter) await pressHardwareKey(focused(), { key: 'x' });
 		await editor.settle();
 		return editor.source();
 	}
@@ -268,19 +269,9 @@ describe('a line break over a range goes by the command its key runs', () => {
 		expect(typed).toBe(':::tip\n\n\nxner\nmore\n:::\n');
 	});
 
-	it('Enter bound to a heading level lands where Backspace would, as that command does', async () => {
-		const typed = await pressed(
-			'first\n\n***\n\nbody\n\n> ***\n>\n> more\n',
-			range([1], [3, 0], 3),
-			{ kind: 'paragraph', chord: 'Enter', command: 'heading.cycle', arg: 2 },
-			{ key: 'Enter' }
-		);
-		expect(typed).toBe('## firstx\n\n> more\n');
-	});
-
 	// Miss-analysis: no row sent a soft keyboard's break under a rebound key, so a break input named a
 	// line break whatever its chord runs went unseen.
-	it('a soft keyboard’s paragraph break goes by what Enter is bound to, as the key does', async () => {
+	it('Enter bound to a heading level re-kinds the blocks, the key and a soft break alike', async () => {
 		const source = 'first\n\n***\n\nbody\n\n:::tip\ninner\n:::\n';
 		const select = range([1], [3, 1], 2);
 		const binding: KeybindingOverride = {
@@ -289,9 +280,9 @@ describe('a line break over a range goes by the command its key runs', () => {
 			command: 'heading.cycle',
 			arg: 2
 		};
-		const keyed = await pressed(source, select, binding, { key: 'Enter' });
-		expect(keyed.startsWith('## firstx\n')).toBe(true);
-		expect(await pressed(source, select, binding, 'insertParagraph')).toBe(keyed);
+		const keyed = await pressed(source, select, binding, { key: 'Enter' }, false);
+		expect(keyed).toBe('first\n\n***\n\n## body\n\n:::tip\n## inner\n:::\n');
+		expect(await pressed(source, select, binding, 'insertParagraph', false)).toBe(keyed);
 	});
 });
 

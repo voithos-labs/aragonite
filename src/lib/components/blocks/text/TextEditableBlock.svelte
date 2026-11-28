@@ -2,7 +2,6 @@
 	import { imeOwnsInput } from '../../../browser/composition';
 	import { getContext, onDestroy, untrack } from 'svelte';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
-	import { isTaskItemText } from '../list/task-checkbox';
 	import { defaultPrefixIndent } from '../marker-prefix';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
@@ -20,14 +19,13 @@
 	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
+	import { demoteEmptyAtxHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
 	import {
-		cycleHeading,
-		demoteEmptyAtxHeading,
 		demoteToParagraph,
-		insertHardBreak,
-		insertLiteralTab,
+		headingLevelOf,
+		headingWrite,
 		type TextEditResult
-	} from './text-keydown';
+	} from '../../../tree-operations/heading-level';
 	import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 	import { isReservedChromeChild } from '../../../schema/reserved-chrome';
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
@@ -577,14 +575,10 @@
 					// an ATX prefix is content: it would destroy a link reference definition.
 					applies: () => isProseKind(node.kind),
 					perform: () => {
-						// `arg` comes untrusted from the keybinding channel, and an out-of-range level
-						// would throw inside `repeat`, so it falls back to stripping the heading.
-						const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
-						const cycled = cycleHeading(node.raw, getContentRange(node), level, offset);
+						const parent = blockNodeAt(getDoc(), myPath.slice(0, -1));
+						const cycled = headingWrite(node, parent, index, headingLevelOf(arg), offset);
 						if (!cycled) return;
-						// Text after a task box is the to-do's own text, so a written `# ` would stay
-						// text there; replacing the block makes the heading and gives the box up.
-						if (isTaskItemText(blockNodeAt(getDoc(), myPath.slice(0, -1)), index)) {
+						if (cycled.replacesBlock) {
 							const heading = readAsOpened(cycled.newRaw, { grammar, scope: 'fragment' }).children;
 							const focus = { replacementIndex: 0, offset: cycled.caretOffset };
 							void blockEdit.replaceBlock(index, heading, focus, { snapshotOffset: offset });

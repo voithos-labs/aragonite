@@ -509,7 +509,7 @@ editor.runCommand('nope'); // false, unknown id, nothing changed
 The ids you can pass:
 
 - **`TOOLBAR_COMMANDS`** (exported from the package) has what a selection toolbar needs: `toggleStrong`, `toggleEmphasis`, `toggleStrikethrough`, `toggleCode`, `editLink`, and `setHeading`. Any other id in the exported `CommandId` union runs too (`history.undo`, `block.moveUp`, and so on); those just don't get a named constant.
-- **`setHeading`, with a level.** The command behind `Mod+0` to `Mod+6`: `runCommand(TOOLBAR_COMMANDS.setHeading, 2)` re-marks the focused prose block as a level-2 heading and `0` makes it a paragraph, which is what a heading picker calls. A heading level belongs to one block, so over a selection spanning blocks it declines rather than guessing which block you meant.
+- **`setHeading`, with a level.** The command behind `Mod+0` to `Mod+6`: `runCommand(TOOLBAR_COMMANDS.setHeading, 2)` re-marks the focused prose block as a level-2 heading and `0` makes it a paragraph, which is what a heading picker calls. Over a selection spanning blocks it re-marks every text block the selection reaches and keeps the selection, as `Mod+2` does.
 - **A plugin's global command name**, the kind `registerGlobalCommand` registers (see the [plugin guide](plugin-guide.md)), so you can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command stays keyboard-only.
 
 `arg` is the argument a keymap binding would bake in (`{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 }`), handed to the command as it is; a command that takes none ignores it.
@@ -533,16 +533,16 @@ Tells you whether `runCommand(id)` would reach the command right now, which is w
 - a block-scoped id with nothing focused
 - a text command on a block that can't run one (a divider, a diagram, a formula)
 - a plugin command whose plugin this editor didn't list
-- the link editor or a heading level while the selection spans blocks (a link lives inside one block, and a heading level is one block's)
+- the link editor while the selection spans blocks (a link lives inside one block)
 - `history.undo` or `history.redo` with nothing to undo or redo (typing a letter and deleting it again counts as nothing). `runCommand` still answers `true` for those two, since the editor always takes Mod+Z for itself rather than let the browser's own undo loose on the document
 
-`true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
+`true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark or the heading), so keep reading `runCommand`'s boolean too.
 
 ```ts
 // with a selection spanning two paragraphs
 editor.canRunCommand(TOOLBAR_COMMANDS.toggleStrong); // true
 editor.canRunCommand(TOOLBAR_COMMANDS.editLink); // false, a link can't span blocks
-editor.canRunCommand(TOOLBAR_COMMANDS.setHeading); // false, a heading level is one block's
+editor.canRunCommand(TOOLBAR_COMMANDS.setHeading); // true, each paragraph takes the level
 ```
 
 `isCommandActive(commandId: string): boolean`
@@ -1063,7 +1063,7 @@ The `keybindings` prop rebinds (or disables, with `command: null`) chords that g
 
 An override's `kind` scope takes a plugin kind too; name it through the plugin's exported kind constant, which is a branded string, so a raw literal won't typecheck. A bind reaches every surface the editor owns, including the ones with no focused block for a kind scope to apply to: the caret between two blocks, a block focused as a whole (a thematic break, a plugin diagram), and the document with nothing focused inside it. A disable unbinds the command and lets the press through to the page, undo and redo aside, as [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes) explains.
 
-**Over a selection spanning blocks, a chord goes by what you bound it to.** If the key is bound to something that happens at a caret (splitting a block, a hard line break, a heading level), it first removes the selection, then does its thing there. A line break goes where text typed over the selection would: before the rest of the text the selection ended in, else on a line it emptied, else in an empty paragraph where the selection was. Anything else goes where `Backspace` would leave the caret. So rebind the heading to `Mod+Alt+1` and that chord makes a heading over a selection too, while a disabled `Mod+1` leaves the selection alone. The binding that counts is the one in the block where the key then runs, so a binding scoped to one kind works here too. The indent keys follow the same rule: a chord you bind to `list.indent` indents a selection's list items, like Tab. That's the keyboard, mind you; `runCommand` with a heading level still declines over a selection spanning blocks, as [Toolbar commands](#toolbar-commands) says.
+**Over a selection spanning blocks, a chord goes by what you bound it to.** If the key is bound to something that happens at a caret (splitting a block, a hard line break, a plugin command that asks for it), it first removes the selection, then does its thing where text typed over the selection would land: before the rest of the text the selection ended in, else on a line it emptied, else in an empty paragraph where the selection was. The binding that counts is the one in the block there, so a binding scoped to one kind works here too. A heading key and the indent keys act on each block instead and delete nothing: rebind the heading to `Mod+Alt+1` and that chord makes every paragraph in a selection a heading, while a disabled `Mod+1` leaves them alone, and a chord you bind to `list.indent` indents a selection's list items, like Tab.
 
 **`Backspace` and `Delete` speak for every delete at a block's edge.** A word or line delete (`Ctrl+Backspace`, `Option+Backspace`, `Cmd+Backspace` and their `Delete` twins) or a phone keyboard's delete that lands at a block's start runs whatever plain `Backspace` is bound to there, and at its end whatever `Delete` is. So disabling `Backspace` stops all of them merging, and rebinding it rebinds all of them. In a table cell the chords move to the next cell over, like the plain keys do.
 

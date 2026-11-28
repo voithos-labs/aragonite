@@ -173,7 +173,8 @@ function commandOverSelection(
  */
 export interface CrossBlockCommandRouter {
 	canRun(id: AnyCommandId): boolean;
-	run(id: AnyCommandId): boolean;
+	/** `arg` is the binding's or `runCommand`'s argument (a heading's level). */
+	run(id: AnyCommandId, arg?: unknown): boolean;
 	isActive(id: AnyCommandId): boolean;
 }
 
@@ -410,10 +411,13 @@ function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	// Called directly, not optionally: a caller without the getter throws rather than skipping.
 	if (!gates.ownsRange() || runsOnItsBlock(id, gates.rangeInOneBlock()))
 		return { kind: 'block-local', ranged: false };
-	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
-	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) return { kind: 'block-local', ranged: true };
-	const router = gates.crossBlockCommands;
-	return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
+	if (CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) {
+		const router = gates.crossBlockCommands;
+		return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
+	}
+	return RANGE_DECLINED_COMMAND_IDS.has(id)
+		? { kind: 'decline' }
+		: { kind: 'block-local', ranged: true };
 }
 
 /** The one dispatch keyed by id, which a chord and `EditorInstance.runCommand` both reach. With no
@@ -429,7 +433,7 @@ function runResolvedCommand(
 	if (isReadingMode(ctx.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, ctx);
 	if (route.kind === 'decline') return false;
-	if (route.kind === 'cross-block') return route.router.run(id);
+	if (route.kind === 'cross-block') return route.router.run(id, arg);
 	const resolved = resolveCommand(id, target, ctx.activation);
 	if (resolved.tier === 'global') return resolved.run({ ...ctx, arg });
 	return runBlockLocalCommand(resolved, id, arg, path, ctx, run);
@@ -508,8 +512,8 @@ function leftUnderLiveRange(id: AnyCommandId, kind: AnyBlockKind, gates: Command
 	return commandOverRange(kind, id, gates.activation) !== undefined;
 }
 
-/** A link or a heading level needs a range inside one block, so over one the editor holds it runs
- *  on that block, as over the browser's own range there. */
+/** A link needs a range inside one block, so over one the editor holds it runs on that block, as
+ *  over the browser's own range there. */
 export function runsOnItsBlock(id: AnyCommandId, rangeInOneBlock: boolean): boolean {
 	return rangeInOneBlock && RANGE_DECLINED_COMMAND_IDS.has(id);
 }

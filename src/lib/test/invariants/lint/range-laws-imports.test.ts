@@ -38,6 +38,7 @@ const ALLOWED: Record<string, string> = {
 	'src/lib/tree-operations/node-primitives.ts': 'the block at a caret’s path (a read)',
 	'src/lib/schema/whole-block-unit.ts': 'whether a caret’s block is held whole (a read)',
 	'src/lib/core/parser.ts': 'whether a block is a blank line (a read)',
+	'src/lib/invariants/leaf-text.ts': 'every leaf’s text, which a heading key keeps (a read)',
 	'src/lib/core/serializer.ts': 'the bytes the range-edit core answers, as a document (a read)',
 	'src/lib/selection/primitives.ts': 'a named range’s cell end',
 	'src/lib/selection/selection-state.svelte.ts':

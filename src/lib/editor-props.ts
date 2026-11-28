@@ -230,10 +230,10 @@ export interface EditorInstance {
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**
 	 * Run a command by id at the focused element, or across a painted range where the id has a
-	 * cross-block handler (a format toggle marks every block it touches, a table works by its
-	 * cells). False, and nothing mutates, on an unknown id, in reading mode, with nothing focused,
-	 * and on the link editor over a range. `arg` reaches the handler as a keybinding's argument
-	 * would (`heading.cycle` takes the level, 0 for plain text); a handler that takes none ignores it.
+	 * cross-block handler (a format toggle or a heading level reaches every block, a table works by
+	 * its cells). False, and nothing mutates, on an unknown id, in reading mode, with nothing focused,
+	 * and on the link editor over a range. `arg` reaches the handler as a keybinding's argument would
+	 * (`heading.cycle` takes the level, 0 for plain text); a handler that takes none ignores it.
 	 */
 	runCommand(commandId: string, arg?: unknown): boolean;
 	/**
