@@ -404,17 +404,21 @@ function placeAnswer(doc: Doc, range: Range): RangeEditResult {
 	return { source: line.source, caret: { at: line.caret, holds: 'text' }, opened: true };
 }
 
-/** The place over one block held whole: the block gone with its line, as Backspace takes it, and a
- *  paragraph to open where it stood, unless prose below joined the block above there. */
+/** The place over one block held whole: a paragraph to open where it stood, its line gone as
+ *  Backspace takes it, or kept emptied where the lines either side would join up without it. */
 function goneAlone(doc: Doc, range: Range) {
-	const removed = removeLeavingBlank(doc, range.from, range.to);
-	const after = { ...readDoc(removed.source, doc.host, doc.mode), ending: doc.ending };
-	const took = removed.took ?? removed.caret;
-	const parent = parentAt(after, took, () => startedIn(doc, range.from));
-	const place: Place = { at: took, holds: 'boundary', parent };
-	// Prose below that joined the block above there takes the composed text where it runs on.
-	const runsOn = joinedAcross(after, took) && onText(after, place).holds === 'text';
-	return { removed, after, place, opens: !runsOn };
+	const read = (removed: Removal) => {
+		const after = { ...readDoc(removed.source, doc.host, doc.mode), ending: doc.ending };
+		const took = removed.took ?? removed.caret;
+		const parent = parentAt(after, took, () => startedIn(doc, range.from));
+		const place: Place = { at: took, holds: 'boundary', parent };
+		return { removed, after, place, opens: true };
+	};
+	const gone = read(removeLeavingBlank(doc, range.from, range.to));
+	const { after, place } = gone;
+	if (!joinedAcross(after, place.at) || onText(after, place).holds !== 'text') return gone;
+	const alone = heldAlone(doc, range.from, range.to);
+	return alone ? read(blankedOut(doc, alone, range.to)) : gone;
 }
 
 /** The index among `place.parent`'s children of the first one starting at or past its byte. */

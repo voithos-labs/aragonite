@@ -375,8 +375,8 @@ const draw = (
 const KNOWN: Record<string, Known> = {
 	"a lone block's emptied line": {
 		cause:
-			'text over a rule or a fence held alone between two lines stands on a line of its own, and ' +
-			'the line below no longer joins the line above (minor)',
+			'text, typed or composed, over a rule or a fence held alone between two lines stands on a ' +
+			'line of its own, and the line below no longer joins the line above (ruled)',
 		matches: (d, _r, line) =>
 			texts(d) &&
 			d.range === 'edge..lower' &&
@@ -504,7 +504,7 @@ const FIXED = DRAWS === 40 && SEED === 20261112;
 const FIXED_TALLY = {
 	unplaced: 0,
 	'took the start block': 48,
-	"a lone block's emptied line": 2,
+	"a lone block's emptied line": 4,
 	'a letter where two indented code blocks join': 1,
 	'a composition where two indented code blocks join': 1,
 	'Enter from a table in a container': 1,
