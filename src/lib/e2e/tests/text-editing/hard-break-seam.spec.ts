@@ -1,6 +1,7 @@
 import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { pointAtRaw } from '../../text-runs';
+import { edgeKey } from '../../platform-keys';
 
 // Shift+Enter cuts where Enter would: a soft line break right after the caret becomes the hard
 // one, and a closer that ends at the caret stays on its line
@@ -10,7 +11,7 @@ interface Row {
 	name: string;
 	source: string;
 	modes: ('source' | 'live')[];
-	/** Where the caret goes: End, or that many ArrowLefts from it. */
+	/** Where the caret goes: the line's end, or that many ArrowLefts from it. */
 	back: number;
 	broken: string;
 }
@@ -56,7 +57,7 @@ for (const row of ROWS)
 			await editor.loadContent(row.source);
 			const inText = await pointAtRaw(page, [0], 2);
 			await page.mouse.click(inText.x, inText.y);
-			await page.keyboard.press('End');
+			await page.keyboard.press(edgeKey('lineEnd'));
 			for (let i = 0; i < row.back; i++) await page.keyboard.press('ArrowLeft');
 			await page.keyboard.press('Shift+Enter');
 			await page.keyboard.type('x');
