@@ -37,6 +37,8 @@ const ROWS: [string, string, ReturnType<typeof at>, PresentationMode[], string][
 		'# Q\n\nnext\n'
 	],
 	['a bold run’s whole text', 'a **bold** c\n', at([0], 4, 8), ['live'], 'a **Q** c\n'],
+	['an italic run’s whole text', 'a *ital* c\n', at([0], 3, 7), ['live'], 'a *Q* c\n'],
+	['a code span’s whole text', 'a `code` c\n', at([0], 3, 7), ['live'], 'a `Q` c\n'],
 	[
 		'a setext heading’s text',
 		'heading\n====\n\nnext\n',

@@ -1,8 +1,9 @@
 # Feature: Typing over a long-pressed word
 
-A long press or a double tap makes the word the editor's own selection. Typing or composing over it
-writes what typing over the same word selected with a mouse writes: the block's own write, its
-markers kept. Every row runs on a touch screen in Chromium.
+A long press or a double tap makes the word the editor's own selection. Typing over it writes what
+typing over the same word selected with a mouse writes: the block's own write, its markers kept.
+Composing does the same over a heading's whole text; over a run's whole text or a setext heading's
+text it doesn't yet, a known gap. Every row runs on a touch screen in Chromium.
 
 ## Happy paths
 
