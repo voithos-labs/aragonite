@@ -23,13 +23,11 @@ import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives'
 import { commitGridClear, commitGridLineDelete } from './grid-removal';
 import {
 	CORE_GESTURE,
-	bindsLineBreak,
-	breaksIn,
-	commandLandingKind,
 	commitBytes,
 	commitRemoval,
 	emptiedPlace,
 	removeThroughCore,
+	runsAtPlace,
 	splitsParagraph,
 	writeInCell,
 	type CoreCommit,
@@ -51,8 +49,7 @@ import type { RangeHost } from '../../range-edit/host';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import { completeLineOnType } from '../../schema/block-completions';
 import { blockFacts } from '../../schema/block-facts';
-import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
-import { checkCommandLanding } from '../../invariants/command-key-landing';
+import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -202,14 +199,11 @@ async function replaceInStep(
 
 	const keyed = 'chord' in insertion ? insertion : null;
 	// A cell's rows or columns have no place for text: their keys run in the cell the removal leaves.
-	const over =
-		keyed && (keyed.kind === 'break' || bindsLineBreak(keyed.chord, ctx.commands))
-			? currentPlace(ctx, coverage, keyed.kind === 'command' ? keyed.place : null)
-			: null;
-	// A key the place binds to anything but a line break runs as any other command key does.
-	if (keyed && over && breaksIn(placeKind(over), keyed, ctx.commands))
-		return breakAtPlace(ctx, coverage, over, keyed.chord);
-	const claimed = keyed ? commandLandingKind(ctx.getDoc(), coverage) : null;
+	const over = keyed
+		? currentPlace(ctx, coverage, keyed.kind === 'command' ? keyed.place : null)
+		: null;
+	if (keyed && over && runsAtPlace(placeKind(over), keyed, ctx.commands))
+		return commandAtPlace(ctx, coverage, over, keyed.chord);
 	const [removed, held] = await ctx.controller.holdLandings(() =>
 		removeRange(ctx, coverage, removal, coreGestureOf(insertion))
 	);
@@ -227,12 +221,7 @@ async function replaceInStep(
 		await removalCaret?.place();
 		// At a gap there is no block to run the command in, so the key stops at the removal.
 		if (ctx.selection.gapCaret) return 'written';
-		const path = at?.path ?? coverage.range.start.path;
-		if (claimed) {
-			const ran = kindOfPath(path, ctx.getDoc());
-			assertInvariant('command-key-landing', () => checkCommandLanding(claimed, ran));
-		}
-		await runCommandAt(ctx, path, keyed.chord);
+		await runCommandAt(ctx, at?.path ?? coverage.range.start.path, keyed.chord);
 		return 'written';
 	}
 	if (insertion.kind === 'none') {
@@ -242,9 +231,9 @@ async function replaceInStep(
 	return insertAtCaret(ctx, insertion, at, removalCaret);
 }
 
-/** A line break at the core's place for text over the range, then the key's own command there, in
- *  one undo step; Enter's split is a paragraph the place opened already. */
-async function breakAtPlace(
+/** The key's command at the core's place for text over the range, after that place's commit, in one
+ *  undo step; Enter's split is a paragraph the place opened already. */
+async function commandAtPlace(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
 	over: PlaceAnswer,
@@ -254,7 +243,7 @@ async function breakAtPlace(
 	if (!placed) return 'nothing';
 	if (over.answer.opened && splitsParagraph(chord, ctx.commands)) return 'written';
 	const gap = ctx.selection.gapCaret;
-	if (gap) return breakWhereRangeWas(ctx, [...gap.parentPath, gap.index], chord);
+	if (gap) return commandWhereRangeWas(ctx, [...gap.parentPath, gap.index], chord);
 	await runCommandAt(ctx, placed.caret?.path ?? coverage.range.start.path, chord);
 	return 'written';
 }
@@ -275,9 +264,9 @@ async function commitPlace(
 	return removed;
 }
 
-/** A line break with no block to run in lands in an empty paragraph at `slot`, one an emptied
- *  document or container keeps or a new one; any break but Enter's split then runs there. */
-async function breakWhereRangeWas(
+/** A command key with no block to run in runs in an empty paragraph at `slot`, one an emptied
+ *  document or container keeps or a new one; Enter's split is that paragraph. */
+async function commandWhereRangeWas(
 	ctx: CrossBlockMutationContext,
 	slot: number[],
 	chord: string

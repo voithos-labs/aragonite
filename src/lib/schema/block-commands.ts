@@ -142,6 +142,15 @@ export function getBlockCommand(
 	return blockCommands.get(compositeKey(kind, id), activation)?.handler;
 }
 
+/** Every command a key over a range runs after removing it: the built-ins, and each plugin
+ *  command registered with `overRange`. */
+export function afterRangeRemovalCommands(activation: PluginActivation): Set<AnyCommandId> {
+	const ids = new Set<AnyCommandId>(AFTER_RANGE_REMOVAL_COMMAND_IDS);
+	for (const [key, entry] of blockCommands.entries(activation))
+		if (entry.options.overRange) ids.add(key.slice(key.indexOf(' ') + 1) as AnyCommandId);
+	return ids;
+}
+
 /** What a command at `kind` does over a selection spanning blocks: a built-in in
  *  `AFTER_RANGE_REMOVAL_COMMAND_IDS`, or a plugin command registered with `overRange`. */
 export function commandOverRange(

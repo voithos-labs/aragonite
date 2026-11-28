@@ -44,7 +44,7 @@ A handler that throws doesn't take the editor down: the gesture does nothing and
 
 **Over a selection.** The examples here use a made-up `poem` kind whose verses start with `~ `, and a `splitVerse` handler, bound to Enter, that breaks a verse in two at the caret.
 
-Over a selection spanning blocks, a key bound to your command does nothing by default: your handler isn't called and the selection stays. Pass `{ overRange: 'afterRemoval' }` as a fourth argument and the key removes the selection first, the way Backspace would, then runs your command at the caret that's left, as the built-in Enter and Mod+1 do. The binding the editor reads is the one in the block the removal leaves the caret in, so your command runs when that block is one of yours.
+Over a selection spanning blocks, a key bound to your command does nothing by default: your handler isn't called and the selection stays. Pass `{ overRange: 'afterRemoval' }` as a fourth argument and the key removes the selection first, then runs your command where text typed over the selection would land, as the built-in Enter does. The binding the editor reads is the one in the block there, so your command runs when that block is one of yours. Over whole blocks that's an empty paragraph where they stood, which binds your key only if you bound it on paragraphs.
 
 A chord some keymap binds to a line break (Enter, say) is read somewhere else: at the place text typed over the selection would land. Your command runs if that place is in your block, and doesn't if the block there binds the chord to nothing. Over whole blocks after your block, that place is a new paragraph, so Enter opens a line there instead of running your command.
 

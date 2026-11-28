@@ -166,9 +166,6 @@ function lineGoes(d: Draw): boolean {
 const hasTwin = (d: Draw) =>
 	d.end === 'a paragraph’s end' && d.above !== 'right under a paragraph' && !lineGoes(d);
 
-/** Lane 5a's count: a command key over a range that runs in a block of another kind than claimed it. */
-const LANE_5A = 'invariant:command-key-landing';
-
 // ── One gesture, then a letter ───────────────────────────────────────────────
 
 const GESTURES = [
@@ -483,8 +480,7 @@ describe('the landing law', () => {
 			fc.asyncProperty(arbDraw, fc.constantFrom(...GESTURES), async (d, g) => {
 				const text = marked(d, STARTS[d.start]);
 				const { warns } = await land(text, d.mode, g);
-				const own = warns.filter((tag) => tag !== LANE_5A);
-				expect(own, `${g} over ${JSON.stringify(text)}`).toEqual([]);
+				expect(warns, `${g} over ${JSON.stringify(text)}`).toEqual([]);
 			}),
 			params(1.5)
 		);

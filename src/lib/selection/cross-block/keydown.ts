@@ -3,7 +3,7 @@
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { AnyBlockKind, Document } from '../../core/nodes';
 import { kindOfPath, replaceRange, replaceWidget } from './range-replace';
-import { bindsLineBreak, commandLandingKind } from './range-removal';
+import { bindsAfterRemoval, cellLandingKind } from './range-removal';
 import { overRangeAnswer, placeKind, type PlaceAnswer } from './range-paste';
 import { headingOverRange } from './format-toggle';
 import type { HeadingLevelAt } from './format-range';
@@ -28,7 +28,6 @@ import {
 	type CommandDispatchContext
 } from '../../schema/block-commands';
 import {
-	LINE_BREAK_COMMAND_IDS,
 	chordsBoundTo,
 	commandForKey,
 	containerMayBind,
@@ -263,8 +262,8 @@ async function dispatchOverRange(
 	);
 }
 
-/** The command the key runs in the keymap of the block it runs in: for a line break, the block at
- *  the core's place for text over the range; for any other key, where the removal leaves the caret. */
+/** The command the key runs in the keymap of the block it runs in: for a key run after a removal,
+ *  the block at the core's place for text (a table's cell over cells); else the range's focus. */
 function boundCommand(
 	e: KeyboardEvent,
 	reads: RangeKeyReads
@@ -273,19 +272,18 @@ function boundCommand(
 	const { anchor, focus } = reads.selection;
 	if (!chord || !anchor || !focus) return null;
 	const doc = reads.getDoc();
-	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
-	const over = bindsLineBreak(chord, reads.commands) && overRangeAnswer(reads, coverage, 'place');
-	if (over) {
-		placesByEvent.set(e, over);
-		const kind = placeKind(over);
+	if (!bindsAfterRemoval(chord, reads.commands)) {
+		const kind = blockNodeAt(doc, focus.path)?.kind ?? null;
 		const command = commandForKey(e, kind, reads.commands);
-		// The place binding no key is a break input's to answer; any other command goes the usual way.
-		if (command === null) return null;
-		if (LINE_BREAK_COMMAND_IDS.has(command)) return { kind, command };
+		return kind && command ? { kind, command } : null;
 	}
-	const kind = commandLandingKind(doc, coverage);
-	const command = commandForKey(e, kind, reads.commands);
-	return command === null ? null : { kind, command };
+	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
+	const over = overRangeAnswer(reads, coverage, 'place');
+	if (over) placesByEvent.set(e, over);
+	const kind = over ? placeKind(over) : cellLandingKind(doc, coverage);
+	// The place binding no key is a break input's to answer.
+	const command = kind && commandForKey(e, kind, reads.commands);
+	return kind && command ? { kind, command } : null;
 }
 
 function runsAfterRemoval(

@@ -19,15 +19,18 @@ import {
 } from '../../range-edit/edit-range';
 import { readsAsText } from '../../range-edit/document';
 import { rangeHost } from '../../range-edit/host';
-import type { CommandDispatchContext } from '../../schema/block-commands';
-import { LINE_BREAK_COMMAND_IDS, chordsBoundTo, resolveBinding } from '../../schema/commands';
+import {
+	afterRangeRemovalCommands,
+	commandOverRange,
+	type CommandDispatchContext
+} from '../../schema/block-commands';
+import { chordsBoundTo, resolveBinding } from '../../schema/commands';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import type { RemovalGesture as BlockGesture } from '../caret-target';
 
-import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
 import {
 	endsOf,
 	heldGapOf,
@@ -77,21 +80,22 @@ export const CORE_GESTURE: Record<BlockGesture, RemovalGesture> = {
 
 type Keymap = Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
 
-/** Whether some keymap binds `chord` to a line break, which over a range runs at the core's place
- *  for text instead of where the removal leaves the caret. */
-export function bindsLineBreak(chord: string, commands: Keymap): boolean {
-	return chordsBoundTo(LINE_BREAK_COMMAND_IDS, commands).has(chord);
+/** Whether some keymap binds `chord` to a command that runs after a range's removal, which over a
+ *  range runs at the core's place for text. */
+export function bindsAfterRemoval(chord: string, commands: Keymap): boolean {
+	return chordsBoundTo(afterRangeRemovalCommands(commands.activation), commands).has(chord);
 }
 
-/** Whether a key, or a break that came as input, runs as a line break in a block of `kind`: by what
- *  its chord is bound to there, and a break input bound to nothing still counts as one. */
-export function breaksIn(
+/** Whether a key, or a break that came as input, runs at the core's place in a block of `kind`: its
+ *  chord there runs after a removal, and a break input bound to nothing still counts as one. */
+export function runsAtPlace(
 	kind: AnyBlockKind,
 	insertion: { kind: 'command' | 'break'; chord: string },
 	commands: Keymap
 ): boolean {
 	const command = boundIn(kind, insertion.chord, commands);
-	return command === undefined ? insertion.kind === 'break' : LINE_BREAK_COMMAND_IDS.has(command);
+	if (command === undefined) return insertion.kind === 'break';
+	return commandOverRange(kind, command, commands.activation) !== undefined;
 }
 
 /** Whether `chord` runs Enter's split in a paragraph, which an empty paragraph opened for it is. */
@@ -255,22 +259,11 @@ export const modeOf = (ctx: Pick<CommitContext, 'reading'>) =>
 
 // ── Where the removal leaves the caret, read around it ───────────────────────
 
-/** The kind of the block a command key's removal leaves the caret in, read before the removal, so
- *  the keymap of the block the command then runs in claims the key. */
-export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): AnyBlockKind {
-	const { start, end } = coverage.range;
+/** The kind of the cell a command key's removal over a table's cells leaves the caret in, the one
+ *  range with no place for text; null for any other. */
+export function cellLandingKind(doc: DocumentView, coverage: RangeCoverage): AnyBlockKind | null {
 	const grid = coverage.grid;
-	if (grid && grid.kind !== 'table') return kindAt(doc, [...grid.path, 0, 0]);
-	if (coverage.startEdge)
-		return kindAt(doc, coverage.startCells ? [...start.path, 0, 0] : start.path);
-	if (coverage.endEdge) return kindAt(doc, coverage.endCells ? [...end.path, 0, 0] : end.path);
-	const roots = coverage.wholeRoots;
-	const last = roots.at(-1) ?? end.path;
-	const beside =
-		previousCaretPath(doc, roots[0] ?? start.path) ??
-		firstCaretLeafFrom(doc, [...last.slice(0, -1), last[last.length - 1] + 1]);
-	// A removal that empties the document leaves it one empty paragraph.
-	return beside ? kindAt(doc, beside) : 'paragraph';
+	return grid && grid.kind !== 'table' ? kindAt(doc, [...grid.path, 0, 0]) : null;
 }
 
 /** Where text over the range opens a paragraph: the gap the core's place is held at, or where the

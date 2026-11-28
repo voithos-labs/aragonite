@@ -19,7 +19,6 @@ import {
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchBeforeInput, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
-import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { mountCase, placeRange, type Editor } from './gestures';
 
 beforeAll(installLayoutStubs);
@@ -297,6 +296,5 @@ describe('a soft paragraph break over whole blocks under a rule', () => {
 		await pressHardwareKey(focused(), { key: 'x' });
 		await editor.settle();
 		expect(editor.source()).toBe('---\n\nx\n\nafter\n');
-		expect(takeDevWarnsOf('invariant:command-key-landing')).toEqual([]);
 	});
 });
