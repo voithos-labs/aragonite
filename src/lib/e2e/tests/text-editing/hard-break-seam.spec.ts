@@ -40,6 +40,13 @@ const ROWS: Row[] = [
 		broken: `[oneo](u)${BR}xtwo\n`
 	},
 	{
+		name: 'at the end of a line ending in two spaces',
+		source: 'one  \ntwo\n',
+		modes: ['source', 'live'],
+		back: 0,
+		broken: `one  \nx${BR}two\n`
+	},
+	{
 		name: 'inside an emphasis',
 		source: '*oneo*\ntwo\n',
 		modes: ['live'],

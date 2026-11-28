@@ -87,5 +87,27 @@ describe('a hard break cuts where a paragraph break cuts', () => {
 			await pressHardwareKey(focused(), { key: 'Enter', shiftKey: true });
 			await editor.settle();
 			expect(editor.source()).toBe(`one${BR}${BR}two\n`);
+			expect(editor.instance.getSelection()).toEqual(caret([0], 5));
 		});
+
+	// Miss-analysis: the kept-break rows ended the line in a backslash only, never in the two
+	// trailing spaces that are the other hard break, nor in a space before the soft break.
+	const SPACED: [string, string, number, PresentationMode[], string][] = [
+		['two spaces, caret before them', 'one  \ntwo\n', 3, BOTH, `one  \n${BR}two\n`],
+		['two spaces, caret past them', 'one  \ntwo\n', 5, ['source'], `one  \n${BR}two\n`],
+		['a backslash, caret before it', `one${BR}two\n`, 3, BOTH, `one${BR}${BR}two\n`],
+		['one space, caret before it', 'one \ntwo\n', 3, BOTH, `one ${BR}two\n`]
+	];
+	for (const [name, source, at, modes, broken] of SPACED)
+		for (const mode of modes)
+			it(`a line ending in ${name}, ${mode}`, async () => {
+				const editor = mountCase(source, mode);
+				await editor.settle();
+				expect(await placeRange(editor, caret([0], at))).toBe(true);
+				await pressHardwareKey(focused(), { key: 'Enter', shiftKey: true });
+				await editor.settle();
+				expect(editor.source()).toBe(broken);
+				// On the line the break opened.
+				expect(editor.instance.getSelection()).toEqual(caret([0], broken.indexOf('\n') + 1));
+			});
 });

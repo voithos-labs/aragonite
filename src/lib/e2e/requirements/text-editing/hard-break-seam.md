@@ -19,3 +19,8 @@ break follows, the one place Enter's cut takes a byte.
 
 - `*oneo*` then `two`, live mode, the caret inside `oneo`, Shift+Enter, then `x`: the break goes in
   at the caret, the emphasis spanning it.
+- `one` ending in two spaces, then `two`, the caret at the end of `one` (End), Shift+Enter, then
+  `x`: the two spaces stay, and `x` goes on a line of its own between them and `two`, in source and
+  live mode.
+  Miss-analysis: the kept-break rows ended the line in a backslash, never in the two spaces that are
+  the other hard break, and live mode puts the caret before those spaces.

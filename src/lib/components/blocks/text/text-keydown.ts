@@ -42,7 +42,9 @@ export function hardBreakAt(
 	const cut = breakCut(node, offset, owner, ending, store);
 	if (cut.from === offset && cut.to === offset) return literal();
 	const raw = node.raw.slice(0, cut.from) + node.raw.slice(cut.to);
-	const broken = insertHardBreak(raw, cut.from, ending, getContentRange({ ...node, raw }));
+	const written = insertHardBreak(raw, cut.from, ending, getContentRange({ ...node, raw }));
+	// A break that opens an empty line of its own takes the caret onto that line.
+	const broken = cut.from === cut.to ? { ...written, caretOffset: cut.from } : written;
 	// The line after the break must stay in the block: a rest that opens a block of its own there
 	// (a heading under a list item's text) keeps the break where the caret is.
 	const read = store.readWritten(broken.newRaw).children;
@@ -59,15 +61,18 @@ function breakCut(
 	store: StoredAs
 ): { from: number; to: number } {
 	const at = { from: offset, to: offset };
-	const halves = splitHalves(node, offset, owner, ending, { first: store, second: store });
 	const display = trimTrailingLineEnding(node.raw);
+	// Spaces between the caret and a line break inside the text end the line, as the caret does.
+	const spaces = /^[ \t]*(?=\r?\n)/.exec(display.slice(offset))?.[0].length ?? 0;
+	const halves = splitHalves(node, offset + spaces, owner, ending, { first: store, second: store });
 	const first = trimTrailingLineEnding(halves.firstRaw);
 	const second = trimTrailingLineEnding(halves.secondRaw);
 	const to = display.length - second.length;
 	if (!display.startsWith(first) || !display.endsWith(second) || to < first.length) return at;
 	if (!isBlankText(display.slice(first.length, to))) return at;
-	// A line that already ends in a hard break keeps it, and the new one opens a line under it.
-	if (/(^|[^\\])(\\\\)*\\$/.test(first)) return { from: to, to };
+	// A line that already ends in a hard break, a backslash or two spaces, keeps it, and the new
+	// one opens a line under it.
+	if (/(^|[^\\])(\\\\)*\\$| {2}$/.test(first)) return { from: to, to };
 	return { from: first.length, to };
 }
 
