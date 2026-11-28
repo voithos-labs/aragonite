@@ -65,10 +65,10 @@ const AT_CARET: CommandRun = { afterRemoval: false };
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
 
-/** How a block command behaves over a selection. `'afterRemoval'` removes the selection, the way
- *  Backspace would, then runs the command at the caret that's left: `overRange` over a selection
- *  spanning blocks, by a key bound to it; `overSelection` over one inside the command's own
- *  block, however the command runs. A command that puts a line break at the caret wants both. */
+/** How a block command behaves over a selection. `'afterRemoval'` removes the selection first:
+ *  `overRange`, over a selection spanning blocks by a key bound to the command, then runs it where
+ *  text typed over the selection would land; `overSelection`, over one inside the command's own
+ *  block however it runs, at the caret the removal leaves. A line-break command wants both. */
 export interface BlockCommandOptions {
 	overRange?: 'afterRemoval';
 	overSelection?: 'afterRemoval';
