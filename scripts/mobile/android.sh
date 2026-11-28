@@ -7,6 +7,16 @@ OUT="$1"
 mkdir -p "$OUT"
 URL=http://localhost:1430/test/editor
 
+# A freshly booted emulator's adbd can drop offline for a minute; every adb call below needs it up,
+# and the runner otherwise waits forever on a Chrome that never opened (node's exit 13).
+for _ in $(seq 1 60); do
+	if [ "$(adb get-state 2>/dev/null)" = device ] && [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; then
+		break
+	fi
+	adb reconnect offline >/dev/null 2>&1
+	sleep 3
+done
+
 # The emulator's built-in PS/2 keyboard makes Android report a hardware keyboard, and Gboard can
 # then start in its hardware mode, which draws no keys. This keeps the on-screen keyboard regardless.
 adb shell settings put secure show_ime_with_hard_keyboard 1
