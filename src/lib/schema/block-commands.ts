@@ -99,6 +99,7 @@ export function blockCommandTarget(
 }
 
 interface RegisteredBlockCommand {
+	id: PluginCommandId;
 	handler: BlockCommandHandler;
 	options: BlockCommandOptions;
 }
@@ -128,7 +129,7 @@ export function registerBlockCommand(
 	const id = blockCommands.has(key) ? (name as PluginCommandId) : mintCommandId(name);
 	blockCommands.register(
 		key,
-		{ handler, options },
+		{ id, handler, options },
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
 	);
 	return id;
@@ -147,8 +148,8 @@ export function getBlockCommand(
  *  command registered with `overRange`. */
 export function afterRangeRemovalCommands(activation: PluginActivation): Set<AnyCommandId> {
 	const ids = new Set<AnyCommandId>(AFTER_RANGE_REMOVAL_COMMAND_IDS);
-	for (const [key, entry] of blockCommands.entries(activation))
-		if (entry.options.overRange) ids.add(key.slice(key.indexOf(' ') + 1) as AnyCommandId);
+	for (const [, entry] of blockCommands.entries(activation))
+		if (entry.options.overRange) ids.add(entry.id);
 	return ids;
 }
 
