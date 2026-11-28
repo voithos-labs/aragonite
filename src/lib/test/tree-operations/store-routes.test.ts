@@ -234,6 +234,12 @@ const enterOverX = (m: Mounted) => () => {
 		new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
 	);
 };
+const hardBreakAfterX = (m: Mounted) => () => {
+	select(m.el, X.end);
+	m.el.dispatchEvent(
+		new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true })
+	);
+};
 const lineBreakOverX = (m: Mounted) => () => {
 	select(m.el, X.start, X.end);
 	beforeInput(m.el, 'insertLineBreak');
@@ -584,6 +590,19 @@ const FAMILIES: Family[] = [
 				shape: 'a table cell',
 				run: async () => (await withCell('**x**# y', lineBreakOverX)).slice(0, 1),
 				want: ['# y']
+			}
+		]
+	},
+	{
+		// The rest after the break is read where it lands, so a rest an item's text would read as a
+		// checkbox keeps the literal break rather than a cut past the bold's closer.
+		name: 'a hard break at a run’s close',
+		stores: { 'components/blocks/text/TextEditableBlock.svelte': 1 },
+		rows: [
+			{
+				shape: 'a plain item',
+				run: () => withText(ITEM, hardBreakAfterX),
+				want: ['**x\\\n**[ ] y\n']
 			}
 		]
 	},

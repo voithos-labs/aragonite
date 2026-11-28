@@ -19,7 +19,7 @@
 	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
-	import { demoteEmptyAtxHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
+	import { demoteEmptyAtxHeading, hardBreakAt, insertLiteralTab } from './text-keydown';
 	import {
 		demoteToParagraph,
 		headingLevelOf,
@@ -493,7 +493,13 @@
 			return;
 		}
 		const ending = editableSurface.lineEnding();
-		const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, ending, content);
+		const { newRaw, caretOffset } = hardBreakAt(
+			node,
+			offset,
+			owner ?? undefined,
+			ending,
+			storedAs()
+		);
 		const write = blockEdit.updateBlockContent(
 			index,
 			newRaw,
