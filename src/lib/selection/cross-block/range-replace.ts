@@ -4,9 +4,9 @@
  * covers, puts the insertion where the removal left the caret (a line of text inside one cell is
  * one write instead) and lands one caret, all as one undo entry; a paste, and text over any range
  * but a table's cells, are one answer of the range-edit core over the range's bytes, and a
- * composition waits at the place that core names for text. A composition over a widget selected whole removes the
- * widget through it too. The rules by gesture and coverage are `docs/design/selection.md`
- * § Cross-block selection.
+ * composition waits at the place that core names for text. A composition over a widget selected
+ * whole removes the widget through it too. The rules by gesture and coverage are
+ * `docs/design/selection.md` § Cross-block selection.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
@@ -346,8 +346,8 @@ async function withLandingStep(
 	return outcome;
 }
 
-/** Text over a range across blocks or over a block it holds whole, as one answer of the core in one
- *  commit; a key's line an on-type completer takes then completes as the block's own write. */
+/** Text over a range, a table's cells aside, as one answer of the core in one commit; a key's line
+ *  an on-type completer takes then completes as the block's own write. */
 async function textOverRange(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,

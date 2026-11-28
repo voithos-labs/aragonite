@@ -390,7 +390,7 @@ function heldAsGap(doc: Doc, place: { at: number; parent: readonly number[] }): 
 function placeAnswer(doc: Doc, range: Range): RangeEditResult {
 	const alone = heldAlone(doc, range.from, range.to);
 	const { removed, after, place, opens } = alone
-		? goneAlone(doc, range)
+		? goneAlone(doc, range, alone)
 		: textPlace(doc, range, null);
 	const { source } = removed;
 	const kept = onText(after, place);
@@ -408,7 +408,7 @@ function placeAnswer(doc: Doc, range: Range): RangeEditResult {
 
 /** The place over one block held whole: a paragraph to open where it stood, its line gone as
  *  Backspace takes it, or kept emptied where the lines either side would join up without it. */
-function goneAlone(doc: Doc, range: Range) {
+function goneAlone(doc: Doc, range: Range, alone: LaidBlock) {
 	const read = (removed: Removal) => {
 		const after = { ...readDoc(removed.source, doc.host, doc.mode), ending: doc.ending };
 		const took = removed.took ?? removed.caret;
@@ -419,8 +419,7 @@ function goneAlone(doc: Doc, range: Range) {
 	const gone = read(removeLeavingBlank(doc, range.from, range.to));
 	const { after, place } = gone;
 	if (!joinedAcross(after, place.at) || onText(after, place).holds !== 'text') return gone;
-	const alone = heldAlone(doc, range.from, range.to);
-	return alone ? read(blankedOut(doc, alone, range.to)) : gone;
+	return read(blankedOut(doc, alone, range.to));
 }
 
 /** The index among `place.parent`'s children of the first one starting at or past its byte. */
