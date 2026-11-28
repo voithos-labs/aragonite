@@ -207,8 +207,10 @@ function edited(
 			return kept ? { ...named, leaf: edit.leaf } : named;
 		};
 		if (from === to) return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(gesture))));
-		if (inOneText(doc, from, to))
-			return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
+		if (inOneText(doc, from, to)) {
+			const into = typed ? { into: intoOf(doc, { at: from, holds: 'text' }) } : {};
+			return keepLastEnding({ ...inPlace(pasteAt(doc, from, to, pasted(TEXT))), ...into });
+		}
 		// Across blocks the paste lands at the place text over the range takes, and over one block held
 		// whole takes its place.
 		const { removed, after, place, opens } = textPlace(doc, range, typed ? '' : gesture.paste);
@@ -388,7 +390,7 @@ function heldAsGap(doc: Doc, place: { at: number; parent: readonly number[] }): 
 function placeAnswer(doc: Doc, range: Range): RangeEditResult {
 	const alone = heldAlone(doc, range.from, range.to);
 	const { removed, after, place, opens } = alone
-		? goneAlone(doc, range)
+		? goneAlone(doc, range, alone)
 		: textPlace(doc, range, null);
 	const { source } = removed;
 	const kept = onText(after, place);
@@ -404,17 +406,20 @@ function placeAnswer(doc: Doc, range: Range): RangeEditResult {
 	return { source: line.source, caret: { at: line.caret, holds: 'text' }, opened: true };
 }
 
-/** The place over one block held whole: the block gone with its line, as Backspace takes it, and a
- *  paragraph to open where it stood, unless prose below joined the block above there. */
-function goneAlone(doc: Doc, range: Range) {
-	const removed = removeLeavingBlank(doc, range.from, range.to);
-	const after = { ...readDoc(removed.source, doc.host, doc.mode), ending: doc.ending };
-	const took = removed.took ?? removed.caret;
-	const parent = parentAt(after, took, () => startedIn(doc, range.from));
-	const place: Place = { at: took, holds: 'boundary', parent };
-	// Prose below that joined the block above there takes the composed text where it runs on.
-	const runsOn = joinedAcross(after, took) && onText(after, place).holds === 'text';
-	return { removed, after, place, opens: !runsOn };
+/** The place over one block held whole: a paragraph to open where it stood, its line gone as
+ *  Backspace takes it, or kept emptied where the lines either side would join up without it. */
+function goneAlone(doc: Doc, range: Range, alone: LaidBlock) {
+	const read = (removed: Removal) => {
+		const after = { ...readDoc(removed.source, doc.host, doc.mode), ending: doc.ending };
+		const took = removed.took ?? removed.caret;
+		const parent = parentAt(after, took, () => startedIn(doc, range.from));
+		const place: Place = { at: took, holds: 'boundary', parent };
+		return { removed, after, place, opens: true };
+	};
+	const gone = read(removeLeavingBlank(doc, range.from, range.to));
+	const { after, place } = gone;
+	if (!joinedAcross(after, place.at) || onText(after, place).holds !== 'text') return gone;
+	return read(blankedOut(doc, alone, range.to));
 }
 
 /** The index among `place.parent`'s children of the first one starting at or past its byte. */

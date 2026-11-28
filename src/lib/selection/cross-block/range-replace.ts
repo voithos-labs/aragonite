@@ -2,11 +2,11 @@
  * The one replace every destructive gesture over a live range goes through: Backspace, Delete, cut,
  * typing, an IME composition, paste, and a command key such as Enter. It removes what the range
  * covers, puts the insertion where the removal left the caret (a line of text inside one cell is
- * one write instead) and lands one caret, all as one undo entry; a paste, and text across blocks,
- * are one answer of the range-edit core over the range's bytes, and a composition waits at the
- * place that core names for text. A composition over a widget selected whole removes the
- * widget through it too. The rules by gesture and coverage are `docs/design/selection.md`
- * § Cross-block selection.
+ * one write instead) and lands one caret, all as one undo entry; a paste, and text over any range
+ * but a table's cells, are one answer of the range-edit core over the range's bytes, and a
+ * composition waits at the place that core names for text. A composition over a widget selected
+ * whole removes the widget through it too. The rules by gesture and coverage are
+ * `docs/design/selection.md` § Cross-block selection.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
@@ -188,14 +188,16 @@ async function replaceInStep(
 	const removal = REMOVAL[family][reachOf(coverage)];
 	const inCell = family === 'content' ? await replaceInCell(ctx, coverage, insertion) : null;
 	if (inCell !== null) return inCell;
-	if (overBlocks(coverage)) {
-		if (insertion.kind === 'text' && insertion.text) {
-			const { text } = insertion;
-			return withLandingStep(ctx, coverage, (spend) => textOverRange(ctx, coverage, text, spend));
-		}
-		// A table held whole keeps its cells for the IME, emptied, the first one taking the text.
-		if (insertion.kind === 'composition' && !coverage.grid) return compositionPlace(ctx, coverage);
+	// A table's cells are the grid's to clear first; anything else takes text as the core answers it.
+	if (insertion.kind === 'text' && insertion.text && (overBlocks(coverage) || !coverage.grid)) {
+		const { text } = insertion;
+		return withLandingStep(ctx, coverage, (spend) => textOverRange(ctx, coverage, text, spend));
 	}
+	// A table held whole keeps its cells for the IME, emptied, the first one taking the text.
+	if (insertion.kind === 'composition' && !coverage.grid)
+		return overBlocks(coverage)
+			? compositionPlace(ctx, coverage)
+			: compositionInLeaf(ctx, coverage);
 
 	const keyed = 'chord' in insertion ? insertion : null;
 	// A cell's rows or columns have no place for text: their keys run in the cell the removal leaves.
@@ -344,8 +346,8 @@ async function withLandingStep(
 	return outcome;
 }
 
-/** Text over a range across blocks or over a block it holds whole, as one answer of the core in one
- *  commit; a key's line an on-type completer takes then completes as the block's own write. */
+/** Text over a range, a table's cells aside, as one answer of the core in one commit; a key's line
+ *  an on-type completer takes then completes as the block's own write. */
 async function textOverRange(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
@@ -356,14 +358,16 @@ async function textOverRange(
 	if (!over || over.answer.source === over.read.source) return 'nothing';
 	const { answer, host } = over;
 	const { start, end } = coverage.range;
+	const inOneBlock = pathsEqual(start.path, end.path);
 	// One block held whole is replaced where it stands, so its event names it, nested or not.
-	const op: CoreCommit['op'] = pathsEqual(start.path, end.path)
-		? {
-				kind: 'replaceBlock',
-				detail: { source: 'cross-block-covered-block' },
-				eventPath: docPathFrom(start.path)
-			}
-		: typedOp(host, answer);
+	const op: CoreCommit['op'] =
+		inOneBlock && coverage.wholeRoots.length === 1
+			? {
+					kind: 'replaceBlock',
+					detail: { source: 'cross-block-covered-block' },
+					eventPath: docPathFrom(start.path)
+				}
+			: typedOp(host, answer, !inOneBlock);
 	const snapshot = deleteSnapshot(start.path, start.offset);
 	const [wrote, landing] = await ctx.controller.holdLandings(() =>
 		commitBytes(ctx, answer.source, { caret: answer.caret, op, snapshot })
@@ -376,13 +380,16 @@ async function textOverRange(
 	return 'written';
 }
 
-/** The edit a key's text over a range across blocks names: the top-level block it landed in, a path
- *  the document before the write still resolves, and that block's length after the write. */
-function typedOp(host: RangeHost, answer: RangeEditResult): CoreCommit['op'] {
+/** The edit a key's text over a range names: the top-level block it landed in, a path the document
+ *  before the write still resolves, and that block's length after the write. */
+function typedOp(host: RangeHost, answer: RangeEditResult, across: boolean): CoreCommit['op'] {
 	const tree = host.read(answer.source);
 	const top = host.layout(tree).leafAt(answer.caret.at)?.path[0];
 	const length = (top !== undefined && tree.children[top]?.raw.length) || 0;
-	const op = { kind: 'updateContent', detail: { length, crossBlock: true } } as const;
+	const detail: { length: number; crossBlock?: true } = across
+		? { length, crossBlock: true }
+		: { length };
+	const op = { kind: 'updateContent', detail } as const;
 	return top === undefined ? op : { ...op, eventPath: docPathFrom([top]) };
 }
 
@@ -394,6 +401,42 @@ async function compositionPlace(
 ): Promise<RangeReplaceOutcome> {
 	const over = overRangeAnswer(ctx, coverage, 'place');
 	return over && (await commitPlace(ctx, coverage, over)) ? 'written' : 'nothing';
+}
+
+/** Where a composition over a range inside one block writes: where a key's letter over it lands,
+ *  the letter taken back, so the IME's text keeps the markers a typed one keeps. */
+async function compositionInLeaf(
+	ctx: CrossBlockMutationContext,
+	coverage: RangeCoverage
+): Promise<RangeReplaceOutcome> {
+	const over = overRangeAnswer(ctx, coverage, { text: STAND_IN, spend: null });
+	const place = over && letterTakenBack(over);
+	if (!place) return compositionPlace(ctx, coverage);
+	return (await commitPlace(ctx, coverage, place)) ? 'written' : 'nothing';
+}
+
+/** The letter a place for text is asked with, then taken back out. */
+const STAND_IN = 'x';
+
+/** `over` less the stand-in letter, the caret where it began; null where that place can't hold
+ *  until the IME writes (another block, a blank line, or a format pair around nothing). */
+function letterTakenBack({ read, answer, host }: PlaceAnswer): PlaceAnswer | null {
+	const at = answer.caret.at - STAND_IN.length;
+	const { source: written } = answer;
+	if (answer.caret.holds !== 'text' || !written.startsWith(STAND_IN, at)) return null;
+	if (/[*_~`]/.test(written[at - 1] ?? '') && /[*_~`]/.test(written[answer.caret.at] ?? ''))
+		return null;
+	const source = written.slice(0, at) + written.slice(answer.caret.at);
+	const leafOf = (bytes: string) => {
+		const tree = host.read(bytes);
+		const path = host.layout(tree).leafAt(at)?.path;
+		return path && { path, node: blockNodeAt(tree, path) };
+	};
+	const was = leafOf(written);
+	const now = leafOf(source);
+	if (!was?.node || !now?.node || !pathsEqual(was.path, now.path)) return null;
+	if (was.node.kind !== now.node.kind || isBlankText(now.node.raw)) return null;
+	return { read, host, answer: { source, caret: { at, holds: 'text' } } };
 }
 
 /** The line a typed key left at `caret`, completed as the block completes a line typed there where

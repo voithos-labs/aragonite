@@ -14,5 +14,7 @@ Miss-analysis: the break rows ran in jsdom only and pinned the break at the end 
 
 - Shift+Enter over a quote's last blocks, the quote tight: the break stays inside the quote, on a line of its own under the paragraph above (`> above\n>\n> \\\n> x`).
 - Shift+Enter over a divider held whole between two paragraphs: the break stands in an empty paragraph where the divider was, never at the end of the paragraph above.
+- Enter or Shift+Enter over a divider held whole flush between two lines (`first\n***\nlast`): one empty paragraph where the divider stood takes the break and the letter (`first\n\nx\n\nlast`), never `last` joined up under `first`.
+  Miss-analysis: every held-whole row stood the divider a blank line from its neighbours, so no row saw its removal rejoin the two lines it sat between.
 - Enter over a divider held whole that is a list item's only block, a quote's last block or a callout's last block: the one empty line where the divider stood takes the letter (`- a\n- x\n- last`, `> a\n>\n> x`, `:::note\nfirst\n\nx\n:::`), never a second line opened beside the one the container kept.
   Miss-analysis: the held-whole rows held a divider at the top level alone, where its removal keeps no line, so no row saw the place open a second line beside the one a quote or an item keeps.

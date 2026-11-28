@@ -33,4 +33,19 @@ describe('the place over one block held whole', () => {
 	])('is one empty paragraph, %s', (_, marked, left) => {
 		expect(place(marked)).toEqual({ left, opened: true });
 	});
+
+	// Miss-analysis: every row stood the block a blank line from its neighbours, so no row held one
+	// flush between two lines of text, whose removal alone rejoins them as one paragraph.
+	it.each([
+		['flush between two lines', 'first\n⟦***⟧\nlast\n', 'first\n\n‸\nlast\n'],
+		['flush under, a blank line above', 'first\n\n⟦***⟧\nlast\n', 'first\n\n‸\nlast\n'],
+		// The emptied line keeps the quote's `> ` as the block's line had it.
+		[
+			'flush between two lines in a quote',
+			'> first\n> ⟦***⟧\n> last\n',
+			'> first\n> \n>‸\n> last\n'
+		]
+	])('is one empty paragraph %s, never the line below joined up', (_, marked, left) => {
+		expect(place(marked)).toEqual({ left, opened: true });
+	});
 });

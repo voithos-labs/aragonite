@@ -52,6 +52,18 @@ const ROWS: Row[] = [
 		lettered: 'first\n\n\\\nx\n\nlast\n'
 	},
 	{
+		name: 'a divider held whole flush between two lines',
+		source: 'first\n***\nlast\n',
+		key: 'Enter',
+		lettered: 'first\n\nx\n\nlast\n'
+	},
+	{
+		name: 'a divider held whole flush between two lines',
+		source: 'first\n***\nlast\n',
+		key: 'Shift+Enter',
+		lettered: 'first\n\n\\\nx\n\nlast\n'
+	},
+	{
 		name: "a divider held whole, a list item's only block",
 		source: '- a\n- ***\n- last\n',
 		key: 'Enter',

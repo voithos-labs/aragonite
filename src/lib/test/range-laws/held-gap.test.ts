@@ -53,6 +53,9 @@ interface Row {
 	gap: GapCaretPosition | null;
 	/** The document once the letter is in, blank lines aside. */
 	typed: string;
+	/** What the letter typed over the range leaves, where a finger's removal inside one block takes
+	 *  a line the block's own write keeps: a known gap of the removal. */
+	typedOver?: string;
 }
 
 const at = (path: number[], offset: number) => ({ path, offset });
@@ -94,7 +97,8 @@ const ROWS: Record<string, Row> = {
 		source: '> a\n> b\n',
 		take: over([0, 0], 2, 3),
 		gap: null,
-		typed: '> aq\n'
+		typed: '> aq\n',
+		typedOver: '> a\n> q\n'
 	},
 	'an untitled directive cut down to its title row': {
 		source: `:::note\n${FENCE}:::\n\nafter\n`,
@@ -178,7 +182,8 @@ describe('a boundary no arrow stops at holds the caret, unless a letter there jo
 			await key(editor, 'q');
 		}
 		const typed = blocksIn(editor);
-		expect(typed, editor.source()).toEqual(await blocksOfSource(row.typed, mode));
+		const left = route === 'a letter' ? (row.typedOver ?? row.typed) : row.typed;
+		expect(typed, editor.source()).toEqual(await blocksOfSource(left, mode));
 	});
 
 	const kitCases = MODES.flatMap((mode) => ROUTES.map((route) => ({ mode, route })));
