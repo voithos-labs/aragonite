@@ -397,10 +397,11 @@ interface Known {
 export const KNOWN: Known[] = [
 	{
 		defect:
-			'a letter over a range the editor holds is a removal, then the letter: the line the removal ' +
-			'left blank kept its break, so the letter lands in a file that has one',
-		holds: (draw) => editorHeld(draw) && 'letter' in draw.gesture,
-		repro: over('above\npq', 'editor', { letter: 'x', route: 'hardware key' }, 'source')
+			'a composition over a range the editor holds empties its place first, then the IME writes: ' +
+			'the line that place left blank kept its break, so the text lands in a file that has one',
+		holds: (draw) =>
+			editorHeld(draw) && 'letter' in draw.gesture && draw.gesture.route === 'composition',
+		repro: over('above\npq', 'editor', { letter: 'x', route: 'composition' }, 'source')
 	},
 	{
 		defect:
