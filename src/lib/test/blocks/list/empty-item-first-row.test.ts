@@ -36,7 +36,9 @@ const ROWS: [name: string, source: string, path: number[], after: string][] = [
 	['over its own quote', '- \n  > b\n', [0, 0, 0], '- Q\n  > b\n'],
 	['over its own sublist', '- \n  - b\n', [0, 0, 0], '- Q\n  - b\n'],
 	['a second item over its own quote', '- a\n- \n  > b\n', [0, 1, 0], '- a\n- Q\n  > b\n'],
-	['over a paragraph it would join', '- \n  b\n', [0, 0, 0], '- Q\n\n  b\n']
+	['over a paragraph it would join', '- \n  b\n', [0, 0, 0], '- Q\n\n  b\n'],
+	// A quote marks every line, so its blank first line is a line of its own and keeps standing.
+	['a quote’s blank first line over a heading', '>\n> # Head\n', [0, 0], '> Q\n>\n> # Head\n']
 ];
 
 describe('a fill of an empty item’s first row', () => {

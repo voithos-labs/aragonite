@@ -162,7 +162,7 @@ export function lineGivenBack(
  *  which separated nothing: the block below gets a line only where a paste's join would give one. */
 function onMarkerLine(work: Work, from: number, count: number, host: Host): boolean {
 	const owner = work.list.owner;
-	if (!owner || from !== 0) return false;
+	if (!owner || from !== 0 || !host.kindTraits(owner.kind).firstLineMarker) return false;
 	const slot = { owner, index: count - 1, lineEnding: work.list.lineEnding };
 	const [upper, lower] = [work.blocks.at(count - 1), work.blocks.at(count)];
 	return !blankLineBelongs(host, slot, upper, lower, 'placed', false);
