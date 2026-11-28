@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-	cycleHeading,
-	demoteEmptyAtxHeading,
-	demoteToParagraph
-} from '#lib/components/blocks/text/text-keydown.js';
+import { demoteEmptyAtxHeading } from '#lib/components/blocks/text/text-keydown.js';
+import { cycleHeading, demoteToParagraph } from '#lib/tree-operations/heading-level.js';
 import { getContentRange } from '#lib/core/inline/index.js';
 import { parse } from '#lib/core/parser.js';
 

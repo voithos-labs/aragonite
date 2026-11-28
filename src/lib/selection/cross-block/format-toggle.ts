@@ -1,7 +1,8 @@
 /**
- * The cross-block half of the inline format toggles: plan the per-block spans, write them under
- * one undo entry, and put the range back over the result. The key dispatcher reaches this module
- * through an injected router, so `schema/` keeps no import of selection code.
+ * The cross-block half of the inline format toggles and the heading level: plan the per-block
+ * spans, write them under one undo entry, and put the range back over the result. The key
+ * dispatcher reaches this module through an injected router, so `schema/` keeps no import of
+ * selection code.
  */
 
 import type { CommitController, MultiScopeTarget } from '../../action-contracts';
@@ -23,8 +24,14 @@ import {
 	applyCrossBlockFormat,
 	crossBlockActiveFormats,
 	planCrossBlockFormat,
-	type CrossBlockFormatPlan
+	planCrossBlockHeading,
+	type CrossBlockFormatPlan,
+	type HeadingLevelAt
 } from './format-range';
+import { headingLevelOf } from '../../tree-operations/heading-level';
+import { kindKeymap } from '../../schema/commands';
+import type { AnyCommandId } from '../../schema/command-id';
+import type { AnyBlockKind } from '../../core/nodes';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -45,11 +52,17 @@ export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBloc
 	return {
 		// Whether the command has a cross-block handler, not whether any block joins, which is known
 		// only once the range splits into spans; a keystroke that reaches no block writes nothing.
-		canRun: (id) => inlineMarkForCommand(id) !== null,
-		run: (id) => {
+		canRun: (id) => inlineMarkForCommand(id) !== null || id === HEADING,
+		run: (id, arg) => {
+			if (id === HEADING) {
+				void headingOverRange(deps, (kind) => (takesHeading(kind) ? headingLevelOf(arg) : null));
+				return true;
+			}
 			const mark = inlineMarkForCommand(id);
 			if (!mark) return false;
-			void toggleFormatOverRange(deps, mark.kind);
+			void rewriteOverRange(deps, (doc, range) =>
+				planCrossBlockFormat(doc, range, mark.kind, deps.reading)
+			);
 			return true;
 		},
 		isActive: (id) => {
@@ -57,6 +70,22 @@ export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBloc
 			return mark !== null && activeFormats().has(mark.kind);
 		}
 	};
+}
+
+const HEADING: AnyCommandId = 'heading.cycle';
+
+/** A kind whose keymap binds the heading command at all: the blocks a toolbar's level reaches. */
+const takesHeading = (kind: AnyBlockKind): boolean =>
+	kindKeymap(kind).some((binding) => binding.command === HEADING);
+
+/** What a rewrite over the range reads and commits through. */
+type RewriteDeps = Omit<CrossBlockCommandDeps, 'getContentVersion'>;
+
+/** Each text block the range reaches takes the level `levelAt` names for its kind, as one write. */
+export function headingOverRange(deps: RewriteDeps, levelAt: HeadingLevelAt): Promise<void> {
+	return rewriteOverRange(deps, (doc, range) =>
+		planCrossBlockHeading(doc, range, levelAt, deps.reading)
+	);
 }
 
 // ── The active-marks memo ──────────────────────────────────────────────────
@@ -87,15 +116,19 @@ const pointKey = (point: SelectionPoint): string =>
 
 // ── The commit ─────────────────────────────────────────────────────────────
 
-async function toggleFormatOverRange(
-	deps: CrossBlockCommandDeps,
-	format: InlineMarkKind
+/** The plan's per-block writes as one commit, the range put back over the result. */
+async function rewriteOverRange(
+	deps: RewriteDeps,
+	planOf: (
+		doc: ReturnType<DocumentGetter>,
+		range: ReturnType<typeof coverRange>
+	) => CrossBlockFormatPlan | null
 ): Promise<void> {
 	const { anchor, focus } = deps.selection;
 	if (!anchor || !focus) return;
 	const doc = deps.getDoc();
 	const range = coverRange(doc, anchor, focus);
-	const plan = planCrossBlockFormat(doc, range, format, deps.reading);
+	const plan = planOf(doc, range);
 	if (!plan) return;
 	const { start, end } = range;
 

@@ -79,12 +79,8 @@ test.describe('a command key over a whole table, row or column', () => {
 		return editor.bridge.getSource();
 	}
 
-	// The caret a row or column removal leaves is a cell, which binds no Mod+2, so that key is no
-	// command key there; Enter is the cell's own, and past a whole table the caret is in prose.
-	const COMMAND_KEYS: [string, (typeof COVERAGES)[number][]][] = [
-		['Enter', COVERAGES],
-		['ControlOrMeta+2', COVERAGES.slice(2)]
-	];
+	// Enter is the cell's own, and past a whole table the caret is in prose.
+	const COMMAND_KEYS: [string, (typeof COVERAGES)[number][]][] = [['Enter', COVERAGES]];
 
 	for (const [key, coverages] of COMMAND_KEYS) {
 		for (const [coverage, select] of coverages) {
@@ -100,11 +96,11 @@ test.describe('a command key over a whole table, row or column', () => {
 		}
 	}
 
-	// A key that is no command key there, or a table with nothing to indent, deletes nothing and
-	// keeps the range. One step per key and coverage, each on a freshly loaded document.
+	// A heading key over cells, which take no heading, or a table with nothing to indent, deletes
+	// nothing and keeps the range. One step per key and coverage, each on a freshly loaded document.
 	test('a key that is no command key over a grid changes nothing', async () => {
 		const CASES: [key: string, coverages: typeof COVERAGES][] = [
-			['ControlOrMeta+2', COVERAGES.slice(0, 2)],
+			['ControlOrMeta+2', COVERAGES],
 			['Tab', COVERAGES]
 		];
 		for (const [key, coverages] of CASES) {

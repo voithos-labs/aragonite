@@ -45,13 +45,13 @@ nothing is taken or selected.
 - a malformed chord (`'Ctrl+B'`) is dropped and does not bind bare B, in `test/schema/keybinding-overrides.test.ts`, which reads the override list on its own, with no editor
 - a `kind:'listItem'` override disabling Tab, and a global disable of Tab, each stop the list indent as the key travels up to the container (the leaf never takes Tab inside a list), in `test/blocks/list/item-tab-keydown.test.ts`
   - Miss-analysis: every override row drove a leaf block, so none saw the list item's own key handler
-- over a selection spanning blocks, a command key removes the selection and then runs at the caret that's left, and the bindings decide which keys those are. These run against the mounted editor in `test/selection/cross-block/range-command-keys.test.ts`:
-  - `Mod+1` disabled: nothing's removed and the selection stays
-  - `Enter` disabled: the same
-  - the heading rebound to `Mod+Alt+1`: that chord removes the selection and makes the heading
+- over a selection spanning blocks, a command key removes the selection and then runs where typed text would land, a heading key re-kinds each block it reaches instead, and the bindings decide which keys those are. These run against the mounted editor in `test/selection/cross-block/range-command-keys.test.ts`:
+  - `Mod+1` disabled: nothing changes and the selection stays
+  - `Enter` disabled: nothing's removed and the selection stays
+  - the heading rebound to `Mod+Alt+1`: that chord makes both blocks headings
   - the split rebound to `Alt+Enter`: that chord removes the selection and splits
   - Miss-analysis: the cross-block command-key rows only pressed the default chords, where the literal keys and the keymap agree, so nothing saw a disabled key delete the selection or a rebound one do nothing
-  - `Mod+1` disabled on paragraphs only, with the selection landing in a paragraph: nothing's removed and the selection stays
+  - `Mod+1` disabled on paragraphs only: the paragraphs keep their kind and the selection stays
   - `Enter` disabled on paragraphs only: the same
   - a split bound to `Mod+J` on headings only, pressed over paragraphs: nothing happens and the selection stays
   - `Enter` disabled on paragraphs only, over a selection from a paragraph into a heading with the caret's end in the heading: nothing happens, since the selection would land in the paragraph, and the heading doesn't split under it either

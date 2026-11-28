@@ -79,9 +79,15 @@ export type GlobalCommandId = (typeof GLOBAL_COMMAND_IDS)[number];
 export type BlockCommandId = (typeof BLOCK_COMMAND_IDS)[number];
 export type CommandId = GlobalCommandId | BlockCommandId;
 
-/** Commands that rewrite one block (the link card, a heading level), declined over a range the
- *  editor holds unless it's text inside one block (`runsOnItsBlock`). */
+/** Commands that rewrite one block (the link card), declined over a range the editor holds
+ *  unless it's text inside one block (`runsOnItsBlock`). */
 export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
+	'link.openCard'
+]);
+
+/** Commands that run on their block over the editor's range inside one block, as over the browser's
+ *  range there (`runsOnItsBlock`). */
+export const ONE_BLOCK_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'link.openCard',
 	'heading.cycle'
 ]);
@@ -100,14 +106,11 @@ const LINE_BREAKS: CommandId[] = [
  *  go, read in the keymap of the block there. */
 export const LINE_BREAK_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>(LINE_BREAKS);
 
-/**
- * Built-in commands a key over a range runs after removing it, at the caret that's left; a plugin
- * command opts in at registration. A toolbar removes nothing first, so it declines `heading.cycle`.
- */
-export const AFTER_RANGE_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>([
-	...LINE_BREAKS,
-	'heading.cycle'
-]);
+/** Built-in commands a key over a range runs after removing it, where text over it would go; a
+ *  plugin command opts in at registration. */
+export const AFTER_RANGE_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>(
+	LINE_BREAKS
+);
 
 /**
  * Built-in commands that put a line break at the caret. Over a selection inside one block they
@@ -137,7 +140,8 @@ export const CROSS_BLOCK_RANGE_COMMAND_IDS: ReadonlySet<string> = new Set<Comman
 	'format.toggleStrong',
 	'format.toggleEmphasis',
 	'format.toggleStrikethrough',
-	'format.toggleCode'
+	'format.toggleCode',
+	'heading.cycle'
 ]);
 
 /**

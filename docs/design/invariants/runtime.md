@@ -63,7 +63,6 @@ These checks run in three kinds of place:
 | G1.55 | A top-level block an edit wrote reads back, on its own, as the tree it holds | A·N |
 | G1.58 | An indent key over a range keeps every word it holds, in order | A·N |
 | G1.61 | A list move keeps the order its text reads in | A·P·N |
-| G1.71 | A command key over a range runs in the kind of block whose keymap claimed it | A·N |
 | G1.75 | No selection endpoint the editor writes sits after the `<br>` closing a block | A·N |
 | G1.76 | The drawn caret sits on its caret until the caret moves | A |
 | G1.77 | The mark hiding the browser's caret is on exactly the editable the drawn caret draws for | A |
@@ -235,8 +234,6 @@ These checks run in three kinds of place:
 **G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab, Shift+Tab or a rebound indent key over a range moves list items, shifts code lines, or does what a kind's `registerRangeIndent` says, and nothing else. After each press dev compares the spanned blocks' leaf text (`leafTexts`, shared with G1.61), whitespace aside: a renumbered marker or an added tab passes, a lost or moved word fails. `checkIndentKeepsText` · `range-indent.ts` · `range-indent-keeps-text.test.ts`.
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Every nest, lift, unwrap and merge that moves blocks between list levels (Tab, Shift+Tab, Backspace at a sublist's start or on a first item, Enter in an empty item) keeps the list's leaf text in order, read as G1.58 reads it. A merge reads only the two lines it joins, since a live join can drop markers. `checkListMoveKeepsOrder`, run by `keeping-order.ts` · `item-moves.ts`, `item-partition.ts` (G4.123), `unwrap-merge.ts` · `list-move-keeps-order.test.ts`, `indent-keeps-order.property.test.ts`.
-
-**G1.71 · A command key over a range runs where it was claimed** (`command-key-landing`). Over a range, any key other than a line break is a command key when the keymap of the block the removal leaves the caret in binds it (`selection/cross-block/range-removal.ts :: commandLandingKind` picks that block before anything moves), and after the removal the command must run in a block of that kind (kinds only: a join can move the offset). Predicate `invariants/command-key-landing.ts :: checkCommandLanding` · `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
 
 **G1.75 · The caret goes before a block's closing `<br>`** (`caret-before-break`). An empty editable holds one `<br>`, and so does a block whose content ends on a picture (the anchor its line's text height comes from). A caret looks the same on either side, but after an empty block's, Chromium drops a composition after its first update, losing or doubling the text. Every caret and range the editor writes passes `browser/caret-writer.ts :: writeSelection`, which checks both ends in dev (G4.270 keeps every selection write there). `checkCaretBeforeBreak` · `caret-before-break.test.ts`.
 

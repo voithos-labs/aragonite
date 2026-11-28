@@ -25,7 +25,7 @@ import { isReadingMode } from '../../presentation-mode';
 import { replaceRange, type RangeInsertion } from './range-replace';
 import type { Clip } from './range-paste';
 import { heldInputOf, type HeldInput } from '../held-input';
-import { createCrossBlockKeydown } from './keydown';
+import { bindsHeading, createCrossBlockKeydown, headingOver } from './keydown';
 import { createCrossBlockPointer, type PaddingPress } from './pointer';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -133,7 +133,11 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 			e.preventDefault();
 			const insertion = insertionOf(input);
 			// Refused here, quietly: the range replace's own refusal warns, for a key let through.
-			if (insertion && !isReadingMode(ctx.reading.mode)) await replaceRange(ctx, insertion);
+			if (!insertion || isReadingMode(ctx.reading.mode)) return true;
+			// A break input stands for its key, which a host may bind to a heading level.
+			if (insertion.kind === 'break' && bindsHeading(insertion.chord, ctx))
+				await headingOver(ctx, insertion.chord);
+			else await replaceRange(ctx, insertion);
 			return true;
 		},
 		performCrossBlockCut: async () => {

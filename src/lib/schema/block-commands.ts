@@ -23,6 +23,7 @@ import {
 	AFTER_RANGE_REMOVAL_COMMAND_IDS,
 	AFTER_SELECTION_REMOVAL_COMMAND_IDS,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
+	ONE_BLOCK_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
 	type GlobalCommandContext,
@@ -64,10 +65,10 @@ const AT_CARET: CommandRun = { afterRemoval: false };
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
 
-/** How a block command behaves over a selection. `'afterRemoval'` removes the selection, the way
- *  Backspace would, then runs the command at the caret that's left: `overRange` over a selection
- *  spanning blocks, by a key bound to it; `overSelection` over one inside the command's own
- *  block, however the command runs. A command that puts a line break at the caret wants both. */
+/** How a block command behaves over a selection. `'afterRemoval'` removes the selection first:
+ *  `overRange`, over a selection spanning blocks by a key bound to the command, then runs it where
+ *  text typed over the selection would land; `overSelection`, over one inside the command's own
+ *  block however it runs, at the caret the removal leaves. A line-break command wants both. */
 export interface BlockCommandOptions {
 	overRange?: 'afterRemoval';
 	overSelection?: 'afterRemoval';
@@ -98,6 +99,7 @@ export function blockCommandTarget(
 }
 
 interface RegisteredBlockCommand {
+	id: PluginCommandId;
 	handler: BlockCommandHandler;
 	options: BlockCommandOptions;
 }
@@ -127,7 +129,7 @@ export function registerBlockCommand(
 	const id = blockCommands.has(key) ? (name as PluginCommandId) : mintCommandId(name);
 	blockCommands.register(
 		key,
-		{ handler, options },
+		{ id, handler, options },
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
 	);
 	return id;
@@ -140,6 +142,15 @@ export function getBlockCommand(
 	activation: PluginActivation
 ): BlockCommandHandler | undefined {
 	return blockCommands.get(compositeKey(kind, id), activation)?.handler;
+}
+
+/** Every command a key over a range runs after removing it: the built-ins, and each plugin
+ *  command registered with `overRange`. */
+export function afterRangeRemovalCommands(activation: PluginActivation): Set<AnyCommandId> {
+	const ids = new Set<AnyCommandId>(AFTER_RANGE_REMOVAL_COMMAND_IDS);
+	for (const [, entry] of blockCommands.entries(activation))
+		if (entry.options.overRange) ids.add(entry.id);
+	return ids;
 }
 
 /** What a command at `kind` does over a selection spanning blocks: a built-in in
@@ -173,7 +184,8 @@ function commandOverSelection(
  */
 export interface CrossBlockCommandRouter {
 	canRun(id: AnyCommandId): boolean;
-	run(id: AnyCommandId): boolean;
+	/** `arg` is the binding's or `runCommand`'s argument (a heading's level). */
+	run(id: AnyCommandId, arg?: unknown): boolean;
 	isActive(id: AnyCommandId): boolean;
 }
 
@@ -410,10 +422,13 @@ function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	// Called directly, not optionally: a caller without the getter throws rather than skipping.
 	if (!gates.ownsRange() || runsOnItsBlock(id, gates.rangeInOneBlock()))
 		return { kind: 'block-local', ranged: false };
-	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
-	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) return { kind: 'block-local', ranged: true };
-	const router = gates.crossBlockCommands;
-	return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
+	if (CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) {
+		const router = gates.crossBlockCommands;
+		return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
+	}
+	return RANGE_DECLINED_COMMAND_IDS.has(id)
+		? { kind: 'decline' }
+		: { kind: 'block-local', ranged: true };
 }
 
 /** The one dispatch keyed by id, which a chord and `EditorInstance.runCommand` both reach. With no
@@ -429,7 +444,7 @@ function runResolvedCommand(
 	if (isReadingMode(ctx.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, ctx);
 	if (route.kind === 'decline') return false;
-	if (route.kind === 'cross-block') return route.router.run(id);
+	if (route.kind === 'cross-block') return route.router.run(id, arg);
 	const resolved = resolveCommand(id, target, ctx.activation);
 	if (resolved.tier === 'global') return resolved.run({ ...ctx, arg });
 	return runBlockLocalCommand(resolved, id, arg, path, ctx, run);
@@ -508,10 +523,10 @@ function leftUnderLiveRange(id: AnyCommandId, kind: AnyBlockKind, gates: Command
 	return commandOverRange(kind, id, gates.activation) !== undefined;
 }
 
-/** A link or a heading level needs a range inside one block, so over one the editor holds it runs
- *  on that block, as over the browser's own range there. */
+/** A link or a heading level over a range the editor holds inside one block runs on that block, as
+ *  over the browser's own range there. */
 export function runsOnItsBlock(id: AnyCommandId, rangeInOneBlock: boolean): boolean {
-	return rangeInOneBlock && RANGE_DECLINED_COMMAND_IDS.has(id);
+	return rangeInOneBlock && ONE_BLOCK_COMMAND_IDS.has(id);
 }
 
 /** A chord at a container, against its kind's bindings only: undo/redo and the range commands

@@ -227,9 +227,7 @@ test.describe('selection toolbar', () => {
 		await expect(bold).toHaveAttribute('aria-pressed', 'true');
 	});
 
-	// A heading level belongs to one block, so the command declines over a range and the row goes
-	// with it; the rows that do act on the whole range stay.
-	test('a cross-block selection drops the Set heading row, a single-block one keeps it', async ({
+	test('a cross-block selection offers Set heading, which re-kinds every block it reaches', async ({
 		page
 	}) => {
 		await editor.loadContent('first block here\n\nsecond block below\n');
@@ -238,7 +236,10 @@ test.describe('selection toolbar', () => {
 		await editor.waitForCrossBlock(true);
 
 		await expect(page.locator(TOOLBAR)).toBeVisible();
-		await expect(page.locator('[data-testid="toolbar-set-heading"]')).toHaveCount(0);
+		await page.locator('[data-testid="toolbar-set-heading"]').hover();
+		await page.locator('[data-testid="toolbar-set-heading-2"]').click();
+		await editor.bridge.waitForSourceEquals('## first block here\n\n## second block below\n');
+		await editor.waitForCrossBlock(true);
 
 		await page.keyboard.press('ArrowLeft');
 		await editor.waitForCrossBlock(false);

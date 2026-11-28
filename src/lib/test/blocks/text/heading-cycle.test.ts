@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { getContentRange, isProseKind } from '#lib/core/inline/index.js';
-import { cycleHeading } from '#lib/components/blocks/text/text-keydown.js';
+import { cycleHeading } from '#lib/tree-operations/heading-level.js';
 import type { AnyBlockKind } from '#lib/core/nodes.js';
 
 /** The pair the block command passes: a parsed block's raw and the range its kind declares. */

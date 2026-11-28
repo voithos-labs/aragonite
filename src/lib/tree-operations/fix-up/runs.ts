@@ -10,6 +10,7 @@ import type { CstNode } from '../../core/nodes';
 import type { Host, ListEdit } from './types';
 import { bodyStart, isBlankBlock, ownsBlankLine, readAt } from './reading';
 import type { Work } from './work';
+import { blankLineBelongs } from './joins';
 
 export type Edge = 'content' | 'fence' | 'none';
 
@@ -145,7 +146,8 @@ export function lineGivenBack(
 	}
 	const gone = blanksTaken(work, edit, from, count);
 	const ending = ownTrailingLineEnding(gone[gone.length - 1]?.raw ?? '') || work.list.lineEnding;
-	if (gone.length > 0 && has(from + count)) return [from + count, ending];
+	if (gone.length > 0 && has(from + count) && !onMarkerLine(work, from, count, host))
+		return [from + count, ending];
 	// A leaf the write took its own trailing blank line from leaves the gap below one line short.
 	const owner = work.list.owner;
 	const last = from + count - 1;
@@ -154,6 +156,16 @@ export function lineGivenBack(
 		ownsBlankLine(host, owner, from, written.previous) &&
 		!ownsBlankLine(host, owner, last, work.blocks.at(last));
 	return gaveUp && has(from + count) ? [from + count, work.list.lineEnding] : null;
+}
+
+/** Whether the filled blank block was its container's marker line (an empty item's first row),
+ *  which separated nothing: the block below gets a line only where a paste's join would give one. */
+function onMarkerLine(work: Work, from: number, count: number, host: Host): boolean {
+	const owner = work.list.owner;
+	if (!owner || from !== 0 || !host.kindTraits(owner.kind).firstLineMarker) return false;
+	const slot = { owner, index: count - 1, lineEnding: work.list.lineEnding };
+	const [upper, lower] = [work.blocks.at(count - 1), work.blocks.at(count)];
+	return !blankLineBelongs(host, slot, upper, lower, 'placed', false);
 }
 
 /** A blank tail under a closing fence line borrows a line the fence takes on reload; a filled or

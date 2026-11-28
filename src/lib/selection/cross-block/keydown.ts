@@ -3,8 +3,11 @@
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { AnyBlockKind, Document } from '../../core/nodes';
 import { kindOfPath, replaceRange, replaceWidget } from './range-replace';
-import { bindsLineBreak, commandLandingKind } from './range-removal';
+import { bindsAfterRemoval, cellLandingKind } from './range-removal';
 import { overRangeAnswer, placeKind, type PlaceAnswer } from './range-paste';
+import { headingOverRange } from './format-toggle';
+import { spannedKinds, type HeadingLevelAt } from './format-range';
+import { headingLevelOf } from '../../tree-operations/heading-level';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
@@ -25,10 +28,10 @@ import {
 	type CommandDispatchContext
 } from '../../schema/block-commands';
 import {
-	LINE_BREAK_COMMAND_IDS,
 	chordsBoundTo,
 	commandForKey,
 	containerMayBind,
+	resolveBinding,
 	resolveKindBinding
 } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
@@ -137,6 +140,11 @@ async function handleCrossBlockActive(
 		case 'indent':
 			if (!isReadingMode(ctx.reading.mode)) await indentRange(ctx, e);
 			return true;
+		case 'heading': {
+			const chord = eventToChord(e);
+			if (chord && !isReadingMode(ctx.reading.mode)) await headingOver(ctx, chord);
+			return true;
+		}
 		case 'command': {
 			const chord = eventToChord(e);
 			if (chord && !isReadingMode(ctx.reading.mode)) {
@@ -254,8 +262,8 @@ async function dispatchOverRange(
 	);
 }
 
-/** The command the key runs in the keymap of the block it runs in: for a line break, the block at
- *  the core's place for text over the range; for any other key, where the removal leaves the caret. */
+/** The command the key runs in the keymap of the block it runs in: for a key run after a removal,
+ *  the block at the core's place for text (a table's cell over cells); else the range's focus. */
 function boundCommand(
 	e: KeyboardEvent,
 	reads: RangeKeyReads
@@ -264,19 +272,18 @@ function boundCommand(
 	const { anchor, focus } = reads.selection;
 	if (!chord || !anchor || !focus) return null;
 	const doc = reads.getDoc();
-	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
-	const over = bindsLineBreak(chord, reads.commands) && overRangeAnswer(reads, coverage, 'place');
-	if (over) {
-		placesByEvent.set(e, over);
-		const kind = placeKind(over);
+	if (!bindsAfterRemoval(chord, reads.commands)) {
+		const kind = blockNodeAt(doc, focus.path)?.kind ?? null;
 		const command = commandForKey(e, kind, reads.commands);
-		// The place binding no key is a break input's to answer; any other command goes the usual way.
-		if (command === null) return null;
-		if (LINE_BREAK_COMMAND_IDS.has(command)) return { kind, command };
+		return kind && command ? { kind, command } : null;
 	}
-	const kind = commandLandingKind(doc, coverage);
-	const command = commandForKey(e, kind, reads.commands);
-	return command === null ? null : { kind, command };
+	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
+	const over = overRangeAnswer(reads, coverage, 'place');
+	if (over) placesByEvent.set(e, over);
+	const kind = over ? placeKind(over) : cellLandingKind(doc, coverage);
+	// The place binding no key is a break input's to answer.
+	const command = kind && commandForKey(e, kind, reads.commands);
+	return kind && command ? { kind, command } : null;
 }
 
 function runsAfterRemoval(
@@ -305,6 +312,7 @@ type RangeKeyRole =
 	| 'delete'
 	| 'rewrite'
 	| 'indent'
+	| 'heading'
 	| 'command'
 	| 'type'
 	| 'extend'
@@ -331,6 +339,7 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	// caret would leave empty marker pairs where the text stood.
 	if (isClaimedRewriteChord(e)) return 'rewrite';
 	if (isIndentKey(e, reads)) return 'indent';
+	if (isHeadingKey(e, reads)) return 'heading';
 	const edge = caretEdgeKey(e);
 	if (edge?.to === 'line' && edge.extend) return 'lineEdge';
 	// Any other caret-edge key (Cmd+ArrowUp, plain Home) the range leaves to the block.
@@ -361,6 +370,38 @@ function containerBindsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 		if (container && resolveKindBinding(chord, container.kind, overrides)) return true;
 	}
 	return false;
+}
+
+const HEADING = new Set<AnyCommandId>(['heading.cycle']);
+
+/** A heading key over a range across blocks: inside one block the block runs it. */
+function isHeadingKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	const chord = eventToChord(e);
+	return !!chord && !reads.selection.rangeInOneBlock && bindsHeading(chord, reads);
+}
+
+/** Whether `chord` (a key's or a break input's) is a heading key over the range: a block it reaches
+ *  binds it to a heading, or none binds it at all, taken for nothing as a format chord is. */
+export function bindsHeading(chord: string, reads: RangeKeyReads): boolean {
+	const { anchor, focus } = reads.selection;
+	if (!anchor || !focus || !chordsBoundTo(HEADING, reads.commands).has(chord)) return false;
+	const doc = reads.getDoc();
+	const overrides = reads.commands.keybindingOverrides();
+	const commands = spannedKinds(doc, coverRange(doc, anchor, focus), reads.reading).map(
+		(kind) => resolveBinding(chord, kind, overrides, reads.commands.activation)?.command
+	);
+	return commands.includes('heading.cycle') || commands.every((command) => !command);
+}
+
+/** Each block the range reaches takes the level `chord` sets in its kind's keymap, so a kind that
+ *  binds it to nothing keeps its kind. */
+export function headingOver(ctx: CrossBlockDispatchContext, chord: string): Promise<void> {
+	const overrides = ctx.commands.keybindingOverrides();
+	const levelAt: HeadingLevelAt = (kind) => {
+		const binding = resolveBinding(chord, kind, overrides, ctx.commands.activation);
+		return binding?.command === 'heading.cycle' ? headingLevelOf(binding.arg) : null;
+	};
+	return headingOverRange(ctx, levelAt);
 }
 
 /** Backspace and Delete, which remove the range. */

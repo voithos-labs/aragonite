@@ -46,9 +46,8 @@ test.describe('cross-block type-replace: kind re-derivation', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('#');
 	});
 
-	// The chord branch of the same replace: the command declines `heading.cycle` while a range
-	// is painted, and this path must still land, because the range is gone before it dispatches.
-	test('a heading chord over the same selection deletes the range and marks the survivor', async () => {
+	// A heading chord over the same selection deletes nothing: each block takes the level.
+	test('a heading chord over the same selection re-kinds both blocks and keeps it', async () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 
 		await editor.focusBlockStart(0);
@@ -56,11 +55,10 @@ test.describe('cross-block type-replace: kind re-derivation', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('ControlOrMeta+2');
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains('##');
+		await editor.bridge.waitForSourceEquals('## aaa\n\n## bbb\n');
 
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('##');
+		expect(await editor.bridge.getBlockKind(1)).toBe('heading');
+		await editor.waitForCrossBlock(true);
 	});
 
 	test('nested: typing ">" inside a blockquote survivor re-parses to a nested blockquote', async () => {
