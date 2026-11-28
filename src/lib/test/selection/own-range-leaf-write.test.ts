@@ -5,6 +5,7 @@
 // after lands the same, and no row typed over a whole text inside markers or under structure.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
+	blockHostAt,
 	destroyMountedEditors,
 	installLayoutStubs
 } from '#lib/test/harness/mount-editor.svelte.js';
@@ -58,7 +59,14 @@ const ROWS: [string, string, ReturnType<typeof at>, PresentationMode[], string][
 		'above\n\nQ'
 	],
 	['a range through a link’s close', '[a](b) c d\n', at([0], 2, 8), ['live'], '[a](b)Q d\n'],
-	['a word', 'alpha bravo charlie\n', at([0], 6, 11), ['live', 'source'], 'alpha Q charlie\n']
+	['a word', 'alpha bravo charlie\n', at([0], 6, 11), ['live', 'source'], 'alpha Q charlie\n'],
+	[
+		'a paragraph’s whole text between blocks',
+		'above\n\npara\n\nbelow\n',
+		at([1], 0, 4),
+		['live', 'source'],
+		'above\n\nQ\n\nbelow\n'
+	]
 ];
 
 const HOLDERS = [
@@ -84,7 +92,23 @@ describe('a key over a range inside one block writes what the block writes', () 
 
 /** A composition's place holds only where emptying the range keeps the block and shows no stray
  *  markers; the other rows keep the typing path's bytes, a known gap. */
-const COMPOSED = new Set(['a heading’s whole text', 'a range through a link’s close', 'a word']);
+const COMPOSED = new Set([
+	'a heading’s whole text',
+	'a range through a link’s close',
+	'a word',
+	'a paragraph’s whole text between blocks'
+]);
+
+// A pair of markers around nothing shows as its literal stars until the IME writes.
+it('a composition over a finger’s range over a bold’s whole text shows no empty pair', async () => {
+	const editor = mountCase('a **bold** c\n', 'live');
+	await editor.settle();
+	expect(await placeOwnedRange(editor, at([0], 4, 8))).toBe(true);
+	const el = document.activeElement as HTMLElement;
+	el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+	await editor.settle();
+	expect(editor.source()).not.toContain('****');
+});
 
 describe('a composition over a finger’s range inside one block lands where the key does', () => {
 	for (const [name, source, range, modes, typed] of ROWS.filter(([n]) => COMPOSED.has(n)))
@@ -96,4 +120,16 @@ describe('a composition over a finger’s range inside one block lands where the
 				await typeGesture(editor, { text: 'Q', route: 'composition' });
 				expect(editor.source()).toBe(typed);
 			});
+});
+
+describe('a marker key over a finger’s range over a whole paragraph', () => {
+	for (const [holder, place] of HOLDERS)
+		it(`makes the kind and names it, ${holder}`, async () => {
+			const editor = mountCase('para\n', 'live');
+			await editor.settle();
+			expect(await place(editor, at([0], 0, 4))).toBe(true);
+			await typeGesture(editor, { text: '>', route: 'hardware key' });
+			expect(editor.source()).toBe('>\n');
+			expect(blockHostAt(editor, [0]).getAttribute('data-kind-cue')).toBe('Quote');
+		});
 });

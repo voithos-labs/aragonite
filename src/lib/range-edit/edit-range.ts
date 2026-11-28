@@ -207,8 +207,10 @@ function edited(
 			return kept ? { ...named, leaf: edit.leaf } : named;
 		};
 		if (from === to) return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(gesture))));
-		if (inOneText(doc, from, to))
-			return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
+		if (inOneText(doc, from, to)) {
+			const into = typed ? { into: intoOf(doc, { at: from, holds: 'text' }) } : {};
+			return keepLastEnding({ ...inPlace(pasteAt(doc, from, to, pasted(TEXT))), ...into });
+		}
 		// Across blocks the paste lands at the place text over the range takes, and over one block held
 		// whole takes its place.
 		const { removed, after, place, opens } = textPlace(doc, range, typed ? '' : gesture.paste);

@@ -336,8 +336,8 @@ export interface BlockComponent {
 	/**
 	 * Type `text` at raw `offset` as a keystroke would: the write a typed character makes, with the
 	 * name a new block kind gets and the line an on-type completer finishes. The editor calls it
-	 * for a character typed over a range, once the range is removed. Resolves once it lands.
-	 * Omitted by a block that takes no text.
+	 * for a character typed over table cells it cleared, and to finish a line a key left over a
+	 * range. Resolves once it lands. Omitted by a block that takes no text.
 	 */
 	typeText?(text: string, offset: number): Promise<boolean>;
 	/**

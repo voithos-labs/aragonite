@@ -66,8 +66,8 @@ function breakCut(
 	const to = display.length - second.length;
 	if (!display.startsWith(first) || !display.endsWith(second) || to < first.length) return at;
 	if (!isBlankText(display.slice(first.length, to))) return at;
-	// A line that already ends in a hard break keeps it: its backslash isn't one this break writes.
-	if (/(^|[^\\])(\\\\)*\\$/.test(first)) return at;
+	// A line that already ends in a hard break keeps it, and the new one opens a line under it.
+	if (/(^|[^\\])(\\\\)*\\$/.test(first)) return { from: to, to };
 	return { from: first.length, to };
 }
 

@@ -41,6 +41,7 @@ const ROWS: [string, string, ReturnType<typeof caret>, PresentationMode[], strin
 		`*on${BR}eo*\ntwo\n`
 	],
 	['mid-line', 'one\ntwo\n', caret([0], 2), BOTH, `on${BR}e\ntwo\n`],
+	['CRLF lines', 'one\r\ntwo\r\n', caret([0], 3), BOTH, 'one\\\r\ntwo\r\n'],
 	[
 		'a rest a to-do’s next line would read as a heading',
 		'- [ ] **x**# y\n',
@@ -76,4 +77,15 @@ describe('a hard break cuts where a paragraph break cuts', () => {
 		await editor.settle();
 		expect(editor.instance.getSelection()).toEqual(caret([0], 5));
 	});
+
+	// Live puts the caret past the hidden break; source can hold it between `\` and the line ending.
+	for (const mode of BOTH)
+		it(`keeps a hard break the line already ends in, ${mode}`, async () => {
+			const editor = mountCase(`one${BR}two\n`, mode);
+			await editor.settle();
+			expect(await placeRange(editor, caret([0], 4))).toBe(true);
+			await pressHardwareKey(focused(), { key: 'Enter', shiftKey: true });
+			await editor.settle();
+			expect(editor.source()).toBe(`one${BR}${BR}two\n`);
+		});
 });
