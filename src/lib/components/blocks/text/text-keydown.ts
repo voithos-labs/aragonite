@@ -44,7 +44,7 @@ export function hardBreakAt(
 	const raw = node.raw.slice(0, cut.from) + node.raw.slice(cut.to);
 	const written = insertHardBreak(raw, cut.from, ending, getContentRange({ ...node, raw }));
 	// A break that opens an empty line of its own takes the caret onto that line.
-	const broken = cut.from === cut.to ? { ...written, caretOffset: cut.from } : written;
+	const broken = cut.ownLine ? { ...written, caretOffset: cut.from } : written;
 	// The line after the break must stay in the block: a rest that opens a block of its own there
 	// (a heading under a list item's text) keeps the break where the caret is.
 	const read = store.readWritten(broken.newRaw).children;
@@ -59,7 +59,7 @@ function breakCut(
 	owner: NodeView | undefined,
 	ending: LineEnding,
 	store: StoredAs
-): { from: number; to: number } {
+): { from: number; to: number; ownLine?: true } {
 	const at = { from: offset, to: offset };
 	const display = trimTrailingLineEnding(node.raw);
 	// Spaces between the caret and a line break inside the text end the line, as the caret does.
@@ -72,7 +72,7 @@ function breakCut(
 	if (!isBlankText(display.slice(first.length, to))) return at;
 	// A line that already ends in a hard break, a backslash or two spaces, keeps it, and the new
 	// one opens a line under it.
-	if (/(^|[^\\])(\\\\)*\\$| {2}$/.test(first)) return { from: to, to };
+	if (/(^|[^\\])(\\\\)*\\$| {2}$/.test(first)) return { from: to, to, ownLine: true };
 	return { from: first.length, to };
 }
 

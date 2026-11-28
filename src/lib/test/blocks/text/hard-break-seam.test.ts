@@ -78,6 +78,17 @@ describe('a hard break cuts where a paragraph break cuts', () => {
 		expect(editor.instance.getSelection()).toEqual(caret([0], 5));
 	});
 
+	// Miss-analysis: the caret row broke at a line's end only, never past a closer with text after.
+	it('leaves the caret before the text it broke onto, past a run’s close', async () => {
+		const editor = mountCase('a **bold** c\n', 'live');
+		await editor.settle();
+		expect(await placeRange(editor, caret([0], 8))).toBe(true);
+		await pressHardwareKey(focused(), { key: 'Enter', shiftKey: true });
+		await editor.settle();
+		expect(editor.source()).toBe(`a **bold**${BR} c\n`);
+		expect(editor.instance.getSelection()).toEqual(caret([0], 12));
+	});
+
 	// Live puts the caret past the hidden break; source can hold it between `\` and the line ending.
 	for (const mode of BOTH)
 		it(`keeps a hard break the line already ends in, ${mode}`, async () => {
