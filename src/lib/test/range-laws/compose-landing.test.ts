@@ -2,8 +2,8 @@
 // A composition over a range, mounted in both modes, lands where a key typed over the range does
 // where the range ended at a leaf's end or between blocks, and where Delete then a key do where it
 // ended inside a leaf's text, before the rest of that text. Either way it joins only text of the
-// leaf the range ended in. Under a container's opening row (a callout's, a details summary) and on
-// an item's emptied first row it keeps a blank line the key's text does not.
+// leaf the range ended in. Under a container's opening row (a callout's, a details summary) it keeps
+// a blank line the key's text does not.
 // Miss-analysis: the composition rows ran a range into a container's body alone, so none ended at a
 // table row's end, where a composition paired with Delete joined the next row's first cell.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -32,7 +32,7 @@ interface Row {
 	/** The document once `x` is in. */
 	typed: string;
 	/** A composition's, where the typing path it writes through keeps a blank line the key's text
-	 *  does not: under a container's opening row, on an item's emptied first row. */
+	 *  does not: under a container's opening row. */
 	composed?: string;
 }
 
@@ -86,8 +86,7 @@ const ROWS: Row[] = [
 		source: '- ***\n\n  para\n  > b\n',
 		select: { anchor: { path: [0, 0, 0], offset: 0 }, focus: { path: [0, 0, 1], offset: 4 } },
 		as: 'a typed key',
-		typed: '- x\n  > b\n',
-		composed: '- x\n\n  > b\n'
+		typed: '- x\n  > b\n'
 	},
 	{
 		name: 'out of a quote from a block taken whole, a heading after',
