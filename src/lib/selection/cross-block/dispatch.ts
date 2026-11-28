@@ -135,7 +135,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 			// Refused here, quietly: the range replace's own refusal warns, for a key let through.
 			if (!insertion || isReadingMode(ctx.reading.mode)) return true;
 			// A break input stands for its key, which a host may bind to a heading level.
-			if (insertion.kind === 'break' && bindsHeading(insertion.chord, ctx.commands))
+			if (insertion.kind === 'break' && bindsHeading(insertion.chord, ctx))
 				await headingOver(ctx, insertion.chord);
 			else await replaceRange(ctx, insertion);
 			return true;

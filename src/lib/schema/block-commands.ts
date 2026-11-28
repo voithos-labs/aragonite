@@ -23,6 +23,7 @@ import {
 	AFTER_RANGE_REMOVAL_COMMAND_IDS,
 	AFTER_SELECTION_REMOVAL_COMMAND_IDS,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
+	ONE_BLOCK_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
 	type GlobalCommandContext,
@@ -521,10 +522,10 @@ function leftUnderLiveRange(id: AnyCommandId, kind: AnyBlockKind, gates: Command
 	return commandOverRange(kind, id, gates.activation) !== undefined;
 }
 
-/** A link needs a range inside one block, so over one the editor holds it runs on that block, as
+/** A link or a heading level over a range the editor holds inside one block runs on that block, as
  *  over the browser's own range there. */
 export function runsOnItsBlock(id: AnyCommandId, rangeInOneBlock: boolean): boolean {
-	return rangeInOneBlock && RANGE_DECLINED_COMMAND_IDS.has(id);
+	return rangeInOneBlock && ONE_BLOCK_COMMAND_IDS.has(id);
 }
 
 /** A chord at a container, against its kind's bindings only: undo/redo and the range commands

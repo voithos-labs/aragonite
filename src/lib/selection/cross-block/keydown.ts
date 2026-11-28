@@ -6,7 +6,7 @@ import { kindOfPath, replaceRange, replaceWidget } from './range-replace';
 import { bindsAfterRemoval, cellLandingKind } from './range-removal';
 import { overRangeAnswer, placeKind, type PlaceAnswer } from './range-paste';
 import { headingOverRange } from './format-toggle';
-import type { HeadingLevelAt } from './format-range';
+import { spannedKinds, type HeadingLevelAt } from './format-range';
 import { headingLevelOf } from '../../tree-operations/heading-level';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
@@ -374,16 +374,23 @@ function containerBindsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 
 const HEADING = new Set<AnyCommandId>(['heading.cycle']);
 
-/** A chord some keymap binds to a heading level: taken even where no block the range covers takes
- *  a heading, as a format chord is. */
+/** A heading key over a range across blocks: inside one block the block runs it. */
 function isHeadingKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 	const chord = eventToChord(e);
-	return !!chord && bindsHeading(chord, reads.commands);
+	return !!chord && !reads.selection.rangeInOneBlock && bindsHeading(chord, reads);
 }
 
-/** Whether some keymap binds `chord` to a heading level, for a key or a break input it stands for. */
-export function bindsHeading(chord: string, commands: RangeKeyReads['commands']): boolean {
-	return chordsBoundTo(HEADING, commands).has(chord);
+/** Whether `chord` (a key's or a break input's) is a heading key over the range: a block it reaches
+ *  binds it to a heading, or none binds it at all, taken for nothing as a format chord is. */
+export function bindsHeading(chord: string, reads: RangeKeyReads): boolean {
+	const { anchor, focus } = reads.selection;
+	if (!anchor || !focus || !chordsBoundTo(HEADING, reads.commands).has(chord)) return false;
+	const doc = reads.getDoc();
+	const overrides = reads.commands.keybindingOverrides();
+	const commands = spannedKinds(doc, coverRange(doc, anchor, focus), reads.reading).map(
+		(kind) => resolveBinding(chord, kind, overrides, reads.commands.activation)?.command
+	);
+	return commands.includes('heading.cycle') || commands.every((command) => !command);
 }
 
 /** Each block the range reaches takes the level `chord` sets in its kind's keymap, so a kind that

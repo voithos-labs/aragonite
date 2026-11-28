@@ -137,6 +137,17 @@ export function planCrossBlockHeading(
 	return plan.writes.length === 0 ? null : plan;
 }
 
+/** The kind of each text block the range reaches, in document order. */
+export function spannedKinds(
+	doc: DocumentView,
+	range: CoveredRange,
+	reading: Reading
+): AnyBlockKind[] {
+	return spansInRange(doc, rangeCoverage(doc, range), reading).map(
+		(span) => blockNodeAt(doc, span.path)!.kind
+	);
+}
+
 /** A mark is active where every participating span carries it. All marks at once, since
  *  splitting the range into spans is the cost and a toolbar asks once per button. */
 export function crossBlockActiveFormats(

@@ -85,6 +85,13 @@ export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId
 	'link.openCard'
 ]);
 
+/** Commands that run on their block over the editor's range inside one block, as over the browser's
+ *  range there (`runsOnItsBlock`). */
+export const ONE_BLOCK_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
+	'link.openCard',
+	'heading.cycle'
+]);
+
 const LINE_BREAKS: CommandId[] = [
 	'block.split',
 	'block.hardBreak',

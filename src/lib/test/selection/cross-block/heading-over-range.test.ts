@@ -5,11 +5,19 @@
 // Miss-analysis: the heading level ran after the range's removal, and the rows pinned that removal
 // (`## ` where two blocks stood), so no row asked for the blocks' text to stay.
 import { tick } from 'svelte';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { makeKeydownEnv, press } from './keydown-env';
+import {
+	destroyMountedEditors,
+	installLayoutStubs
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { mountCase, placeOwnedRange } from '../../range-laws/gestures';
+
+beforeAll(installLayoutStubs);
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -199,6 +207,23 @@ describe('a heading key over a range re-kinds each text block it reaches', () =>
 		expect(env.source()).toBe('first\n\n***\n\nlast\n');
 		expect(env.selection.wholeUnitPath).toEqual([1]);
 	});
+
+	it.each([
+		['a paragraph', 'alpha beta\n', [0], '## alpha beta\n'],
+		['a to-do', '- [ ] alpha beta\n', [0, 0, 0], '- ## alpha beta\n']
+	])(
+		'over a finger’s word in %s the block runs the key, as on the browser’s range',
+		async (_, source, path, after) => {
+			const editor = mountCase(source, 'source');
+			await editor.settle();
+			const owned = await placeOwnedRange(editor, { anchor: at(path, 0), focus: at(path, 5) });
+			expect(owned).toBe(true);
+			await pressHardwareKey(document.activeElement as HTMLElement, { key: '2', ctrlKey: true });
+			await editor.settle();
+			expect(editor.source()).toBe(after);
+			await destroyMountedEditors();
+		}
+	);
 
 	it('a kind that binds the key to nothing keeps its kind', async () => {
 		const env = makeKeydownEnv(MIX, {

@@ -283,6 +283,23 @@ describe('a line break over a range goes by the command its key runs', () => {
 		expect(keyed).toBe('first\n\n***\n\n## body\n\n:::tip\n## inner\n:::\n');
 		expect(await pressed(source, select, binding, 'insertParagraph', false)).toBe(keyed);
 	});
+
+	// Miss-analysis: the rebound row covered a paragraph, so none saw a heading claim take a key the
+	// blocks it reached bind to a split.
+	it('Enter bound to a heading on paragraphs alone still breaks over a heading and code', async () => {
+		const source = '# head\n\n```\ncode\n```\n';
+		const select = range([0], [1], 6);
+		const binding: KeybindingOverride = {
+			kind: 'paragraph',
+			chord: 'Enter',
+			command: 'heading.cycle',
+			arg: 2
+		};
+		const keyed = await pressed(source, select, binding, { key: 'Enter' }, false);
+		expect(keyed).not.toBe(source);
+		expect(keyed).not.toContain('##');
+		expect(await pressed(source, select, binding, 'insertParagraph', false)).toBe(keyed);
+	});
 });
 
 // Miss-analysis: no row sent a break as input where its key runs nothing, or began at the first byte
